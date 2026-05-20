@@ -1,0 +1,31 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+build/
+dist/
+
+# Environment and local logs
+.env
+.env.*
+!.env.example
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Local editor/system files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+.claude/
+*.swp
+*.swo
+*~
+
+# Large local reference/export files
+*.zip
+*.mp4
+!starvl-app/public/bg-login.mp4
+*.pdf

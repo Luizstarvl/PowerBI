@@ -1,0 +1,314 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,300;0,400;0,500;0,600;0,700;1,600;1,700&display=swap');
+
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+
+html,body{
+    height:100%;
+    font-family:'Poppins','Segoe UI',sans-serif;
+    background:#08080d;
+    color:#fff;
+    overflow:hidden;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+}
+
+/* === CARD === */
+.card{
+    position:relative;
+    display:flex;
+    width:95vw;
+    height:92vh;
+    max-width:1340px;
+    overflow:hidden;
+    border-radius:18px;
+    /* Cor exata do fundo: RGB(16,19,26) */
+    background:#10131a;
+    /* Borda sutilíssima */
+    border:1px solid rgba(255,255,255,0.055);
+    box-shadow:0 20px 60px rgba(0,0,0,0.6);
+}
+
+/* === GRADIENTE VERMELHO (pixel-exact) ===
+   Mapeamento real:
+   - Canto (x=2%,y=95%): RGB(213,16,23)
+   - x=15%,y=95%: RGB(121,16,21) → ~57% do pico
+   - x=30%,y=95%: background → 0%
+   - x=2%,y=75%: RGB(90,18,22) → ~42% do pico
+   - x=2%,y=65%: RGB(38,19,23) → ~18%
+   - x=2%,y=50%: background → 0%
+*/
+.red-gradient{
+    position:absolute;
+    inset:0;
+    background:
+        radial-gradient(
+            ellipse 36% 58% at 0% 100%,
+            rgb(213,16,23)          0%,
+            rgba(190,14,21,0.82)   18%,
+            rgba(150,12,19,0.52)   38%,
+            rgba(90,10,15,0.20)    60%,
+            transparent            82%
+        );
+    pointer-events:none;
+    z-index:0;
+}
+
+/* === GLOW BRANCO DIFUSO atrás da logo ===
+   Pixel y=38%,x=22%: RGB(249,252,255) = logo branca
+   A área ao redor é ligeiramente mais clara do que #10131a
+*/
+.white-glow{
+    position:absolute;
+    top:0; left:0;
+    width:52%; height:100%;
+    background:radial-gradient(
+        ellipse 70% 55% at 46% 42%,
+        rgba(255,255,255,0.06)  0%,
+        rgba(255,255,255,0.022) 40%,
+        transparent             68%
+    );
+    pointer-events:none;
+    z-index:0;
+}
+
+/* === ARCO 1 — mais visível ===
+   Traçado pela imagem: curva de ~y=55% esq até y=100% dir-esq
+   Círculo de ~560px radius, centro offset bottom-left
+*/
+.arc1{
+    position:absolute;
+    width:580px; height:580px;
+    bottom:-218px; left:-55px;
+    border-radius:50%;
+    border:1.5px solid rgba(200,28,36,0.55);
+    pointer-events:none;
+    z-index:1;
+}
+
+/* === ARCO 2 — mais suave e largo === */
+.arc2{
+    position:absolute;
+    width:770px; height:770px;
+    bottom:-302px; left:-38px;
+    border-radius:50%;
+    border:1px solid rgba(200,28,36,0.18);
+    pointer-events:none;
+    z-index:1;
+}
+
+/* === LADO ESQUERDO === */
+.left{
+    flex:1.05;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    position:relative;
+    z-index:2;
+}
+
+.brand{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    text-align:center;
+}
+
+.logo{
+    width:385px;
+    max-width:76%;
+    height:auto;
+    margin-bottom:24px;
+    /* drop-shadow sutil para a logo branca */
+    filter:drop-shadow(0 0 2px rgba(255,255,255,0.08));
+}
+
+.tagline{
+    font-size:11.5px;
+    font-weight:400;
+    letter-spacing:6px;
+    color:#515165;
+    text-transform:uppercase;
+    font-family:'Poppins',sans-serif;
+}
+.tagline span{
+    color:#e01b22;
+    font-weight:500;
+}
+
+/* === LADO DIREITO === */
+.right{
+    flex:0.95;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    position:relative;
+    z-index:2;
+    padding:48px 58px 65px;
+}
+
+.box{
+    width:100%;
+    max-width:415px;
+}
+
+/* Título exato: "Bem-vindo" vermelho italic bold, "de volta!" branco bold */
+h1{
+    font-size:33px;
+    font-weight:700;
+    line-height:1.25;
+    margin-bottom:8px;
+    /* Não centralizado - alinhado à esquerda como no original */
+}
+h1 em{
+    /* Cor medida: RGB(224,27,34) = #e01b22 */
+    color:#e01b22;
+    font-style:italic;
+    font-weight:700;
+}
+
+.sub{
+    font-size:14px;
+    /* Cor medida: background é #10131a, texto sub está em cinza */
+    color:#646475;
+    font-weight:400;
+    margin-bottom:32px;
+}
+
+/* Campo */
+.field{margin-bottom:16px;}
+
+label{
+    display:block;
+    font-size:13px;
+    font-weight:600;
+    /* Cor medida pelo pixel do label "Usuário": branco levemente acinzentado */
+    color:#d8d8e8;
+    margin-bottom:8px;
+}
+
+.wrap{
+    position:relative;
+    display:flex;
+    align-items:center;
+    /* Input bg medido: RGB(22,25,32) = #161921 */
+    background:#161921;
+    /* Border: sutil, levemente visível */
+    border:1px solid rgba(255,255,255,0.09);
+    border-radius:11px;
+    transition:border-color .25s,box-shadow .25s;
+}
+.wrap:focus-within{
+    border-color:rgba(224,27,34,0.5);
+    box-shadow:0 0 0 3px rgba(224,27,34,0.07);
+}
+
+.ic{
+    position:absolute;
+    left:16px;
+    display:flex;
+    /* Ícone cinza: ~#484858 */
+    color:#484858;
+    pointer-events:none;
+}
+
+input{
+    width:100%;
+    height:52px;
+    padding:0 50px;
+    background:transparent;
+    border:none;
+    color:#fff;
+    font-size:14px;
+    font-family:'Poppins',sans-serif;
+    outline:none;
+}
+input::placeholder{
+    color:#484858;
+    font-size:13px;
+}
+/* Evitar fundo branco do autofill */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus{
+    -webkit-box-shadow:0 0 0 1000px #161921 inset;
+    -webkit-text-fill-color:#fff;
+    caret-color:#fff;
+}
+
+.eye{
+    position:absolute;
+    right:14px;
+    background:none;
+    border:none;
+    color:#484858;
+    cursor:pointer;
+    display:flex;
+    padding:4px;
+    transition:color .2s;
+}
+.eye:hover{color:#888;}
+
+.forgot{
+    text-align:right;
+    margin-top:8px;
+    margin-bottom:24px;
+}
+.forgot a{
+    font-size:13px;
+    /* Cor medida do link: ~#e01b22 */
+    color:#e01b22;
+    text-decoration:none;
+    font-weight:500;
+}
+.forgot a:hover{color:#f02535;text-decoration:underline;}
+
+/* Botão — cor medida: RGB(215,23,30) */
+.btn{
+    width:100%;
+    height:54px;
+    background:#d7171e;
+    color:#fff;
+    border:none;
+    border-radius:11px;
+    font-size:17px;
+    font-weight:700;
+    font-family:'Poppins',sans-serif;
+    cursor:pointer;
+    letter-spacing:.3px;
+    transition:filter .2s,box-shadow .2s,transform .15s;
+}
+.btn:hover{
+    filter:brightness(1.1);
+    box-shadow:0 5px 28px rgba(215,23,30,0.42);
+}
+.btn:active{transform:scale(0.988);}
+
+/* Footer */
+.footer{
+    position:absolute;
+    bottom:22px;
+    left:50%;
+    transform:translateX(-50%);
+    display:flex;
+    align-items:center;
+    gap:8px;
+    /* Cor footer: cinza bem escuro */
+    color:#383848;
+    font-size:12px;
+    white-space:nowrap;
+    z-index:3;
+}
+.footer svg{opacity:.5;}
+
+/* Responsive */
+@media(max-width:820px){
+    .card{flex-direction:column;width:100%;height:100%;border-radius:0;}
+    .left{flex:0 0 auto;padding:36px 20px 12px;}
+    .logo{width:200px;}
+    .tagline{font-size:10px;letter-spacing:4px;}
+    .right{flex:1;padding:16px 24px 60px;justify-content:flex-start;}
+    h1{font-size:24px;}
+    .footer{position:relative;bottom:auto;transform:none;margin-top:24px;justify-content:center;}
+}

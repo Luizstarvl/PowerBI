@@ -1,0 +1,25 @@
+select distinct                       
+(cast(v.vdadata as date)) as emissao,
+prodcodigo as cod_produto,            
+proddescricao as descricao_produto,   
+(select sum(entcpivol1 + entcpivol2 + entcpivol3) from entcpi t 
+left outer join entcpa r         
+on t.entcpicompra = r.entcpacodigo
+where (t.entcpiproduto = p.prodcodigo) and 
+(cast(r.entcpachegada as date) = (cast(v.vdadata as date)))) as COMPRA_110, 
+(select sum(e.pediqtd) from pede d
+left outer join pedi e 
+on d.pedecodigo = e.pedicodigopede
+where (e.pediproduto = p.prodcodigo) and 
+ (cast(d.pededatarecebimento as date) = (cast(v.vdadata as date)))) as COMPRA_220,
+(select sum(a.aferqtd) from afer a    
+where (a.aferproduto = p.prodcodigo) and 
+(cast(a.afermovimento as date) = (cast(v.vdadata as date)))) as AFERICAO,
+sum(i.vditqtd) as VENDA_110E220 
+from vda v                        
+left outer join vdit i       
+on v.vdacodigo = i.vditcodigovda
+left outer join prod p          
+on i.vditproduto = p.prodcodigo
+where (prodtipo = 1) and (v.vdastatus = 0) and (i.vditstatus = 0) and 
+(cast(v.vdadata as date) between :PdataI and :PdataF) group by 1,2,3,4,5,6
