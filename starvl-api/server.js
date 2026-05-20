@@ -29,6 +29,11 @@ app.use(cors({
 }));
 app.use(express.json());
 
+app.use('/api', (req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store');
+  next();
+});
+
 // Health check + DB connectivity test
 app.get('/api/health', async (req, res) => {
   try {
@@ -70,10 +75,20 @@ app.use('/api/estoque', estoqueRoutes);
 app.use('/api/relatorios', relatoriosRoutes);
 
 if (fs.existsSync(clientBuildPath)) {
-  app.use(express.static(clientBuildPath));
+  app.use(express.static(clientBuildPath, {
+    setHeaders(res, filePath) {
+      if (filePath.includes(`${path.sep}static${path.sep}`)) {
+        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        return;
+      }
+
+      res.setHeader('Cache-Control', 'no-store');
+    },
+  }));
 
   app.get('*', (req, res, next) => {
     if (req.path.startsWith('/api')) return next();
+    res.setHeader('Cache-Control', 'no-store');
     return res.sendFile(path.join(clientBuildPath, 'index.html'));
   });
 }
