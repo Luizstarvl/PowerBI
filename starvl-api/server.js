@@ -1,6 +1,8 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const fs = require('fs');
+const path = require('path');
 const pool = require('./db/pool');
 
 const dashboardRoutes = require('./routes/dashboard');
@@ -9,9 +11,22 @@ const estoqueRoutes = require('./routes/estoque');
 const relatoriosRoutes = require('./routes/relatorios');
 
 const app = express();
-const PORT = process.env.API_PORT || 3001;
+const PORT = process.env.PORT || process.env.API_PORT || 3001;
+const clientBuildPath = path.resolve(__dirname, '../starvl-app/build');
 
-app.use(cors({ origin: process.env.CORS_ORIGIN || 'http://localhost:3000' }));
+const corsOrigins = (process.env.CORS_ORIGIN || 'http://localhost:3000')
+  .split(',')
+  .map(origin => origin.trim())
+  .filter(Boolean);
+
+app.use(cors({
+  origin(origin, callback) {
+    if (!origin || process.env.NODE_ENV === 'production' || corsOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error(`Origin not allowed by CORS: ${origin}`));
+  },
+}));
 app.use(express.json());
 
 // Health check + DB connectivity test
@@ -53,6 +68,15 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/lmc', lmcRoutes);
 app.use('/api/estoque', estoqueRoutes);
 app.use('/api/relatorios', relatoriosRoutes);
+
+if (fs.existsSync(clientBuildPath)) {
+  app.use(express.static(clientBuildPath));
+
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api')) return next();
+    return res.sendFile(path.join(clientBuildPath, 'index.html'));
+  });
+}
 
 // 404 fallback
 app.use((req, res) => {

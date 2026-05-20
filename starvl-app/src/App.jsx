@@ -52,7 +52,8 @@ const TEST_CREDENTIALS = {
   password: '123456',
 };
 
-const API_URL = 'http://localhost:3001';
+const API_URL = process.env.REACT_APP_API_URL
+  || (window.location.hostname === 'localhost' ? 'http://localhost:3001' : '');
 
 function periodToApi(period) {
   return period.replace('/', ''); // "05/2026" → "052026"
