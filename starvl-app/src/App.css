@@ -668,6 +668,13 @@ body {
   color: #fff;
 }
 
+.sidebar-logo {
+  display: block;
+  width: 158px;
+  height: auto;
+  object-fit: contain;
+}
+
 .logo-dot-small {
   width: 8px;
   height: 8px;
@@ -1286,6 +1293,274 @@ body {
 
 .control-filter-select select option {
   background: #1a1a1a;
+}
+
+.control-print-overlay {
+  align-items: center;
+  padding: 24px;
+}
+
+.control-print-panel {
+  width: min(980px, 96vw);
+  max-height: 92vh;
+  overflow-y: auto;
+  background: linear-gradient(180deg, #111519 0%, #0b0e11 100%);
+  border: 1px solid #23282d;
+  border-radius: 10px;
+  box-shadow: 0 28px 70px rgba(0, 0, 0, 0.58);
+  color: #fff;
+}
+
+.control-print-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 22px;
+  border-bottom: 1px solid #20242a;
+}
+
+.control-print-title {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.control-print-title h3 {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: 0;
+  color: #f4f4f5;
+}
+
+.control-print-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  background: #151a1f;
+  border: 1px solid #242a31;
+  color: #E31E24;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.control-print-close {
+  width: 42px;
+  height: 42px;
+  border: none;
+  background: transparent;
+  color: #b9bec5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.control-print-close:hover {
+  color: #fff;
+}
+
+.control-print-body {
+  padding: 18px 22px;
+}
+
+.control-print-subtitle {
+  margin: 0 0 20px;
+  color: #a1a7af;
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.control-print-grid {
+  display: grid;
+  grid-template-columns: 1.08fr 1fr;
+  gap: 16px;
+}
+
+.control-print-section {
+  background: rgba(17, 21, 25, 0.76);
+  border: 1px solid #23282d;
+  border-radius: 10px;
+  padding: 20px;
+}
+
+.control-print-section-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+  color: #f2f2f3;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.control-print-section-title svg {
+  color: #E31E24;
+}
+
+.control-print-date-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.control-print-field {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: #15191e;
+  border: 1px solid #242a31;
+  border-radius: 9px;
+  padding: 16px;
+}
+
+.control-print-field > span {
+  color: #9aa0a8;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.control-print-input,
+.control-print-select {
+  height: 50px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #11161a;
+  border: 1px solid #272d34;
+  border-radius: 8px;
+  padding: 0 14px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.control-print-input:focus-within,
+.control-print-select:focus-within {
+  border-color: #E31E24;
+  box-shadow: 0 0 0 3px rgba(227, 30, 36, 0.12);
+}
+
+.control-print-input input,
+.control-print-select select {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #f5f5f5;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.control-print-input input::-webkit-calendar-picker-indicator {
+  opacity: 0;
+}
+
+.control-print-input svg,
+.control-print-select svg {
+  color: #E31E24;
+  flex-shrink: 0;
+}
+
+.control-print-select select {
+  appearance: none;
+}
+
+.control-print-select select option {
+  background: #15191e;
+}
+
+.control-print-hint {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 18px;
+  color: #9399a1;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.control-print-hint svg {
+  color: #747b84;
+}
+
+.control-print-option {
+  min-height: 76px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: #15191e;
+  border: 1px solid #272d34;
+  border-radius: 9px;
+  padding: 14px 18px;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.control-print-option + .control-print-option {
+  margin-top: 12px;
+}
+
+.control-print-option.selected,
+.control-print-option:hover {
+  border-color: rgba(227, 30, 36, 0.7);
+  background: #181d22;
+}
+
+.control-print-option svg {
+  color: #E31E24;
+  flex-shrink: 0;
+}
+
+.control-print-option div {
+  flex: 1;
+  min-width: 0;
+}
+
+.control-print-option strong,
+.control-print-option span {
+  display: block;
+}
+
+.control-print-option strong {
+  color: #f4f4f5;
+  font-size: 14px;
+  margin-bottom: 6px;
+}
+
+.control-print-option span {
+  color: #9ca2aa;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.control-print-option input {
+  width: 21px;
+  height: 21px;
+  accent-color: #E31E24;
+  flex-shrink: 0;
+}
+
+.control-print-product {
+  margin-top: 16px;
+}
+
+.control-print-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 18px;
+  padding: 22px;
+  border-top: 1px solid #20242a;
+}
+
+.control-print-cancel,
+.control-print-generate {
+  width: auto;
+  min-width: 160px;
+  justify-content: center;
+  padding: 14px 22px;
 }
 
 /* TABLE */
@@ -2132,7 +2407,7 @@ body {
 /* ADMIN PANEL */
 .admin-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr);
   gap: 24px;
 }
 
@@ -2416,6 +2691,28 @@ body {
 
   .logo-small {
     font-size: 20px;
+  }
+
+  .sidebar-logo {
+    width: 46px;
+  }
+
+  .control-print-grid,
+  .control-print-date-row {
+    grid-template-columns: 1fr;
+  }
+
+  .control-print-title h3 {
+    font-size: 17px;
+  }
+
+  .control-print-footer {
+    flex-direction: column-reverse;
+  }
+
+  .control-print-cancel,
+  .control-print-generate {
+    width: 100%;
   }
 
   .dashboard-grid {

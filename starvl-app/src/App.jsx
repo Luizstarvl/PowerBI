@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import logoStarvl from './logo-starvl.png';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Area, AreaChart } from 'recharts';
-import { Home, FileText, Users as UsersIcon, Sliders, Package, LogOut, Eye, Search, Plus, Edit2, Trash2, X, Calendar, TrendingUp, Droplet, DollarSign, Calculator, Bell, ChevronDown, Activity, Settings, Building2, Phone, Mail, MapPin, Hash, Clock, BarChart2, Layers, CircleDollarSign, UserCheck, UserPlus, AlertCircle, Globe, Camera, Building, Tag, RefreshCw, Shield, Database, ChevronRight } from 'lucide-react';
+import { Home, FileText, Users as UsersIcon, Sliders, Package, LogOut, Eye, Search, Plus, Edit2, Trash2, X, Calendar, TrendingUp, Droplet, DollarSign, Calculator, Bell, ChevronDown, Activity, Settings, Building2, Phone, Mail, MapPin, Hash, Clock, BarChart2, Layers, CircleDollarSign, UserCheck, UserPlus, AlertCircle, Globe, Camera, Building, Tag, RefreshCw, Shield, Database, ChevronRight, Filter, Printer } from 'lucide-react';
 import './App.css';
 
 // Mock data
@@ -242,8 +242,7 @@ const Sidebar = ({ currentPage, setCurrentPage, onLogout, isAdmin }) => {
     <div className="sidebar">
       <div className="sidebar-header">
         <div className="logo-container">
-          <h1 className="logo-small">STARVL</h1>
-          <div className="logo-dot-small"></div>
+          <img src={logoStarvl} alt="STARVL" className="sidebar-logo" />
         </div>
       </div>
 
@@ -1010,6 +1009,13 @@ const Reports = ({ selectedClient, selectedPeriod, clients }) => {
 // Control Component
 const Control = ({ lmcRegistros, lmcDiario, lmcControle, selectedPeriod, setSelectedPeriod }) => {
   const [selectedFuelId, setSelectedFuelId] = useState(null);
+  const [showPrintPanel, setShowPrintPanel] = useState(false);
+  const [printFilters, setPrintFilters] = useState({
+    dataInicial: '',
+    dataFinal: '',
+    tipo: 'resumido',
+    produto: 'all',
+  });
   const [fisicoEdits, setFisicoEdits] = useState(() => {
     try {
       return JSON.parse(localStorage.getItem('starvl:lmc-fisico') || '{}');
@@ -1040,6 +1046,37 @@ const Control = ({ lmcRegistros, lmcDiario, lmcControle, selectedPeriod, setSele
   const activeFuelId = fuels.some(f => f.codigo === selectedFuelId)
     ? selectedFuelId
     : (fuels[0]?.codigo ?? null);
+
+  function getPeriodDateRange() {
+    const [monthRaw, yearRaw] = (selectedPeriod || '').split('/');
+    const month = Number(monthRaw);
+    const year = Number(yearRaw);
+    if (!month || !year) return { dataInicial: '', dataFinal: '' };
+    const lastDay = new Date(year, month, 0).getDate();
+    return {
+      dataInicial: `${year}-${String(month).padStart(2, '0')}-01`,
+      dataFinal: `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`,
+    };
+  }
+
+  function openPrintPanel() {
+    const range = getPeriodDateRange();
+    setPrintFilters(prev => ({
+      ...prev,
+      dataInicial: prev.dataInicial || range.dataInicial,
+      dataFinal: prev.dataFinal || range.dataFinal,
+      produto: activeFuelId ? String(activeFuelId) : prev.produto,
+    }));
+    setShowPrintPanel(true);
+  }
+
+  function handleGeneratePrint() {
+    const productName = printFilters.produto === 'all'
+      ? 'Todos os produtos'
+      : (fuels.find(f => String(f.codigo) === printFilters.produto)?.nome || 'Produto selecionado');
+    window.alert(`Relatorio ${printFilters.tipo} pronto para impressao.\nProduto: ${productName}\nPeriodo: ${printFilters.dataInicial || '-'} ate ${printFilters.dataFinal || '-'}`);
+    setShowPrintPanel(false);
+  }
 
   function toUTCDateStr(ts) {
     const d = new Date(ts);
@@ -1183,9 +1220,9 @@ const Control = ({ lmcRegistros, lmcDiario, lmcControle, selectedPeriod, setSele
               </select>
             </div>
           </div>
-          <button type="button" className="btn-secondary" style={{ alignSelf: 'flex-end' }} onClick={() => window.alert('PDF em desenvolvimento.')}>
-            <FileText size={18} />
-            PDF
+          <button type="button" className="btn-secondary" style={{ alignSelf: 'flex-end' }} onClick={openPrintPanel}>
+            <Printer size={18} />
+            IMPRESSAO
           </button>
         </div>
       </div>
@@ -1259,6 +1296,121 @@ const Control = ({ lmcRegistros, lmcDiario, lmcControle, selectedPeriod, setSele
           </div>
         </>
       )}
+
+      {showPrintPanel && (
+        <ControlPrintPanel
+          fuels={fuels}
+          filters={printFilters}
+          setFilters={setPrintFilters}
+          onClose={() => setShowPrintPanel(false)}
+          onGenerate={handleGeneratePrint}
+        />
+      )}
+    </div>
+  );
+};
+
+const ControlPrintPanel = ({ fuels, filters, setFilters, onClose, onGenerate }) => {
+  const update = (field) => (e) => setFilters(prev => ({ ...prev, [field]: e.target.value }));
+
+  return (
+    <div className="modal-overlay control-print-overlay" onClick={onClose}>
+      <div className="control-print-panel" onClick={(e) => e.stopPropagation()}>
+        <div className="control-print-header">
+          <div className="control-print-title">
+            <span className="control-print-icon"><Filter size={25} /></span>
+            <h3>SELECIONE FILTROS PARA IMPRESSAO</h3>
+          </div>
+          <button type="button" className="control-print-close" onClick={onClose} aria-label="Fechar filtros">
+            <X size={28} />
+          </button>
+        </div>
+
+        <div className="control-print-body">
+          <p className="control-print-subtitle">Defina os filtros desejados para gerar a impressao do relatorio.</p>
+
+          <div className="control-print-grid">
+            <section className="control-print-section">
+              <div className="control-print-section-title">
+                <Calendar size={20} />
+                <span>PERIODO</span>
+              </div>
+              <div className="control-print-date-row">
+                <label className="control-print-field">
+                  <span>DATA INICIAL</span>
+                  <div className="control-print-input">
+                    <input type="date" value={filters.dataInicial} onChange={update('dataInicial')} />
+                    <Calendar size={19} />
+                  </div>
+                </label>
+                <label className="control-print-field">
+                  <span>DATA FINAL</span>
+                  <div className="control-print-input">
+                    <input type="date" value={filters.dataFinal} onChange={update('dataFinal')} />
+                    <Calendar size={19} />
+                  </div>
+                </label>
+              </div>
+              <div className="control-print-hint">
+                <AlertCircle size={16} />
+                <span>Selecione o periodo desejado para a impressao.</span>
+              </div>
+            </section>
+
+            <section className="control-print-section">
+              <div className="control-print-section-title">
+                <FileText size={20} />
+                <span>TIPO</span>
+              </div>
+              <label className={`control-print-option ${filters.tipo === 'resumido' ? 'selected' : ''}`}>
+                <FileText size={28} />
+                <div>
+                  <strong>RESUMIDO</strong>
+                  <span>Relatorio com informacoes resumidas.</span>
+                </div>
+                <input type="radio" name="tipoRelatorio" value="resumido" checked={filters.tipo === 'resumido'} onChange={update('tipo')} />
+              </label>
+              <label className={`control-print-option ${filters.tipo === 'detalhado' ? 'selected' : ''}`}>
+                <Layers size={28} />
+                <div>
+                  <strong>DETALHADO</strong>
+                  <span>Relatorio com informacoes detalhadas.</span>
+                </div>
+                <input type="radio" name="tipoRelatorio" value="detalhado" checked={filters.tipo === 'detalhado'} onChange={update('tipo')} />
+              </label>
+            </section>
+          </div>
+
+          <section className="control-print-section control-print-product">
+            <div className="control-print-section-title">
+              <Package size={20} />
+              <span>PRODUTO</span>
+            </div>
+            <div className="control-print-select">
+              <select value={filters.produto} onChange={update('produto')}>
+                <option value="all">Todos os produtos</option>
+                {fuels.map(f => <option key={f.codigo} value={String(f.codigo)}>{f.nome}</option>)}
+              </select>
+              <ChevronDown size={20} />
+            </div>
+            <div className="control-print-hint">
+              <AlertCircle size={16} />
+              <span>Selecione um produto para filtrar o relatorio.</span>
+            </div>
+          </section>
+        </div>
+
+        <div className="control-print-footer">
+          <button type="button" className="btn-secondary control-print-cancel" onClick={onClose}>
+            <X size={20} />
+            CANCELAR
+          </button>
+          <button type="button" className="btn-primary control-print-generate" onClick={onGenerate}>
+            <Printer size={20} />
+            GERAR IMPRESSAO
+          </button>
+        </div>
+      </div>
     </div>
   );
 };
@@ -1957,21 +2109,9 @@ const Parameters = () => {
 };
 
 // Admin Panel Component
-const AdminPanel = ({ clients, setClients, adminUsers, setAdminUsers }) => {
-  const [newUser, setNewUser] = useState({ usuario: '', senha: '', perfil: 'user' });
+const AdminPanel = ({ clients, setClients }) => {
   const [newClient, setNewClient] = useState({ id: '', nome: '', banco: '', codigoEmpresa: '', host: '', dbUser: '', dbPass: '' });
   const [showAdvanced, setShowAdvanced] = useState(false);
-
-  const handleAddUser = (e) => {
-    e.preventDefault();
-    if (!newUser.usuario.trim()) return;
-    setAdminUsers([...adminUsers, { id: Date.now(), ...newUser }]);
-    setNewUser({ usuario: '', senha: '', perfil: 'user' });
-  };
-
-  const handleRemoveUser = (id) => {
-    setAdminUsers(adminUsers.filter((u) => u.id !== id));
-  };
 
   const handleAddClient = (e) => {
     e.preventDefault();
@@ -1988,70 +2128,6 @@ const AdminPanel = ({ clients, setClients, adminUsers, setAdminUsers }) => {
   return (
     <div className="page-content">
       <div className="admin-grid">
-        {/* USUÁRIOS */}
-        <div className="admin-card">
-          <div className="admin-card-header">
-            <div className="admin-card-title">
-              <UsersIcon size={18} />
-              <span>USUÁRIOS</span>
-            </div>
-            <span className="admin-badge">{adminUsers.length}</span>
-          </div>
-
-          <div className="admin-table-wrap">
-            <table className="admin-table">
-              <thead>
-                <tr>
-                  <th>USUÁRIO</th>
-                  <th>PERFIL</th>
-                  <th>AÇÃO</th>
-                </tr>
-              </thead>
-              <tbody>
-                {adminUsers.map((u) => (
-                  <tr key={u.id}>
-                    <td><strong>{u.usuario}</strong></td>
-                    <td>
-                      <span className={`role-badge ${u.perfil}`}>{u.perfil}</span>
-                    </td>
-                    <td>
-                      <button type="button" className="btn-remove" onClick={() => handleRemoveUser(u.id)}>
-                        Remover
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <form className="admin-form" onSubmit={handleAddUser}>
-            <div className="admin-form-title">NOVO USUÁRIO</div>
-            <input
-              type="text"
-              placeholder="Nome de usuário"
-              value={newUser.usuario}
-              onChange={(e) => setNewUser({ ...newUser, usuario: e.target.value })}
-              required
-            />
-            <input
-              type="password"
-              placeholder="Senha"
-              value={newUser.senha}
-              onChange={(e) => setNewUser({ ...newUser, senha: e.target.value })}
-              required
-            />
-            <select
-              value={newUser.perfil}
-              onChange={(e) => setNewUser({ ...newUser, perfil: e.target.value })}
-            >
-              <option value="user">Usuário comum</option>
-              <option value="admin">Administrador</option>
-            </select>
-            <button type="submit" className="btn-success">Criar usuário</button>
-          </form>
-        </div>
-
         {/* CLIENTES / POSTOS */}
         <div className="admin-card">
           <div className="admin-card-header">
@@ -2272,7 +2348,7 @@ export default function App() {
         return <Parameters />;
       case 'admin':
         if (!isAdmin) return <Dashboard kpis={apiData.kpis} combustiveis={apiData.combustiveis} vendasDiarias={apiData.vendasDiarias} estoques={apiData.estoques} loading={apiData.loading} />;
-        return <AdminPanel clients={clients} setClients={setClients} adminUsers={adminUsers} setAdminUsers={setAdminUsers} />;
+        return <AdminPanel clients={clients} setClients={setClients} />;
       default:
         return <Dashboard kpis={apiData.kpis} combustiveis={apiData.combustiveis} vendasDiarias={apiData.vendasDiarias} estoques={apiData.estoques} loading={apiData.loading} />;
     }
