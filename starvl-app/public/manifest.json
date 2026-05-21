@@ -1,0 +1,16 @@
+{
+  "short_name": "STARVL",
+  "name": "STARVL - Gestao de Postos",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#0a0a0a",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/logo-starvl.png",
+      "sizes": "any",
+      "type": "image/png"
+    }
+  ]
+}
