@@ -143,10 +143,12 @@ router.get('/vendas-diarias', async (req, res) => {
          COALESCE(SUM(vdit.vdittotal), 0) AS valor_total
        FROM vda
        JOIN vdit ON vdit.vditcodigovda = vda.vdacodigo AND vdit.vditempresa = vda.vdaempresa
+       JOIN prod ON prod.prodcodigo = vdit.vditproduto
        WHERE vda.vdaempresa = $1
          AND vda.vdamovimento >= $2
          AND vda.vdamovimento <= $3
          AND (vda.vdastatus IS NULL OR vda.vdastatus = 0)
+         AND prod.prodtipo = 1
        GROUP BY vda.vdamovimento
        ORDER BY dia`,
       [empresa, dataInicio, dataFim]
@@ -159,6 +161,60 @@ router.get('/vendas-diarias', async (req, res) => {
     })));
   } catch (err) {
     console.error('Error in /dashboard/vendas-diarias:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/dashboard/vendas-horarias?empresa=7432&periodo=042026
+router.get('/vendas-horarias', async (req, res) => {
+  const empresa = parseInt(req.query.empresa);
+  const periodo = req.query.periodo;
+
+  if (!empresa || !periodo || periodo.length !== 6) {
+    return res.status(400).json({ error: 'empresa and periodo (MMYYYY) required' });
+  }
+
+  const mes = parseInt(periodo.substring(0, 2));
+  const ano = parseInt(periodo.substring(2, 6));
+  const diasNoMes = new Date(ano, mes, 0).getDate();
+  const dataInicio = `${ano}-${String(mes).padStart(2, '0')}-01`;
+  const dataFim = `${ano}-${String(mes).padStart(2, '0')}-${diasNoMes}`;
+
+  try {
+    const result = await query(
+      `SELECT
+         EXTRACT(HOUR FROM vda.vdadata)::int AS hora,
+         COUNT(DISTINCT vda.vdacodigo) AS qtd_vendas,
+         COALESCE(SUM(vdit.vdittotal), 0) AS valor_total
+       FROM vda
+       JOIN vdit ON vdit.vditcodigovda = vda.vdacodigo AND vdit.vditempresa = vda.vdaempresa
+       JOIN prod ON prod.prodcodigo = vdit.vditproduto
+       WHERE vda.vdaempresa = $1
+         AND vda.vdamovimento >= $2
+         AND vda.vdamovimento <= $3
+         AND (vda.vdastatus IS NULL OR vda.vdastatus = 0)
+         AND prod.prodtipo = 1
+       GROUP BY EXTRACT(HOUR FROM vda.vdadata)::int
+       ORDER BY hora`,
+      [empresa, dataInicio, dataFim]
+    );
+
+    const byHour = {};
+    result.rows.forEach(r => {
+      byHour[Number(r.hora)] = {
+        qtdVendas: parseInt(r.qtd_vendas),
+        valorTotal: parseFloat(r.valor_total),
+      };
+    });
+
+    res.json(Array.from({ length: 24 }, (_, hora) => ({
+      hora,
+      label: `${String(hora).padStart(2, '0')}h`,
+      qtdVendas: byHour[hora]?.qtdVendas || 0,
+      valorTotal: byHour[hora]?.valorTotal || 0,
+    })));
+  } catch (err) {
+    console.error('Error in /dashboard/vendas-horarias:', err.message);
     res.status(500).json({ error: err.message });
   }
 });

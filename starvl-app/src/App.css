@@ -474,6 +474,11 @@ body {
   background: #121212;
 }
 
+.topbar-month {
+  min-width: 120px;
+  color-scheme: dark;
+}
+
 .btn-refresh {
   display: flex;
   align-items: center;
@@ -1236,6 +1241,18 @@ body {
   gap: 12px;
   padding-top: 8px;
   border-top: 1px solid #2a2a2a;
+}
+
+.params-admin-section {
+  margin-top: 28px;
+}
+
+.params-admin-header {
+  margin-bottom: 14px;
+}
+
+.admin-panel-content {
+  width: 100%;
 }
 
 @media (max-width: 1024px) {

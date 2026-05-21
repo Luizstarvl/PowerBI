@@ -1,17 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import logoStarvl from './logo-starvl.png';
-import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Area, AreaChart } from 'recharts';
-import { Home, FileText, Users as UsersIcon, Sliders, Package, LogOut, Eye, Search, Plus, Edit2, Trash2, X, Calendar, TrendingUp, Droplet, DollarSign, Calculator, Bell, ChevronDown, Activity, Settings, Building2, Phone, Mail, MapPin, Hash, Clock, BarChart2, Layers, CircleDollarSign, UserCheck, UserPlus, AlertCircle, Globe, Camera, Building, Tag, RefreshCw, Shield, Database, ChevronRight, Filter, Printer } from 'lucide-react';
+import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Area, AreaChart, LabelList } from 'recharts';
+import { Home, FileText, Users as UsersIcon, Sliders, Package, LogOut, Eye, Search, Plus, Edit2, Trash2, X, Calendar, TrendingUp, Droplet, DollarSign, Calculator, Bell, ChevronDown, Activity, Settings, Building2, Phone, Mail, MapPin, Hash, Clock, BarChart2, Layers, CircleDollarSign, UserCheck, UserPlus, AlertCircle, Globe, Camera, Building, Tag, RefreshCw, Database, ChevronRight, Filter, Printer } from 'lucide-react';
 import './App.css';
 
 // Mock data
-const salesData = [
-  { name: 'Produto 1', value: 950 },
-  { name: 'Produto 2', value: 742 },
-  { name: 'Produto 3', value: 623 },
-  { name: 'Produto 4', value: 512 },
-];
-
 const hourlyData = [
   { hour: '00h', value: 150 },
   { hour: '04h', value: 200 },
@@ -36,21 +29,6 @@ const monthlyData = Array.from({ length: 30 }, (_, i) => ({
   day: i + 1,
   value: 2000 + Math.random() * 1500
 }));
-
-
-const usersData = [
-  { id: 1, name: 'Alice Mendes', email: 'alicemendes@gmail.com', role: 'Administrador', status: 'Ativo', lastAccess: '03/03/2023', avatar: '👩' },
-  { id: 2, name: 'Bruno Costa', email: 'brunocosta@gmail.com', role: 'Editor', status: 'Inativo', lastAccess: '03/03/2023', avatar: '👨' },
-  { id: 3, name: 'Clara Nunes', email: 'claranunes@gmail.com', role: 'Visualizador', status: 'Ativo', lastAccess: '03/03/2023', avatar: '👩' },
-  { id: 4, name: 'Arice Mendes', email: 'brunocosta@gmail.com', role: 'Editor', status: 'Inativo', lastAccess: '03/03/2023', avatar: '👨' },
-  { id: 5, name: 'Clara Mendes', email: 'claranunes@gmail.com', role: 'Visualizador', status: 'Pendente', lastAccess: '03/09/2024', avatar: '👩' },
-];
-
-
-const TEST_CREDENTIALS = {
-  username: 'admin',
-  password: '123456',
-};
 
 const API_URL = process.env.REACT_APP_API_URL
   || (window.location.hostname === 'localhost' ? 'http://localhost:3001' : '');
@@ -83,6 +61,18 @@ function generatePeriods() {
 function getCurrentPeriod() {
   const d = new Date();
   return `${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+}
+
+function periodToMonthInput(period) {
+  const [month, year] = String(period || '').split('/');
+  if (!month || !year) return '';
+  return `${year}-${month}`;
+}
+
+function monthInputToPeriod(value) {
+  const [year, month] = String(value || '').split('-');
+  if (!month || !year) return getCurrentPeriod();
+  return `${month}/${year}`;
 }
 
 const PERIODS = generatePeriods();
@@ -227,7 +217,7 @@ const Login = ({ onLogin, adminUsers }) => {
 };
 
 // Sidebar Component
-const Sidebar = ({ currentPage, setCurrentPage, onLogout, isAdmin }) => {
+const Sidebar = ({ currentPage, setCurrentPage, onLogout }) => {
   const menuItems = [
     { icon: Home,      label: 'DASHBOARD',      page: 'dashboard' },
     { icon: FileText,  label: 'RELATÓRIOS',      page: 'reports'   },
@@ -235,7 +225,6 @@ const Sidebar = ({ currentPage, setCurrentPage, onLogout, isAdmin }) => {
     { icon: Sliders,   label: 'CONTROLE',        page: 'control'   },
     { icon: Package,   label: 'POSIÇÃO ESTOQUE', page: 'stock'     },
     { icon: Settings,  label: 'PARÂMETROS',      page: 'params'    },
-    ...(isAdmin ? [{ icon: Shield, label: 'PAINEL ADMIN', page: 'admin' }] : []),
   ];
 
   return (
@@ -275,10 +264,9 @@ const PAGE_TITLES = {
   stock: 'Posição de Estoque',
   users: 'Gerenciamento de Usuários',
   params: 'Parâmetros',
-  admin: 'Painel Administrativo',
 };
 
-const TopBar = ({ currentPage, setCurrentPage, isConnected, clients, selectedClient, setSelectedClient, selectedPeriod, setSelectedPeriod, onRefresh, onLogout, isAdmin, loggedUser }) => {
+const TopBar = ({ currentPage, setCurrentPage, isConnected, clients, selectedClient, setSelectedClient, selectedPeriod, setSelectedPeriod, onRefresh, onLogout, loggedUser }) => {
   const [showAdminMenu, setShowAdminMenu] = useState(false);
   const now = new Date();
   const dateStr = now.toLocaleDateString('pt-BR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
@@ -287,7 +275,7 @@ const TopBar = ({ currentPage, setCurrentPage, isConnected, clients, selectedCli
     <div className="top-bar">
       <div className="top-bar-left">
         <span className="top-bar-title">{PAGE_TITLES[currentPage] || 'Dashboard'}</span>
-        <span className="top-bar-date">{dateStr}</span>
+        {currentPage === 'dashboard' && <span className="top-bar-date">{dateStr}</span>}
       </div>
 
       <div className="top-bar-center">
@@ -306,15 +294,12 @@ const TopBar = ({ currentPage, setCurrentPage, isConnected, clients, selectedCli
           ))}
         </select>
 
-        <select
-          className="topbar-select"
-          value={selectedPeriod}
-          onChange={(e) => setSelectedPeriod(e.target.value)}
-        >
-          {PERIODS.map((p) => (
-            <option key={p} value={p}>{p}</option>
-          ))}
-        </select>
+        <input
+          className="topbar-select topbar-month"
+          type="month"
+          value={periodToMonthInput(selectedPeriod)}
+          onChange={(e) => setSelectedPeriod(monthInputToPeriod(e.target.value))}
+        />
 
         <button type="button" className="btn-refresh" onClick={onRefresh}>
           <RefreshCw size={15} />
@@ -333,16 +318,6 @@ const TopBar = ({ currentPage, setCurrentPage, isConnected, clients, selectedCli
           <ChevronDown size={14} />
           {showAdminMenu && (
             <div className="admin-dropdown" onClick={(e) => e.stopPropagation()}>
-              {isAdmin && (
-                <button
-                  type="button"
-                  className="admin-dropdown-item"
-                  onClick={() => { setCurrentPage('admin'); setShowAdminMenu(false); }}
-                >
-                  <Shield size={15} />
-                  Painel Admin
-                </button>
-              )}
               <button
                 type="button"
                 className="admin-dropdown-item"
@@ -369,28 +344,69 @@ const TopBar = ({ currentPage, setCurrentPage, isConnected, clients, selectedCli
 };
 
 // Dashboard Component
-const Dashboard = ({ kpis, combustiveis, vendasDiarias, estoques, loading }) => {
+const Dashboard = ({ kpis, vendasDiarias, vendasHorarias, lmcControle, estoques, loading }) => {
   const [selectedFuelDonut, setSelectedFuelDonut] = useState(null);
 
   const fmt = (n, d = 2) => (n || 0).toLocaleString('pt-BR', { minimumFractionDigits: d, maximumFractionDigits: d });
+  const fmtCompactCurrency = (value) => {
+    const n = Number(value || 0);
+    if (Math.abs(n) >= 1000000) return `R$ ${(n / 1000000).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} mi`;
+    if (Math.abs(n) >= 1000) return `R$ ${(n / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} mil`;
+    return `R$ ${n.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}`;
+  };
+  const fmtCompactLiters = (value) => {
+    const n = Number(value || 0);
+    if (Math.abs(n) >= 1000) return `${(n / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} mil L`;
+    return `${n.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} L`;
+  };
 
   const estoquesList = estoques || [];
   const activeFuelEstoque = estoquesList.find(e => e.produtoCodigo === selectedFuelDonut) || estoquesList[0];
   const fuelPct = activeFuelEstoque ? Math.round(activeFuelEstoque.percentualOcupacao) : 0;
 
-  const topFuelsChart = combustiveis && combustiveis.length > 0
-    ? combustiveis.slice(0, 4).map(f => ({ name: f.nome.split(' ')[0], value: parseFloat(f.litros.toFixed(2)) }))
-    : salesData;
+  const comprasByFuel = {};
+  (lmcControle || []).forEach(row => {
+    const name = (row.descricaoProduto || 'Produto').split(' ').slice(0, 2).join(' ');
+    if (!comprasByFuel[name]) comprasByFuel[name] = { name, compra110: 0, compra220: 0 };
+    comprasByFuel[name].compra110 += Number(row.compra110 || 0);
+    comprasByFuel[name].compra220 += Number(row.compra220 || 0);
+  });
+
+  const comprasChart = Object.values(comprasByFuel)
+    .map(r => ({ ...r, total: r.compra110 + r.compra220 }))
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 6);
+
+  const comprasFallback = [{ name: 'Sem dados', compra110: 0, compra220: 0, total: 0 }];
 
   const monthlyChart = vendasDiarias && vendasDiarias.length > 0
     ? vendasDiarias.map(r => ({ day: new Date(r.dia).getUTCDate(), value: r.valorTotal }))
     : monthlyData;
 
+  const hourlyChart = vendasHorarias && vendasHorarias.length > 0
+    ? vendasHorarias.map(r => ({ hour: r.label, value: Number(r.valorTotal || 0) }))
+    : hourlyData;
+
+  const weeklyMap = [
+    { name: 'Semana 1', value: 0 },
+    { name: 'Semana 2', value: 0 },
+    { name: 'Semana 3', value: 0 },
+    { name: 'Semana 4', value: 0 },
+  ];
+  monthlyChart.forEach(row => {
+    const weekIndex = Math.min(3, Math.floor((Number(row.day || 1) - 1) / 7));
+    weeklyMap[weekIndex].value += Number(row.value || 0);
+  });
+  const weeklyChart = weeklyMap.some(r => r.value > 0) ? weeklyMap : weeklyData.map((r, i) => ({ name: `Semana ${i + 1}`, value: r.value })).slice(0, 4);
+
+  const monthlyTotal = monthlyChart.reduce((sum, row) => sum + Number(row.value || 0), 0);
+  const purchasesChartData = comprasChart.length > 0 ? comprasChart : comprasFallback;
+
   const dynamicKpis = kpis ? [
-    { label: 'Total Vendas', value: (kpis.vendas?.total || 0).toLocaleString('pt-BR'), icon: DollarSign, sub: 'R$ ' + fmt(kpis.vendas?.valor) },
-    { label: 'Litros Vendidos', value: fmt(kpis.combustivel?.litros) + ' L', icon: Droplet, sub: 'R$ ' + fmt(kpis.combustivel?.valor) },
-    { label: 'Compras c/ NF (110)', value: (kpis.compras110?.total || 0) + ' NFs', icon: FileText, sub: 'R$ ' + fmt(kpis.compras110?.valor) },
-    { label: 'Aferições', value: (kpis.afericoes?.total || 0).toLocaleString('pt-BR'), icon: Activity, sub: fmt(kpis.afericoes?.qtd) + ' L' },
+    { label: 'Total Vendas', value: 'R$ ' + fmt(kpis.vendas?.valor), icon: DollarSign, sub: `${(kpis.vendas?.total || 0).toLocaleString('pt-BR')} vendas` },
+    { label: 'Litros Vendidos', value: 'R$ ' + fmt(kpis.combustivel?.valor), icon: Droplet, sub: fmt(kpis.combustivel?.litros) + ' L' },
+    { label: 'Compras c/ NF (110)', value: 'R$ ' + fmt(kpis.compras110?.valor), icon: FileText, sub: `${(kpis.compras110?.total || 0).toLocaleString('pt-BR')} NFs` },
+    { label: 'Aferições', value: fmt(kpis.afericoes?.qtd) + ' L', icon: Activity, sub: `${(kpis.afericoes?.total || 0).toLocaleString('pt-BR')} aferições` },
   ] : [
     { label: 'Carregando...', value: '—', icon: DollarSign, sub: '' },
     { label: 'Carregando...', value: '—', icon: Droplet, sub: '' },
@@ -421,11 +437,11 @@ const Dashboard = ({ kpis, combustiveis, vendasDiarias, estoques, loading }) => 
       <div className="dashboard-grid">
         <div className="chart-card large">
           <div className="card-header">
-            <h3>COMBUSTÍVEIS MAIS VENDIDOS</h3>
+            <h3>COMPRAS 110 / 220 POR COMBUSTÍVEL</h3>
             <span style={{ fontSize: '12px', color: '#666' }}>litros no período</span>
           </div>
           <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={topFuelsChart}>
+            <BarChart data={purchasesChartData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#2a2a2a" />
               <XAxis dataKey="name" stroke="#666" />
               <YAxis stroke="#666" />
@@ -434,7 +450,13 @@ const Dashboard = ({ kpis, combustiveis, vendasDiarias, estoques, loading }) => 
                 labelStyle={{ color: '#fff' }}
                 formatter={(v) => [fmt(v) + ' L', 'Litros']}
               />
-              <Bar dataKey="value" fill="#E31E24" radius={[8, 8, 0, 0]} />
+              <Legend />
+              <Bar dataKey="compra110" name="Compra 110" fill="#E31E24" radius={[8, 8, 0, 0]}>
+                <LabelList dataKey="compra110" position="top" formatter={(v) => Number(v) > 0 ? fmtCompactLiters(v) : ''} fill="#fff" fontSize={11} />
+              </Bar>
+              <Bar dataKey="compra220" name="Compra 220" fill="#f97316" radius={[8, 8, 0, 0]}>
+                <LabelList dataKey="compra220" position="top" formatter={(v) => Number(v) > 0 ? fmtCompactLiters(v) : ''} fill="#fff" fontSize={11} />
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -493,75 +515,87 @@ const Dashboard = ({ kpis, combustiveis, vendasDiarias, estoques, loading }) => 
 
         <div className="chart-card">
           <div className="card-header">
-            <h3>GRÁFICO 1 VENDAS P/ HORA</h3>
+            <h3>VENDAS P/HORA</h3>
           </div>
           <div className="metric-display">
             <div className="metric-icon-box"><Clock size={20} /></div>
             <div className="metric-info">
-              <div className="metric-label">Total de Cupons</div>
+              <div className="metric-label">Valor de combustível vendido</div>
               <div className="metric-value">
-                {kpis ? (kpis.vendas?.total || 0).toLocaleString('pt-BR') : '—'}
+                {kpis ? fmtCompactCurrency(kpis.combustivel?.valor) : '—'}
                 <span className="trend positive"><TrendingUp size={16} />no período</span>
               </div>
-              <div className="metric-sublabel">total de vendas</div>
+              <div className="metric-sublabel">quebra por hora</div>
             </div>
           </div>
           <ResponsiveContainer width="100%" height={150}>
-            <AreaChart data={hourlyData}>
-              <defs>
-                <linearGradient id="colorHourly" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#E31E24" stopOpacity={0.8}/>
-                  <stop offset="95%" stopColor="#E31E24" stopOpacity={0}/>
-                </linearGradient>
-              </defs>
-              <Area type="monotone" dataKey="value" stroke="#E31E24" fillOpacity={1} fill="url(#colorHourly)" />
-              <XAxis dataKey="hour" stroke="#666" fontSize={12} />
-            </AreaChart>
+            <BarChart data={hourlyChart}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#222" vertical={false} />
+              <XAxis dataKey="hour" stroke="#666" fontSize={11} interval={3} />
+              <YAxis hide />
+              <Tooltip
+                contentStyle={{ background: '#1a1a1a', border: '1px solid #E31E24' }}
+                labelStyle={{ color: '#fff' }}
+                formatter={(v) => [fmtCompactCurrency(v), 'Valor']}
+              />
+              <Bar dataKey="value" fill="#E31E24" radius={[6, 6, 0, 0]}>
+                <LabelList dataKey="value" position="top" formatter={(v) => Number(v) > 0 ? fmtCompactCurrency(v) : ''} fill="#fff" fontSize={9} />
+              </Bar>
+            </BarChart>
           </ResponsiveContainer>
         </div>
 
         <div className="chart-card">
           <div className="card-header">
-            <h3>GRÁFICO 2 VENDAS P/ SEMANA</h3>
+            <h3>VENDAS P/SEMANA</h3>
           </div>
           <div className="metric-display">
             <div className="metric-icon-box"><Calendar size={20} /></div>
             <div className="metric-info">
-              <div className="metric-label">Litros Vendidos</div>
+              <div className="metric-label">Valor de combustível vendido</div>
               <div className="metric-value">
-                {kpis ? ((kpis.combustivel?.litros || 0) / 1000).toLocaleString('pt-BR', { minimumFractionDigits: 1 }) + ' mil L' : '—'}
+                {fmtCompactCurrency(monthlyTotal)}
                 <span className="trend positive"><TrendingUp size={16} />no período</span>
               </div>
-              <div className="metric-sublabel">total combustíveis</div>
+              <div className="metric-sublabel">Semana 1, 2, 3 e 4</div>
             </div>
           </div>
           <ResponsiveContainer width="100%" height={150}>
-            <AreaChart data={weeklyData}>
+            <AreaChart data={weeklyChart}>
               <defs>
                 <linearGradient id="colorWeekly" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#E31E24" stopOpacity={0.8}/>
                   <stop offset="95%" stopColor="#E31E24" stopOpacity={0}/>
                 </linearGradient>
               </defs>
-              <Area type="monotone" dataKey="value" stroke="#E31E24" fillOpacity={1} fill="url(#colorWeekly)" />
-              <XAxis dataKey="day" stroke="#666" fontSize={12} />
+              <CartesianGrid strokeDasharray="3 3" stroke="#222" vertical={false} />
+              <XAxis dataKey="name" stroke="#666" fontSize={11} />
+              <YAxis hide />
+              <Tooltip
+                contentStyle={{ background: '#1a1a1a', border: '1px solid #E31E24' }}
+                labelStyle={{ color: '#fff' }}
+                formatter={(v) => [fmtCompactCurrency(v), 'Valor']}
+              />
+              <Area type="monotone" dataKey="value" stroke="#E31E24" fillOpacity={1} fill="url(#colorWeekly)">
+                <LabelList dataKey="value" position="top" formatter={(v) => Number(v) > 0 ? fmtCompactCurrency(v) : ''} fill="#fff" fontSize={10} />
+              </Area>
             </AreaChart>
           </ResponsiveContainer>
         </div>
 
         <div className="chart-card">
           <div className="card-header">
-            <h3>GRÁFICO 3 VENDAS P/ MÊS</h3>
+            <h3>VENDAS P/MÊS</h3>
           </div>
           <div className="metric-display">
             <div className="metric-icon-box"><BarChart2 size={20} /></div>
             <div className="metric-info">
-              <div className="metric-label">Receita Mensal</div>
+              <div className="metric-label">Valor de combustível vendido</div>
               <div className="metric-value">
-                {kpis ? 'R$ ' + ((kpis.vendas?.valor || 0) / 1000).toLocaleString('pt-BR', { minimumFractionDigits: 0 }) + ' mil' : '—'}
+                {fmtCompactCurrency(monthlyTotal)}
                 <span className="trend positive"><TrendingUp size={16} />no período</span>
               </div>
-              <div className="metric-sublabel">valor total vendas</div>
+              <div className="metric-sublabel">total mensal de combustível</div>
             </div>
           </div>
           <ResponsiveContainer width="100%" height={150}>
@@ -572,8 +606,17 @@ const Dashboard = ({ kpis, combustiveis, vendasDiarias, estoques, loading }) => 
                   <stop offset="95%" stopColor="#E31E24" stopOpacity={0}/>
                 </linearGradient>
               </defs>
-              <Area type="monotone" dataKey="value" stroke="#E31E24" fillOpacity={1} fill="url(#colorMonthly)" />
+              <CartesianGrid strokeDasharray="3 3" stroke="#222" vertical={false} />
+              <YAxis hide />
+              <Area type="monotone" dataKey="value" stroke="#E31E24" fillOpacity={1} fill="url(#colorMonthly)">
+                <LabelList dataKey="value" position="top" formatter={(v) => Number(v) > 0 ? fmtCompactCurrency(v) : ''} fill="#fff" fontSize={9} />
+              </Area>
               <XAxis dataKey="day" stroke="#666" fontSize={12} interval={4} />
+              <Tooltip
+                contentStyle={{ background: '#1a1a1a', border: '1px solid #E31E24' }}
+                labelStyle={{ color: '#fff' }}
+                formatter={(v) => [fmtCompactCurrency(v), 'Valor']}
+              />
             </AreaChart>
           </ResponsiveContainer>
         </div>
@@ -1430,14 +1473,15 @@ const StockPosition = ({ estoques, projecao, loading }) => {
   const mediaDiaria = activeProjecao?.mediaDiariaLitros || 0;
 
   const hoje = new Date();
-  const projecaoChart = Array.from({ length: 14 }, (_, i) => {
+  const projecaoChart = Array.from({ length: 8 }, (_, i) => {
     const d = new Date(hoje);
-    d.setDate(d.getDate() + (i - 6));
+    d.setDate(d.getDate() + i);
     const label = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
+    const estoqueProjetado = Math.max(0, (activeFuel?.estoqueTotal || 0) - (mediaDiaria * i));
     return {
       date: label,
-      real: i < 7 ? mediaDiaria : null,
-      projection: i >= 6 ? mediaDiaria : null,
+      estoque: estoqueProjetado,
+      consumoAcumulado: mediaDiaria * i,
     };
   });
 
@@ -1504,15 +1548,17 @@ const StockPosition = ({ estoques, projecao, loading }) => {
             <LineChart data={projecaoChart}>
               <CartesianGrid strokeDasharray="3 3" stroke="#2a2a2a" />
               <XAxis dataKey="date" stroke="#666" tick={{ fontSize: 11 }} />
-              <YAxis stroke="#666" label={{ value: 'L/DIA', angle: -90, position: 'insideLeft', fill: '#666' }} />
+              <YAxis stroke="#666" label={{ value: 'ESTOQUE (L)', angle: -90, position: 'insideLeft', fill: '#666' }} />
               <Tooltip
                 contentStyle={{ background: '#1a1a1a', border: '1px solid #E31E24' }}
                 labelStyle={{ color: '#fff' }}
-                formatter={(v) => v ? [fmt2(v) + ' L', ''] : ['—', '']}
+                formatter={(v, name) => [fmt2(v) + ' L', name === 'estoque' ? 'Estoque projetado' : 'Consumo acumulado']}
               />
               <Legend />
-              <Line type="monotone" dataKey="real" stroke="#E31E24" strokeWidth={3} name="CONSUMO MÉDIO" dot={{ fill: '#E31E24', r: 4 }} connectNulls={false} />
-              <Line type="monotone" dataKey="projection" stroke="#E31E24" strokeWidth={3} strokeDasharray="5 5" name="PROJEÇÃO" dot={{ fill: '#E31E24', r: 4 }} connectNulls={false} />
+              <Line type="monotone" dataKey="estoque" stroke="#E31E24" strokeWidth={3} name="ESTOQUE PROJETADO" dot={{ fill: '#E31E24', r: 4 }}>
+                <LabelList dataKey="estoque" position="top" formatter={(v) => fmt2(v) + ' L'} fill="#fff" fontSize={10} />
+              </Line>
+              <Line type="monotone" dataKey="consumoAcumulado" stroke="#f97316" strokeWidth={2} strokeDasharray="5 5" name="CONSUMO ACUMULADO" dot={{ fill: '#f97316', r: 3 }} />
             </LineChart>
           </ResponsiveContainer>
 
@@ -1961,7 +2007,7 @@ const UserEditModal = ({ user, mode, onClose, onSave }) => {
 };
 
 // Parameters Component
-const Parameters = () => {
+const Parameters = ({ clients, setClients, isAdmin }) => {
   const [form, setForm] = useState({
     codigo: '001',
     razaoSocial: 'STARVL SISTEMAS LTDA',
@@ -2104,6 +2150,15 @@ const Parameters = () => {
           </button>
         </div>
       </form>
+
+      {isAdmin && (
+        <div className="params-admin-section">
+          <div className="page-header params-admin-header">
+            <h2>CLIENTES / POSTOS</h2>
+          </div>
+          <AdminPanel clients={clients} setClients={setClients} />
+        </div>
+      )}
     </div>
   );
 };
@@ -2126,7 +2181,7 @@ const AdminPanel = ({ clients, setClients }) => {
   };
 
   return (
-    <div className="page-content">
+    <div className="admin-panel-content">
       <div className="admin-grid">
         {/* CLIENTES / POSTOS */}
         <div className="admin-card">
@@ -2248,6 +2303,7 @@ export default function App() {
     kpis: null,
     combustiveis: [],
     vendasDiarias: [],
+    vendasHorarias: [],
     lmcRegistros: null,
     lmcDiario: null,
     lmcControle: null,
@@ -2269,17 +2325,19 @@ export default function App() {
       fetch(`${API_URL}/api/dashboard/kpis?empresa=${empresa}&periodo=${periodo}`).then(r => r.json()),
       fetch(`${API_URL}/api/dashboard/combustiveis?empresa=${empresa}&periodo=${periodo}`).then(r => r.json()),
       fetch(`${API_URL}/api/dashboard/vendas-diarias?empresa=${empresa}&periodo=${periodo}`).then(r => r.json()),
+      fetch(`${API_URL}/api/dashboard/vendas-horarias?empresa=${empresa}&periodo=${periodo}`).then(r => r.json()),
       fetch(`${API_URL}/api/lmc?empresa=${empresa}&periodo=${periodo}`).then(r => r.json()),
       fetch(`${API_URL}/api/lmc/diario?empresa=${empresa}&periodo=${periodo}`).then(r => r.json()),
       fetch(`${API_URL}/api/lmc/controle?empresa=${empresa}&periodo=${periodo}`).then(r => r.json()),
       fetch(`${API_URL}/api/estoque?empresa=${empresa}`).then(r => r.json()),
       fetch(`${API_URL}/api/estoque/projecao?empresa=${empresa}&dias=7`).then(r => r.json()),
-    ]).then(([kpis, combustiveis, vendasDiarias, lmcResp, lmcDiario, lmcControle, estoqueResp, projecaoResp]) => {
+    ]).then(([kpis, combustiveis, vendasDiarias, vendasHorarias, lmcResp, lmcDiario, lmcControle, estoqueResp, projecaoResp]) => {
       setIsConnected(true);
       setApiData({
         kpis: kpis.error ? null : kpis,
         combustiveis: Array.isArray(combustiveis) ? combustiveis : [],
         vendasDiarias: Array.isArray(vendasDiarias) ? vendasDiarias : [],
+        vendasHorarias: Array.isArray(vendasHorarias) ? vendasHorarias : [],
         lmcRegistros: lmcResp.registros || [],
         lmcDiario: lmcDiario || null,
         lmcControle: lmcControle.registros || [],
@@ -2307,17 +2365,19 @@ export default function App() {
       fetch(`${API_URL}/api/dashboard/kpis?empresa=${empresa}&periodo=${periodo}`).then(r => r.json()),
       fetch(`${API_URL}/api/dashboard/combustiveis?empresa=${empresa}&periodo=${periodo}`).then(r => r.json()),
       fetch(`${API_URL}/api/dashboard/vendas-diarias?empresa=${empresa}&periodo=${periodo}`).then(r => r.json()),
+      fetch(`${API_URL}/api/dashboard/vendas-horarias?empresa=${empresa}&periodo=${periodo}`).then(r => r.json()),
       fetch(`${API_URL}/api/lmc?empresa=${empresa}&periodo=${periodo}`).then(r => r.json()),
       fetch(`${API_URL}/api/lmc/diario?empresa=${empresa}&periodo=${periodo}`).then(r => r.json()),
       fetch(`${API_URL}/api/lmc/controle?empresa=${empresa}&periodo=${periodo}`).then(r => r.json()),
       fetch(`${API_URL}/api/estoque?empresa=${empresa}`).then(r => r.json()),
       fetch(`${API_URL}/api/estoque/projecao?empresa=${empresa}&dias=7`).then(r => r.json()),
-    ]).then(([kpis, combustiveis, vendasDiarias, lmcResp, lmcDiario, lmcControle, estoqueResp, projecaoResp]) => {
+    ]).then(([kpis, combustiveis, vendasDiarias, vendasHorarias, lmcResp, lmcDiario, lmcControle, estoqueResp, projecaoResp]) => {
       setIsConnected(true);
       setApiData({
         kpis: kpis.error ? null : kpis,
         combustiveis: Array.isArray(combustiveis) ? combustiveis : [],
         vendasDiarias: Array.isArray(vendasDiarias) ? vendasDiarias : [],
+        vendasHorarias: Array.isArray(vendasHorarias) ? vendasHorarias : [],
         lmcRegistros: lmcResp.registros || [],
         lmcDiario: lmcDiario || null,
         lmcControle: lmcControle.registros || [],
@@ -2335,7 +2395,7 @@ export default function App() {
   const renderPage = () => {
     switch (currentPage) {
       case 'dashboard':
-        return <Dashboard kpis={apiData.kpis} combustiveis={apiData.combustiveis} vendasDiarias={apiData.vendasDiarias} estoques={apiData.estoques} loading={apiData.loading} />;
+        return <Dashboard kpis={apiData.kpis} vendasDiarias={apiData.vendasDiarias} vendasHorarias={apiData.vendasHorarias} lmcControle={apiData.lmcControle} estoques={apiData.estoques} loading={apiData.loading} />;
       case 'reports':
         return <Reports selectedClient={selectedClient} selectedPeriod={selectedPeriod} clients={clients} />;
       case 'control':
@@ -2345,12 +2405,11 @@ export default function App() {
       case 'users':
         return <Users adminUsers={adminUsers} setAdminUsers={setAdminUsers} isAdmin={isAdmin} />;
       case 'params':
-        return <Parameters />;
+        return <Parameters clients={clients} setClients={setClients} isAdmin={isAdmin} />;
       case 'admin':
-        if (!isAdmin) return <Dashboard kpis={apiData.kpis} combustiveis={apiData.combustiveis} vendasDiarias={apiData.vendasDiarias} estoques={apiData.estoques} loading={apiData.loading} />;
-        return <AdminPanel clients={clients} setClients={setClients} />;
+        return <Parameters clients={clients} setClients={setClients} isAdmin={isAdmin} />;
       default:
-        return <Dashboard kpis={apiData.kpis} combustiveis={apiData.combustiveis} vendasDiarias={apiData.vendasDiarias} estoques={apiData.estoques} loading={apiData.loading} />;
+        return <Dashboard kpis={apiData.kpis} vendasDiarias={apiData.vendasDiarias} vendasHorarias={apiData.vendasHorarias} lmcControle={apiData.lmcControle} estoques={apiData.estoques} loading={apiData.loading} />;
     }
   };
 
@@ -2364,7 +2423,6 @@ export default function App() {
         currentPage={currentPage}
         setCurrentPage={setCurrentPage}
         onLogout={() => { setIsLoggedIn(false); setLoggedUser(null); }}
-        isAdmin={isAdmin}
       />
       <main className="main-content">
         <TopBar
@@ -2378,7 +2436,6 @@ export default function App() {
           setSelectedPeriod={setSelectedPeriod}
           onRefresh={handleRefresh}
           onLogout={() => { setIsLoggedIn(false); setLoggedUser(null); }}
-          isAdmin={isAdmin}
           loggedUser={loggedUser}
         />
         {renderPage()}
