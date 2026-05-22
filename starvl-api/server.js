@@ -19,9 +19,24 @@ const corsOrigins = (process.env.CORS_ORIGIN || 'http://localhost:3000')
   .map(origin => origin.trim())
   .filter(Boolean);
 
+function isAllowedRenderOrigin(origin) {
+  try {
+    const { hostname } = new URL(origin);
+    return hostname === 'onrender.com' || hostname.endsWith('.onrender.com');
+  } catch {
+    return false;
+  }
+}
+
 app.use(cors({
   origin(origin, callback) {
-    if (!origin || process.env.NODE_ENV === 'production' || corsOrigins.includes(origin)) {
+    if (
+      !origin ||
+      process.env.NODE_ENV === 'production' ||
+      process.env.CORS_ORIGIN === '*' ||
+      corsOrigins.includes(origin) ||
+      isAllowedRenderOrigin(origin)
+    ) {
       return callback(null, true);
     }
     return callback(new Error(`Origin not allowed by CORS: ${origin}`));
