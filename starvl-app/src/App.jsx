@@ -2182,6 +2182,9 @@ const StockPosition = ({ estoques, projecao, loading, selectedClient, clients })
   const consumoProjetado = activeProjecao?.consumoProjetado ?? mediaDiaria * projectionDays;
   const compraProjetada = activeProjecao?.compraProjetada ?? consumoProjetado;
   const necessidadeCompra = activeProjecao?.necessidadeCompra ?? Math.max(consumoProjetado - (activeFuel?.estoqueTotal || 0), 0);
+  const estoqueAtualProjetado = activeFuel?.estoqueTotal || activeProjecao?.estoqueAtual || 0;
+  const estoqueFinalProjetado = Math.max(0, estoqueAtualProjetado - consumoProjetado);
+  const autonomiaDias = mediaDiaria > 0 ? Math.floor(estoqueAtualProjetado / mediaDiaria) : null;
 
   useEffect(() => {
     const client = (clients || []).find(c => c.nome === selectedClient) || (clients || [])[0];
@@ -2211,15 +2214,21 @@ const StockPosition = ({ estoques, projecao, loading, selectedClient, clients })
   }, [clients, selectedClient, projectionStart, projectionEnd, projectionDays]);
 
   const hoje = new Date();
-  const projecaoChart = Array.from({ length: projectionDays + 1 }, (_, i) => {
+  const projectionSteps = [...new Set([
+    0,
+    Math.max(1, Math.round(projectionDays / 2)),
+    projectionDays,
+  ])].sort((a, b) => a - b);
+  const projecaoChart = projectionSteps.map((dayOffset) => {
     const d = new Date(hoje);
-    d.setDate(d.getDate() + i);
-    const label = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
-    const estoqueProjetado = Math.max(0, (activeFuel?.estoqueTotal || 0) - (mediaDiaria * i));
+    d.setDate(d.getDate() + dayOffset);
+    const label = dayOffset === 0
+      ? 'Hoje'
+      : `+${dayOffset} dias`;
+    const estoqueProjetado = Math.max(0, estoqueAtualProjetado - (mediaDiaria * dayOffset));
     return {
       date: label,
       estoque: estoqueProjetado,
-      consumoAcumulado: mediaDiaria * i,
     };
   });
 
@@ -2309,21 +2318,31 @@ const StockPosition = ({ estoques, projecao, loading, selectedClient, clients })
           <div className="projection-subtitle old-projection-subtitle">
             BASE: MÉDIA DOS ÚLTIMOS 7 DIAS
           </div>
-          <ResponsiveContainer width="100%" height={300}>
+          <div className="projection-summary">
+            <div>
+              <span>ESTOQUE ATUAL</span>
+              <strong>{fmt2(estoqueAtualProjetado)} L</strong>
+            </div>
+            <div>
+              <span>APOS {projectionDays} DIAS</span>
+              <strong>{fmt2(estoqueFinalProjetado)} L</strong>
+            </div>
+            <div>
+              <span>COMPRA SUGERIDA</span>
+              <strong>{fmt2(compraProjetada)} L</strong>
+            </div>
+          </div>
+          <ResponsiveContainer width="100%" height={230}>
             <LineChart data={projecaoChart}>
               <CartesianGrid strokeDasharray="3 3" stroke="#2a2a2a" />
               <XAxis dataKey="date" stroke="#666" tick={{ fontSize: 11 }} />
-              <YAxis stroke="#666" label={{ value: 'ESTOQUE (L)', angle: -90, position: 'insideLeft', fill: '#666' }} />
+              <YAxis stroke="#666" tick={{ fontSize: 11 }} width={52} />
               <Tooltip
                 contentStyle={{ background: '#1a1a1a', border: '1px solid #E31E24' }}
                 labelStyle={{ color: '#fff' }}
-                formatter={(v, name) => [fmt2(v) + ' L', name === 'estoque' ? 'Estoque projetado' : 'Consumo acumulado']}
+                formatter={(v) => [fmt2(v) + ' L', 'Estoque estimado']}
               />
-              <Legend />
-              <Line type="monotone" dataKey="estoque" stroke="#E31E24" strokeWidth={3} name="ESTOQUE PROJETADO" dot={{ fill: '#E31E24', r: 4 }}>
-                <LabelList dataKey="estoque" position="top" formatter={(v) => fmt2(v) + ' L'} fill="#fff" fontSize={10} />
-              </Line>
-              <Line type="monotone" dataKey="consumoAcumulado" stroke="#f97316" strokeWidth={2} strokeDasharray="5 5" name="CONSUMO ACUMULADO" dot={{ fill: '#f97316', r: 3 }} />
+              <Line type="monotone" dataKey="estoque" stroke="#E31E24" strokeWidth={3} name="ESTOQUE ESTIMADO" dot={{ fill: '#E31E24', r: 5 }} />
             </LineChart>
           </ResponsiveContainer>
 
@@ -2335,8 +2354,8 @@ const StockPosition = ({ estoques, projecao, loading, selectedClient, clients })
                 <div className="metric-unit">LITROS</div>
               </div>
               <div className="metric-item">
-                <div className="metric-label">DIAS DE ESTOQUE</div>
-                <div className="metric-number">{activeProjecao ? (activeProjecao.diasRestantes > 999 ? '∞' : activeProjecao.diasRestantes) : '—'}</div>
+                <div className="metric-label">AUTONOMIA DO ESTOQUE</div>
+                <div className="metric-number">{autonomiaDias === null ? '—' : autonomiaDias}</div>
                 <div className="metric-unit">DIAS</div>
               </div>
             </div>
