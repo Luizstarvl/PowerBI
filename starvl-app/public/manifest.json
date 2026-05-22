@@ -2,15 +2,36 @@
   "short_name": "STARVL",
   "name": "STARVL - Gestao de Postos",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#0a0a0a",
   "theme_color": "#0a0a0a",
   "orientation": "portrait",
+  "categories": ["business", "productivity"],
   "icons": [
     {
-      "src": "/logo-starvl.png",
-      "sizes": "any",
-      "type": "image/png"
+      "src": "/icons/starvl-black-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/starvl-black-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/starvl-black-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/starvl-black-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }
