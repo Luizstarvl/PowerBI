@@ -1192,7 +1192,7 @@ const Control = ({ lmcRegistros, lmcDiario, lmcControle, selectedPeriod, setSele
       const fechamento = lmc?.fechamento || 0;
       const fisicoInput = fisicoEdits[fisicoKey] ?? formatInputNumber(fechamento);
       const fisico = parseInputNumber(fisicoInput);
-      const perdas = fechamento - fisico;
+      const perdas = fisico - fechamento;
 
       return {
         key: dayKey,
