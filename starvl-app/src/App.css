@@ -1473,10 +1473,6 @@ body {
   font-weight: 700;
 }
 
-.control-print-input input::-webkit-calendar-picker-indicator {
-  opacity: 0;
-}
-
 .control-print-input svg,
 .control-print-select svg {
   color: #E31E24;
@@ -1564,6 +1560,87 @@ body {
 
 .control-print-product {
   margin-top: 16px;
+}
+
+.control-print-format {
+  margin-top: 16px;
+}
+
+.control-print-format-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.control-print-format-option {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: #15191e;
+  border: 1px solid #272d34;
+  border-radius: 8px;
+  color: #f4f4f5;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.control-print-format-option.selected,
+.control-print-format-option:hover {
+  border-color: rgba(227, 30, 36, 0.7);
+  background: #181d22;
+}
+
+.control-print-format-option input {
+  accent-color: #E31E24;
+}
+
+.projection-controls {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.projection-controls label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.projection-controls span {
+  color: #777;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.6px;
+}
+
+.projection-controls input,
+.projection-controls select {
+  width: 100%;
+  min-height: 38px;
+  background: #111;
+  border: 1px solid #333;
+  border-radius: 8px;
+  color: #fff;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 8px 10px;
+  outline: none;
+}
+
+.projection-controls input:focus,
+.projection-controls select:focus {
+  border-color: #E31E24;
+  box-shadow: 0 0 0 3px rgba(227, 30, 36, 0.12);
+}
+
+.old-projection-subtitle {
+  display: none;
 }
 
 .control-print-footer {
@@ -3184,5 +3261,13 @@ body {
 
   .control-print-title h3 {
     font-size: 15px;
+  }
+
+  .control-print-format-row {
+    grid-template-columns: 1fr;
+  }
+
+  .projection-controls {
+    grid-template-columns: 1fr;
   }
 }

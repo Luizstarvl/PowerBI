@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import logoStarvl from './logo-starvl.png';
+import * as XLSX from 'xlsx';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Area, AreaChart, LabelList } from 'recharts';
 import { Home, FileText, Users as UsersIcon, Sliders, Package, LogOut, Eye, Search, Plus, Edit2, Trash2, X, Calendar, TrendingUp, Droplet, DollarSign, Calculator, Bell, ChevronDown, Activity, Settings, Building2, Phone, Mail, MapPin, Hash, Clock, BarChart2, Layers, CircleDollarSign, UserCheck, UserPlus, AlertCircle, Globe, Camera, Building, Tag, RefreshCw, Database, ChevronRight, Filter, Printer } from 'lucide-react';
 import './App.css';
@@ -630,23 +631,495 @@ const fmtNum = (v, dec = 0) => Number(v || 0).toLocaleString('pt-BR', { minimumF
 const fmtBRL = (v) => Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('pt-BR') : '—';
 
+function getUTCDateKey(ts) {
+  const d = new Date(ts);
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
+}
+
+function formatDayBR(ts) {
+  const d = new Date(ts);
+  return `${String(d.getUTCDate()).padStart(2, '0')}/${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+}
+
+function formatFullDateBR(dateKey) {
+  if (!dateKey) return '-';
+  const [year, month, day] = dateKey.split('-');
+  return `${day}/${month}/${year}`;
+}
+
+function parseControlNumber(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return 0;
+  const normalized = raw.includes(',') ? raw.replace(/\./g, '').replace(',', '.') : raw;
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function formatControlInputNumber(value) {
+  return String(Number((value || 0).toFixed(2)));
+}
+
+function getPeriodDateRange(period) {
+  const [monthRaw, yearRaw] = (period || '').split('/');
+  const month = Number(monthRaw);
+  const year = Number(yearRaw);
+  if (!month || !year) return { dataInicial: '', dataFinal: '' };
+  const lastDay = new Date(year, month, 0).getDate();
+  return {
+    dataInicial: `${year}-${String(month).padStart(2, '0')}-01`,
+    dataFinal: `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`,
+  };
+}
+
+function getPeriodsBetweenDates(dataInicial, dataFinal) {
+  if (!dataInicial || !dataFinal) return [];
+  const [startYear, startMonth] = dataInicial.split('-').map(Number);
+  const [endYear, endMonth] = dataFinal.split('-').map(Number);
+  if (!startYear || !startMonth || !endYear || !endMonth) return [];
+
+  const periods = [];
+  let year = startYear;
+  let month = startMonth;
+  while (year < endYear || (year === endYear && month <= endMonth)) {
+    periods.push({
+      api: `${String(month).padStart(2, '0')}${year}`,
+      label: `${String(month).padStart(2, '0')}/${year}`,
+    });
+    month += 1;
+    if (month > 12) {
+      month = 1;
+      year += 1;
+    }
+  }
+  return periods;
+}
+
+async function fetchControlDataForDateRange(empresa, dataInicial, dataFinal) {
+  const periods = getPeriodsBetweenDates(dataInicial, dataFinal);
+  const batches = await Promise.all(periods.map(async period => {
+    const [lmcResp, diarioResp, controleResp] = await Promise.all([
+      fetch(`${API_URL}/api/lmc?empresa=${empresa}&periodo=${period.api}`).then(r => r.json()),
+      fetch(`${API_URL}/api/lmc/diario?empresa=${empresa}&periodo=${period.api}`).then(r => r.json()),
+      fetch(`${API_URL}/api/lmc/controle?empresa=${empresa}&periodo=${period.api}`).then(r => r.json()),
+    ]);
+    if (lmcResp.error) throw new Error(lmcResp.error);
+    if (diarioResp.error) throw new Error(diarioResp.error);
+    if (controleResp.error) throw new Error(controleResp.error);
+    return {
+      period,
+      lmcRegistros: lmcResp.registros || [],
+      lmcDiario: diarioResp || null,
+      lmcControle: controleResp.registros || [],
+    };
+  }));
+
+  const fisicoPeriodByDay = {};
+  const lmcRegistros = [];
+  const lmcControle = [];
+  const lmcDiario = { comprasDiarias: [], vendasDiarias: [], afericoesDiarias: [] };
+
+  batches.forEach(batch => {
+    batch.lmcRegistros.forEach(row => {
+      fisicoPeriodByDay[getUTCDateKey(row.data)] = batch.period.label;
+      lmcRegistros.push(row);
+    });
+    batch.lmcControle.forEach(row => {
+      fisicoPeriodByDay[getUTCDateKey(row.emissao)] = batch.period.label;
+      lmcControle.push(row);
+    });
+    if (batch.lmcDiario) {
+      lmcDiario.comprasDiarias.push(...(batch.lmcDiario.comprasDiarias || []));
+      lmcDiario.vendasDiarias.push(...(batch.lmcDiario.vendasDiarias || []));
+      lmcDiario.afericoesDiarias.push(...(batch.lmcDiario.afericoesDiarias || []));
+    }
+  });
+
+  return { lmcRegistros, lmcControle, lmcDiario, fisicoPeriodByDay };
+}
+
+function getControlFuels(lmcRegistros = [], lmcControle = []) {
+  const fuels = [];
+  const seenFuels = new Set();
+  (lmcControle || []).forEach(r => {
+    const codigo = Number(r.codProduto);
+    if (!seenFuels.has(codigo)) {
+      seenFuels.add(codigo);
+      fuels.push({ codigo, nome: r.descricaoProduto });
+    }
+  });
+  (lmcRegistros || []).forEach(r => {
+    const codigo = Number(r.combustivelCodigo);
+    if (!seenFuels.has(codigo)) {
+      seenFuels.add(codigo);
+      fuels.push({ codigo, nome: r.combustivelNome });
+    }
+  });
+  return fuels.sort((a, b) => String(a.nome).localeCompare(String(b.nome), 'pt-BR'));
+}
+
+function buildControlReportRows({
+  lmcRegistros = [],
+  lmcControle = [],
+  lmcDiario = null,
+  selectedPeriod = '',
+  fisicoPeriodByDay = {},
+  fisicoEdits = {},
+  aberturaEdits = {},
+  produto = 'all',
+  dataInicial = '',
+  dataFinal = '',
+}) {
+  const fuels = getControlFuels(lmcRegistros, lmcControle);
+  const fuelNameById = {};
+  fuels.forEach(f => { fuelNameById[f.codigo] = f.nome; });
+
+  const lmcByKey = {};
+  (lmcRegistros || []).forEach(r => {
+    const produtoId = Number(r.combustivelCodigo);
+    const dayKey = getUTCDateKey(r.data);
+    lmcByKey[`${produtoId}|${dayKey}`] = r;
+  });
+
+  const controleByKey = {};
+  (lmcControle || []).forEach(r => {
+    const produtoId = Number(r.codProduto);
+    const dayKey = getUTCDateKey(r.emissao);
+    controleByKey[`${produtoId}|${dayKey}`] = r;
+  });
+
+  const fallbackCompras110Map = {};
+  const fallbackCompras220Map = {};
+  if ((!lmcControle || lmcControle.length === 0) && lmcDiario) {
+    (lmcDiario.comprasDiarias || []).forEach(r => {
+      const produtoId = Number(r.produto);
+      const dayKey = getUTCDateKey(r.dia);
+      const key = `${produtoId}|${dayKey}`;
+      if (r.tipo === '110') fallbackCompras110Map[key] = (fallbackCompras110Map[key] || 0) + Number(r.qtdComprada || 0);
+      else fallbackCompras220Map[key] = (fallbackCompras220Map[key] || 0) + Number(r.qtdComprada || 0);
+    });
+  }
+
+  const selectedProduct = produto && produto !== 'all' ? Number(produto) : null;
+  const rowKeys = new Set();
+  (lmcRegistros || []).forEach(r => {
+    const produtoId = Number(r.combustivelCodigo);
+    if (selectedProduct && produtoId !== selectedProduct) return;
+    rowKeys.add(`${produtoId}|${getUTCDateKey(r.data)}`);
+  });
+  (lmcControle || []).forEach(r => {
+    const produtoId = Number(r.codProduto);
+    if (selectedProduct && produtoId !== selectedProduct) return;
+    rowKeys.add(`${produtoId}|${getUTCDateKey(r.emissao)}`);
+  });
+
+  const rowsBase = Array.from(rowKeys)
+    .map(key => {
+      const [produtoIdRaw, dayKey] = key.split('|');
+      const produtoId = Number(produtoIdRaw);
+      if (dataInicial && dayKey < dataInicial) return null;
+      if (dataFinal && dayKey > dataFinal) return null;
+
+      const lmc = lmcByKey[key];
+      const movimento = controleByKey[key];
+      const fisicoPeriod = fisicoPeriodByDay[dayKey] || selectedPeriod;
+      const fisicoKey = `${fisicoPeriod}|${produtoId}|${dayKey}`;
+      const aberturaKey = `${fisicoPeriod}|${produtoId}|${dayKey}`;
+      const fisicoRaw = fisicoEdits[fisicoKey];
+      const aberturaRaw = aberturaEdits[aberturaKey];
+      const hasFisico = fisicoRaw !== undefined && String(fisicoRaw).trim() !== '';
+      const hasAberturaEdit = aberturaRaw !== undefined && String(aberturaRaw).trim() !== '';
+
+      return {
+        key,
+        dayKey,
+        fisicoKey,
+        aberturaKey,
+        produtoId,
+        produtoNome: fuelNameById[produtoId] || movimento?.descricaoProduto || lmc?.combustivelNome || 'Produto',
+        dia: formatDayBR(dayKey),
+        data: formatFullDateBR(dayKey),
+        aberturaOriginal: lmc?.abertura || 0,
+        aberturaInput: hasAberturaEdit ? aberturaRaw : '',
+        hasAberturaEdit,
+        compras110: movimento?.compra110 ?? fallbackCompras110Map[key] ?? 0,
+        compras220: movimento?.compra220 ?? fallbackCompras220Map[key] ?? 0,
+        afericoes: movimento?.afericao ?? lmc?.afericao ?? 0,
+        vendas: movimento?.venda ?? lmc?.venda ?? 0,
+        fisicoInput: hasFisico ? fisicoRaw : '',
+        hasFisico,
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.dayKey.localeCompare(b.dayKey) || a.produtoNome.localeCompare(b.produtoNome, 'pt-BR'));
+
+  const nextOpeningByProduct = {};
+  return rowsBase.map(row => {
+    const inheritedOpening = Object.prototype.hasOwnProperty.call(nextOpeningByProduct, row.produtoId)
+      ? nextOpeningByProduct[row.produtoId]
+      : row.aberturaOriginal;
+    const abertura = row.hasAberturaEdit ? parseControlNumber(row.aberturaInput) : inheritedOpening;
+    const fechamento = abertura + Number(row.compras110 || 0) + Number(row.compras220 || 0) + Number(row.afericoes || 0) - Number(row.vendas || 0);
+    const fisico = row.hasFisico ? parseControlNumber(row.fisicoInput) : 0;
+    const perdas = row.hasFisico ? fisico - fechamento : 0;
+    nextOpeningByProduct[row.produtoId] = row.hasFisico ? fisico : fechamento;
+
+    return {
+      ...row,
+      abertura,
+      aberturaInput: row.hasAberturaEdit ? row.aberturaInput : formatControlInputNumber(abertura),
+      fechamento,
+      fisico,
+      perdas,
+    };
+  });
+}
+
+function sumControlRows(rows) {
+  return rows.reduce((acc, r) => ({
+    compras110: acc.compras110 + Number(r.compras110 || 0),
+    compras220: acc.compras220 + Number(r.compras220 || 0),
+    compraTotal: acc.compraTotal + Number(r.compras110 || 0) + Number(r.compras220 || 0),
+    afericoes: acc.afericoes + Number(r.afericoes || 0),
+    vendas: acc.vendas + Number(r.vendas || 0),
+    fisico: acc.fisico + Number(r.fisico || 0),
+    perdas: acc.perdas + Number(r.perdas || 0),
+  }), { compras110: 0, compras220: 0, compraTotal: 0, afericoes: 0, vendas: 0, fisico: 0, perdas: 0 });
+}
+
+function summarizeControlRows(rows) {
+  const byDay = {};
+  rows.forEach(r => {
+    if (!byDay[r.dayKey]) {
+      byDay[r.dayKey] = { dayKey: r.dayKey, data: r.data, compraTotal: 0, vendas: 0, perdas: 0 };
+    }
+    byDay[r.dayKey].compraTotal += Number(r.compras110 || 0) + Number(r.compras220 || 0);
+    byDay[r.dayKey].vendas += Number(r.vendas || 0);
+    byDay[r.dayKey].perdas += Number(r.perdas || 0);
+  });
+  return Object.values(byDay).sort((a, b) => a.dayKey.localeCompare(b.dayKey));
+}
+
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, ch => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+  }[ch]));
+}
+
+function safeFilePart(value) {
+  return String(value || 'relatorio')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .toLowerCase();
+}
+
+function downloadBlob(content, filename, type) {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function buildControlExportPayload({ rows, filters, productName, clientName }) {
+  const type = filters.tipo || 'resumido';
+  const periodLabel = `${formatFullDateBR(filters.dataInicial)} a ${formatFullDateBR(filters.dataFinal)}`;
+
+  if (type === 'resumido') {
+    const summaryRows = summarizeControlRows(rows);
+    const totals = summaryRows.reduce((acc, r) => ({
+      compraTotal: acc.compraTotal + r.compraTotal,
+      vendas: acc.vendas + r.vendas,
+      perdas: acc.perdas + r.perdas,
+    }), { compraTotal: 0, vendas: 0, perdas: 0 });
+    return {
+      title: 'Relatorio de Controle - Resumido',
+      subtitle: `${clientName || 'Cliente'} | ${productName} | ${periodLabel}`,
+      orientation: 'portrait',
+      columns: [
+        { key: 'data', label: 'DATA', align: 'left' },
+        { key: 'compraTotal', label: 'TOTAL DE COMPRA', align: 'right', numeric: true },
+        { key: 'vendas', label: 'TOTAL DE VENDA', align: 'right', numeric: true },
+        { key: 'perdas', label: 'PERDAS / SOBRAS', align: 'right', numeric: true },
+      ],
+      rows: summaryRows,
+      totals,
+      totalLabel: 'TOTAL DO PERIODO',
+      totalKeys: { compraTotal: true, vendas: true, perdas: true },
+    };
+  }
+
+  const totals = sumControlRows(rows);
+  return {
+    title: 'Relatorio de Controle - Detalhado',
+    subtitle: `${clientName || 'Cliente'} | ${productName} | ${periodLabel}`,
+    orientation: 'landscape',
+    columns: [
+      { key: 'data', label: 'DATA', align: 'left' },
+      { key: 'produtoNome', label: 'PRODUTO', align: 'left' },
+      { key: 'abertura', label: 'ESTOQUE ABERTURA', align: 'right', numeric: true },
+      { key: 'compras110', label: 'COMPRAS 110', align: 'right', numeric: true },
+      { key: 'compras220', label: 'COMPRAS 220', align: 'right', numeric: true },
+      { key: 'afericoes', label: 'AFERICOES', align: 'right', numeric: true },
+      { key: 'vendas', label: 'VENDAS', align: 'right', numeric: true },
+      { key: 'fechamento', label: 'ESTOQUE FECHAMENTO', align: 'right', numeric: true },
+      { key: 'fisico', label: 'ESTOQUE FISICO', align: 'right', numeric: true },
+      { key: 'perdas', label: 'PERDAS / SOBRAS', align: 'right', numeric: true },
+    ],
+    rows,
+    totals,
+    totalLabel: 'TOTAL DO PERIODO',
+    totalKeys: { compras110: true, compras220: true, afericoes: true, vendas: true, fisico: true, perdas: true },
+  };
+}
+
+function exportControlReport({ rows, filters, productName, clientName }) {
+  if (!rows.length) {
+    window.alert('Nenhum registro encontrado para os filtros selecionados.');
+    return;
+  }
+
+  const payload = buildControlExportPayload({ rows, filters, productName, clientName });
+  const fileBase = safeFilePart(`controle-${filters.tipo}-${productName}-${filters.dataInicial}-${filters.dataFinal}`);
+
+  if (filters.formato === 'csv') {
+    const csvRows = [
+      [payload.title],
+      [payload.subtitle],
+      [],
+      payload.columns.map(c => c.label),
+      ...payload.rows.map(row => payload.columns.map(c => row[c.key] ?? '')),
+      [],
+      payload.columns.map((c, index) => {
+        if (index === 0) return payload.totalLabel;
+        return payload.totalKeys[c.key] ? payload.totals[c.key] : '';
+      }),
+    ];
+    const csv = csvRows
+      .map(row => row.map(value => `"${String(value ?? '').replace(/"/g, '""')}"`).join(';'))
+      .join('\r\n');
+    downloadBlob(`\uFEFF${csv}`, `${fileBase}.csv`, 'text/csv;charset=utf-8');
+    return;
+  }
+
+  if (filters.formato === 'xlsx') {
+    const sheetRows = [
+      [payload.title],
+      [payload.subtitle],
+      [],
+      payload.columns.map(c => c.label),
+      ...payload.rows.map(row => payload.columns.map(c => c.numeric ? Number(row[c.key] || 0) : (row[c.key] ?? ''))),
+      [],
+      payload.columns.map((c, index) => {
+        if (index === 0) return payload.totalLabel;
+        return payload.totalKeys[c.key] ? Number(payload.totals[c.key] || 0) : '';
+      }),
+    ];
+    const worksheet = XLSX.utils.aoa_to_sheet(sheetRows);
+    worksheet['!cols'] = payload.columns.map(c => ({ wch: c.key === 'produtoNome' ? 28 : 18 }));
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Controle');
+    XLSX.writeFile(workbook, `${fileBase}.xlsx`);
+    return;
+  }
+
+  const bodyRows = payload.rows.map(row => `
+    <tr>
+      ${payload.columns.map(c => `<td class="${c.align === 'right' ? 'num' : ''}">${escapeHtml(c.numeric ? fmtNum(row[c.key], 2) : row[c.key])}</td>`).join('')}
+    </tr>
+  `).join('');
+  const totalCells = payload.columns.map((c, index) => {
+    if (index === 0) return `<td>${escapeHtml(payload.totalLabel)}</td>`;
+    const value = payload.totalKeys[c.key] ? fmtNum(payload.totals[c.key], 2) : '';
+    return `<td class="num">${escapeHtml(value)}</td>`;
+  }).join('');
+  const html = `
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>${escapeHtml(payload.title)}</title>
+  <style>
+    @page { size: A4 ${payload.orientation}; margin: 12mm; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: Arial, Helvetica, sans-serif; color: #111; background: #fff; }
+    .report { width: 100%; }
+    .header { margin-bottom: 14px; border-bottom: 2px solid #e31e24; padding-bottom: 10px; }
+    h1 { margin: 0 0 6px; font-size: 20px; letter-spacing: 0; }
+    .subtitle { color: #555; font-size: 12px; line-height: 1.4; }
+    table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: ${payload.orientation === 'landscape' ? '10px' : '11px'}; }
+    thead { display: table-header-group; }
+    tfoot { display: table-footer-group; }
+    tr { page-break-inside: avoid; break-inside: avoid; }
+    th, td { border: 1px solid #d6d6d6; padding: 6px; vertical-align: top; word-break: break-word; }
+    th { background: #151515; color: #fff; text-align: left; font-size: 9px; }
+    td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+    tfoot td { font-weight: 700; background: #f1f1f1; }
+    @media screen {
+      body { background: #f3f4f6; padding: 20px; }
+      .report { max-width: ${payload.orientation === 'landscape' ? '1120px' : '820px'}; margin: 0 auto; background: #fff; padding: 24px; box-shadow: 0 10px 30px rgba(0,0,0,.12); overflow-x: auto; }
+    }
+  </style>
+</head>
+<body>
+  <main class="report">
+    <section class="header">
+      <h1>${escapeHtml(payload.title)}</h1>
+      <div class="subtitle">${escapeHtml(payload.subtitle)}</div>
+    </section>
+    <table>
+      <thead>
+        <tr>${payload.columns.map(c => `<th class="${c.align === 'right' ? 'num' : ''}">${escapeHtml(c.label)}</th>`).join('')}</tr>
+      </thead>
+      <tbody>${bodyRows}</tbody>
+      <tfoot><tr>${totalCells}</tr></tfoot>
+    </table>
+  </main>
+  <script>
+    window.addEventListener('load', function () {
+      setTimeout(function () { window.print(); }, 250);
+    });
+  </script>
+</body>
+</html>`;
+  const printWindow = window.open('', '_blank');
+  if (!printWindow) {
+    window.alert('Permita pop-ups para gerar o PDF do relatorio.');
+    return;
+  }
+  printWindow.document.open();
+  printWindow.document.write(html);
+  printWindow.document.close();
+}
+
 const Reports = ({ selectedClient, selectedPeriod, clients }) => {
   const [activeTab, setActiveTab] = useState('descarregamentos');
-  const [data, setData] = useState({ descarregamentos: null, vendas: null, historico: null, consolidado: null });
+  const [data, setData] = useState({ descarregamentos: null, vendas: null, historico: null, consolidado: null, controle: null });
   const [loading, setLoading] = useState({});
   const [error, setError] = useState({});
   const [descSubTab, setDescSubTab] = useState('comNota');
+  const [showControlPrintPanel, setShowControlPrintPanel] = useState(false);
+  const [controlPrintFilters, setControlPrintFilters] = useState({
+    dataInicial: '',
+    dataFinal: '',
+    tipo: 'resumido',
+    produto: 'all',
+    formato: 'pdf',
+  });
 
-  const getEmpresa = () => {
+  const fetchTab = useCallback(async (tab) => {
     const client = (clients || []).find(c => c.nome === selectedClient) || (clients || [])[0];
-    return client ? client.codigoEmpresa : null;
-  };
-
-  const getPeriodoApi = () => selectedPeriod ? selectedPeriod.replace('/', '') : null;
-
-  const fetchTab = async (tab) => {
-    const empresa = getEmpresa();
-    const periodo = getPeriodoApi();
+    const empresa = client ? client.codigoEmpresa : null;
+    const periodo = selectedPeriod ? selectedPeriod.replace('/', '') : null;
     if (!empresa) return;
     setLoading(prev => ({ ...prev, [tab]: true }));
     setError(prev => ({ ...prev, [tab]: null }));
@@ -668,6 +1141,20 @@ const Reports = ({ selectedClient, selectedPeriod, clients }) => {
         const r = await fetch(`${API_URL}/api/relatorios/consolidado?empresa=${empresa}&periodo=${periodo}`);
         result = await r.json();
         if (result.error) throw new Error(result.error);
+      } else if (tab === 'controle') {
+        const [lmcResp, diarioResp, controleResp] = await Promise.all([
+          fetch(`${API_URL}/api/lmc?empresa=${empresa}&periodo=${periodo}`).then(r => r.json()),
+          fetch(`${API_URL}/api/lmc/diario?empresa=${empresa}&periodo=${periodo}`).then(r => r.json()),
+          fetch(`${API_URL}/api/lmc/controle?empresa=${empresa}&periodo=${periodo}`).then(r => r.json()),
+        ]);
+        if (lmcResp.error) throw new Error(lmcResp.error);
+        if (diarioResp.error) throw new Error(diarioResp.error);
+        if (controleResp.error) throw new Error(controleResp.error);
+        result = {
+          lmcRegistros: lmcResp.registros || [],
+          lmcDiario: diarioResp || null,
+          lmcControle: controleResp.registros || [],
+        };
       }
       setData(prev => ({ ...prev, [tab]: result }));
     } catch (err) {
@@ -675,15 +1162,16 @@ const Reports = ({ selectedClient, selectedPeriod, clients }) => {
     } finally {
       setLoading(prev => ({ ...prev, [tab]: false }));
     }
-  };
+  }, [clients, selectedClient, selectedPeriod]);
 
   useEffect(() => {
     fetchTab(activeTab);
-  }, [activeTab, selectedClient, selectedPeriod]);
+  }, [activeTab, fetchTab]);
 
   const tabs = [
     { id: 'descarregamentos', label: 'Descarregamentos', icon: <Droplet size={15} /> },
     { id: 'vendas',           label: 'Vendas PDV',       icon: <BarChart2 size={15} /> },
+    { id: 'controle',         label: 'Controle',         icon: <Sliders size={15} /> },
     { id: 'consolidado',      label: 'Consolidado',      icon: <Layers size={15} /> },
     { id: 'historico',        label: 'Histórico',        icon: <TrendingUp size={15} /> },
   ];
@@ -980,6 +1468,195 @@ const Reports = ({ selectedClient, selectedPeriod, clients }) => {
     );
   };
 
+  const getSavedFisicoEdits = () => {
+    try {
+      return JSON.parse(localStorage.getItem('starvl:lmc-fisico') || '{}');
+    } catch {
+      return {};
+    }
+  };
+
+  const getSavedAberturaEdits = () => {
+    try {
+      return JSON.parse(localStorage.getItem('starvl:lmc-abertura') || '{}');
+    } catch {
+      return {};
+    }
+  };
+
+  const getControlProductName = (filters, fuels) => {
+    if (filters.produto === 'all') return 'Todos os combustiveis';
+    return fuels.find(f => String(f.codigo) === filters.produto)?.nome || 'Produto selecionado';
+  };
+
+  const openControlPrintPanel = () => {
+    const range = getPeriodDateRange(selectedPeriod);
+    setControlPrintFilters(prev => ({
+      ...prev,
+      dataInicial: prev.dataInicial || range.dataInicial,
+      dataFinal: prev.dataFinal || range.dataFinal,
+    }));
+    setShowControlPrintPanel(true);
+  };
+
+  const handleGenerateControlReport = async () => {
+    const client = (clients || []).find(c => c.nome === selectedClient) || (clients || [])[0];
+    const empresa = client ? client.codigoEmpresa : null;
+    if (!empresa) return;
+    const range = getPeriodDateRange(selectedPeriod);
+    const filters = {
+      ...controlPrintFilters,
+      dataInicial: controlPrintFilters.dataInicial || range.dataInicial,
+      dataFinal: controlPrintFilters.dataFinal || range.dataFinal,
+    };
+    if (filters.dataInicial > filters.dataFinal) {
+      window.alert('A data inicial nao pode ser maior que a data final.');
+      return;
+    }
+    setLoading(prev => ({ ...prev, controleExport: true }));
+    try {
+      const reportData = await fetchControlDataForDateRange(empresa, filters.dataInicial, filters.dataFinal);
+      const fuels = getControlFuels(reportData.lmcRegistros, reportData.lmcControle);
+    const rows = buildControlReportRows({
+        lmcRegistros: reportData.lmcRegistros,
+        lmcControle: reportData.lmcControle,
+        lmcDiario: reportData.lmcDiario,
+      selectedPeriod,
+      fisicoPeriodByDay: reportData.fisicoPeriodByDay,
+      fisicoEdits: getSavedFisicoEdits(),
+      aberturaEdits: getSavedAberturaEdits(),
+      produto: filters.produto,
+      dataInicial: filters.dataInicial,
+      dataFinal: filters.dataFinal,
+    });
+    exportControlReport({
+      rows,
+      filters,
+      productName: getControlProductName(filters, fuels),
+      clientName: selectedClient,
+    });
+    setShowControlPrintPanel(false);
+    } catch (err) {
+      window.alert(`Erro ao gerar relatorio: ${err.message}`);
+    } finally {
+      setLoading(prev => ({ ...prev, controleExport: false }));
+    }
+  };
+
+  const renderControle = () => {
+    const d = data.controle;
+    if (!d) return null;
+    const range = getPeriodDateRange(selectedPeriod);
+    const previewFilters = {
+      dataInicial: controlPrintFilters.dataInicial || range.dataInicial,
+      dataFinal: controlPrintFilters.dataFinal || range.dataFinal,
+      produto: controlPrintFilters.produto || 'all',
+    };
+    const rows = buildControlReportRows({
+      lmcRegistros: d.lmcRegistros,
+      lmcControle: d.lmcControle,
+      lmcDiario: d.lmcDiario,
+      selectedPeriod,
+      fisicoEdits: getSavedFisicoEdits(),
+      aberturaEdits: getSavedAberturaEdits(),
+      produto: previewFilters.produto,
+      dataInicial: previewFilters.dataInicial,
+      dataFinal: previewFilters.dataFinal,
+    });
+    const summaryRows = summarizeControlRows(rows);
+    const totals = sumControlRows(rows);
+    const fuels = getControlFuels(d.lmcRegistros, d.lmcControle);
+
+    return (
+      <div>
+        <div className="table-toolbar">
+          <div style={{ color: '#888', fontSize: '13px' }}>
+            Controle de movimentacao por periodo, produto e tipo de relatorio.
+          </div>
+          <button type="button" className="btn-primary" onClick={openControlPrintPanel} style={{ width: 'auto', padding: '10px 18px' }}>
+            <Printer size={18} />
+            Gerar relatorio
+          </button>
+        </div>
+
+        <div style={{ display: 'flex', gap: '12px', marginBottom: '16px', flexWrap: 'wrap' }}>
+          <div className="stat-card" style={{ flex: 1, minWidth: '180px' }}>
+            <div className="stat-icon red"><Package size={20} /></div>
+            <div className="stat-content">
+              <div className="stat-label">Combustiveis</div>
+              <div className="stat-value" style={{ fontSize: '20px' }}>{fuels.length}</div>
+            </div>
+          </div>
+          <div className="stat-card" style={{ flex: 1, minWidth: '180px' }}>
+            <div className="stat-icon orange"><Droplet size={20} /></div>
+            <div className="stat-content">
+              <div className="stat-label">Total de compra</div>
+              <div className="stat-value" style={{ fontSize: '20px' }}>{fmtNum(totals.compraTotal, 0)} L</div>
+            </div>
+          </div>
+          <div className="stat-card" style={{ flex: 1, minWidth: '180px' }}>
+            <div className="stat-icon green"><BarChart2 size={20} /></div>
+            <div className="stat-content">
+              <div className="stat-label">Total de venda</div>
+              <div className="stat-value" style={{ fontSize: '20px' }}>{fmtNum(totals.vendas, 0)} L</div>
+            </div>
+          </div>
+          <div className="stat-card" style={{ flex: 1, minWidth: '180px' }}>
+            <div className="stat-icon blue"><Calculator size={20} /></div>
+            <div className="stat-content">
+              <div className="stat-label">Perdas / sobras</div>
+              <div className="stat-value" style={{ fontSize: '20px' }}>{fmtNum(totals.perdas, 2)} L</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="table-container">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>DATA</th>
+                <th style={{ textAlign: 'right' }}>TOTAL DE COMPRA</th>
+                <th style={{ textAlign: 'right' }}>TOTAL DE VENDA</th>
+                <th style={{ textAlign: 'right' }}>PERDAS / SOBRAS</th>
+              </tr>
+            </thead>
+            <tbody>
+              {summaryRows.length === 0 && (
+                <tr><td colSpan={4} style={{ textAlign: 'center', color: '#666', padding: '32px' }}>Nenhum registro encontrado.</td></tr>
+              )}
+              {summaryRows.map(row => (
+                <tr key={row.dayKey}>
+                  <td style={{ fontFamily: 'monospace', fontSize: '13px' }}>{row.data}</td>
+                  <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{fmtNum(row.compraTotal, 2)} L</td>
+                  <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{fmtNum(row.vendas, 2)} L</td>
+                  <td style={{ textAlign: 'right', fontFamily: 'monospace', color: row.perdas < -0.01 ? '#f87171' : row.perdas > 0.01 ? '#22c55e' : 'inherit' }}>{fmtNum(row.perdas, 2)} L</td>
+                </tr>
+              ))}
+              {summaryRows.length > 0 && (
+                <tr style={{ background: '#1a1a1a', fontWeight: 700 }}>
+                  <td style={{ color: '#888' }}>TOTAL DO PERIODO</td>
+                  <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{fmtNum(totals.compraTotal, 2)} L</td>
+                  <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{fmtNum(totals.vendas, 2)} L</td>
+                  <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{fmtNum(totals.perdas, 2)} L</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {showControlPrintPanel && (
+          <ControlPrintPanel
+            fuels={fuels}
+            filters={controlPrintFilters}
+            setFilters={setControlPrintFilters}
+            onClose={() => setShowControlPrintPanel(false)}
+            onGenerate={handleGenerateControlReport}
+          />
+        )}
+      </div>
+    );
+  };
+
   const renderContent = () => {
     if (loading[activeTab]) {
       return (
@@ -1004,6 +1681,7 @@ const Reports = ({ selectedClient, selectedPeriod, clients }) => {
     if (!data[activeTab]) return null;
     if (activeTab === 'descarregamentos') return renderDescarregamentos();
     if (activeTab === 'vendas') return renderVendas();
+    if (activeTab === 'controle') return renderControle();
     if (activeTab === 'consolidado') return renderConsolidado();
     if (activeTab === 'historico') return renderHistorico();
     return null;
@@ -1050,7 +1728,7 @@ const Reports = ({ selectedClient, selectedPeriod, clients }) => {
 };
 
 // Control Component
-const Control = ({ lmcRegistros, lmcDiario, lmcControle, selectedPeriod, setSelectedPeriod }) => {
+const Control = ({ lmcRegistros, lmcDiario, lmcControle, selectedPeriod, setSelectedPeriod, selectedClient, clients }) => {
   const [selectedFuelId, setSelectedFuelId] = useState(null);
   const [showPrintPanel, setShowPrintPanel] = useState(false);
   const [printFilters, setPrintFilters] = useState({
@@ -1058,10 +1736,18 @@ const Control = ({ lmcRegistros, lmcDiario, lmcControle, selectedPeriod, setSele
     dataFinal: '',
     tipo: 'resumido',
     produto: 'all',
+    formato: 'pdf',
   });
   const [fisicoEdits, setFisicoEdits] = useState(() => {
     try {
       return JSON.parse(localStorage.getItem('starvl:lmc-fisico') || '{}');
+    } catch {
+      return {};
+    }
+  });
+  const [aberturaEdits, setAberturaEdits] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('starvl:lmc-abertura') || '{}');
     } catch {
       return {};
     }
@@ -1113,34 +1799,48 @@ const Control = ({ lmcRegistros, lmcDiario, lmcControle, selectedPeriod, setSele
     setShowPrintPanel(true);
   }
 
-  function handleGeneratePrint() {
-    const productName = printFilters.produto === 'all'
-      ? 'Todos os produtos'
-      : (fuels.find(f => String(f.codigo) === printFilters.produto)?.nome || 'Produto selecionado');
-    window.alert(`Relatorio ${printFilters.tipo} pronto para impressao.\nProduto: ${productName}\nPeriodo: ${printFilters.dataInicial || '-'} ate ${printFilters.dataFinal || '-'}`);
-    setShowPrintPanel(false);
-  }
-
-  function toUTCDateStr(ts) {
-    const d = new Date(ts);
-    return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
-  }
-
-  function formatDayBR(ts) {
-    const d = new Date(ts);
-    return `${String(d.getUTCDate()).padStart(2, '0')}/${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
-  }
-
-  function parseInputNumber(value) {
-    const raw = String(value || '').trim();
-    if (!raw) return 0;
-    const normalized = raw.includes(',') ? raw.replace(/\./g, '').replace(',', '.') : raw;
-    const parsed = Number(normalized);
-    return Number.isFinite(parsed) ? parsed : 0;
-  }
-
-  function formatInputNumber(value) {
-    return String(Number((value || 0).toFixed(2)));
+  async function handleGeneratePrint() {
+    const client = (clients || []).find(c => c.nome === selectedClient) || (clients || [])[0];
+    const empresa = client ? client.codigoEmpresa : null;
+    if (!empresa) return;
+    const range = getPeriodDateRange();
+    const filters = {
+      ...printFilters,
+      dataInicial: printFilters.dataInicial || range.dataInicial,
+      dataFinal: printFilters.dataFinal || range.dataFinal,
+    };
+    if (filters.dataInicial > filters.dataFinal) {
+      window.alert('A data inicial nao pode ser maior que a data final.');
+      return;
+    }
+    try {
+      const reportData = await fetchControlDataForDateRange(empresa, filters.dataInicial, filters.dataFinal);
+      const reportFuels = getControlFuels(reportData.lmcRegistros, reportData.lmcControle);
+      const productName = filters.produto === 'all'
+        ? 'Todos os combustiveis'
+        : (reportFuels.find(f => String(f.codigo) === filters.produto)?.nome || fuels.find(f => String(f.codigo) === filters.produto)?.nome || 'Produto selecionado');
+      const rows = buildControlReportRows({
+        lmcRegistros: reportData.lmcRegistros,
+        lmcControle: reportData.lmcControle,
+        lmcDiario: reportData.lmcDiario,
+        selectedPeriod,
+        fisicoPeriodByDay: reportData.fisicoPeriodByDay,
+        fisicoEdits,
+        aberturaEdits,
+        produto: filters.produto,
+        dataInicial: filters.dataInicial,
+        dataFinal: filters.dataFinal,
+      });
+      exportControlReport({
+        rows,
+        filters,
+        productName,
+        clientName: selectedClient,
+      });
+      setShowPrintPanel(false);
+    } catch (err) {
+      window.alert(`Erro ao gerar relatorio: ${err.message}`);
+    }
   }
 
   function persistFisicoEdit(key, value) {
@@ -1151,64 +1851,23 @@ const Control = ({ lmcRegistros, lmcDiario, lmcControle, selectedPeriod, setSele
     });
   }
 
-  const lmcByKey = {};
-  (lmcRegistros || []).forEach(r => {
-    const produto = Number(r.combustivelCodigo);
-    const dayKey = toUTCDateStr(r.data);
-    lmcByKey[`${produto}|${dayKey}`] = r;
-  });
-
-  const controleByKey = {};
-  (lmcControle || []).forEach(r => {
-    const produto = Number(r.codProduto);
-    const dayKey = toUTCDateStr(r.emissao);
-    controleByKey[`${produto}|${dayKey}`] = r;
-  });
-
-  const fallbackCompras110Map = {};
-  const fallbackCompras220Map = {};
-  if ((!lmcControle || lmcControle.length === 0) && lmcDiario) {
-    lmcDiario.comprasDiarias.filter(r => Number(r.produto) === activeFuelId).forEach(r => {
-      const k = toUTCDateStr(r.dia);
-      if (r.tipo === '110') fallbackCompras110Map[k] = (fallbackCompras110Map[k] || 0) + r.qtdComprada;
-      else fallbackCompras220Map[k] = (fallbackCompras220Map[k] || 0) + r.qtdComprada;
+  function persistAberturaEdit(key, value) {
+    setAberturaEdits(prev => {
+      const next = { ...prev, [key]: value };
+      localStorage.setItem('starvl:lmc-abertura', JSON.stringify(next));
+      return next;
     });
   }
 
-  const dayKeys = new Set();
-  (lmcRegistros || [])
-    .filter(r => Number(r.combustivelCodigo) === activeFuelId)
-    .forEach(r => dayKeys.add(toUTCDateStr(r.data)));
-  (lmcControle || [])
-    .filter(r => Number(r.codProduto) === activeFuelId)
-    .forEach(r => dayKeys.add(toUTCDateStr(r.emissao)));
-
-  const tableRows = Array.from(dayKeys)
-    .sort()
-    .map(dayKey => {
-      const lmc = lmcByKey[`${activeFuelId}|${dayKey}`];
-      const movimento = controleByKey[`${activeFuelId}|${dayKey}`];
-      const fisicoKey = `${selectedPeriod}|${activeFuelId}|${dayKey}`;
-      const fechamento = lmc?.fechamento || 0;
-      const fisicoInput = fisicoEdits[fisicoKey] ?? formatInputNumber(fechamento);
-      const fisico = parseInputNumber(fisicoInput);
-      const perdas = fisico - fechamento;
-
-      return {
-        key: dayKey,
-        fisicoKey,
-        dia: formatDayBR(dayKey),
-        abertura: lmc?.abertura || 0,
-        compras110: movimento?.compra110 ?? fallbackCompras110Map[dayKey] ?? 0,
-        compras220: movimento?.compra220 ?? fallbackCompras220Map[dayKey] ?? 0,
-        afericoes: movimento?.afericao ?? lmc?.afericao ?? 0,
-        vendas: movimento?.venda ?? lmc?.venda ?? 0,
-        fechamento,
-        fisicoInput,
-        fisico,
-        perdas,
-      };
-    });
+  const tableRows = buildControlReportRows({
+    lmcRegistros,
+    lmcControle,
+    lmcDiario,
+    selectedPeriod,
+    fisicoEdits,
+    aberturaEdits,
+    produto: activeFuelId ? String(activeFuelId) : 'all',
+  });
 
   const totals = tableRows.reduce((acc, r) => ({
     compras110: acc.compras110 + r.compras110,
@@ -1295,7 +1954,16 @@ const Control = ({ lmcRegistros, lmcDiario, lmcControle, selectedPeriod, setSele
                 {tableRows.map((row) => (
                   <tr key={row.key}>
                     <td>{row.dia}</td>
-                    <td>{fmt2(row.abertura)}</td>
+                    <td>
+                      <input
+                        className="lmc-fisico-input"
+                        type="text"
+                        inputMode="decimal"
+                        value={row.aberturaInput}
+                        onChange={(e) => persistAberturaEdit(row.aberturaKey, e.target.value)}
+                        aria-label={`Estoque abertura ${row.dia}`}
+                      />
+                    </td>
                     <td>{fmt2(row.compras110)}</td>
                     <td>{fmt2(row.compras220)}</td>
                     <td>{fmt2(row.afericoes)}</td>
@@ -1307,6 +1975,7 @@ const Control = ({ lmcRegistros, lmcDiario, lmcControle, selectedPeriod, setSele
                         type="text"
                         inputMode="decimal"
                         value={row.fisicoInput}
+                        placeholder="0,00"
                         onChange={(e) => persistFisicoEdit(row.fisicoKey, e.target.value)}
                         aria-label={`Estoque fisico ${row.dia}`}
                       />
@@ -1431,7 +2100,7 @@ const ControlPrintPanel = ({ fuels, filters, setFilters, onClose, onGenerate }) 
             </div>
             <div className="control-print-select">
               <select value={filters.produto} onChange={update('produto')}>
-                <option value="all">Todos os produtos</option>
+                <option value="all">Todos os combustiveis</option>
                 {fuels.map(f => <option key={f.codigo} value={String(f.codigo)}>{f.nome}</option>)}
               </select>
               <ChevronDown size={20} />
@@ -1439,6 +2108,25 @@ const ControlPrintPanel = ({ fuels, filters, setFilters, onClose, onGenerate }) 
             <div className="control-print-hint">
               <AlertCircle size={16} />
               <span>Selecione um produto para filtrar o relatorio.</span>
+            </div>
+          </section>
+
+          <section className="control-print-section control-print-format">
+            <div className="control-print-section-title">
+              <Database size={20} />
+              <span>ARQUIVO</span>
+            </div>
+            <div className="control-print-format-row">
+              {[
+                { value: 'pdf', label: 'PDF' },
+                { value: 'xlsx', label: 'XLSX' },
+                { value: 'csv', label: 'CSV' },
+              ].map(option => (
+                <label key={option.value} className={`control-print-format-option ${(filters.formato || 'pdf') === option.value ? 'selected' : ''}`}>
+                  <input type="radio" name="formatoRelatorio" value={option.value} checked={(filters.formato || 'pdf') === option.value} onChange={update('formato')} />
+                  <span>{option.label}</span>
+                </label>
+              ))}
             </div>
           </section>
         </div>
@@ -1450,7 +2138,7 @@ const ControlPrintPanel = ({ fuels, filters, setFilters, onClose, onGenerate }) 
           </button>
           <button type="button" className="btn-primary control-print-generate" onClick={onGenerate}>
             <Printer size={20} />
-            GERAR IMPRESSAO
+            GERAR ARQUIVO
           </button>
         </div>
       </div>
@@ -1459,21 +2147,71 @@ const ControlPrintPanel = ({ fuels, filters, setFilters, onClose, onGenerate }) 
 };
 
 // Stock Position Component
-const StockPosition = ({ estoques, projecao, loading }) => {
+const StockPosition = ({ estoques, projecao, loading, selectedClient, clients }) => {
   const [selectedFuelId, setSelectedFuelId] = useState(null);
+  const getDateInput = (date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+  const getDefaultProjectionRange = () => {
+    const end = new Date();
+    const start = new Date(end);
+    start.setDate(start.getDate() - 6);
+    return { inicio: getDateInput(start), fim: getDateInput(end) };
+  };
+  const defaultProjectionRange = getDefaultProjectionRange();
+  const [projectionStart, setProjectionStart] = useState(defaultProjectionRange.inicio);
+  const [projectionEnd, setProjectionEnd] = useState(defaultProjectionRange.fim);
+  const [projectionDays, setProjectionDays] = useState(7);
+  const [projectionData, setProjectionData] = useState({ projecoes: projecao || [], diasBase: 7, diasProjecao: 7 });
+  const [projectionLoading, setProjectionLoading] = useState(false);
+  const [projectionError, setProjectionError] = useState(null);
 
   const estoquesList = estoques || [];
   const activeFuel = estoquesList.find(e => e.produtoCodigo === selectedFuelId) || estoquesList[0];
-  const activeProjecao = (projecao || []).find(p => p.produtoCodigo === activeFuel?.produtoCodigo) || null;
+  const projectionRows = projectionData.projecoes || projecao || [];
+  const activeProjecao = projectionRows.find(p => p.produtoCodigo === activeFuel?.produtoCodigo) || null;
 
   const fmt2 = (n) => (n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const fmtR = (n) => 'R$ ' + fmt2(n);
 
   const tankPct = activeFuel ? Math.min(Math.max(activeFuel.percentualOcupacao, 0), 100) : 0;
   const mediaDiaria = activeProjecao?.mediaDiariaLitros || 0;
+  const consumoProjetado = activeProjecao?.consumoProjetado ?? mediaDiaria * projectionDays;
+  const compraProjetada = activeProjecao?.compraProjetada ?? consumoProjetado;
+  const necessidadeCompra = activeProjecao?.necessidadeCompra ?? Math.max(consumoProjetado - (activeFuel?.estoqueTotal || 0), 0);
+
+  useEffect(() => {
+    const client = (clients || []).find(c => c.nome === selectedClient) || (clients || [])[0];
+    if (!client?.codigoEmpresa || !projectionStart || !projectionEnd) return;
+
+    let cancelled = false;
+    setProjectionLoading(true);
+    setProjectionError(null);
+
+    fetch(`${API_URL}/api/estoque/projecao?empresa=${client.codigoEmpresa}&dataInicio=${projectionStart}&dataFim=${projectionEnd}&diasProjecao=${projectionDays}`)
+      .then(r => r.json())
+      .then(result => {
+        if (cancelled) return;
+        if (result.error) throw new Error(result.error);
+        setProjectionData(result);
+      })
+      .catch(err => {
+        if (!cancelled) setProjectionError(err.message);
+      })
+      .finally(() => {
+        if (!cancelled) setProjectionLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [clients, selectedClient, projectionStart, projectionEnd, projectionDays]);
 
   const hoje = new Date();
-  const projecaoChart = Array.from({ length: 8 }, (_, i) => {
+  const projecaoChart = Array.from({ length: projectionDays + 1 }, (_, i) => {
     const d = new Date(hoje);
     d.setDate(d.getDate() + i);
     const label = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
@@ -1541,7 +2279,34 @@ const StockPosition = ({ estoques, projecao, loading }) => {
           <div className="card-header">
             <h3>PROJEÇÃO DE CONSUMO</h3>
           </div>
+          <div className="projection-controls">
+            <label>
+              <span>BASE INICIAL</span>
+              <input type="date" value={projectionStart} onChange={(e) => setProjectionStart(e.target.value)} />
+            </label>
+            <label>
+              <span>BASE FINAL</span>
+              <input type="date" value={projectionEnd} onChange={(e) => setProjectionEnd(e.target.value)} />
+            </label>
+            <label>
+              <span>PROJETAR</span>
+              <select value={projectionDays} onChange={(e) => setProjectionDays(Number(e.target.value))}>
+                <option value={3}>3 dias</option>
+                <option value={7}>7 dias</option>
+                <option value={15}>15 dias</option>
+                <option value={30}>30 dias</option>
+              </select>
+            </label>
+          </div>
           <div className="projection-subtitle">
+            BASE: MEDIA DO PERIODO SELECIONADO {projectionLoading ? '...' : ''}
+          </div>
+          {projectionError && (
+            <div style={{ color: '#f87171', fontSize: '12px', marginBottom: '8px' }}>
+              Erro ao carregar projecao: {projectionError}
+            </div>
+          )}
+          <div className="projection-subtitle old-projection-subtitle">
             BASE: MÉDIA DOS ÚLTIMOS 7 DIAS
           </div>
           <ResponsiveContainer width="100%" height={300}>
@@ -1565,7 +2330,7 @@ const StockPosition = ({ estoques, projecao, loading }) => {
           <div className="projection-metrics">
             <div className="metric-row">
               <div className="metric-item">
-                <div className="metric-label">MÉDIA DIÁRIA (7 DIAS)</div>
+                <div className="metric-label">MEDIA DIARIA DO PERIODO</div>
                 <div className="metric-number">{fmt2(mediaDiaria)}</div>
                 <div className="metric-unit">LITROS</div>
               </div>
@@ -1573,6 +2338,25 @@ const StockPosition = ({ estoques, projecao, loading }) => {
                 <div className="metric-label">DIAS DE ESTOQUE</div>
                 <div className="metric-number">{activeProjecao ? (activeProjecao.diasRestantes > 999 ? '∞' : activeProjecao.diasRestantes) : '—'}</div>
                 <div className="metric-unit">DIAS</div>
+              </div>
+            </div>
+            <div className="metric-row">
+              <div className="metric-item">
+                <div className="metric-label">CONSUMO PROJETADO ({projectionDays} DIAS)</div>
+                <div className="metric-number">{fmt2(consumoProjetado)}</div>
+                <div className="metric-unit">LITROS</div>
+              </div>
+              <div className="metric-item">
+                <div className="metric-label">PROJECAO DE COMPRA</div>
+                <div className="metric-number">{fmt2(compraProjetada)}</div>
+                <div className="metric-unit">LITROS</div>
+              </div>
+            </div>
+            <div className="metric-row">
+              <div className="metric-item">
+                <div className="metric-label">NECESSIDADE APOS ESTOQUE</div>
+                <div className="metric-number">{fmt2(necessidadeCompra)}</div>
+                <div className="metric-unit">LITROS</div>
               </div>
             </div>
             <div className="stock-days-alert" style={{ color: activeProjecao?.alertaAbastecimento ? '#f87171' : '#22c55e' }}>
@@ -2399,9 +3183,9 @@ export default function App() {
       case 'reports':
         return <Reports selectedClient={selectedClient} selectedPeriod={selectedPeriod} clients={clients} />;
       case 'control':
-        return <Control lmcRegistros={apiData.lmcRegistros} lmcDiario={apiData.lmcDiario} lmcControle={apiData.lmcControle} selectedPeriod={selectedPeriod} setSelectedPeriod={setSelectedPeriod} />;
+        return <Control lmcRegistros={apiData.lmcRegistros} lmcDiario={apiData.lmcDiario} lmcControle={apiData.lmcControle} selectedPeriod={selectedPeriod} setSelectedPeriod={setSelectedPeriod} selectedClient={selectedClient} clients={clients} />;
       case 'stock':
-        return <StockPosition estoques={apiData.estoques} projecao={apiData.projecao} loading={apiData.loading} />;
+        return <StockPosition estoques={apiData.estoques} projecao={apiData.projecao} loading={apiData.loading} selectedClient={selectedClient} clients={clients} />;
       case 'users':
         return <Users adminUsers={adminUsers} setAdminUsers={setAdminUsers} isAdmin={isAdmin} />;
       case 'params':

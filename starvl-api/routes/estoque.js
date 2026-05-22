@@ -130,6 +130,9 @@ router.get('/', async (req, res) => {
 router.get('/projecao', async (req, res) => {
   const empresa = parseInt(req.query.empresa);
   const dias = parseInt(req.query.dias) || 7;
+  const dataInicioParam = req.query.dataInicio;
+  const dataFimParam = req.query.dataFim;
+  const diasProjecao = parseInt(req.query.diasProjecao) || dias;
 
   if (!empresa) {
     return res.status(400).json({ error: 'empresa is required' });
@@ -138,7 +141,13 @@ router.get('/projecao', async (req, res) => {
   const hoje = new Date();
   const dataInicio = new Date(hoje);
   dataInicio.setDate(dataInicio.getDate() - dias);
-  const dataInicioStr = dataInicio.toISOString().split('T')[0];
+  const dataInicioStr = dataInicioParam || dataInicio.toISOString().split('T')[0];
+  const dataFimStr = dataFimParam || hoje.toISOString().split('T')[0];
+  const startDate = new Date(`${dataInicioStr}T00:00:00`);
+  const endDate = new Date(`${dataFimStr}T00:00:00`);
+  const diasBase = Number.isFinite(startDate.getTime()) && Number.isFinite(endDate.getTime())
+    ? Math.max(1, Math.floor((endDate - startDate) / 86400000) + 1)
+    : dias;
 
   try {
     // Average daily sales per fuel in last N days
@@ -146,16 +155,18 @@ router.get('/projecao', async (req, res) => {
       `SELECT
          vdit.vditproduto AS produto_codigo,
          prod.prodresumo AS produto_nome,
-         COALESCE(SUM(vdit.vditqtd), 0)::numeric / $3 AS media_diaria_litros
+         COALESCE(SUM(vdit.vditqtd), 0) AS litros_periodo,
+         COALESCE(SUM(vdit.vditqtd), 0)::numeric / $4 AS media_diaria_litros
        FROM vdit
        JOIN vda ON vda.vdacodigo = vdit.vditcodigovda AND vda.vdaempresa = vdit.vditempresa
        JOIN prod ON prod.prodcodigo = vdit.vditproduto
        WHERE vdit.vditempresa = $1
          AND vda.vdamovimento >= $2
+         AND vda.vdamovimento <= $3
          AND (vda.vdastatus IS NULL OR vda.vdastatus = 0)
          AND prod.prodtipo = 1
        GROUP BY vdit.vditproduto, prod.prodresumo`,
-      [empresa, dataInicioStr, dias]
+      [empresa, dataInicioStr, dataFimStr, diasBase]
     );
 
     // Current stock from tanq
@@ -174,20 +185,36 @@ router.get('/projecao', async (req, res) => {
 
     const projecoes = mediaResult.rows.map(r => {
       const mediaDiaria = parseFloat(r.media_diaria_litros || 0);
+      const litrosPeriodo = parseFloat(r.litros_periodo || 0);
       const estoqueAtual = estoqueMap[r.produto_codigo] || 0;
       const diasRestantes = mediaDiaria > 0 ? Math.floor(estoqueAtual / mediaDiaria) : 999;
+      const consumoProjetado = mediaDiaria * diasProjecao;
+      const compraProjetada = consumoProjetado;
+      const necessidadeCompra = Math.max(consumoProjetado - estoqueAtual, 0);
 
       return {
         produtoCodigo: r.produto_codigo,
         produtoNome: r.produto_nome,
+        litrosPeriodo,
         mediaDiariaLitros: mediaDiaria,
         estoqueAtual,
         diasRestantes,
+        diasProjecao,
+        consumoProjetado,
+        compraProjetada,
+        necessidadeCompra,
         alertaAbastecimento: diasRestantes <= 3,
       };
     });
 
-    res.json({ empresa, diasBase: dias, projecoes });
+    res.json({
+      empresa,
+      diasBase,
+      diasProjecao,
+      dataInicio: dataInicioStr,
+      dataFim: dataFimStr,
+      projecoes,
+    });
   } catch (err) {
     console.error('Error in /estoque/projecao:', err.message);
     res.status(500).json({ error: err.message });
