@@ -1055,7 +1055,9 @@ function exportControlReport({ rows, filters, productName, clientName }) {
     * { box-sizing: border-box; }
     body { margin: 0; font-family: Arial, Helvetica, sans-serif; color: #111; background: #fff; }
     .report { width: 100%; }
-    .header { margin-bottom: 14px; border-bottom: 2px solid #e31e24; padding-bottom: 10px; }
+    .header { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; margin-bottom: 14px; border-bottom: 2px solid #e31e24; padding-bottom: 10px; }
+    .header-text { min-width: 0; }
+    .report-logo { width: 150px; max-width: 32%; height: auto; object-fit: contain; margin-top: 1px; }
     h1 { margin: 0 0 6px; font-size: 20px; letter-spacing: 0; }
     .subtitle { color: #555; font-size: 12px; line-height: 1.4; }
     table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: ${payload.orientation === 'landscape' ? '10px' : '11px'}; }
@@ -1075,8 +1077,11 @@ function exportControlReport({ rows, filters, productName, clientName }) {
 <body>
   <main class="report">
     <section class="header">
-      <h1>${escapeHtml(payload.title)}</h1>
-      <div class="subtitle">${escapeHtml(payload.subtitle)}</div>
+      <div class="header-text">
+        <h1>${escapeHtml(payload.title)}</h1>
+        <div class="subtitle">${escapeHtml(payload.subtitle)}</div>
+      </div>
+      <img class="report-logo" src="/logo-starvl.png" alt="STARVL" />
     </section>
     <table>
       <thead>
@@ -1088,7 +1093,7 @@ function exportControlReport({ rows, filters, productName, clientName }) {
   </main>
   <script>
     window.addEventListener('load', function () {
-      setTimeout(function () { window.print(); }, 250);
+      setTimeout(function () { window.print(); }, 500);
     });
   </script>
 </body>
