@@ -295,12 +295,14 @@ const TopBar = ({ currentPage, setCurrentPage, isConnected, clients, selectedCli
           ))}
         </select>
 
-        <input
-          className="topbar-select topbar-month"
-          type="month"
-          value={periodToMonthInput(selectedPeriod)}
-          onChange={(e) => setSelectedPeriod(monthInputToPeriod(e.target.value))}
-        />
+        {currentPage === 'dashboard' && (
+          <input
+            className="topbar-select topbar-month"
+            type="month"
+            value={periodToMonthInput(selectedPeriod)}
+            onChange={(e) => setSelectedPeriod(monthInputToPeriod(e.target.value))}
+          />
+        )}
 
         <button type="button" className="btn-refresh" onClick={onRefresh}>
           <RefreshCw size={15} />
@@ -1101,7 +1103,7 @@ function exportControlReport({ rows, filters, productName, clientName }) {
   printWindow.document.close();
 }
 
-const Reports = ({ selectedClient, selectedPeriod, clients }) => {
+const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients }) => {
   const [activeTab, setActiveTab] = useState('descarregamentos');
   const [data, setData] = useState({ descarregamentos: null, vendas: null, historico: null, consolidado: null, controle: null });
   const [loading, setLoading] = useState({});
@@ -1691,10 +1693,23 @@ const Reports = ({ selectedClient, selectedPeriod, clients }) => {
     <div className="page-content">
       <div className="page-header">
         <h2>RELATÓRIOS</h2>
-        <button type="button" className="btn-secondary" onClick={() => fetchTab(activeTab)} style={{ width: 'auto', display: 'flex', gap: '8px', alignItems: 'center', padding: '8px 16px', fontSize: '13px' }}>
-          <RefreshCw size={15} />
-          Atualizar
-        </button>
+        <div className="header-actions">
+          <div className="control-filter-group">
+            <label className="control-filter-label">PERIODO</label>
+            <div className="control-filter-select">
+              <Calendar size={15} />
+              <input
+                type="month"
+                value={periodToMonthInput(selectedPeriod)}
+                onChange={(e) => setSelectedPeriod(monthInputToPeriod(e.target.value))}
+              />
+            </div>
+          </div>
+          <button type="button" className="btn-secondary" onClick={() => fetchTab(activeTab)} style={{ alignSelf: 'flex-end', width: 'auto', display: 'flex', gap: '8px', alignItems: 'center', padding: '8px 16px', fontSize: '13px' }}>
+            <RefreshCw size={15} />
+            Atualizar
+          </button>
+        </div>
       </div>
 
       <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', borderBottom: '1px solid #222', paddingBottom: '0' }}>
@@ -3097,7 +3112,9 @@ export default function App() {
   const [isConnected, setIsConnected] = useState(false);
   const [clients, setClients] = useState(initialClients);
   const [selectedClient, setSelectedClient] = useState(initialClients[0].nome);
-  const [selectedPeriod, setSelectedPeriod] = useState(getCurrentPeriod());
+  const [dashboardPeriod, setDashboardPeriod] = useState(getCurrentPeriod());
+  const [reportsPeriod, setReportsPeriod] = useState(getCurrentPeriod());
+  const [controlPeriod, setControlPeriod] = useState(getCurrentPeriod());
   const [adminUsers, setAdminUsers] = useState(initialAdminUsers);
 
   const isAdmin = loggedUser?.perfil === 'admin';
@@ -3107,6 +3124,7 @@ export default function App() {
     combustiveis: [],
     vendasDiarias: [],
     vendasHorarias: [],
+    dashboardLmcControle: null,
     lmcRegistros: null,
     lmcDiario: null,
     lmcControle: null,
@@ -3120,27 +3138,30 @@ export default function App() {
     const client = clients.find(c => c.nome === selectedClient) || clients[0];
     if (!client) return;
     const empresa = client.codigoEmpresa;
-    const periodo = periodToApi(selectedPeriod);
+    const dashboardPeriodo = periodToApi(dashboardPeriod);
+    const controlPeriodo = periodToApi(controlPeriod);
 
     setApiData(prev => ({ ...prev, loading: true, error: null }));
 
     Promise.all([
-      fetch(`${API_URL}/api/dashboard/kpis?empresa=${empresa}&periodo=${periodo}`).then(r => r.json()),
-      fetch(`${API_URL}/api/dashboard/combustiveis?empresa=${empresa}&periodo=${periodo}`).then(r => r.json()),
-      fetch(`${API_URL}/api/dashboard/vendas-diarias?empresa=${empresa}&periodo=${periodo}`).then(r => r.json()),
-      fetch(`${API_URL}/api/dashboard/vendas-horarias?empresa=${empresa}&periodo=${periodo}`).then(r => r.json()),
-      fetch(`${API_URL}/api/lmc?empresa=${empresa}&periodo=${periodo}`).then(r => r.json()),
-      fetch(`${API_URL}/api/lmc/diario?empresa=${empresa}&periodo=${periodo}`).then(r => r.json()),
-      fetch(`${API_URL}/api/lmc/controle?empresa=${empresa}&periodo=${periodo}`).then(r => r.json()),
+      fetch(`${API_URL}/api/dashboard/kpis?empresa=${empresa}&periodo=${dashboardPeriodo}`).then(r => r.json()),
+      fetch(`${API_URL}/api/dashboard/combustiveis?empresa=${empresa}&periodo=${dashboardPeriodo}`).then(r => r.json()),
+      fetch(`${API_URL}/api/dashboard/vendas-diarias?empresa=${empresa}&periodo=${dashboardPeriodo}`).then(r => r.json()),
+      fetch(`${API_URL}/api/dashboard/vendas-horarias?empresa=${empresa}&periodo=${dashboardPeriodo}`).then(r => r.json()),
+      fetch(`${API_URL}/api/lmc/controle?empresa=${empresa}&periodo=${dashboardPeriodo}`).then(r => r.json()),
+      fetch(`${API_URL}/api/lmc?empresa=${empresa}&periodo=${controlPeriodo}`).then(r => r.json()),
+      fetch(`${API_URL}/api/lmc/diario?empresa=${empresa}&periodo=${controlPeriodo}`).then(r => r.json()),
+      fetch(`${API_URL}/api/lmc/controle?empresa=${empresa}&periodo=${controlPeriodo}`).then(r => r.json()),
       fetch(`${API_URL}/api/estoque?empresa=${empresa}`).then(r => r.json()),
       fetch(`${API_URL}/api/estoque/projecao?empresa=${empresa}&dias=7`).then(r => r.json()),
-    ]).then(([kpis, combustiveis, vendasDiarias, vendasHorarias, lmcResp, lmcDiario, lmcControle, estoqueResp, projecaoResp]) => {
+    ]).then(([kpis, combustiveis, vendasDiarias, vendasHorarias, dashboardLmcControle, lmcResp, lmcDiario, lmcControle, estoqueResp, projecaoResp]) => {
       setIsConnected(true);
       setApiData({
         kpis: kpis.error ? null : kpis,
         combustiveis: Array.isArray(combustiveis) ? combustiveis : [],
         vendasDiarias: Array.isArray(vendasDiarias) ? vendasDiarias : [],
         vendasHorarias: Array.isArray(vendasHorarias) ? vendasHorarias : [],
+        dashboardLmcControle: dashboardLmcControle.registros || [],
         lmcRegistros: lmcResp.registros || [],
         lmcDiario: lmcDiario || null,
         lmcControle: lmcControle.registros || [],
@@ -3153,34 +3174,37 @@ export default function App() {
       setIsConnected(false);
       setApiData(prev => ({ ...prev, loading: false, error: err.message }));
     });
-  }, [selectedClient, selectedPeriod, clients]);
+  }, [selectedClient, dashboardPeriod, controlPeriod, clients]);
 
   const handleRefresh = () => {
     const client = clients.find(c => c.nome === selectedClient) || clients[0];
     if (!client) return;
     const empresa = client.codigoEmpresa;
-    const periodo = periodToApi(selectedPeriod);
+    const dashboardPeriodo = periodToApi(dashboardPeriod);
+    const controlPeriodo = periodToApi(controlPeriod);
 
     setIsConnected(false);
     setApiData(prev => ({ ...prev, loading: true }));
 
     Promise.all([
-      fetch(`${API_URL}/api/dashboard/kpis?empresa=${empresa}&periodo=${periodo}`).then(r => r.json()),
-      fetch(`${API_URL}/api/dashboard/combustiveis?empresa=${empresa}&periodo=${periodo}`).then(r => r.json()),
-      fetch(`${API_URL}/api/dashboard/vendas-diarias?empresa=${empresa}&periodo=${periodo}`).then(r => r.json()),
-      fetch(`${API_URL}/api/dashboard/vendas-horarias?empresa=${empresa}&periodo=${periodo}`).then(r => r.json()),
-      fetch(`${API_URL}/api/lmc?empresa=${empresa}&periodo=${periodo}`).then(r => r.json()),
-      fetch(`${API_URL}/api/lmc/diario?empresa=${empresa}&periodo=${periodo}`).then(r => r.json()),
-      fetch(`${API_URL}/api/lmc/controle?empresa=${empresa}&periodo=${periodo}`).then(r => r.json()),
+      fetch(`${API_URL}/api/dashboard/kpis?empresa=${empresa}&periodo=${dashboardPeriodo}`).then(r => r.json()),
+      fetch(`${API_URL}/api/dashboard/combustiveis?empresa=${empresa}&periodo=${dashboardPeriodo}`).then(r => r.json()),
+      fetch(`${API_URL}/api/dashboard/vendas-diarias?empresa=${empresa}&periodo=${dashboardPeriodo}`).then(r => r.json()),
+      fetch(`${API_URL}/api/dashboard/vendas-horarias?empresa=${empresa}&periodo=${dashboardPeriodo}`).then(r => r.json()),
+      fetch(`${API_URL}/api/lmc/controle?empresa=${empresa}&periodo=${dashboardPeriodo}`).then(r => r.json()),
+      fetch(`${API_URL}/api/lmc?empresa=${empresa}&periodo=${controlPeriodo}`).then(r => r.json()),
+      fetch(`${API_URL}/api/lmc/diario?empresa=${empresa}&periodo=${controlPeriodo}`).then(r => r.json()),
+      fetch(`${API_URL}/api/lmc/controle?empresa=${empresa}&periodo=${controlPeriodo}`).then(r => r.json()),
       fetch(`${API_URL}/api/estoque?empresa=${empresa}`).then(r => r.json()),
       fetch(`${API_URL}/api/estoque/projecao?empresa=${empresa}&dias=7`).then(r => r.json()),
-    ]).then(([kpis, combustiveis, vendasDiarias, vendasHorarias, lmcResp, lmcDiario, lmcControle, estoqueResp, projecaoResp]) => {
+    ]).then(([kpis, combustiveis, vendasDiarias, vendasHorarias, dashboardLmcControle, lmcResp, lmcDiario, lmcControle, estoqueResp, projecaoResp]) => {
       setIsConnected(true);
       setApiData({
         kpis: kpis.error ? null : kpis,
         combustiveis: Array.isArray(combustiveis) ? combustiveis : [],
         vendasDiarias: Array.isArray(vendasDiarias) ? vendasDiarias : [],
         vendasHorarias: Array.isArray(vendasHorarias) ? vendasHorarias : [],
+        dashboardLmcControle: dashboardLmcControle.registros || [],
         lmcRegistros: lmcResp.registros || [],
         lmcDiario: lmcDiario || null,
         lmcControle: lmcControle.registros || [],
@@ -3198,11 +3222,11 @@ export default function App() {
   const renderPage = () => {
     switch (currentPage) {
       case 'dashboard':
-        return <Dashboard kpis={apiData.kpis} vendasDiarias={apiData.vendasDiarias} vendasHorarias={apiData.vendasHorarias} lmcControle={apiData.lmcControle} estoques={apiData.estoques} loading={apiData.loading} />;
+        return <Dashboard kpis={apiData.kpis} vendasDiarias={apiData.vendasDiarias} vendasHorarias={apiData.vendasHorarias} lmcControle={apiData.dashboardLmcControle} estoques={apiData.estoques} loading={apiData.loading} />;
       case 'reports':
-        return <Reports selectedClient={selectedClient} selectedPeriod={selectedPeriod} clients={clients} />;
+        return <Reports selectedClient={selectedClient} selectedPeriod={reportsPeriod} setSelectedPeriod={setReportsPeriod} clients={clients} />;
       case 'control':
-        return <Control lmcRegistros={apiData.lmcRegistros} lmcDiario={apiData.lmcDiario} lmcControle={apiData.lmcControle} selectedPeriod={selectedPeriod} setSelectedPeriod={setSelectedPeriod} selectedClient={selectedClient} clients={clients} />;
+        return <Control lmcRegistros={apiData.lmcRegistros} lmcDiario={apiData.lmcDiario} lmcControle={apiData.lmcControle} selectedPeriod={controlPeriod} setSelectedPeriod={setControlPeriod} selectedClient={selectedClient} clients={clients} />;
       case 'stock':
         return <StockPosition estoques={apiData.estoques} projecao={apiData.projecao} loading={apiData.loading} selectedClient={selectedClient} clients={clients} />;
       case 'users':
@@ -3212,7 +3236,7 @@ export default function App() {
       case 'admin':
         return <Parameters clients={clients} setClients={setClients} isAdmin={isAdmin} />;
       default:
-        return <Dashboard kpis={apiData.kpis} vendasDiarias={apiData.vendasDiarias} vendasHorarias={apiData.vendasHorarias} lmcControle={apiData.lmcControle} estoques={apiData.estoques} loading={apiData.loading} />;
+        return <Dashboard kpis={apiData.kpis} vendasDiarias={apiData.vendasDiarias} vendasHorarias={apiData.vendasHorarias} lmcControle={apiData.dashboardLmcControle} estoques={apiData.estoques} loading={apiData.loading} />;
     }
   };
 
@@ -3235,8 +3259,8 @@ export default function App() {
           clients={clients}
           selectedClient={selectedClient}
           setSelectedClient={setSelectedClient}
-          selectedPeriod={selectedPeriod}
-          setSelectedPeriod={setSelectedPeriod}
+          selectedPeriod={dashboardPeriod}
+          setSelectedPeriod={setDashboardPeriod}
           onRefresh={handleRefresh}
           onLogout={() => { setIsLoggedIn(false); setLoggedUser(null); }}
           loggedUser={loggedUser}
