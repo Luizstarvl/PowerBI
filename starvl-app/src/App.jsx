@@ -267,10 +267,11 @@ const PAGE_TITLES = {
   params: 'Parâmetros',
 };
 
-const TopBar = ({ currentPage, setCurrentPage, isConnected, clients, selectedClient, setSelectedClient, selectedPeriod, setSelectedPeriod, onRefresh, onLogout, loggedUser }) => {
+const TopBar = ({ currentPage, setCurrentPage, isConnected, apiError, clients, selectedClient, setSelectedClient, selectedPeriod, setSelectedPeriod, onRefresh, onLogout, loggedUser }) => {
   const [showAdminMenu, setShowAdminMenu] = useState(false);
   const now = new Date();
   const dateStr = now.toLocaleDateString('pt-BR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  const connectionLabel = isConnected ? 'Conectado' : (apiError ? 'Servidor offline' : 'Desconectado');
 
   return (
     <div className="top-bar">
@@ -282,7 +283,7 @@ const TopBar = ({ currentPage, setCurrentPage, isConnected, clients, selectedCli
       <div className="top-bar-center">
         <div className={`connection-status ${isConnected ? 'connected' : 'disconnected'}`}>
           <span className="connection-dot" />
-          <span>{isConnected ? 'Conectado' : 'Desconectado'}</span>
+          <span>{connectionLabel}</span>
         </div>
 
         <select
@@ -345,6 +346,49 @@ const TopBar = ({ currentPage, setCurrentPage, isConnected, clients, selectedCli
     </div>
   );
 };
+
+function getFriendlyApiError(error) {
+  const message = String(error?.message || error || '').trim();
+  if (!message || /failed to fetch|networkerror|load failed/i.test(message)) {
+    return 'Nao foi possivel conectar ao servidor. Verifique se a API esta online e tente atualizar novamente.';
+  }
+  return `Nao foi possivel carregar os dados. ${message}`;
+}
+
+const LoadingState = ({ label = 'Carregando dados...', compact = false }) => (
+  <div className={`loading-state ${compact ? 'compact' : ''}`}>
+    <RefreshCw size={compact ? 18 : 28} />
+    <span>{label}</span>
+  </div>
+);
+
+const ApiErrorNotice = ({ message, onRetry }) => (
+  <div className="api-error-notice">
+    <div className="api-error-icon"><AlertCircle size={20} /></div>
+    <div className="api-error-text">
+      <strong>Nao foi possivel conectar aos dados</strong>
+      <span>{message || 'Tente atualizar novamente em alguns instantes.'}</span>
+    </div>
+    {onRetry && (
+      <button type="button" className="api-error-action" onClick={onRetry}>
+        <RefreshCw size={15} />
+        Tentar novamente
+      </button>
+    )}
+  </div>
+);
+
+const SkeletonCards = ({ count = 4 }) => (
+  <div className="skeleton-grid">
+    {Array.from({ length: count }).map((_, index) => (
+      <div className="skeleton-card" key={index}>
+        <div className="skeleton-line short" />
+        <div className="skeleton-line" />
+        <div className="skeleton-line tiny" />
+      </div>
+    ))}
+  </div>
+);
 
 // Dashboard Component
 const Dashboard = ({ kpis, vendasDiarias, vendasHorarias, lmcControle, estoques, loading }) => {
@@ -419,23 +463,23 @@ const Dashboard = ({ kpis, vendasDiarias, vendasHorarias, lmcControle, estoques,
 
   return (
     <div className="page-content">
-      {loading && (
-        <div style={{ textAlign: 'center', padding: '8px 0 16px', color: '#E31E24', fontSize: '13px', letterSpacing: '1px' }}>
-          Buscando dados do banco de dados...
+      {loading && <LoadingState compact label="Atualizando dashboard..." />}
+      {loading && !kpis ? (
+        <SkeletonCards count={4} />
+      ) : (
+        <div className="kpi-row">
+          {dynamicKpis.map((kpi) => (
+            <div className="kpi-card" key={kpi.label}>
+              <div className="kpi-icon"><kpi.icon size={24} /></div>
+              <div className="kpi-content">
+                <div className="kpi-label">{kpi.label}</div>
+                <div className="kpi-value">{kpi.value}</div>
+                {kpi.sub && <div className="kpi-trend positive">{kpi.sub}</div>}
+              </div>
+            </div>
+          ))}
         </div>
       )}
-      <div className="kpi-row">
-        {dynamicKpis.map((kpi) => (
-          <div className="kpi-card" key={kpi.label}>
-            <div className="kpi-icon"><kpi.icon size={24} /></div>
-            <div className="kpi-content">
-              <div className="kpi-label">{kpi.label}</div>
-              <div className="kpi-value">{kpi.value}</div>
-              {kpi.sub && <div className="kpi-trend positive">{kpi.sub}</div>}
-            </div>
-          </div>
-        ))}
-      </div>
 
       <div className="dashboard-grid">
         <div className="chart-card large">
@@ -992,6 +1036,7 @@ function exportControlReport({ rows, filters, productName, clientName }) {
 
   const payload = buildControlExportPayload({ rows, filters, productName, clientName });
   const fileBase = safeFilePart(`controle-${filters.tipo}-${productName}-${filters.dataInicial}-${filters.dataFinal}`);
+  const generatedAt = new Date().toLocaleString('pt-BR');
 
   if (filters.formato === 'csv') {
     const csvRows = [
@@ -1055,11 +1100,12 @@ function exportControlReport({ rows, filters, productName, clientName }) {
     * { box-sizing: border-box; }
     body { margin: 0; font-family: Arial, Helvetica, sans-serif; color: #111; background: #fff; }
     .report { width: 100%; }
-    .header { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; margin-bottom: 14px; border-bottom: 2px solid #e31e24; padding-bottom: 10px; }
+    .header { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-bottom: 8px; border-bottom: 2px solid #e31e24; padding-bottom: 8px; }
     .header-text { min-width: 0; }
-    .report-logo { width: 150px; max-width: 32%; height: auto; object-fit: contain; margin-top: 1px; }
-    h1 { margin: 0 0 6px; font-size: 20px; letter-spacing: 0; }
+    .report-logo { width: 126px; max-width: 28%; height: auto; object-fit: contain; display: block; }
+    h1 { margin: 0 0 5px; font-size: 20px; letter-spacing: 0; }
     .subtitle { color: #555; font-size: 12px; line-height: 1.4; }
+    .report-meta { display: flex; justify-content: space-between; gap: 12px; margin: 0 0 10px; color: #666; font-size: 10px; }
     table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: ${payload.orientation === 'landscape' ? '10px' : '11px'}; }
     thead { display: table-header-group; }
     tfoot { display: table-footer-group; }
@@ -1068,6 +1114,7 @@ function exportControlReport({ rows, filters, productName, clientName }) {
     th { background: #151515; color: #fff; text-align: left; font-size: 9px; }
     td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
     tfoot td { font-weight: 700; background: #f1f1f1; }
+    .report-footer { margin-top: 8px; color: #777; font-size: 10px; text-align: right; }
     @media screen {
       body { background: #f3f4f6; padding: 20px; }
       .report { max-width: ${payload.orientation === 'landscape' ? '1120px' : '820px'}; margin: 0 auto; background: #fff; padding: 24px; box-shadow: 0 10px 30px rgba(0,0,0,.12); overflow-x: auto; }
@@ -1083,6 +1130,10 @@ function exportControlReport({ rows, filters, productName, clientName }) {
       </div>
       <img class="report-logo" src="/logo-starvl.png" alt="STARVL" />
     </section>
+    <div class="report-meta">
+      <span>Filtros: ${escapeHtml(productName)} | ${escapeHtml(formatFullDateBR(filters.dataInicial))} a ${escapeHtml(formatFullDateBR(filters.dataFinal))}</span>
+      <span>Gerado em ${escapeHtml(generatedAt)}</span>
+    </div>
     <table>
       <thead>
         <tr>${payload.columns.map(c => `<th class="${c.align === 'right' ? 'num' : ''}">${escapeHtml(c.label)}</th>`).join('')}</tr>
@@ -1090,6 +1141,7 @@ function exportControlReport({ rows, filters, productName, clientName }) {
       <tbody>${bodyRows}</tbody>
       <tfoot><tr>${totalCells}</tr></tfoot>
     </table>
+    <footer class="report-footer">STARVL | ${escapeHtml(payload.title)}</footer>
   </main>
   <script>
     window.addEventListener('load', function () {
@@ -1544,7 +1596,7 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
     });
     setShowControlPrintPanel(false);
     } catch (err) {
-      window.alert(`Erro ao gerar relatorio: ${err.message}`);
+      window.alert(`Erro ao gerar relatorio: ${getFriendlyApiError(err)}`);
     } finally {
       setLoading(prev => ({ ...prev, controleExport: false }));
     }
@@ -1667,22 +1719,12 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
   const renderContent = () => {
     if (loading[activeTab]) {
       return (
-        <div style={{ padding: '60px', textAlign: 'center', color: '#666' }}>
-          <RefreshCw size={32} style={{ animation: 'spin 1s linear infinite', marginBottom: '12px' }} />
-          <div>Carregando dados...</div>
-        </div>
+        <LoadingState label="Carregando informacoes do relatorio..." />
       );
     }
     if (error[activeTab]) {
       return (
-        <div style={{ padding: '40px', textAlign: 'center', color: '#E31E24' }}>
-          <AlertCircle size={32} style={{ marginBottom: '12px' }} />
-          <div style={{ fontWeight: 600, marginBottom: '8px' }}>Erro ao carregar</div>
-          <div style={{ fontSize: '13px', color: '#888' }}>{error[activeTab]}</div>
-          <button type="button" className="btn-primary" onClick={() => fetchTab(activeTab)} style={{ marginTop: '16px', width: 'auto', padding: '8px 20px' }}>
-            Tentar novamente
-          </button>
-        </div>
+        <ApiErrorNotice message={getFriendlyApiError(error[activeTab])} onRetry={() => fetchTab(activeTab)} />
       );
     }
     if (!data[activeTab]) return null;
@@ -1717,7 +1759,7 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', borderBottom: '1px solid #222', paddingBottom: '0' }}>
+      <div className="reports-tabs" style={{ display: 'flex', gap: '8px', marginBottom: '20px', borderBottom: '1px solid #222', paddingBottom: '0' }}>
         {tabs.map(tab => (
           <button
             key={tab.id}
@@ -1772,6 +1814,7 @@ const Control = ({ lmcRegistros, lmcDiario, lmcControle, selectedPeriod, setSele
       return {};
     }
   });
+  const [savedEditKey, setSavedEditKey] = useState(null);
 
   const fmt2 = (n) => (n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -1859,7 +1902,7 @@ const Control = ({ lmcRegistros, lmcDiario, lmcControle, selectedPeriod, setSele
       });
       setShowPrintPanel(false);
     } catch (err) {
-      window.alert(`Erro ao gerar relatorio: ${err.message}`);
+      window.alert(`Erro ao gerar relatorio: ${getFriendlyApiError(err)}`);
     }
   }
 
@@ -1869,6 +1912,9 @@ const Control = ({ lmcRegistros, lmcDiario, lmcControle, selectedPeriod, setSele
       localStorage.setItem('starvl:lmc-fisico', JSON.stringify(next));
       return next;
     });
+    const savedKey = `fisico:${key}`;
+    setSavedEditKey(savedKey);
+    window.setTimeout(() => setSavedEditKey(current => current === savedKey ? null : current), 1200);
   }
 
   function persistAberturaEdit(key, value) {
@@ -1877,6 +1923,9 @@ const Control = ({ lmcRegistros, lmcDiario, lmcControle, selectedPeriod, setSele
       localStorage.setItem('starvl:lmc-abertura', JSON.stringify(next));
       return next;
     });
+    const savedKey = `abertura:${key}`;
+    setSavedEditKey(savedKey);
+    window.setTimeout(() => setSavedEditKey(current => current === savedKey ? null : current), 1200);
   }
 
   const tableRows = buildControlReportRows({
@@ -1976,7 +2025,7 @@ const Control = ({ lmcRegistros, lmcDiario, lmcControle, selectedPeriod, setSele
                     <td>{row.dia}</td>
                     <td>
                       <input
-                        className="lmc-fisico-input"
+                        className={`lmc-fisico-input ${savedEditKey === `abertura:${row.aberturaKey}` ? 'saved' : ''}`}
                         type="text"
                         inputMode="decimal"
                         value={row.aberturaInput}
@@ -1991,7 +2040,7 @@ const Control = ({ lmcRegistros, lmcDiario, lmcControle, selectedPeriod, setSele
                     <td>{fmt2(row.fechamento)}</td>
                     <td>
                       <input
-                        className="lmc-fisico-input"
+                        className={`lmc-fisico-input ${savedEditKey === `fisico:${row.fisicoKey}` ? 'saved' : ''}`}
                         type="text"
                         inputMode="decimal"
                         value={row.fisicoInput}
@@ -2024,6 +2073,7 @@ const Control = ({ lmcRegistros, lmcDiario, lmcControle, selectedPeriod, setSele
             </table>
           </div>
           <div className="table-footer">
+            {savedEditKey && <div className="save-feedback">Alteracao salva</div>}
             <div className="table-info">Exibindo {tableRows.length} dias — {fuels.find(f => f.codigo === activeFuelId)?.nome || ''}</div>
           </div>
         </>
@@ -2259,9 +2309,7 @@ const StockPosition = ({ estoques, projecao, loading, selectedClient, clients })
       </div>
 
       {loading && (
-        <div style={{ textAlign: 'center', padding: '8px 0 16px', color: '#E31E24', fontSize: '13px' }}>
-          Buscando dados do banco de dados...
-        </div>
+        <LoadingState compact label="Atualizando posicao de estoque..." />
       )}
 
       <div className="stock-grid">
@@ -2331,9 +2379,7 @@ const StockPosition = ({ estoques, projecao, loading, selectedClient, clients })
             BASE: MEDIA DO PERIODO SELECIONADO {projectionLoading ? '...' : ''}
           </div>
           {projectionError && (
-            <div style={{ color: '#f87171', fontSize: '12px', marginBottom: '8px' }}>
-              Erro ao carregar projecao: {projectionError}
-            </div>
+            <ApiErrorNotice message={getFriendlyApiError(projectionError)} />
           )}
           <div className="projection-subtitle old-projection-subtitle">
             BASE: MÉDIA DOS ÚLTIMOS 7 DIAS
@@ -3177,7 +3223,7 @@ export default function App() {
       });
     }).catch(err => {
       setIsConnected(false);
-      setApiData(prev => ({ ...prev, loading: false, error: err.message }));
+      setApiData(prev => ({ ...prev, loading: false, error: getFriendlyApiError(err) }));
     });
   }, [selectedClient, dashboardPeriod, controlPeriod, clients]);
 
@@ -3220,7 +3266,7 @@ export default function App() {
       });
     }).catch(err => {
       setIsConnected(false);
-      setApiData(prev => ({ ...prev, loading: false, error: err.message }));
+      setApiData(prev => ({ ...prev, loading: false, error: getFriendlyApiError(err) }));
     });
   };
 
@@ -3261,6 +3307,7 @@ export default function App() {
           currentPage={currentPage}
           setCurrentPage={setCurrentPage}
           isConnected={isConnected}
+          apiError={apiData.error}
           clients={clients}
           selectedClient={selectedClient}
           setSelectedClient={setSelectedClient}
@@ -3270,6 +3317,7 @@ export default function App() {
           onLogout={() => { setIsLoggedIn(false); setLoggedUser(null); }}
           loggedUser={loggedUser}
         />
+        {apiData.error && <ApiErrorNotice message={apiData.error} onRetry={handleRefresh} />}
         {renderPage()}
       </main>
     </div>
