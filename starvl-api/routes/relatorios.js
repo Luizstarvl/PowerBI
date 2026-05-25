@@ -123,28 +123,39 @@ router.get('/vendas', async (req, res) => {
   }
   const { dataInicio, dataFim } = periodoToRange(periodo);
   try {
-    const result = await query(
-      `SELECT
-         prod.prodresumo AS produto,
-         prod.prodtipo AS tipo_prod,
-         COALESCE(SUM(vdit.vditqtd), 0) AS qtd_total,
-         COALESCE(SUM(vdit.vdittotal), 0) AS valor_total,
-         CASE WHEN SUM(vdit.vditqtd) > 0
-              THEN SUM(vdit.vdittotal) / SUM(vdit.vditqtd)
-              ELSE 0 END AS preco_medio,
-         COUNT(DISTINCT vda.vdacodigo) AS qtd_vendas
-       FROM vdit
-       JOIN vda ON vda.vdacodigo = vdit.vditcodigovda
-               AND vda.vdaempresa = vdit.vditempresa
-       JOIN prod ON prod.prodcodigo = vdit.vditproduto
-       WHERE vdit.vditempresa = $1
-         AND vda.vdamovimento >= $2
-         AND vda.vdamovimento <= $3
-         AND (vda.vdastatus IS NULL OR vda.vdastatus = 0)
-       GROUP BY prod.prodresumo, prod.prodtipo
-       ORDER BY valor_total DESC`,
-      [empresa, dataInicio, dataFim]
-    );
+    const [result, totalVendasResult] = await Promise.all([
+      query(
+        `SELECT
+           prod.prodresumo AS produto,
+           prod.prodtipo AS tipo_prod,
+           COALESCE(SUM(vdit.vditqtd), 0) AS qtd_total,
+           COALESCE(SUM(vdit.vdittotal), 0) AS valor_total,
+           CASE WHEN SUM(vdit.vditqtd) > 0
+                THEN SUM(vdit.vdittotal) / SUM(vdit.vditqtd)
+                ELSE 0 END AS preco_medio,
+           COUNT(DISTINCT vda.vdacodigo) AS qtd_vendas
+         FROM vdit
+         JOIN vda ON vda.vdacodigo = vdit.vditcodigovda
+                 AND vda.vdaempresa = vdit.vditempresa
+         JOIN prod ON prod.prodcodigo = vdit.vditproduto
+         WHERE vdit.vditempresa = $1
+           AND vda.vdamovimento >= $2
+           AND vda.vdamovimento <= $3
+           AND (vda.vdastatus IS NULL OR vda.vdastatus = 0)
+         GROUP BY prod.prodresumo, prod.prodtipo
+         ORDER BY valor_total DESC`,
+        [empresa, dataInicio, dataFim]
+      ),
+      query(
+        `SELECT COUNT(DISTINCT vda.vdacodigo) AS qtd_vendas_pdv
+         FROM vda
+         WHERE vda.vdaempresa = $1
+           AND vda.vdamovimento >= $2
+           AND vda.vdamovimento <= $3
+           AND (vda.vdastatus IS NULL OR vda.vdastatus = 0)`,
+        [empresa, dataInicio, dataFim]
+      ),
+    ]);
     const rows = result.rows.map(r => ({
       produto: r.produto,
       tipoProd: r.tipo_prod,
@@ -159,6 +170,7 @@ router.get('/vendas', async (req, res) => {
         qtdTotal: rows.reduce((s, r) => s + r.qtdTotal, 0),
         valorTotal: rows.reduce((s, r) => s + r.valorTotal, 0),
         qtdVendas: rows.reduce((s, r) => s + r.qtdVendas, 0),
+        qtdVendasPdv: parseInt(totalVendasResult.rows[0]?.qtd_vendas_pdv || 0),
       },
     });
   } catch (err) {

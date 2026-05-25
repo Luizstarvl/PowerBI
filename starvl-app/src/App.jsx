@@ -390,9 +390,35 @@ const SkeletonCards = ({ count = 4 }) => (
   </div>
 );
 
+const DASHBOARD_COLORS = {
+  sale: '#E31E24',
+  purchase110: '#38bdf8',
+  purchase220: '#f97316',
+  stock: '#22c55e',
+  attention: '#facc15',
+  neutral: '#2a2a2a',
+  grid: '#262626',
+  axis: '#7a7a7a',
+  label: '#f8fafc',
+  tooltipBg: '#151515',
+};
+
 // Dashboard Component
 const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcControle, estoques, loading }) => {
   const [selectedFuelDonut, setSelectedFuelDonut] = useState(null);
+  const [isCompactDashboard, setIsCompactDashboard] = useState(false);
+
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 768px)');
+    const updateCompact = () => setIsCompactDashboard(media.matches);
+    updateCompact();
+    if (media.addEventListener) {
+      media.addEventListener('change', updateCompact);
+      return () => media.removeEventListener('change', updateCompact);
+    }
+    media.addListener(updateCompact);
+    return () => media.removeListener(updateCompact);
+  }, []);
 
   const fmt = (n, d = 2) => (n || 0).toLocaleString('pt-BR', { minimumFractionDigits: d, maximumFractionDigits: d });
   const fmtCompactCurrency = (value) => {
@@ -460,6 +486,13 @@ const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcContr
   const monthlyTotal = monthlyChart.reduce((sum, row) => sum + Number(row.value || 0), 0);
   const purchasesChartData = comprasChart.length > 0 ? comprasChart : comprasFallback;
   const salesFuelChartData = vendasCombustivelChart.length > 0 ? vendasCombustivelChart : vendasCombustivelFallback;
+  const tooltipStyle = { background: DASHBOARD_COLORS.tooltipBg, border: `1px solid ${DASHBOARD_COLORS.sale}`, borderRadius: 8, color: DASHBOARD_COLORS.label };
+  const labelStyle = { fill: DASHBOARD_COLORS.label, fontWeight: 700 };
+  const wideChartHeight = isCompactDashboard ? 240 : 300;
+  const purchaseChartHeight = isCompactDashboard ? 260 : 280;
+  const smallChartHeight = isCompactDashboard ? 185 : 150;
+  const xTickStyle = { fill: DASHBOARD_COLORS.axis, fontSize: isCompactDashboard ? 10 : 11 };
+  const showDenseValueLabels = !isCompactDashboard;
 
   const dynamicKpis = kpis ? [
     { label: 'Total Vendas', value: 'R$ ' + fmt(kpis.vendas?.valor), icon: DollarSign, sub: `${(kpis.vendas?.total || 0).toLocaleString('pt-BR')} vendas` },
@@ -482,7 +515,7 @@ const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcContr
         <div className="kpi-row">
           {dynamicKpis.map((kpi) => (
             <div className="kpi-card" key={kpi.label}>
-              <div className="kpi-icon"><kpi.icon size={24} /></div>
+              <div className={`kpi-icon ${kpi.label.includes('Compras') ? 'purchase' : kpi.label.includes('Afer') ? 'attention' : kpi.label.includes('Carregando') ? '' : 'sale'}`}><kpi.icon size={24} /></div>
               <div className="kpi-content">
                 <div className="kpi-label">{kpi.label}</div>
                 <div className="kpi-value">{kpi.value}</div>
@@ -499,18 +532,18 @@ const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcContr
             <h3>COMBUSTÍVEIS MAIS VENDIDOS</h3>
             <span style={{ fontSize: '12px', color: '#666' }}>litros no período</span>
           </div>
-          <ResponsiveContainer width="100%" height={300}>
+          <ResponsiveContainer width="100%" height={wideChartHeight}>
             <BarChart data={salesFuelChartData} margin={{ top: 28, right: 12, left: 6, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#2a2a2a" />
-              <XAxis dataKey="name" stroke="#666" />
-              <YAxis stroke="#666" />
+              <CartesianGrid strokeDasharray="3 3" stroke={DASHBOARD_COLORS.grid} />
+              <XAxis dataKey="name" stroke={DASHBOARD_COLORS.axis} tick={xTickStyle} interval={0} height={isCompactDashboard ? 46 : 30} angle={isCompactDashboard ? -18 : 0} textAnchor={isCompactDashboard ? 'end' : 'middle'} />
+              <YAxis stroke={DASHBOARD_COLORS.axis} tick={xTickStyle} width={isCompactDashboard ? 46 : 60} />
               <Tooltip
-                contentStyle={{ background: '#1a1a1a', border: '1px solid #E31E24' }}
+                contentStyle={tooltipStyle}
                 labelStyle={{ color: '#fff' }}
                 formatter={(v) => [fmtLitersLabel(v), 'Litros']}
               />
-              <Bar dataKey="litros" name="Litros vendidos" fill="#E31E24" radius={[8, 8, 0, 0]}>
-                <LabelList dataKey="litros" position="top" formatter={(v) => Number(v) > 0 ? fmtLitersLabel(v) : ''} fill="#fff" fontSize={12} fontWeight={700} />
+              <Bar dataKey="litros" name="Litros vendidos" fill={DASHBOARD_COLORS.sale} radius={[8, 8, 0, 0]}>
+                <LabelList dataKey="litros" position="top" formatter={(v) => Number(v) > 0 ? fmtLitersLabel(v) : ''} {...labelStyle} fontSize={isCompactDashboard ? 10 : 12} />
               </Bar>
             </BarChart>
           </ResponsiveContainer>
@@ -541,10 +574,10 @@ const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcContr
                     { name: 'Disponível', value: fuelPct || 1 },
                     { name: 'Capacidade restante', value: Math.max(0, 100 - fuelPct) }
                   ]}
-                  cx="50%" cy="50%" innerRadius={60} outerRadius={90} paddingAngle={5} dataKey="value"
+                  cx="50%" cy="50%" innerRadius={isCompactDashboard ? 52 : 60} outerRadius={isCompactDashboard ? 78 : 90} paddingAngle={5} dataKey="value"
                 >
-                  <Cell fill="#E31E24" />
-                  <Cell fill="#2a2a2a" />
+                  <Cell fill={DASHBOARD_COLORS.stock} />
+                  <Cell fill={DASHBOARD_COLORS.neutral} />
                 </Pie>
               </PieChart>
             </ResponsiveContainer>
@@ -573,22 +606,22 @@ const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcContr
             <h3>COMPRAS 110 / 220 POR COMBUSTÍVEL</h3>
             <span style={{ fontSize: '12px', color: '#666' }}>litros no período</span>
           </div>
-          <ResponsiveContainer width="100%" height={280}>
+          <ResponsiveContainer width="100%" height={purchaseChartHeight}>
             <BarChart data={purchasesChartData} margin={{ top: 24, right: 12, left: 6, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#2a2a2a" />
-              <XAxis dataKey="name" stroke="#666" />
-              <YAxis stroke="#666" />
+              <CartesianGrid strokeDasharray="3 3" stroke={DASHBOARD_COLORS.grid} />
+              <XAxis dataKey="name" stroke={DASHBOARD_COLORS.axis} tick={xTickStyle} interval={0} height={isCompactDashboard ? 46 : 30} angle={isCompactDashboard ? -18 : 0} textAnchor={isCompactDashboard ? 'end' : 'middle'} />
+              <YAxis stroke={DASHBOARD_COLORS.axis} tick={xTickStyle} width={isCompactDashboard ? 46 : 60} />
               <Tooltip
-                contentStyle={{ background: '#1a1a1a', border: '1px solid #E31E24' }}
+                contentStyle={tooltipStyle}
                 labelStyle={{ color: '#fff' }}
                 formatter={(v) => [fmt(v) + ' L', 'Litros']}
               />
               <Legend />
-              <Bar dataKey="compra110" name="Compra 110" fill="#E31E24" radius={[8, 8, 0, 0]}>
-                <LabelList dataKey="compra110" position="top" formatter={(v) => Number(v) > 0 ? fmtCompactLiters(v) : ''} fill="#fff" fontSize={11} />
+              <Bar dataKey="compra110" name="Compra 110" fill={DASHBOARD_COLORS.purchase110} radius={[8, 8, 0, 0]}>
+                <LabelList dataKey="compra110" position="top" formatter={(v) => Number(v) > 0 ? fmtCompactLiters(v) : ''} {...labelStyle} fontSize={isCompactDashboard ? 9 : 11} />
               </Bar>
-              <Bar dataKey="compra220" name="Compra 220" fill="#f97316" radius={[8, 8, 0, 0]}>
-                <LabelList dataKey="compra220" position="top" formatter={(v) => Number(v) > 0 ? fmtCompactLiters(v) : ''} fill="#fff" fontSize={11} />
+              <Bar dataKey="compra220" name="Compra 220" fill={DASHBOARD_COLORS.purchase220} radius={[8, 8, 0, 0]}>
+                <LabelList dataKey="compra220" position="top" formatter={(v) => Number(v) > 0 ? fmtCompactLiters(v) : ''} {...labelStyle} fontSize={isCompactDashboard ? 9 : 11} />
               </Bar>
             </BarChart>
           </ResponsiveContainer>
@@ -609,18 +642,18 @@ const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcContr
               <div className="metric-sublabel">quebra por hora</div>
             </div>
           </div>
-          <ResponsiveContainer width="100%" height={150}>
-            <BarChart data={hourlyChart}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#222" vertical={false} />
-              <XAxis dataKey="hour" stroke="#666" fontSize={11} interval={3} />
+          <ResponsiveContainer width="100%" height={smallChartHeight}>
+            <BarChart data={hourlyChart} margin={{ top: 22, right: 8, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke={DASHBOARD_COLORS.grid} vertical={false} />
+              <XAxis dataKey="hour" stroke={DASHBOARD_COLORS.axis} tick={xTickStyle} interval={isCompactDashboard ? 5 : 3} />
               <YAxis hide />
               <Tooltip
-                contentStyle={{ background: '#1a1a1a', border: '1px solid #E31E24' }}
+                contentStyle={tooltipStyle}
                 labelStyle={{ color: '#fff' }}
                 formatter={(v) => [fmtCompactCurrency(v), 'Valor']}
               />
-              <Bar dataKey="value" fill="#E31E24" radius={[6, 6, 0, 0]}>
-                <LabelList dataKey="value" position="top" formatter={(v) => Number(v) > 0 ? fmtCompactCurrency(v) : ''} fill="#fff" fontSize={9} />
+              <Bar dataKey="value" fill={DASHBOARD_COLORS.sale} radius={[6, 6, 0, 0]}>
+                {showDenseValueLabels && <LabelList dataKey="value" position="top" formatter={(v) => Number(v) > 0 ? fmtCompactCurrency(v) : ''} {...labelStyle} fontSize={9} />}
               </Bar>
             </BarChart>
           </ResponsiveContainer>
@@ -641,24 +674,24 @@ const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcContr
               <div className="metric-sublabel">Semana 1, 2, 3 e 4</div>
             </div>
           </div>
-          <ResponsiveContainer width="100%" height={150}>
-            <AreaChart data={weeklyChart}>
+          <ResponsiveContainer width="100%" height={smallChartHeight}>
+            <AreaChart data={weeklyChart} margin={{ top: 22, right: 8, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id="colorWeekly" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#E31E24" stopOpacity={0.8}/>
-                  <stop offset="95%" stopColor="#E31E24" stopOpacity={0}/>
+                  <stop offset="5%" stopColor={DASHBOARD_COLORS.sale} stopOpacity={0.8}/>
+                  <stop offset="95%" stopColor={DASHBOARD_COLORS.sale} stopOpacity={0}/>
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#222" vertical={false} />
-              <XAxis dataKey="name" stroke="#666" fontSize={11} />
+              <CartesianGrid strokeDasharray="3 3" stroke={DASHBOARD_COLORS.grid} vertical={false} />
+              <XAxis dataKey="name" stroke={DASHBOARD_COLORS.axis} tick={xTickStyle} />
               <YAxis hide />
               <Tooltip
-                contentStyle={{ background: '#1a1a1a', border: '1px solid #E31E24' }}
+                contentStyle={tooltipStyle}
                 labelStyle={{ color: '#fff' }}
                 formatter={(v) => [fmtCompactCurrency(v), 'Valor']}
               />
-              <Area type="monotone" dataKey="value" stroke="#E31E24" fillOpacity={1} fill="url(#colorWeekly)">
-                <LabelList dataKey="value" position="top" formatter={(v) => Number(v) > 0 ? fmtCompactCurrency(v) : ''} fill="#fff" fontSize={10} />
+              <Area type="monotone" dataKey="value" stroke={DASHBOARD_COLORS.sale} fillOpacity={1} fill="url(#colorWeekly)">
+                <LabelList dataKey="value" position="top" formatter={(v) => Number(v) > 0 ? fmtCompactCurrency(v) : ''} {...labelStyle} fontSize={isCompactDashboard ? 9 : 10} />
               </Area>
             </AreaChart>
           </ResponsiveContainer>
@@ -679,22 +712,22 @@ const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcContr
               <div className="metric-sublabel">total mensal de combustível</div>
             </div>
           </div>
-          <ResponsiveContainer width="100%" height={150}>
-            <AreaChart data={monthlyChart}>
+          <ResponsiveContainer width="100%" height={smallChartHeight}>
+            <AreaChart data={monthlyChart} margin={{ top: 22, right: 8, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id="colorMonthly" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#E31E24" stopOpacity={0.8}/>
-                  <stop offset="95%" stopColor="#E31E24" stopOpacity={0}/>
+                  <stop offset="5%" stopColor={DASHBOARD_COLORS.sale} stopOpacity={0.8}/>
+                  <stop offset="95%" stopColor={DASHBOARD_COLORS.sale} stopOpacity={0}/>
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#222" vertical={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke={DASHBOARD_COLORS.grid} vertical={false} />
               <YAxis hide />
-              <Area type="monotone" dataKey="value" stroke="#E31E24" fillOpacity={1} fill="url(#colorMonthly)">
-                <LabelList dataKey="value" position="top" formatter={(v) => Number(v) > 0 ? fmtCompactCurrency(v) : ''} fill="#fff" fontSize={9} />
+              <Area type="monotone" dataKey="value" stroke={DASHBOARD_COLORS.sale} fillOpacity={1} fill="url(#colorMonthly)">
+                {showDenseValueLabels && <LabelList dataKey="value" position="top" formatter={(v) => Number(v) > 0 ? fmtCompactCurrency(v) : ''} {...labelStyle} fontSize={9} />}
               </Area>
-              <XAxis dataKey="day" stroke="#666" fontSize={12} interval={4} />
+              <XAxis dataKey="day" stroke={DASHBOARD_COLORS.axis} tick={xTickStyle} interval={isCompactDashboard ? 6 : 4} />
               <Tooltip
-                contentStyle={{ background: '#1a1a1a', border: '1px solid #E31E24' }}
+                contentStyle={tooltipStyle}
                 labelStyle={{ color: '#fff' }}
                 formatter={(v) => [fmtCompactCurrency(v), 'Valor']}
               />
@@ -1281,14 +1314,14 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
           <div className="stat-card" style={{ flex: 1, minWidth: 0 }}>
             <div className="stat-icon red"><Droplet size={20} /></div>
             <div className="stat-content">
-              <div className="stat-label">Com Nota (110)</div>
+              <div className="stat-label">Compras 110</div>
               <div className="stat-value" style={{ fontSize: '20px' }}>{fmtNum(d.comNota.reduce((s, r) => s + r.qtd, 0), 0)} L</div>
             </div>
           </div>
           <div className="stat-card" style={{ flex: 1, minWidth: 0 }}>
             <div className="stat-icon orange"><Droplet size={20} /></div>
             <div className="stat-content">
-              <div className="stat-label">Sem Nota (220)</div>
+              <div className="stat-label">Compras 220</div>
               <div className="stat-value" style={{ fontSize: '20px' }}>{fmtNum(d.semNota.reduce((s, r) => s + r.qtd, 0), 0)} L</div>
             </div>
           </div>
@@ -1311,7 +1344,7 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
                 background: descSubTab === t ? '#E31E24' : '#222', color: descSubTab === t ? '#fff' : '#888',
               }}
             >
-              {t === 'comNota' ? `Com Nota (110) — ${d.comNota.length}` : `Sem Nota (220) — ${d.semNota.length}`}
+              {t === 'comNota' ? `Compras 110 - ${d.comNota.length}` : `Compras 220 - ${d.semNota.length}`}
             </button>
           ))}
         </div>
@@ -1393,8 +1426,8 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
           <div className="stat-card" style={{ flex: 1, minWidth: 0 }}>
             <div className="stat-icon orange"><Calculator size={20} /></div>
             <div className="stat-content">
-              <div className="stat-label">Comandas</div>
-              <div className="stat-value" style={{ fontSize: '20px' }}>{fmtNum(d.totais.qtdVendas)}</div>
+              <div className="stat-label">Vendas PDV</div>
+              <div className="stat-value" style={{ fontSize: '20px' }}>{fmtNum(d.totais.qtdVendasPdv ?? d.totais.qtdVendas)}</div>
             </div>
           </div>
         </div>
@@ -1408,7 +1441,7 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
                 <th style={{ textAlign: 'right' }}>QTD.</th>
                 <th style={{ textAlign: 'right' }}>PREÇO MÉDIO</th>
                 <th style={{ textAlign: 'right' }}>FATURAMENTO</th>
-                <th style={{ textAlign: 'right' }}>COMANDAS</th>
+                <th style={{ textAlign: 'right' }}>VENDAS PDV</th>
                 <th style={{ width: '120px' }}>PARTICIPAÇÃO</th>
               </tr>
             </thead>
