@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import logoStarvl from './logo-starvl.png';
 import * as XLSX from 'xlsx';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Area, AreaChart, LabelList } from 'recharts';
-import { Home, FileText, Users as UsersIcon, Sliders, Package, LogOut, Eye, Search, Plus, Edit2, Trash2, X, Calendar, TrendingUp, Droplet, DollarSign, Calculator, Bell, ChevronDown, Activity, Settings, Building2, Phone, Mail, MapPin, Hash, Clock, BarChart2, Layers, CircleDollarSign, UserCheck, UserPlus, AlertCircle, Globe, Camera, Building, Tag, RefreshCw, Database, ChevronRight, Filter, Printer } from 'lucide-react';
+import { Home, FileText, Users as UsersIcon, Truck, Package, LogOut, Eye, Search, Plus, Edit2, Trash2, X, Calendar, TrendingUp, Droplet, DollarSign, Calculator, Bell, ChevronDown, Activity, Settings, Building2, Phone, Mail, MapPin, Hash, Clock, BarChart2, Layers, CircleDollarSign, UserCheck, UserPlus, AlertCircle, Globe, Camera, Building, Tag, RefreshCw, Database, ChevronRight, Filter, Printer } from 'lucide-react';
 import './App.css';
 
 // Mock data
@@ -221,10 +221,9 @@ const Login = ({ onLogin, adminUsers }) => {
 const Sidebar = ({ currentPage, setCurrentPage, onLogout }) => {
   const menuItems = [
     { icon: Home,      label: 'DASHBOARD',      page: 'dashboard' },
-    { icon: FileText,  label: 'RELATÓRIOS',      page: 'reports'   },
-    { icon: UsersIcon, label: 'USUÁRIOS',        page: 'users'     },
-    { icon: Sliders,   label: 'CONTROLE',        page: 'control'   },
     { icon: Package,   label: 'POSIÇÃO ESTOQUE', page: 'stock'     },
+    { icon: Truck,     label: 'LIVRO DE MOVIMENTAÇÃO', page: 'control'   },
+    { icon: FileText,  label: 'RELATÓRIOS',      page: 'reports'   },
     { icon: Settings,  label: 'PARÂMETROS',      page: 'params'    },
   ];
 
@@ -261,7 +260,7 @@ const Sidebar = ({ currentPage, setCurrentPage, onLogout }) => {
 const PAGE_TITLES = {
   dashboard: 'Dashboard',
   reports: 'Relatórios',
-  control: 'Controle de Movimentação',
+  control: 'Livro de Movimentação',
   stock: 'Posição de Estoque',
   users: 'Gerenciamento de Usuários',
   params: 'Parâmetros',
@@ -403,6 +402,27 @@ const DASHBOARD_COLORS = {
   tooltipBg: '#151515',
 };
 
+const FUEL_COLORS = {
+  ethanol: '#22c55e',
+  gasoline: '#E31E24',
+  diesel: '#f59e0b',
+  gnv: '#2563eb',
+};
+
+const normalizeFuelName = (value) => String(value || '')
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .toUpperCase();
+
+const getFuelColor = (name, fallback = DASHBOARD_COLORS.sale) => {
+  const fuelName = normalizeFuelName(name);
+  if (fuelName.includes('ETANOL')) return FUEL_COLORS.ethanol;
+  if (fuelName.includes('GASOLINA')) return FUEL_COLORS.gasoline;
+  if (fuelName.includes('DIESEL')) return FUEL_COLORS.diesel;
+  if (fuelName.includes('GAS NATURAL') || fuelName.includes('GNV') || fuelName.includes('VEICULAR')) return FUEL_COLORS.gnv;
+  return fallback;
+};
+
 // Dashboard Component
 const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcControle, estoques, loading }) => {
   const [selectedFuelDonut, setSelectedFuelDonut] = useState(null);
@@ -437,6 +457,7 @@ const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcContr
   const estoquesList = estoques || [];
   const activeFuelEstoque = estoquesList.find(e => e.produtoCodigo === selectedFuelDonut) || estoquesList[0];
   const fuelPct = activeFuelEstoque ? Math.round(activeFuelEstoque.percentualOcupacao) : 0;
+  const activeFuelColor = activeFuelEstoque ? getFuelColor(activeFuelEstoque.produtoNome, DASHBOARD_COLORS.stock) : DASHBOARD_COLORS.stock;
 
   const comprasByFuel = {};
   (lmcControle || []).forEach(row => {
@@ -453,15 +474,20 @@ const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcContr
 
   const comprasFallback = [{ name: 'Sem dados', compra110: 0, compra220: 0, total: 0 }];
   const vendasCombustivelChart = (combustiveis || [])
-    .map(row => ({
-      name: String(row.nome || 'Produto').split(' ').slice(0, 2).join(' '),
-      litros: Number(row.litros || 0),
-    }))
+    .map(row => {
+      const fuelName = String(row.nome || 'Produto');
+      return {
+        name: fuelName.split(' ').slice(0, 2).join(' '),
+        fullName: fuelName,
+        litros: Number(row.litros || 0),
+        color: getFuelColor(fuelName),
+      };
+    })
     .filter(row => row.litros > 0)
     .sort((a, b) => b.litros - a.litros)
     .slice(0, 6);
 
-  const vendasCombustivelFallback = [{ name: 'Sem dados', litros: 0 }];
+  const vendasCombustivelFallback = [{ name: 'Sem dados', litros: 0, color: DASHBOARD_COLORS.sale }];
 
   const monthlyChart = vendasDiarias && vendasDiarias.length > 0
     ? vendasDiarias.map(r => ({ day: new Date(r.dia).getUTCDate(), value: r.valorTotal }))
@@ -543,6 +569,9 @@ const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcContr
                 formatter={(v) => [fmtLitersLabel(v), 'Litros']}
               />
               <Bar dataKey="litros" name="Litros vendidos" fill={DASHBOARD_COLORS.sale} radius={[8, 8, 0, 0]}>
+                {salesFuelChartData.map((entry, index) => (
+                  <Cell key={`sales-fuel-${entry.name}-${index}`} fill={entry.color || DASHBOARD_COLORS.sale} />
+                ))}
                 <LabelList dataKey="litros" position="top" formatter={(v) => Number(v) > 0 ? fmtLitersLabel(v) : ''} {...labelStyle} fontSize={isCompactDashboard ? 10 : 12} />
               </Bar>
             </BarChart>
@@ -576,7 +605,7 @@ const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcContr
                   ]}
                   cx="50%" cy="50%" innerRadius={isCompactDashboard ? 52 : 60} outerRadius={isCompactDashboard ? 78 : 90} paddingAngle={5} dataKey="value"
                 >
-                  <Cell fill={DASHBOARD_COLORS.stock} />
+                  <Cell fill={activeFuelColor} />
                   <Cell fill={DASHBOARD_COLORS.neutral} />
                 </Pie>
               </PieChart>
@@ -589,7 +618,7 @@ const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcContr
           </div>
           <div className="stock-legend">
             <div className="legend-item">
-              <span className="dot available"></span>
+              <span className="dot available" style={{ background: activeFuelColor }}></span>
               <span>Estoque</span>
               <span className="value">{activeFuelEstoque ? fmt(activeFuelEstoque.estoqueTotal) + ' (' + fuelPct + '%)' : '—'}</span>
             </div>
@@ -1366,7 +1395,7 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
                 <tr key={i}>
                   <td style={{ fontFamily: 'monospace', fontSize: '13px' }}>{fmtDate(r.data)}</td>
                   <td style={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.fornecedor}</td>
-                  <td>{r.combustivel}</td>
+                  <td style={{ color: getFuelColor(r.combustivel), fontWeight: 600 }}>{r.combustivel}</td>
                   <td style={{ textAlign: 'right', fontFamily: 'monospace', color: '#4CAF50', fontWeight: 600 }}>{fmtNum(r.qtd, 3)}</td>
                   <td style={{ textAlign: 'right', fontFamily: 'monospace', fontSize: '12px' }}>{fmtBRL(r.unitario)}</td>
                   <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 600 }}>{fmtBRL(r.total)}</td>
@@ -1448,18 +1477,19 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
               )}
               {d.produtos.map((p, i) => {
                 const pct = maxVal > 0 ? (p.valorTotal / maxVal * 100) : 0;
+                const productColor = p.tipoProd === 1 ? getFuelColor(p.produto) : '#E31E24';
                 return (
                   <tr key={i}>
                     <td style={{ color: '#555', fontSize: '12px' }}>{i + 1}</td>
-                    <td style={{ fontWeight: 600 }}>{p.produto}</td>
+                    <td style={{ fontWeight: 600, color: p.tipoProd === 1 ? productColor : undefined }}>{p.produto}</td>
                     <td><span className="category-badge">{p.tipoProd === 1 ? 'Combustível' : 'Produto'}</span></td>
-                    <td style={{ textAlign: 'right', fontFamily: 'monospace', color: '#E31E24' }}>{fmtNum(p.qtdTotal, 3)}</td>
+                    <td style={{ textAlign: 'right', fontFamily: 'monospace', color: productColor }}>{fmtNum(p.qtdTotal, 3)}</td>
                     <td style={{ textAlign: 'right', fontFamily: 'monospace', fontSize: '12px' }}>{fmtBRL(p.precoMedio)}</td>
                     <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 600 }}>{fmtBRL(p.valorTotal)}</td>
                     <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{fmtNum(p.qtdVendas)}</td>
                     <td>
                       <div style={{ background: '#111', borderRadius: '4px', height: '8px', overflow: 'hidden' }}>
-                        <div style={{ width: `${pct}%`, height: '100%', background: '#E31E24', borderRadius: '4px', transition: 'width 0.5s' }} />
+                        <div style={{ width: `${pct}%`, height: '100%', background: productColor, borderRadius: '4px', transition: 'width 0.5s' }} />
                       </div>
                       <div style={{ fontSize: '11px', color: '#666', marginTop: '2px' }}>{fmtNum(pct, 1)}%</div>
                     </td>
@@ -1503,9 +1533,10 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
               )}
               {d.map((r, i) => {
                 const difCls = r.difLmcPdv > 50 ? '#E31E24' : r.difLmcPdv < -50 ? '#F59E0B' : '#4CAF50';
+                const fuelColor = getFuelColor(r.combustivel);
                 return (
                   <tr key={i}>
-                    <td style={{ fontWeight: 600 }}>{r.combustivel}</td>
+                    <td style={{ fontWeight: 600, color: fuelColor }}>{r.combustivel}</td>
                     <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{fmtNum(r.volLmc, 1)} L</td>
                     <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{fmtNum(r.volPdv, 1)} L</td>
                     <td style={{ textAlign: 'right', fontFamily: 'monospace', color: difCls, fontWeight: 600 }}>
@@ -2021,7 +2052,7 @@ const Control = ({ lmcRegistros, lmcDiario, lmcControle, selectedPeriod, setSele
   return (
     <div className="page-content">
       <div className="page-header">
-        <h2>CONTROLE MOVIMENTACAO COMBUSTIVEL</h2>
+        <h2>LIVRO DE MOVIMENTAÇÃO</h2>
         <div className="header-actions">
           <div className="control-filter-group">
             <label className="control-filter-label">ANO</label>
@@ -2312,6 +2343,7 @@ const StockPosition = ({ estoques, projecao, loading, selectedClient, clients })
   const fmtR = (n) => 'R$ ' + fmt2(n);
 
   const tankPct = activeFuel ? Math.min(Math.max(activeFuel.percentualOcupacao, 0), 100) : 0;
+  const stockFuelColor = activeFuel ? getFuelColor(activeFuel.produtoNome, DASHBOARD_COLORS.stock) : DASHBOARD_COLORS.stock;
   const mediaDiaria = activeProjecao?.mediaDiariaLitros || 0;
   const consumoProjetado = activeProjecao?.consumoProjetado ?? mediaDiaria * projectionDays;
   const compraProjetada = activeProjecao?.compraProjetada ?? consumoProjetado;
@@ -2396,7 +2428,7 @@ const StockPosition = ({ estoques, projecao, loading, selectedClient, clients })
             <div className="fuel-tank-wrap">
               <div className="tank-neck" />
               <div className="tank">
-                <div className="tank-fill" style={{ height: `${tankPct}%` }}>
+                <div className="tank-fill" style={{ height: `${tankPct}%`, background: stockFuelColor }}>
                   <div className="liquid-wave" />
                 </div>
                 <div className="tank-label">
@@ -2468,11 +2500,11 @@ const StockPosition = ({ estoques, projecao, loading, selectedClient, clients })
               <XAxis dataKey="date" stroke="#666" tick={{ fontSize: 11 }} />
               <YAxis stroke="#666" tick={{ fontSize: 11 }} width={52} />
               <Tooltip
-                contentStyle={{ background: '#1a1a1a', border: '1px solid #E31E24' }}
+                contentStyle={{ background: '#1a1a1a', border: `1px solid ${stockFuelColor}` }}
                 labelStyle={{ color: '#fff' }}
                 formatter={(v) => [fmt2(v) + ' L', 'Estoque estimado']}
               />
-              <Line type="monotone" dataKey="estoque" stroke="#E31E24" strokeWidth={3} name="ESTOQUE ESTIMADO" dot={{ fill: '#E31E24', r: 5 }} />
+              <Line type="monotone" dataKey="estoque" stroke={stockFuelColor} strokeWidth={3} name="ESTOQUE ESTIMADO" dot={{ fill: stockFuelColor, r: 5 }} />
             </LineChart>
           </ResponsiveContainer>
 
