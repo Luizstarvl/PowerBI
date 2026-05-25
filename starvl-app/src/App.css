@@ -1085,6 +1085,10 @@ body {
   grid-column: span 2;
 }
 
+.dashboard-purchase-card {
+  grid-column: 1 / -1;
+}
+
 .card-header {
   display: flex;
   justify-content: space-between;

@@ -391,7 +391,7 @@ const SkeletonCards = ({ count = 4 }) => (
 );
 
 // Dashboard Component
-const Dashboard = ({ kpis, vendasDiarias, vendasHorarias, lmcControle, estoques, loading }) => {
+const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcControle, estoques, loading }) => {
   const [selectedFuelDonut, setSelectedFuelDonut] = useState(null);
 
   const fmt = (n, d = 2) => (n || 0).toLocaleString('pt-BR', { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -406,6 +406,7 @@ const Dashboard = ({ kpis, vendasDiarias, vendasHorarias, lmcControle, estoques,
     if (Math.abs(n) >= 1000) return `${(n / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} mil L`;
     return `${n.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} L`;
   };
+  const fmtLitersLabel = (value) => `${Number(value || 0).toLocaleString('pt-BR', { maximumFractionDigits: 0 })} Litros`;
 
   const estoquesList = estoques || [];
   const activeFuelEstoque = estoquesList.find(e => e.produtoCodigo === selectedFuelDonut) || estoquesList[0];
@@ -425,6 +426,16 @@ const Dashboard = ({ kpis, vendasDiarias, vendasHorarias, lmcControle, estoques,
     .slice(0, 6);
 
   const comprasFallback = [{ name: 'Sem dados', compra110: 0, compra220: 0, total: 0 }];
+  const vendasCombustivelChart = (combustiveis || [])
+    .map(row => ({
+      name: String(row.nome || 'Produto').split(' ').slice(0, 2).join(' '),
+      litros: Number(row.litros || 0),
+    }))
+    .filter(row => row.litros > 0)
+    .sort((a, b) => b.litros - a.litros)
+    .slice(0, 6);
+
+  const vendasCombustivelFallback = [{ name: 'Sem dados', litros: 0 }];
 
   const monthlyChart = vendasDiarias && vendasDiarias.length > 0
     ? vendasDiarias.map(r => ({ day: new Date(r.dia).getUTCDate(), value: r.valorTotal }))
@@ -448,6 +459,7 @@ const Dashboard = ({ kpis, vendasDiarias, vendasHorarias, lmcControle, estoques,
 
   const monthlyTotal = monthlyChart.reduce((sum, row) => sum + Number(row.value || 0), 0);
   const purchasesChartData = comprasChart.length > 0 ? comprasChart : comprasFallback;
+  const salesFuelChartData = vendasCombustivelChart.length > 0 ? vendasCombustivelChart : vendasCombustivelFallback;
 
   const dynamicKpis = kpis ? [
     { label: 'Total Vendas', value: 'R$ ' + fmt(kpis.vendas?.valor), icon: DollarSign, sub: `${(kpis.vendas?.total || 0).toLocaleString('pt-BR')} vendas` },
@@ -484,25 +496,21 @@ const Dashboard = ({ kpis, vendasDiarias, vendasHorarias, lmcControle, estoques,
       <div className="dashboard-grid">
         <div className="chart-card large">
           <div className="card-header">
-            <h3>COMPRAS 110 / 220 POR COMBUSTÍVEL</h3>
+            <h3>COMBUSTÍVEIS MAIS VENDIDOS</h3>
             <span style={{ fontSize: '12px', color: '#666' }}>litros no período</span>
           </div>
           <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={purchasesChartData}>
+            <BarChart data={salesFuelChartData} margin={{ top: 28, right: 12, left: 6, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#2a2a2a" />
               <XAxis dataKey="name" stroke="#666" />
               <YAxis stroke="#666" />
               <Tooltip
                 contentStyle={{ background: '#1a1a1a', border: '1px solid #E31E24' }}
                 labelStyle={{ color: '#fff' }}
-                formatter={(v) => [fmt(v) + ' L', 'Litros']}
+                formatter={(v) => [fmtLitersLabel(v), 'Litros']}
               />
-              <Legend />
-              <Bar dataKey="compra110" name="Compra 110" fill="#E31E24" radius={[8, 8, 0, 0]}>
-                <LabelList dataKey="compra110" position="top" formatter={(v) => Number(v) > 0 ? fmtCompactLiters(v) : ''} fill="#fff" fontSize={11} />
-              </Bar>
-              <Bar dataKey="compra220" name="Compra 220" fill="#f97316" radius={[8, 8, 0, 0]}>
-                <LabelList dataKey="compra220" position="top" formatter={(v) => Number(v) > 0 ? fmtCompactLiters(v) : ''} fill="#fff" fontSize={11} />
+              <Bar dataKey="litros" name="Litros vendidos" fill="#E31E24" radius={[8, 8, 0, 0]}>
+                <LabelList dataKey="litros" position="top" formatter={(v) => Number(v) > 0 ? fmtLitersLabel(v) : ''} fill="#fff" fontSize={12} fontWeight={700} />
               </Bar>
             </BarChart>
           </ResponsiveContainer>
@@ -558,6 +566,32 @@ const Dashboard = ({ kpis, vendasDiarias, vendasHorarias, lmcControle, estoques,
               <span className="value">{activeFuelEstoque ? fmt(activeFuelEstoque.capacidadeTotal, 0) + ' L' : '—'}</span>
             </div>
           </div>
+        </div>
+
+        <div className="chart-card dashboard-purchase-card">
+          <div className="card-header">
+            <h3>COMPRAS 110 / 220 POR COMBUSTÍVEL</h3>
+            <span style={{ fontSize: '12px', color: '#666' }}>litros no período</span>
+          </div>
+          <ResponsiveContainer width="100%" height={280}>
+            <BarChart data={purchasesChartData} margin={{ top: 24, right: 12, left: 6, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#2a2a2a" />
+              <XAxis dataKey="name" stroke="#666" />
+              <YAxis stroke="#666" />
+              <Tooltip
+                contentStyle={{ background: '#1a1a1a', border: '1px solid #E31E24' }}
+                labelStyle={{ color: '#fff' }}
+                formatter={(v) => [fmt(v) + ' L', 'Litros']}
+              />
+              <Legend />
+              <Bar dataKey="compra110" name="Compra 110" fill="#E31E24" radius={[8, 8, 0, 0]}>
+                <LabelList dataKey="compra110" position="top" formatter={(v) => Number(v) > 0 ? fmtCompactLiters(v) : ''} fill="#fff" fontSize={11} />
+              </Bar>
+              <Bar dataKey="compra220" name="Compra 220" fill="#f97316" radius={[8, 8, 0, 0]}>
+                <LabelList dataKey="compra220" position="top" formatter={(v) => Number(v) > 0 ? fmtCompactLiters(v) : ''} fill="#fff" fontSize={11} />
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
         </div>
 
         <div className="chart-card">
@@ -3273,7 +3307,7 @@ export default function App() {
   const renderPage = () => {
     switch (currentPage) {
       case 'dashboard':
-        return <Dashboard kpis={apiData.kpis} vendasDiarias={apiData.vendasDiarias} vendasHorarias={apiData.vendasHorarias} lmcControle={apiData.dashboardLmcControle} estoques={apiData.estoques} loading={apiData.loading} />;
+        return <Dashboard kpis={apiData.kpis} combustiveis={apiData.combustiveis} vendasDiarias={apiData.vendasDiarias} vendasHorarias={apiData.vendasHorarias} lmcControle={apiData.dashboardLmcControle} estoques={apiData.estoques} loading={apiData.loading} />;
       case 'reports':
         return <Reports selectedClient={selectedClient} selectedPeriod={reportsPeriod} setSelectedPeriod={setReportsPeriod} clients={clients} />;
       case 'control':
@@ -3287,7 +3321,7 @@ export default function App() {
       case 'admin':
         return <Parameters clients={clients} setClients={setClients} isAdmin={isAdmin} />;
       default:
-        return <Dashboard kpis={apiData.kpis} vendasDiarias={apiData.vendasDiarias} vendasHorarias={apiData.vendasHorarias} lmcControle={apiData.dashboardLmcControle} estoques={apiData.estoques} loading={apiData.loading} />;
+        return <Dashboard kpis={apiData.kpis} combustiveis={apiData.combustiveis} vendasDiarias={apiData.vendasDiarias} vendasHorarias={apiData.vendasHorarias} lmcControle={apiData.dashboardLmcControle} estoques={apiData.estoques} loading={apiData.loading} />;
     }
   };
 
