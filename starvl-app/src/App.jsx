@@ -1297,9 +1297,6 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
   const tabs = [
     { id: 'descarregamentos', label: 'Descarregamentos', icon: <Droplet size={15} /> },
     { id: 'vendas',           label: 'Vendas PDV',       icon: <BarChart2 size={15} /> },
-    { id: 'controle',         label: 'Controle',         icon: <Sliders size={15} /> },
-    { id: 'consolidado',      label: 'Consolidado',      icon: <Layers size={15} /> },
-    { id: 'historico',        label: 'Histórico',        icon: <TrendingUp size={15} /> },
   ];
 
   const renderDescarregamentos = () => {
