@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import logoStarvl from './logo-starvl.png';
 import * as XLSX from 'xlsx';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Area, AreaChart, LabelList } from 'recharts';
-import { Home, FileText, Users as UsersIcon, Truck, Package, LogOut, Eye, Search, Plus, Edit2, Trash2, X, Calendar, TrendingUp, Droplet, DollarSign, Calculator, Bell, ChevronDown, Activity, Settings, Building2, Phone, Mail, MapPin, Hash, Clock, BarChart2, Layers, CircleDollarSign, UserCheck, UserPlus, AlertCircle, Globe, Camera, Building, Tag, RefreshCw, Database, ChevronRight, Filter, Printer } from 'lucide-react';
+import { Home, FileText, Users as UsersIcon, Truck, Package, LogOut, Eye, Search, Plus, Edit2, Trash2, X, Calendar, TrendingUp, Droplet, DollarSign, Calculator, Bell, ChevronDown, Activity, Settings, Building2, Phone, Mail, MapPin, Hash, Clock, BarChart2, Layers, CircleDollarSign, UserCheck, UserPlus, AlertCircle, Globe, Camera, Building, Tag, RefreshCw, Database, ChevronRight, Filter, Printer, Moon, Sun } from 'lucide-react';
 import './App.css';
 
 // Mock data
@@ -266,7 +266,7 @@ const PAGE_TITLES = {
   params: 'Parâmetros',
 };
 
-const TopBar = ({ currentPage, setCurrentPage, isConnected, apiError, clients, selectedClient, setSelectedClient, selectedPeriod, setSelectedPeriod, onRefresh, onLogout, loggedUser }) => {
+const TopBar = ({ currentPage, setCurrentPage, isConnected, apiError, clients, selectedClient, setSelectedClient, selectedPeriod, setSelectedPeriod, onRefresh, onLogout, loggedUser, themeMode, setThemeMode }) => {
   const [showAdminMenu, setShowAdminMenu] = useState(false);
   const now = new Date();
   const dateStr = now.toLocaleDateString('pt-BR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
@@ -315,6 +315,26 @@ const TopBar = ({ currentPage, setCurrentPage, isConnected, apiError, clients, s
           <Bell size={18} />
           <span className="notification-dot"></span>
         </button>
+        <div className="theme-toggle-group" aria-label="Tema">
+          <button
+            type="button"
+            className={`theme-toggle-btn ${themeMode === 'dark' ? 'active' : ''}`}
+            onClick={() => setThemeMode('dark')}
+            title="Modo dark"
+            aria-label="Modo dark"
+          >
+            <Moon size={17} />
+          </button>
+          <button
+            type="button"
+            className={`theme-toggle-btn ${themeMode === 'light' ? 'active' : ''}`}
+            onClick={() => setThemeMode('light')}
+            title="Modo white"
+            aria-label="Modo white"
+          >
+            <Sun size={17} />
+          </button>
+        </div>
         <div className="top-bar-user" style={{ position: 'relative' }} onClick={() => setShowAdminMenu((v) => !v)}>
           <div className="user-avatar-sm">{(loggedUser?.usuario || 'U').charAt(0).toUpperCase()}</div>
           <span>{loggedUser?.usuario || 'Usuário'}</span>
@@ -391,8 +411,8 @@ const SkeletonCards = ({ count = 4 }) => (
 
 const DASHBOARD_COLORS = {
   sale: '#E31E24',
-  purchase110: '#38bdf8',
-  purchase220: '#f97316',
+  purchase110: '#4f8cff',
+  purchase220: '#c7a65a',
   stock: '#22c55e',
   attention: '#facc15',
   neutral: '#2a2a2a',
@@ -513,14 +533,16 @@ const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcContr
   const purchasesChartData = comprasChart.length > 0 ? comprasChart : comprasFallback;
   const salesFuelChartData = vendasCombustivelChart.length > 0 ? vendasCombustivelChart : vendasCombustivelFallback;
   const tooltipStyle = { background: DASHBOARD_COLORS.tooltipBg, border: `1px solid ${DASHBOARD_COLORS.sale}`, borderRadius: 8, color: DASHBOARD_COLORS.label };
+  const purchaseTooltipStyle = { ...tooltipStyle, border: `1px solid ${DASHBOARD_COLORS.purchase110}` };
   const labelStyle = { fill: DASHBOARD_COLORS.label, fontWeight: 700 };
   const wideChartHeight = isCompactDashboard ? 240 : 300;
+  const stockChartHeight = 200;
   const purchaseChartHeight = isCompactDashboard ? 260 : 280;
   const smallChartHeight = isCompactDashboard ? 185 : 150;
   const xTickStyle = { fill: DASHBOARD_COLORS.axis, fontSize: isCompactDashboard ? 10 : 11 };
   const showDenseValueLabels = !isCompactDashboard;
 
-  const dynamicKpis = kpis ? [
+  const dashboardKpis = kpis ? [
     { label: 'Total Vendas', value: 'R$ ' + fmt(kpis.vendas?.valor), icon: DollarSign, sub: `${(kpis.vendas?.total || 0).toLocaleString('pt-BR')} vendas` },
     { label: 'Litros Vendidos', value: 'R$ ' + fmt(kpis.combustivel?.valor), icon: Droplet, sub: fmt(kpis.combustivel?.litros) + ' L' },
     { label: 'Compras c/ NF (110)', value: 'R$ ' + fmt(kpis.compras110?.valor), icon: FileText, sub: `${(kpis.compras110?.total || 0).toLocaleString('pt-BR')} NFs` },
@@ -532,242 +554,166 @@ const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcContr
     { label: 'Carregando...', value: '—', icon: Activity, sub: '' },
   ];
 
+  const dashboardSections = {
+    kpis: loading && !kpis ? (
+      <SkeletonCards count={4} />
+    ) : (
+      <div className="kpi-row">
+        {dashboardKpis.map((kpi) => (
+          <div className="kpi-card" key={kpi.label}>
+            <div className={`kpi-icon ${kpi.label.includes('Compras') ? 'purchase' : kpi.label.includes('Afer') ? 'attention' : kpi.label.includes('Carregando') ? '' : 'sale'}`}><kpi.icon size={24} /></div>
+            <div className="kpi-content">
+              <div className="kpi-label">{kpi.label}</div>
+              <div className="kpi-value">{kpi.value}</div>
+              {kpi.sub && <div className="kpi-trend positive">{kpi.sub}</div>}
+            </div>
+          </div>
+        ))}
+      </div>
+    ),
+    salesFuel: (
+      <div className="chart-card">
+        <div className="card-header">
+          <h3>COMBUSTÍVEIS MAIS VENDIDOS</h3>
+          <span style={{ fontSize: '12px', color: '#666' }}>litros no período</span>
+        </div>
+        <ResponsiveContainer width="100%" height={wideChartHeight}>
+          <BarChart data={salesFuelChartData} margin={{ top: 28, right: 12, left: 6, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke={DASHBOARD_COLORS.grid} />
+            <XAxis dataKey="name" stroke={DASHBOARD_COLORS.axis} tick={xTickStyle} interval={0} height={isCompactDashboard ? 46 : 30} angle={isCompactDashboard ? -18 : 0} textAnchor={isCompactDashboard ? 'end' : 'middle'} />
+            <YAxis stroke={DASHBOARD_COLORS.axis} tick={xTickStyle} width={isCompactDashboard ? 46 : 60} />
+            <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: '#fff' }} formatter={(v) => [fmtLitersLabel(v), 'Litros']} />
+            <Bar dataKey="litros" name="Litros vendidos" fill={DASHBOARD_COLORS.sale} radius={[8, 8, 0, 0]}>
+              {salesFuelChartData.map((entry, index) => (
+                <Cell key={`sales-fuel-${entry.name}-${index}`} fill={entry.color || DASHBOARD_COLORS.sale} />
+              ))}
+              <LabelList dataKey="litros" position="top" formatter={(v) => Number(v) > 0 ? fmtLitersLabel(v) : ''} {...labelStyle} fontSize={isCompactDashboard ? 10 : 12} />
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    ),
+    stock: (
+      <div className="chart-card">
+        <div className="card-header"><h3>ESTOQUE COMB</h3></div>
+        {estoquesList.length > 0 && (
+          <div className="fuel-selector">
+            <label>Combustível:</label>
+            <select value={selectedFuelDonut || estoquesList[0]?.produtoCodigo || ''} onChange={(e) => setSelectedFuelDonut(parseInt(e.target.value))}>
+              {estoquesList.map(e => (<option key={e.produtoCodigo} value={e.produtoCodigo}>{e.produtoNome}</option>))}
+            </select>
+          </div>
+        )}
+        <div className="stock-visual">
+          <ResponsiveContainer width="100%" height={stockChartHeight}>
+            <PieChart>
+              <Pie data={[{ name: 'Disponível', value: fuelPct || 1 }, { name: 'Capacidade restante', value: Math.max(0, 100 - fuelPct) }]} cx="50%" cy="50%" innerRadius={isCompactDashboard ? 52 : 60} outerRadius={isCompactDashboard ? 78 : 90} paddingAngle={5} dataKey="value">
+                <Cell fill={activeFuelColor} />
+                <Cell fill={DASHBOARD_COLORS.neutral} />
+              </Pie>
+            </PieChart>
+          </ResponsiveContainer>
+          <div className="stock-center">
+            <div className="stock-total">Estoque</div>
+            <div className="stock-number">{activeFuelEstoque ? fmt(activeFuelEstoque.estoqueTotal) : '—'}</div>
+            <div className="stock-unit">litros</div>
+          </div>
+        </div>
+        <div className="stock-legend">
+          <div className="legend-item"><span className="dot available" style={{ background: activeFuelColor }}></span><span>Estoque</span><span className="value">{activeFuelEstoque ? fmt(activeFuelEstoque.estoqueTotal) + ' (' + fuelPct + '%)' : '—'}</span></div>
+          <div className="legend-item"><span className="dot unavailable"></span><span>Capacidade</span><span className="value">{activeFuelEstoque ? fmt(activeFuelEstoque.capacidadeTotal, 0) + ' L' : '—'}</span></div>
+        </div>
+      </div>
+    ),
+    purchases: (
+      <div className="chart-card">
+        <div className="card-header"><h3>COMPRAS 110 / 220 POR COMBUSTÍVEL</h3><span style={{ fontSize: '12px', color: '#666' }}>litros no período</span></div>
+        <ResponsiveContainer width="100%" height={purchaseChartHeight}>
+          <BarChart data={purchasesChartData} margin={{ top: 24, right: 12, left: 6, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke={DASHBOARD_COLORS.grid} />
+            <XAxis dataKey="name" stroke={DASHBOARD_COLORS.axis} tick={xTickStyle} interval={0} height={isCompactDashboard ? 46 : 30} angle={isCompactDashboard ? -18 : 0} textAnchor={isCompactDashboard ? 'end' : 'middle'} />
+            <YAxis stroke={DASHBOARD_COLORS.axis} tick={xTickStyle} width={isCompactDashboard ? 46 : 60} />
+            <Tooltip
+              cursor={false}
+              contentStyle={purchaseTooltipStyle}
+              labelStyle={{ color: '#fff' }}
+              formatter={(v) => [fmt(v) + ' L', 'Litros']}
+            />
+            <Legend />
+            <Bar dataKey="compra110" name="Compra 110" fill={DASHBOARD_COLORS.purchase110} radius={[8, 8, 0, 0]}>
+              <LabelList dataKey="compra110" position="top" formatter={(v) => Number(v) > 0 ? fmtCompactLiters(v) : ''} {...labelStyle} fontSize={isCompactDashboard ? 9 : 11} />
+            </Bar>
+            <Bar dataKey="compra220" name="Compra 220" fill={DASHBOARD_COLORS.purchase220} radius={[8, 8, 0, 0]}>
+              <LabelList dataKey="compra220" position="top" formatter={(v) => Number(v) > 0 ? fmtCompactLiters(v) : ''} {...labelStyle} fontSize={isCompactDashboard ? 9 : 11} />
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    ),
+    hourly: (
+      <div className="chart-card">
+        <div className="card-header"><h3>VENDAS P/HORA</h3></div>
+        <div className="metric-display"><div className="metric-icon-box"><Clock size={20} /></div><div className="metric-info"><div className="metric-label">Valor de combustível vendido</div><div className="metric-value">{kpis ? fmtCompactCurrency(kpis.combustivel?.valor) : '—'}<span className="trend positive"><TrendingUp size={16} />no período</span></div><div className="metric-sublabel">quebra por hora</div></div></div>
+        <ResponsiveContainer width="100%" height={smallChartHeight}>
+          <BarChart data={hourlyChart} margin={{ top: 22, right: 8, left: 0, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke={DASHBOARD_COLORS.grid} vertical={false} />
+            <XAxis dataKey="hour" stroke={DASHBOARD_COLORS.axis} tick={xTickStyle} interval={isCompactDashboard ? 5 : 3} />
+            <YAxis hide />
+            <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: '#fff' }} formatter={(v) => [fmtCompactCurrency(v), 'Valor']} />
+            <Bar dataKey="value" fill={DASHBOARD_COLORS.sale} radius={[6, 6, 0, 0]}>{showDenseValueLabels && <LabelList dataKey="value" position="top" formatter={(v) => Number(v) > 0 ? fmtCompactCurrency(v) : ''} {...labelStyle} fontSize={9} />}</Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    ),
+    weekly: (
+      <div className="chart-card">
+        <div className="card-header"><h3>VENDAS P/SEMANA</h3></div>
+        <div className="metric-display"><div className="metric-icon-box"><Calendar size={20} /></div><div className="metric-info"><div className="metric-label">Valor de combustível vendido</div><div className="metric-value">{fmtCompactCurrency(monthlyTotal)}<span className="trend positive"><TrendingUp size={16} />no período</span></div><div className="metric-sublabel">Semana 1, 2, 3 e 4</div></div></div>
+        <ResponsiveContainer width="100%" height={smallChartHeight}>
+          <AreaChart data={weeklyChart} margin={{ top: 22, right: 8, left: 0, bottom: 0 }}>
+            <defs><linearGradient id="colorWeekly" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={DASHBOARD_COLORS.sale} stopOpacity={0.8}/><stop offset="95%" stopColor={DASHBOARD_COLORS.sale} stopOpacity={0}/></linearGradient></defs>
+            <CartesianGrid strokeDasharray="3 3" stroke={DASHBOARD_COLORS.grid} vertical={false} />
+            <XAxis dataKey="name" stroke={DASHBOARD_COLORS.axis} tick={xTickStyle} />
+            <YAxis hide />
+            <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: '#fff' }} formatter={(v) => [fmtCompactCurrency(v), 'Valor']} />
+            <Area type="monotone" dataKey="value" stroke={DASHBOARD_COLORS.sale} fillOpacity={1} fill="url(#colorWeekly)"><LabelList dataKey="value" position="top" formatter={(v) => Number(v) > 0 ? fmtCompactCurrency(v) : ''} {...labelStyle} fontSize={isCompactDashboard ? 9 : 10} /></Area>
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
+    ),
+    monthly: (
+      <div className="chart-card">
+        <div className="card-header"><h3>VENDAS P/MÊS</h3></div>
+        <div className="metric-display"><div className="metric-icon-box"><BarChart2 size={20} /></div><div className="metric-info"><div className="metric-label">Valor de combustível vendido</div><div className="metric-value">{fmtCompactCurrency(monthlyTotal)}<span className="trend positive"><TrendingUp size={16} />no período</span></div><div className="metric-sublabel">total mensal de combustível</div></div></div>
+        <ResponsiveContainer width="100%" height={smallChartHeight}>
+          <AreaChart data={monthlyChart} margin={{ top: 22, right: 8, left: 0, bottom: 0 }}>
+            <defs><linearGradient id="colorMonthly" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={DASHBOARD_COLORS.sale} stopOpacity={0.8}/><stop offset="95%" stopColor={DASHBOARD_COLORS.sale} stopOpacity={0}/></linearGradient></defs>
+            <CartesianGrid strokeDasharray="3 3" stroke={DASHBOARD_COLORS.grid} vertical={false} />
+            <YAxis hide />
+            <Area type="monotone" dataKey="value" stroke={DASHBOARD_COLORS.sale} fillOpacity={1} fill="url(#colorMonthly)">{showDenseValueLabels && <LabelList dataKey="value" position="top" formatter={(v) => Number(v) > 0 ? fmtCompactCurrency(v) : ''} {...labelStyle} fontSize={9} />}</Area>
+            <XAxis dataKey="day" stroke={DASHBOARD_COLORS.axis} tick={xTickStyle} interval={isCompactDashboard ? 6 : 4} />
+            <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: '#fff' }} formatter={(v) => [fmtCompactCurrency(v), 'Valor']} />
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
+    ),
+  };
+
   return (
     <div className="page-content">
       {loading && <LoadingState compact label="Atualizando dashboard..." />}
-      {loading && !kpis ? (
-        <SkeletonCards count={4} />
-      ) : (
-        <div className="kpi-row">
-          {dynamicKpis.map((kpi) => (
-            <div className="kpi-card" key={kpi.label}>
-              <div className={`kpi-icon ${kpi.label.includes('Compras') ? 'purchase' : kpi.label.includes('Afer') ? 'attention' : kpi.label.includes('Carregando') ? '' : 'sale'}`}><kpi.icon size={24} /></div>
-              <div className="kpi-content">
-                <div className="kpi-label">{kpi.label}</div>
-                <div className="kpi-value">{kpi.value}</div>
-                {kpi.sub && <div className="kpi-trend positive">{kpi.sub}</div>}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      <div className="dashboard-grid">
-        <div className="chart-card large">
-          <div className="card-header">
-            <h3>COMBUSTÍVEIS MAIS VENDIDOS</h3>
-            <span style={{ fontSize: '12px', color: '#666' }}>litros no período</span>
-          </div>
-          <ResponsiveContainer width="100%" height={wideChartHeight}>
-            <BarChart data={salesFuelChartData} margin={{ top: 28, right: 12, left: 6, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke={DASHBOARD_COLORS.grid} />
-              <XAxis dataKey="name" stroke={DASHBOARD_COLORS.axis} tick={xTickStyle} interval={0} height={isCompactDashboard ? 46 : 30} angle={isCompactDashboard ? -18 : 0} textAnchor={isCompactDashboard ? 'end' : 'middle'} />
-              <YAxis stroke={DASHBOARD_COLORS.axis} tick={xTickStyle} width={isCompactDashboard ? 46 : 60} />
-              <Tooltip
-                contentStyle={tooltipStyle}
-                labelStyle={{ color: '#fff' }}
-                formatter={(v) => [fmtLitersLabel(v), 'Litros']}
-              />
-              <Bar dataKey="litros" name="Litros vendidos" fill={DASHBOARD_COLORS.sale} radius={[8, 8, 0, 0]}>
-                {salesFuelChartData.map((entry, index) => (
-                  <Cell key={`sales-fuel-${entry.name}-${index}`} fill={entry.color || DASHBOARD_COLORS.sale} />
-                ))}
-                <LabelList dataKey="litros" position="top" formatter={(v) => Number(v) > 0 ? fmtLitersLabel(v) : ''} {...labelStyle} fontSize={isCompactDashboard ? 10 : 12} />
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
-        <div className="chart-card">
-          <div className="card-header">
-            <h3>ESTOQUE COMB</h3>
-          </div>
-          {estoquesList.length > 0 && (
-            <div className="fuel-selector">
-              <label>Combustível:</label>
-              <select
-                value={selectedFuelDonut || estoquesList[0]?.produtoCodigo || ''}
-                onChange={(e) => setSelectedFuelDonut(parseInt(e.target.value))}
-              >
-                {estoquesList.map(e => (
-                  <option key={e.produtoCodigo} value={e.produtoCodigo}>{e.produtoNome}</option>
-                ))}
-              </select>
-            </div>
-          )}
-          <div className="stock-visual">
-            <ResponsiveContainer width="100%" height={200}>
-              <PieChart>
-                <Pie
-                  data={[
-                    { name: 'Disponível', value: fuelPct || 1 },
-                    { name: 'Capacidade restante', value: Math.max(0, 100 - fuelPct) }
-                  ]}
-                  cx="50%" cy="50%" innerRadius={isCompactDashboard ? 52 : 60} outerRadius={isCompactDashboard ? 78 : 90} paddingAngle={5} dataKey="value"
-                >
-                  <Cell fill={activeFuelColor} />
-                  <Cell fill={DASHBOARD_COLORS.neutral} />
-                </Pie>
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="stock-center">
-              <div className="stock-total">Estoque</div>
-              <div className="stock-number">{activeFuelEstoque ? fmt(activeFuelEstoque.estoqueTotal) : '—'}</div>
-              <div className="stock-unit">litros</div>
-            </div>
-          </div>
-          <div className="stock-legend">
-            <div className="legend-item">
-              <span className="dot available" style={{ background: activeFuelColor }}></span>
-              <span>Estoque</span>
-              <span className="value">{activeFuelEstoque ? fmt(activeFuelEstoque.estoqueTotal) + ' (' + fuelPct + '%)' : '—'}</span>
-            </div>
-            <div className="legend-item">
-              <span className="dot unavailable"></span>
-              <span>Capacidade</span>
-              <span className="value">{activeFuelEstoque ? fmt(activeFuelEstoque.capacidadeTotal, 0) + ' L' : '—'}</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="chart-card dashboard-purchase-card">
-          <div className="card-header">
-            <h3>COMPRAS 110 / 220 POR COMBUSTÍVEL</h3>
-            <span style={{ fontSize: '12px', color: '#666' }}>litros no período</span>
-          </div>
-          <ResponsiveContainer width="100%" height={purchaseChartHeight}>
-            <BarChart data={purchasesChartData} margin={{ top: 24, right: 12, left: 6, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke={DASHBOARD_COLORS.grid} />
-              <XAxis dataKey="name" stroke={DASHBOARD_COLORS.axis} tick={xTickStyle} interval={0} height={isCompactDashboard ? 46 : 30} angle={isCompactDashboard ? -18 : 0} textAnchor={isCompactDashboard ? 'end' : 'middle'} />
-              <YAxis stroke={DASHBOARD_COLORS.axis} tick={xTickStyle} width={isCompactDashboard ? 46 : 60} />
-              <Tooltip
-                contentStyle={tooltipStyle}
-                labelStyle={{ color: '#fff' }}
-                formatter={(v) => [fmt(v) + ' L', 'Litros']}
-              />
-              <Legend />
-              <Bar dataKey="compra110" name="Compra 110" fill={DASHBOARD_COLORS.purchase110} radius={[8, 8, 0, 0]}>
-                <LabelList dataKey="compra110" position="top" formatter={(v) => Number(v) > 0 ? fmtCompactLiters(v) : ''} {...labelStyle} fontSize={isCompactDashboard ? 9 : 11} />
-              </Bar>
-              <Bar dataKey="compra220" name="Compra 220" fill={DASHBOARD_COLORS.purchase220} radius={[8, 8, 0, 0]}>
-                <LabelList dataKey="compra220" position="top" formatter={(v) => Number(v) > 0 ? fmtCompactLiters(v) : ''} {...labelStyle} fontSize={isCompactDashboard ? 9 : 11} />
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
-        <div className="chart-card">
-          <div className="card-header">
-            <h3>VENDAS P/HORA</h3>
-          </div>
-          <div className="metric-display">
-            <div className="metric-icon-box"><Clock size={20} /></div>
-            <div className="metric-info">
-              <div className="metric-label">Valor de combustível vendido</div>
-              <div className="metric-value">
-                {kpis ? fmtCompactCurrency(kpis.combustivel?.valor) : '—'}
-                <span className="trend positive"><TrendingUp size={16} />no período</span>
-              </div>
-              <div className="metric-sublabel">quebra por hora</div>
-            </div>
-          </div>
-          <ResponsiveContainer width="100%" height={smallChartHeight}>
-            <BarChart data={hourlyChart} margin={{ top: 22, right: 8, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke={DASHBOARD_COLORS.grid} vertical={false} />
-              <XAxis dataKey="hour" stroke={DASHBOARD_COLORS.axis} tick={xTickStyle} interval={isCompactDashboard ? 5 : 3} />
-              <YAxis hide />
-              <Tooltip
-                contentStyle={tooltipStyle}
-                labelStyle={{ color: '#fff' }}
-                formatter={(v) => [fmtCompactCurrency(v), 'Valor']}
-              />
-              <Bar dataKey="value" fill={DASHBOARD_COLORS.sale} radius={[6, 6, 0, 0]}>
-                {showDenseValueLabels && <LabelList dataKey="value" position="top" formatter={(v) => Number(v) > 0 ? fmtCompactCurrency(v) : ''} {...labelStyle} fontSize={9} />}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
-        <div className="chart-card">
-          <div className="card-header">
-            <h3>VENDAS P/SEMANA</h3>
-          </div>
-          <div className="metric-display">
-            <div className="metric-icon-box"><Calendar size={20} /></div>
-            <div className="metric-info">
-              <div className="metric-label">Valor de combustível vendido</div>
-              <div className="metric-value">
-                {fmtCompactCurrency(monthlyTotal)}
-                <span className="trend positive"><TrendingUp size={16} />no período</span>
-              </div>
-              <div className="metric-sublabel">Semana 1, 2, 3 e 4</div>
-            </div>
-          </div>
-          <ResponsiveContainer width="100%" height={smallChartHeight}>
-            <AreaChart data={weeklyChart} margin={{ top: 22, right: 8, left: 0, bottom: 0 }}>
-              <defs>
-                <linearGradient id="colorWeekly" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor={DASHBOARD_COLORS.sale} stopOpacity={0.8}/>
-                  <stop offset="95%" stopColor={DASHBOARD_COLORS.sale} stopOpacity={0}/>
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke={DASHBOARD_COLORS.grid} vertical={false} />
-              <XAxis dataKey="name" stroke={DASHBOARD_COLORS.axis} tick={xTickStyle} />
-              <YAxis hide />
-              <Tooltip
-                contentStyle={tooltipStyle}
-                labelStyle={{ color: '#fff' }}
-                formatter={(v) => [fmtCompactCurrency(v), 'Valor']}
-              />
-              <Area type="monotone" dataKey="value" stroke={DASHBOARD_COLORS.sale} fillOpacity={1} fill="url(#colorWeekly)">
-                <LabelList dataKey="value" position="top" formatter={(v) => Number(v) > 0 ? fmtCompactCurrency(v) : ''} {...labelStyle} fontSize={isCompactDashboard ? 9 : 10} />
-              </Area>
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-
-        <div className="chart-card">
-          <div className="card-header">
-            <h3>VENDAS P/MÊS</h3>
-          </div>
-          <div className="metric-display">
-            <div className="metric-icon-box"><BarChart2 size={20} /></div>
-            <div className="metric-info">
-              <div className="metric-label">Valor de combustível vendido</div>
-              <div className="metric-value">
-                {fmtCompactCurrency(monthlyTotal)}
-                <span className="trend positive"><TrendingUp size={16} />no período</span>
-              </div>
-              <div className="metric-sublabel">total mensal de combustível</div>
-            </div>
-          </div>
-          <ResponsiveContainer width="100%" height={smallChartHeight}>
-            <AreaChart data={monthlyChart} margin={{ top: 22, right: 8, left: 0, bottom: 0 }}>
-              <defs>
-                <linearGradient id="colorMonthly" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor={DASHBOARD_COLORS.sale} stopOpacity={0.8}/>
-                  <stop offset="95%" stopColor={DASHBOARD_COLORS.sale} stopOpacity={0}/>
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke={DASHBOARD_COLORS.grid} vertical={false} />
-              <YAxis hide />
-              <Area type="monotone" dataKey="value" stroke={DASHBOARD_COLORS.sale} fillOpacity={1} fill="url(#colorMonthly)">
-                {showDenseValueLabels && <LabelList dataKey="value" position="top" formatter={(v) => Number(v) > 0 ? fmtCompactCurrency(v) : ''} {...labelStyle} fontSize={9} />}
-              </Area>
-              <XAxis dataKey="day" stroke={DASHBOARD_COLORS.axis} tick={xTickStyle} interval={isCompactDashboard ? 6 : 4} />
-              <Tooltip
-                contentStyle={tooltipStyle}
-                labelStyle={{ color: '#fff' }}
-                formatter={(v) => [fmtCompactCurrency(v), 'Valor']}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
+      {dashboardSections.kpis}
+      <div className="dashboard-grid dashboard-static-grid">
+        <div className="dashboard-static-wide">{dashboardSections.salesFuel}</div>
+        <div>{dashboardSections.stock}</div>
+        <div className="dashboard-static-full">{dashboardSections.purchases}</div>
+        <div>{dashboardSections.hourly}</div>
+        <div>{dashboardSections.weekly}</div>
+        <div>{dashboardSections.monthly}</div>
       </div>
     </div>
   );
 };
-
 // Reports Component
 const fmtNum = (v, dec = 0) => Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: dec, maximumFractionDigits: dec });
 const fmtBRL = (v) => Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -3263,6 +3209,7 @@ export default function App() {
   const [reportsPeriod, setReportsPeriod] = useState(getCurrentPeriod());
   const [controlPeriod, setControlPeriod] = useState(getCurrentPeriod());
   const [adminUsers, setAdminUsers] = useState(initialAdminUsers);
+  const [themeMode, setThemeMode] = useState(() => localStorage.getItem('starvl-theme-mode') || 'dark');
 
   const isAdmin = loggedUser?.perfil === 'admin';
 
@@ -3280,6 +3227,11 @@ export default function App() {
     loading: false,
     error: null,
   });
+
+  useEffect(() => {
+    localStorage.setItem('starvl-theme-mode', themeMode);
+    document.body.classList.toggle('theme-light-body', themeMode === 'light');
+  }, [themeMode]);
 
   useEffect(() => {
     const client = clients.find(c => c.nome === selectedClient) || clients[0];
@@ -3392,7 +3344,7 @@ export default function App() {
   }
 
   return (
-    <div className="app">
+    <div className={`app theme-${themeMode}`}>
       <Sidebar
         currentPage={currentPage}
         setCurrentPage={setCurrentPage}
@@ -3412,6 +3364,8 @@ export default function App() {
           onRefresh={handleRefresh}
           onLogout={() => { setIsLoggedIn(false); setLoggedUser(null); }}
           loggedUser={loggedUser}
+          themeMode={themeMode}
+          setThemeMode={setThemeMode}
         />
         {apiData.error && <ApiErrorNotice message={apiData.error} onRetry={handleRefresh} />}
         {renderPage()}
