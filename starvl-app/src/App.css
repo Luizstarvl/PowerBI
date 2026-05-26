@@ -2206,6 +2206,182 @@ body.theme-light-body {
   color: #E31E24;
 }
 
+/* ── Tanque Horizontal (Dashboard · ESTOQUE COMB) ────────────────────────── */
+.tank-horiz-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  padding: 4px 0 0;
+}
+
+/* Válvula / pipe no topo */
+.tank-horiz-top {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: -1px;
+  z-index: 3;
+}
+
+/* bocal: tampa plana no topo */
+.tank-horiz-bocal-cap {
+  width: 32px;
+  height: 6px;
+  background: linear-gradient(180deg, #6a6a6a 0%, #444 100%);
+  border-radius: 3px 3px 0 0;
+  border: 2px solid #666;
+  border-bottom: none;
+}
+
+/* bocal: pescoço roscado */
+.tank-horiz-bocal-neck {
+  width: 20px;
+  height: 16px;
+  background: repeating-linear-gradient(
+    180deg,
+    #3a3a3a 0px, #3a3a3a 3px,
+    #555    3px, #555    6px
+  );
+  border-left: 2px solid #555;
+  border-right: 2px solid #555;
+}
+
+/* bocal: base que encosta no corpo do tanque */
+.tank-horiz-bocal-base {
+  width: 28px;
+  height: 8px;
+  background: linear-gradient(180deg, #555 0%, #3a3a3a 100%);
+  border-radius: 0 0 3px 3px;
+  border: 2px solid #555;
+  border-top: none;
+  margin-bottom: -2px;
+}
+
+/* Corpo principal – pill horizontal, sem cor de fundo */
+.tank-horiz-body {
+  position: relative;
+  width: 220px;
+  height: 120px;
+  background: transparent;
+  border-radius: 60px;
+  border: 3px solid #555;
+  overflow: hidden;
+}
+
+/* Reflexo/brilho interno superior esquerdo */
+.tank-horiz-gloss {
+  position: absolute;
+  top: 14px;
+  left: 22px;
+  width: 38%;
+  height: 30%;
+  background: linear-gradient(145deg, rgba(255,255,255,0.10) 0%, transparent 80%);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 5;
+}
+
+/* Preenchimento de líquido – sobe de baixo para cima */
+.tank-horiz-fill {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  transition: height 0.8s ease;
+  overflow: hidden;
+  border-radius: 0 0 57px 57px;
+}
+
+/* Label central */
+.tank-horiz-label {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  z-index: 10;
+  background: rgba(0, 0, 0, 0.78);
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(6px);
+  white-space: nowrap;
+}
+
+/* Pernas de suporte */
+.tank-horiz-legs {
+  display: flex;
+  justify-content: space-around;
+  width: 170px;
+  margin-top: 3px;
+}
+
+.tank-horiz-leg {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.tank-horiz-leg-bar {
+  width: 10px;
+  height: 30px;
+  background: linear-gradient(180deg, #555 0%, #333 100%);
+  border-radius: 2px;
+}
+
+.tank-horiz-leg-foot {
+  width: 36px;
+  height: 6px;
+  background: linear-gradient(90deg, #333 0%, #555 50%, #333 100%);
+  border-radius: 3px;
+  border: 1px solid #666;
+}
+
+/* Tema claro – overrides */
+.theme-light .tank-horiz-body {
+  border-color: #bbb;
+  box-shadow: inset 0 2px 8px rgba(0,0,0,0.06) !important;
+}
+
+.theme-light .tank-horiz-bocal-cap {
+  background: linear-gradient(180deg, #ccc 0%, #aaa 100%);
+  border-color: #bbb;
+}
+
+.theme-light .tank-horiz-bocal-neck {
+  background: repeating-linear-gradient(
+    180deg,
+    #bbb 0px, #bbb 3px,
+    #ddd 3px, #ddd 6px
+  );
+  border-color: #bbb;
+}
+
+.theme-light .tank-horiz-bocal-base {
+  background: linear-gradient(180deg, #bbb 0%, #999 100%);
+  border-color: #aaa;
+}
+
+.theme-light .tank-horiz-leg-bar {
+  background: linear-gradient(180deg, #bbb 0%, #999 100%);
+}
+
+.theme-light .tank-horiz-leg-foot {
+  background: linear-gradient(90deg, #999 0%, #bbb 50%, #999 100%);
+  border-color: #aaa;
+}
+
+.theme-light .tank-horiz-label {
+  background: rgba(255, 255, 255, 0.88);
+  border-color: rgba(0, 0, 0, 0.10);
+}
+
+.theme-light .tank-horiz-gloss {
+  background: linear-gradient(145deg, rgba(255,255,255,0.22) 0%, transparent 80%);
+}
+/* ── fim Tanque Horizontal ───────────────────────────────────────────────── */
+
 .projection-subtitle {
   text-align: center;
   font-size: 12px;
