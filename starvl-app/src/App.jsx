@@ -534,16 +534,30 @@ function vpMockRows(days = 35) {
 
 // ── Mock Data: Conveniência / Loja (prodtipo = 2) ────────────────────────────
 const _VP_MOCK_CONV_PRODS = [
-  { nome: 'Arla 32 20L',       preco: 89.90, rangeQtd:[2,10],  secao:'Lubrificantes', grupo:'Aditivos'       },
-  { nome: 'Óleo Motor 5W30',   preco: 42.50, rangeQtd:[2, 8],  secao:'Lubrificantes', grupo:'Óleos Motor'    },
-  { nome: 'Óleo Motor 10W40',  preco: 38.90, rangeQtd:[3,10],  secao:'Lubrificantes', grupo:'Óleos Motor'    },
-  { nome: 'Lavagem Simples',   preco: 35.00, rangeQtd:[4,18],  secao:'Serviços',      grupo:'Lavagem'        },
-  { nome: 'Lavagem Completa',  preco: 65.00, rangeQtd:[2,10],  secao:'Serviços',      grupo:'Lavagem'        },
-  { nome: 'Calibragem',        preco:  8.00, rangeQtd:[8,35],  secao:'Serviços',      grupo:'Serviços Pista' },
-  { nome: 'Filtro de Óleo',    preco: 28.90, rangeQtd:[2, 7],  secao:'Filtros',       grupo:'Filtros Motor'  },
-  { nome: 'Fluido Freio DOT4', preco: 18.50, rangeQtd:[1, 5],  secao:'Lubrificantes', grupo:'Fluidos'        },
-  { nome: 'Aditivo Radiador',  preco: 22.90, rangeQtd:[1, 4],  secao:'Lubrificantes', grupo:'Aditivos'       },
-  { nome: 'Água Destilada',    preco:  6.50, rangeQtd:[5,20],  secao:'Lubrificantes', grupo:'Aditivos'       },
+  // ── Loja / Conveniência ──────────────────────────────────────────────────
+  { nome: 'Refrigerante 350ml', preco:  5.50, rangeQtd:[20,80],  secao:'Loja', grupo:'Bebidas'    },
+  { nome: 'Água 500ml',         preco:  2.80, rangeQtd:[25,90],  secao:'Loja', grupo:'Bebidas'    },
+  { nome: 'Cerveja Lata 350ml', preco:  5.00, rangeQtd:[15,55],  secao:'Loja', grupo:'Bebidas'    },
+  { nome: 'Energético 250ml',   preco:  9.90, rangeQtd:[ 6,25],  secao:'Loja', grupo:'Bebidas'    },
+  { nome: 'Café Expresso',      preco:  4.50, rangeQtd:[12,50],  secao:'Loja', grupo:'Cafeteria'  },
+  { nome: 'Cigarro Marlboro',   preco: 15.00, rangeQtd:[ 8,30],  secao:'Loja', grupo:'Fumo'       },
+  { nome: 'Cigarro L&M',        preco: 13.00, rangeQtd:[ 6,25],  secao:'Loja', grupo:'Fumo'       },
+  { nome: 'Salgadinho 40g',     preco:  4.00, rangeQtd:[10,40],  secao:'Loja', grupo:'Alimentos'  },
+  { nome: 'Chocolate 40g',      preco:  3.50, rangeQtd:[ 8,30],  secao:'Loja', grupo:'Alimentos'  },
+  { nome: 'Pão de Queijo',      preco:  3.00, rangeQtd:[10,45],  secao:'Loja', grupo:'Alimentos'  },
+  // ── Lubrificantes / Pista ─────────────────────────────────────────────────
+  { nome: 'Arla 32 20L',        preco: 89.90, rangeQtd:[ 2,10],  secao:'Lubrificantes', grupo:'Aditivos'    },
+  { nome: 'Óleo Motor 5W30',    preco: 42.50, rangeQtd:[ 2, 8],  secao:'Lubrificantes', grupo:'Óleos Motor' },
+  { nome: 'Óleo Motor 10W40',   preco: 38.90, rangeQtd:[ 3,10],  secao:'Lubrificantes', grupo:'Óleos Motor' },
+  { nome: 'Fluido Freio DOT4',  preco: 18.50, rangeQtd:[ 1, 5],  secao:'Lubrificantes', grupo:'Fluidos'     },
+  { nome: 'Aditivo Radiador',   preco: 22.90, rangeQtd:[ 1, 4],  secao:'Lubrificantes', grupo:'Aditivos'    },
+  // ── Serviços ───────────────────────────────────────────────────────────────
+  { nome: 'Lavagem Simples',    preco: 35.00, rangeQtd:[ 4,18],  secao:'Serviços', grupo:'Lavagem'        },
+  { nome: 'Lavagem Completa',   preco: 65.00, rangeQtd:[ 2,10],  secao:'Serviços', grupo:'Lavagem'        },
+  { nome: 'Calibragem',         preco:  8.00, rangeQtd:[ 8,35],  secao:'Serviços', grupo:'Serviços Pista' },
+  // ── Filtros ───────────────────────────────────────────────────────────────
+  { nome: 'Filtro de Óleo',     preco: 28.90, rangeQtd:[ 2, 7],  secao:'Filtros',  grupo:'Filtros Motor'  },
+  { nome: 'Água Destilada',     preco:  6.50, rangeQtd:[ 5,20],  secao:'Filtros',  grupo:'Aditivos'       },
 ];
 
 function vpMockConvRows(days = 35) {
@@ -710,7 +724,7 @@ const VendasPista = ({ clients, selectedClient, selectedPeriod }) => {
 
   return (
     <div className="chart-card">
-      {/* ── Cabeçalho ─────────────────────────────────────────────────────── */}
+      {/* ── Zona 1: Título + toggle de Seção ──────────────────────────────── */}
       <div className="card-header" style={{ flexWrap:'wrap', gap:8 }}>
         <h3>
           DESEMPENHO E VOLUME DE {secao === 'combustivel' ? 'VENDAS PISTA' : 'CONVENIÊNCIA / LOJA'}
@@ -720,17 +734,20 @@ const VendasPista = ({ clients, selectedClient, selectedPeriod }) => {
             </span>
           )}
         </h3>
-        <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
-          {/* Seção: Combustível | Conveniência */}
-          <div className="vp-toggle-group">
-            {[{k:'combustivel',l:'Combustível'},{k:'conveniencia',l:'Conveniência'}].map(v=>(
-              <button key={v.k} type="button"
-                className={`vp-period-btn vp-secao-btn${secao===v.k?' active':''}`}
-                onClick={()=>{ setSecao(v.k); setViewMode('combustivel'); setRawData([]); setCatValor(null); }}>{v.l}
-              </button>
-            ))}
-          </div>
-          {/* Dimensão: Combustível/Produto | Vendedor */}
+        <div className="vp-toggle-group">
+          {[{k:'combustivel',l:'⛽ Combustível'},{k:'conveniencia',l:'🏪 Conveniência'}].map(v=>(
+            <button key={v.k} type="button"
+              className={`vp-period-btn vp-secao-btn${secao===v.k?' active':''}`}
+              onClick={()=>{ setSecao(v.k); setViewMode('combustivel'); setRawData([]); setCatValor(null); }}>{v.l}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Zona 2: Dimensão + Período ────────────────────────────────────── */}
+      <div className="vp-controls-bar">
+        <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+          <span className="vp-ctrl-label">Agrupar por</span>
           <div className="vp-toggle-group">
             {[
               {k:'combustivel', l: secao==='combustivel' ? 'Combustível' : 'Produto'},
@@ -742,7 +759,9 @@ const VendasPista = ({ clients, selectedClient, selectedPeriod }) => {
               </button>
             ))}
           </div>
-          {/* Granularidade: Diário | Semanal | Mensal | Anual */}
+        </div>
+        <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+          <span className="vp-ctrl-label">Período</span>
           <div className="vp-toggle-group">
             {VP_PERIODS.map(p=>(
               <button key={p.key} type="button"
@@ -778,16 +797,19 @@ const VendasPista = ({ clients, selectedClient, selectedPeriod }) => {
         </div>
       </div>
 
-      {/* ── Filtro de Categoria: Seção / Grupo ────────────────────────────── */}
+      {/* ── Zona 3: Filtrar por Seção / Grupo ────────────────────────────── */}
       {catOptions.length > 0 && (
         <div className="vp-cat-row">
-          <div className="vp-toggle-group">
-            {[{k:'secao',l:'Seção'},{k:'grupo',l:'Grupo'}].map(v=>(
-              <button key={v.k} type="button"
-                className={`vp-period-btn vp-cat-tipo-btn${catTipo===v.k?' active':''}`}
-                onClick={()=>{ setCatTipo(v.k); setCatValor(null); }}>{v.l}
-              </button>
-            ))}
+          <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+            <span className="vp-ctrl-label">Filtrar por</span>
+            <div className="vp-toggle-group">
+              {[{k:'secao',l:'Seção'},{k:'grupo',l:'Grupo'}].map(v=>(
+                <button key={v.k} type="button"
+                  className={`vp-period-btn vp-cat-tipo-btn${catTipo===v.k?' active':''}`}
+                  onClick={()=>{ setCatTipo(v.k); setCatValor(null); }}>{v.l}
+                </button>
+              ))}
+            </div>
           </div>
           <div className="vp-cat-chips">
             <button type="button"

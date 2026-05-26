@@ -4268,7 +4268,30 @@ body.theme-light-body {
   border-color: #2563eb;
 }
 
-/* Faixa filtro Seção / Grupo */
+/* Zona 2: barra de controles (Agrupar por + Período) */
+.vp-controls-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 16px;
+  border-bottom: 1px solid #1e293b;
+  flex-wrap: wrap;
+}
+
+.vp-ctrl-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #475569;
+  white-space: nowrap;
+}
+
+.theme-light .vp-controls-bar { border-bottom-color: #e2e8f0; }
+.theme-light .vp-ctrl-label   { color: #94a3b8; }
+
+/* Zona 3: Faixa filtro Seção / Grupo */
 .vp-cat-row {
   display: flex;
   align-items: center;
