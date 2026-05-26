@@ -450,17 +450,37 @@ const getFuelColor = (name, fallback = DASHBOARD_COLORS.sale) => {
 
 // ── VendasPista ──────────────────────────────────────────────────────────────
 const VP_PERIODS = [
-  { key: 'diario',  label: 'Diário',  fetchDays: 36,  showCount: 30, maWin: 7  },
-  { key: 'semanal', label: 'Semanal', fetchDays: 90,  showCount: 12, maWin: 4  },
-  { key: 'mensal',  label: 'Mensal',  fetchDays: 395, showCount: 12, maWin: 3  },
-  { key: 'anual',   label: 'Anual',   fetchDays: 730, showCount: 24, maWin: 4  },
+  { key: 'diario',  label: 'Diário',  maWin: 7 },
+  { key: 'semanal', label: 'Semanal', maWin: 4 },
+  { key: 'mensal',  label: 'Mensal',  maWin: 3 },
+  { key: 'anual',   label: 'Anual',   maWin: 4 },
 ];
 
 function vpDateStr(d) {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
 
-const VendasPista = ({ clients, selectedClient }) => {
+/**
+ * Deriva dataInicio/dataFim com base no mês selecionado e na granularidade.
+ * - diario/semanal → apenas o mês selecionado (totais coerentes entre si)
+ * - mensal         → últimos 12 meses encerrados no mês selecionado
+ * - anual          → últimos 24 meses encerrados no mês selecionado
+ */
+function vpDateRange(periodKey, selectedPeriod) {
+  const parts = (selectedPeriod || getCurrentPeriod()).split('/');
+  const mes = parseInt(parts[0]);
+  const ano = parseInt(parts[1]);
+  const lastDay = new Date(ano, mes, 0).getDate();
+  const dataFim = `${ano}-${String(mes).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`;
+  if (periodKey === 'diario' || periodKey === 'semanal') {
+    return { dataInicio: `${ano}-${String(mes).padStart(2,'0')}-01`, dataFim };
+  }
+  const monthsBack = periodKey === 'mensal' ? 12 : 24;
+  const startDate  = new Date(ano, mes - monthsBack, 1); // JS normaliza meses negativos
+  return { dataInicio: vpDateStr(startDate), dataFim };
+}
+
+const VendasPista = ({ clients, selectedClient, selectedPeriod }) => {
   const [periodKey, setPeriodKey] = useState('diario');
   const [viewMode, setViewMode]   = useState('combustivel'); // 'combustivel' | 'vendedor'
   const [rawData, setRawData]     = useState([]);
@@ -474,18 +494,22 @@ const VendasPista = ({ clients, selectedClient }) => {
     return c?.codigoEmpresa || null;
   }, [clients, selectedClient]);
 
+  // dataInicio/dataFim derivados do mês selecionado + granularidade
+  const { dataInicio, dataFim } = useMemo(
+    () => vpDateRange(periodKey, selectedPeriod),
+    [periodKey, selectedPeriod]
+  );
+
+  // Re-busca apenas quando mudar empresa ou intervalo de datas (diario↔semanal não re-busca)
   useEffect(() => {
-    if (!empresa) return;
-    const end   = new Date();
-    const start = new Date(end);
-    start.setDate(start.getDate() - period.fetchDays);
+    if (!empresa || !dataInicio || !dataFim) return;
     setLoading(true); setError(null);
-    fetch(`${API_URL}/api/dashboard/vendas-pista?empresa=${empresa}&dataInicio=${vpDateStr(start)}&dataFim=${vpDateStr(end)}`)
+    fetch(`${API_URL}/api/dashboard/vendas-pista?empresa=${empresa}&dataInicio=${dataInicio}&dataFim=${dataFim}`)
       .then(r => r.json())
       .then(data => { if (data.error) throw new Error(data.error); setRawData(Array.isArray(data) ? data : []); })
       .catch(err => setError(err.message))
       .finally(() => setLoading(false));
-  }, [periodKey, empresa]);
+  }, [empresa, dataInicio, dataFim]);
 
   const { chartData, groupKeys, totais } = useMemo(() => {
     if (!rawData.length) return { chartData: [], groupKeys: [], totais: { faturamento: 0, litros: 0 } };
@@ -521,7 +545,7 @@ const VendasPista = ({ clients, selectedClient }) => {
 
     const sorted  = Object.keys(bucket).sort();
     const totals  = sorted.map(k => bucket[k].total);
-    const { maWin, showCount } = period;
+    const { maWin } = period;
 
     const allPoints = sorted.map((key, i) => {
       const slice = totals.slice(Math.max(0, i - maWin + 1), i + 1);
@@ -536,7 +560,8 @@ const VendasPista = ({ clients, selectedClient }) => {
       return { ...bucket[key], label, ma };
     });
 
-    const chartData = allPoints.slice(-showCount);
+    // chartData = todos os pontos do intervalo selecionado (sem corte artificial)
+    const chartData = allPoints;
     const totais = {
       faturamento: chartData.reduce((s, r) => s + r.total, 0),
       litros:      chartData.reduce((s, r) => s + r.litros, 0),
@@ -553,7 +578,11 @@ const VendasPista = ({ clients, selectedClient }) => {
   };
   const fmtL = v => Number(v||0).toLocaleString('pt-BR',{maximumFractionDigits:0});
   const maLabel = periodKey==='diario'?'MM 7 dias':periodKey==='semanal'?'MM 4 sem.':periodKey==='mensal'?'MM 3 meses':'MM 4 meses';
-  const lastMa = chartData.length ? chartData[chartData.length-1].ma : 0;
+  const lastMa  = chartData.length ? chartData[chartData.length-1].ma : 0;
+  // Rótulo do intervalo de referência dos KPIs
+  const kpiRangeLabel = (periodKey === 'diario' || periodKey === 'semanal')
+    ? (selectedPeriod || '')
+    : periodKey === 'mensal' ? '12 meses' : '24 meses';
 
   return (
     <div className="chart-card">
@@ -577,9 +606,18 @@ const VendasPista = ({ clients, selectedClient }) => {
 
       {/* KPIs */}
       <div className="vp-kpi-row">
-        <div className="vp-kpi"><span className="vp-kpi-label">Faturamento Bruto</span><span className="vp-kpi-value" style={{color:DASHBOARD_COLORS.sale}}>{fmtBig(totais.faturamento)}</span></div>
-        <div className="vp-kpi"><span className="vp-kpi-label">Volume Total</span><span className="vp-kpi-value" style={{color:FUEL_COLORS.ethanol}}>{fmtL(totais.litros)} L</span></div>
-        <div className="vp-kpi"><span className="vp-kpi-label">{maLabel}</span><span className="vp-kpi-value" style={{color:'#fff'}}>{fmtBig(lastMa)}</span></div>
+        <div className="vp-kpi">
+          <span className="vp-kpi-label">Faturamento Bruto <span style={{opacity:.65,fontSize:'0.82em'}}>({kpiRangeLabel})</span></span>
+          <span className="vp-kpi-value" style={{color:DASHBOARD_COLORS.sale}}>{fmtBig(totais.faturamento)}</span>
+        </div>
+        <div className="vp-kpi">
+          <span className="vp-kpi-label">Volume Total <span style={{opacity:.65,fontSize:'0.82em'}}>({kpiRangeLabel})</span></span>
+          <span className="vp-kpi-value" style={{color:FUEL_COLORS.ethanol}}>{fmtL(totais.litros)} L</span>
+        </div>
+        <div className="vp-kpi">
+          <span className="vp-kpi-label">{maLabel}</span>
+          <span className="vp-kpi-value" style={{color:'#fff'}}>{fmtBig(lastMa)}</span>
+        </div>
       </div>
 
       {loading && <LoadingState compact label="Carregando vendas pista..." />}
@@ -619,7 +657,7 @@ const VendasPista = ({ clients, selectedClient }) => {
 // ── fim VendasPista ────────────────────────────────────────────────────────────
 
 // Dashboard Component
-const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcControle, estoques, loading, clients, selectedClient }) => {
+const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcControle, estoques, loading, clients, selectedClient, selectedPeriod }) => {
   const [selectedFuelDonut, setSelectedFuelDonut] = useState(null);
   const [isCompactDashboard, setIsCompactDashboard] = useState(false);
 
@@ -812,7 +850,7 @@ const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcContr
         <div className="dashboard-static-wide">{dashboardSections.salesFuel}</div>
         <div>{dashboardSections.stock}</div>
         <div className="dashboard-static-full">
-          <VendasPista clients={clients} selectedClient={selectedClient} />
+          <VendasPista clients={clients} selectedClient={selectedClient} selectedPeriod={selectedPeriod} />
         </div>
       </div>
     </div>
@@ -3425,7 +3463,7 @@ export default function App() {
   const renderPage = () => {
     switch (currentPage) {
       case 'dashboard':
-        return <Dashboard kpis={apiData.kpis} combustiveis={apiData.combustiveis} vendasDiarias={apiData.vendasDiarias} vendasHorarias={apiData.vendasHorarias} lmcControle={apiData.dashboardLmcControle} estoques={apiData.estoques} loading={apiData.loading} clients={clients} selectedClient={selectedClient} />;
+        return <Dashboard kpis={apiData.kpis} combustiveis={apiData.combustiveis} vendasDiarias={apiData.vendasDiarias} vendasHorarias={apiData.vendasHorarias} lmcControle={apiData.dashboardLmcControle} estoques={apiData.estoques} loading={apiData.loading} clients={clients} selectedClient={selectedClient} selectedPeriod={dashboardPeriod} />;
       case 'reports':
         return <Reports selectedClient={selectedClient} selectedPeriod={reportsPeriod} setSelectedPeriod={setReportsPeriod} clients={clients} />;
       case 'control':
@@ -3439,7 +3477,7 @@ export default function App() {
       case 'admin':
         return <Parameters clients={clients} setClients={setClients} isAdmin={isAdmin} />;
       default:
-        return <Dashboard kpis={apiData.kpis} combustiveis={apiData.combustiveis} vendasDiarias={apiData.vendasDiarias} vendasHorarias={apiData.vendasHorarias} lmcControle={apiData.dashboardLmcControle} estoques={apiData.estoques} loading={apiData.loading} clients={clients} selectedClient={selectedClient} />;
+        return <Dashboard kpis={apiData.kpis} combustiveis={apiData.combustiveis} vendasDiarias={apiData.vendasDiarias} vendasHorarias={apiData.vendasHorarias} lmcControle={apiData.dashboardLmcControle} estoques={apiData.estoques} loading={apiData.loading} clients={clients} selectedClient={selectedClient} selectedPeriod={dashboardPeriod} />;
     }
   };
 
