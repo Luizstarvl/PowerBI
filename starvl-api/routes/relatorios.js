@@ -4,6 +4,7 @@ const pool = require('../db/pool');
 const { safeQuery } = require('../middleware/readonly');
 
 const query = safeQuery(pool);
+const RANKING_EMPRESA_ID = 7432;
 
 function periodoToRange(periodo) {
   const mes = parseInt(periodo.substring(0, 2));
@@ -15,6 +16,23 @@ function periodoToRange(periodo) {
     dataFim: `${ano}-${String(mes).padStart(2, '0')}-${String(diasNoMes).padStart(2, '0')}`,
     lmcperiodo: `${String(mes).padStart(2, '0')}/${ano}`,
   };
+}
+
+function isValidDateKey(value) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(String(value || ''));
+}
+
+function getRankingEmpresa(req, res) {
+  const empresa = parseInt(req.query.empresa);
+  if (!empresa) {
+    res.status(400).json({ error: 'empresa is required' });
+    return null;
+  }
+  if (empresa !== RANKING_EMPRESA_ID) {
+    res.status(400).json({ error: `Este relatorio esta restrito a empresa ${RANKING_EMPRESA_ID}` });
+    return null;
+  }
+  return RANKING_EMPRESA_ID;
 }
 
 // GET /api/relatorios/descarregamentos?empresa=&periodo=MMYYYY
@@ -110,6 +128,128 @@ router.get('/descarregamentos', async (req, res) => {
     res.json({ comNota, semNota });
   } catch (err) {
     console.error('Error in /relatorios/descarregamentos:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/relatorios/vendedores?empresa=
+router.get('/vendedores', async (req, res) => {
+  const empresa = getRankingEmpresa(req, res);
+  if (!empresa) return;
+
+  try {
+    const result = await query(
+      `SELECT DISTINCT
+         a.atdecodigo,
+         a.atdenome
+       FROM atde a
+       JOIN atdeemp ae
+         ON ae.atdecodigo = a.atdecodigo
+        AND ae.atdeempcod = $1
+       WHERE a.atdecodigo > 0
+         AND a.atdenome IS NOT NULL
+         AND TRIM(a.atdenome) <> ''
+       ORDER BY a.atdenome`,
+      [empresa]
+    );
+
+    res.json({
+      vendedores: result.rows.map(r => ({
+        codigo: parseInt(r.atdecodigo),
+        nome: r.atdenome,
+      })),
+    });
+  } catch (err) {
+    console.error('Error in /relatorios/vendedores:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/relatorios/ranking-vendas?empresa=&dataInicial=YYYY-MM-DD&dataFinal=YYYY-MM-DD&tipoProd=1&vendedores=1,2
+router.get('/ranking-vendas', async (req, res) => {
+  const empresa = getRankingEmpresa(req, res);
+  if (!empresa) return;
+  const dataInicial = req.query.dataInicial;
+  const dataFinal = req.query.dataFinal;
+  const tipoProd = parseInt(req.query.tipoProd);
+  const vendedores = String(req.query.vendedores || '')
+    .split(',')
+    .map(v => parseInt(v))
+    .filter(v => Number.isInteger(v) && v > 0);
+
+  if (!isValidDateKey(dataInicial) || !isValidDateKey(dataFinal) || ![1, 2].includes(tipoProd)) {
+    return res.status(400).json({ error: 'dataInicial, dataFinal and tipoProd (1 or 2) required' });
+  }
+
+  if (dataInicial > dataFinal) {
+    return res.status(400).json({ error: 'dataInicial cannot be greater than dataFinal' });
+  }
+
+  try {
+    const result = await query(
+      `SELECT *,
+              RANK() OVER (ORDER BY total_venda DESC) AS posicao_vendedor
+         FROM (
+           SELECT
+             TO_CHAR(v.vdadata, 'MM/YYYY') AS mes_venda,
+             a.atdecodigo AS codvendedor,
+             a.atdenome AS nomevendedor,
+             COALESCE(SUM(i.vditqtd), 0) AS qtd_venda,
+             COALESCE(SUM(i.vditsubtotal), 0) AS subtotal_venda,
+             COALESCE(SUM(i.vdittotal), 0) AS total_venda
+           FROM vda v
+             LEFT JOIN vdit i
+                    ON i.vditempresa = v.vdaempresa
+                   AND i.vditcodigovda = v.vdacodigo
+             LEFT JOIN prod p
+                    ON p.prodcodigo = i.vditproduto
+             LEFT JOIN spro s
+                    ON s.sprocodigo = p.prodsecao
+             LEFT JOIN gpro g
+                    ON g.gprosecao = s.sprocodigo
+                   AND g.gprocodigo = p.prodgrupo
+             LEFT JOIN atde a
+                    ON a.atdecodigo = i.vditvendedor
+           WHERE v.vdaempresa = $1
+             AND CAST(v.vdadata AS DATE) BETWEEN $2 AND $3
+             AND i.vditvendedor > 0
+             AND a.atdecodigo IS NOT NULL
+             AND p.prodtipo = $4
+             AND ($5::int[] IS NULL OR a.atdecodigo = ANY($5::int[]))
+             AND EXISTS (
+               SELECT 1
+                 FROM atdeemp ae
+                WHERE ae.atdecodigo = a.atdecodigo
+                  AND ae.atdeempcod = $1
+             )
+             AND (v.vdastatus IS NULL OR v.vdastatus = 0)
+             AND (i.vditstatus IS NULL OR i.vditstatus = 0)
+           GROUP BY 1, 2, 3
+         ) t
+        ORDER BY total_venda DESC`,
+      [empresa, dataInicial, dataFinal, tipoProd, vendedores.length ? vendedores : null]
+    );
+
+    const ranking = result.rows.map(r => ({
+      mesVenda: r.mes_venda,
+      codVendedor: parseInt(r.codvendedor),
+      nomeVendedor: r.nomevendedor,
+      qtdVenda: parseFloat(r.qtd_venda || 0),
+      subtotalVenda: parseFloat(r.subtotal_venda || 0),
+      totalVenda: parseFloat(r.total_venda || 0),
+      posicaoVendedor: parseInt(r.posicao_vendedor),
+    }));
+
+    res.json({
+      ranking,
+      totais: {
+        qtdVenda: ranking.reduce((s, r) => s + r.qtdVenda, 0),
+        subtotalVenda: ranking.reduce((s, r) => s + r.subtotalVenda, 0),
+        totalVenda: ranking.reduce((s, r) => s + r.totalVenda, 0),
+      },
+    });
+  } catch (err) {
+    console.error('Error in /relatorios/ranking-vendas:', err.message);
     res.status(500).json({ error: err.message });
   }
 });

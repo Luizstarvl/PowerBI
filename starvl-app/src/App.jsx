@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import logoStarvl from './logo-starvl.png';
 import logoStarvlBlack from './logo-starvl-black.png';
 import * as XLSX from 'xlsx';
 import { LineChart, Line, BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Area, AreaChart, LabelList, ComposedChart, ReferenceLine } from 'recharts';
-import { Home, FileText, Users as UsersIcon, Truck, Package, LogOut, Eye, Search, Plus, Edit2, Trash2, X, Calendar, TrendingUp, Droplet, DollarSign, Calculator, Bell, ChevronDown, Activity, Settings, Building2, Phone, Mail, MapPin, Hash, Clock, BarChart2, Layers, CircleDollarSign, UserCheck, UserPlus, AlertCircle, Globe, Camera, Building, Tag, RefreshCw, Database, ChevronRight, Filter, Printer, Moon, Sun } from 'lucide-react';
+import { Home, FileText, Users as UsersIcon, Truck, Package, LogOut, Eye, Search, Plus, Edit2, Trash2, X, Calendar, TrendingUp, Droplet, DollarSign, Calculator, Bell, ChevronDown, Activity, Settings, Building2, Phone, Mail, MapPin, Hash, Clock, BarChart2, Layers, CircleDollarSign, UserCheck, UserPlus, AlertCircle, Globe, Camera, Building, Tag, RefreshCw, Database, ChevronRight, Filter, Printer, Moon, Sun, Trophy } from 'lucide-react';
 import './App.css';
 
 // Mock data
@@ -1955,6 +1955,214 @@ function exportControlReport({ rows, filters, productName, clientName }) {
   printWindow.document.close();
 }
 
+function getProductTypeLabel(tipoProd) {
+  return String(tipoProd) === '1' ? 'Combustivel' : 'Produtos';
+}
+
+function getInitials(name) {
+  const initials = String(name || '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map(part => part.charAt(0))
+    .join('')
+    .toUpperCase();
+  return initials || '--';
+}
+
+function getRankingBarColor(index) {
+  return ['#22c55e', '#facc15', '#fb923c', '#ef4444', '#b91c1c'][index] || '#64748b';
+}
+
+function buildRankingSalesReportHtml({ report, filters, clientName, sellerLabel }) {
+  const rows = Array.isArray(report?.ranking) ? report.ranking : [];
+  if (!rows.length) {
+    window.alert('Nenhuma venda encontrada para os filtros selecionados.');
+    return null;
+  }
+
+  const topRows = rows.slice(0, 5);
+  const maxTotal = Math.max(...topRows.map(row => Number(row.totalVenda || 0)), 1);
+  const periodLabel = `${formatFullDateBR(filters.dataInicial)} a ${formatFullDateBR(filters.dataFinal)}`;
+  const typeLabel = getProductTypeLabel(filters.tipoProd);
+  const generatedAt = new Date().toLocaleString('pt-BR');
+  const totals = report.totais || rows.reduce((acc, row) => ({
+    qtdVenda: acc.qtdVenda + Number(row.qtdVenda || 0),
+    subtotalVenda: acc.subtotalVenda + Number(row.subtotalVenda || 0),
+    totalVenda: acc.totalVenda + Number(row.totalVenda || 0),
+  }), { qtdVenda: 0, subtotalVenda: 0, totalVenda: 0 });
+
+  const chartRows = topRows.map((row, index) => {
+    const width = Math.max(4, (Number(row.totalVenda || 0) / maxTotal) * 100);
+    const color = getRankingBarColor(index);
+    return `
+      <div class="rank-row">
+        <div class="rank-pos">${escapeHtml(row.posicaoVendedor || index + 1)}o</div>
+        <div class="rank-person">
+          <div class="avatar">${escapeHtml(getInitials(row.nomeVendedor))}</div>
+          <div class="person-text">
+            <strong>${escapeHtml(row.nomeVendedor)}</strong>
+            <span>${escapeHtml(row.mesVenda || periodLabel)}</span>
+          </div>
+        </div>
+        <div class="bar-track">
+          <div class="bar-fill" style="width:${width}%; background:${color};"></div>
+        </div>
+        <div class="bar-value">${escapeHtml(fmtBRL(row.totalVenda))}</div>
+      </div>
+    `;
+  }).join('');
+
+  const tableRows = rows.map(row => `
+    <tr>
+      <td>${escapeHtml(row.posicaoVendedor)}</td>
+      <td>${escapeHtml(row.mesVenda)}</td>
+      <td>${escapeHtml(row.codVendedor)}</td>
+      <td>${escapeHtml(row.nomeVendedor)}</td>
+      <td class="num">${escapeHtml(fmtNum(row.qtdVenda, 3))}</td>
+      <td class="num">${escapeHtml(fmtBRL(row.subtotalVenda))}</td>
+      <td class="num">${escapeHtml(fmtBRL(row.totalVenda))}</td>
+    </tr>
+  `).join('');
+
+  const html = `
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Relatorio Ranking de Vendas</title>
+  <style>
+    @page { size: A4 landscape; margin: 10mm; }
+    * { box-sizing: border-box; }
+    html, body, .report, .header, .panel, .summary-item, .mark, .bar-track, .bar-fill, table, th, td, tfoot td {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+      color-adjust: exact !important;
+    }
+    body { margin: 0; font-family: Arial, Helvetica, sans-serif; color: #f8fafc; background: #07090c; }
+    .report { min-height: 100vh; padding: 18px; background: #07090c; }
+    .header { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 16px 18px; border: 1px solid #20242b; border-radius: 8px; background: #111418; margin-bottom: 14px; }
+    .header-left { display: flex; align-items: center; gap: 14px; min-width: 0; }
+    .mark { width: 44px; height: 44px; border-radius: 8px; background: #171b20; border: 1px solid #272d34; display: grid; place-items: end center; padding: 8px; gap: 3px; grid-template-columns: repeat(3, 1fr); }
+    .mark span { display: block; width: 7px; border-radius: 3px 3px 0 0; background: #e31e24; }
+    .mark span:nth-child(1) { height: 14px; opacity: .75; }
+    .mark span:nth-child(2) { height: 24px; }
+    .mark span:nth-child(3) { height: 32px; opacity: .85; }
+    h1 { margin: 0; font-size: 22px; letter-spacing: 0; line-height: 1.15; }
+    .header-meta { color: #a6adb7; font-size: 11px; line-height: 1.45; text-align: right; }
+    .dashboard { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(300px, .85fr); gap: 14px; align-items: stretch; }
+    .panel { border: 1px solid #20242b; border-radius: 8px; background: #101317; padding: 18px; }
+    .panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+    .panel-title { margin: 0; color: #f8fafc; font-size: 14px; font-weight: 800; }
+    .pill { border: 1px solid #333b45; border-radius: 8px; color: #d7dce3; padding: 8px 10px; font-size: 10px; font-weight: 800; white-space: nowrap; }
+    .rank-list { display: grid; gap: 16px; }
+    .rank-row { display: grid; grid-template-columns: 46px minmax(180px, 230px) minmax(160px, 1fr) 118px; align-items: center; gap: 12px; min-height: 52px; }
+    .rank-pos { color: #f1f5f9; font-size: 22px; font-weight: 900; }
+    .rank-person { display: flex; align-items: center; gap: 10px; min-width: 0; }
+    .avatar { width: 42px; height: 42px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #ffffff; background: linear-gradient(135deg, #394150, #111827); border: 2px solid #d1d5db; font-size: 12px; font-weight: 900; flex: 0 0 auto; }
+    .person-text { min-width: 0; }
+    .person-text strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: #f8fafc; }
+    .person-text span { display: block; margin-top: 4px; color: #8b949e; font-size: 10px; font-weight: 700; }
+    .bar-track { height: 38px; background: #171b20; border-radius: 0; overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: 0; }
+    .bar-value { color: #f8fafc; font-size: 12px; font-weight: 900; text-align: right; white-space: nowrap; }
+    .summary-grid { display: grid; gap: 12px; }
+    .summary-item { border: 1px solid #252b33; border-radius: 8px; background: #15191e; padding: 14px; }
+    .summary-item span { display: block; color: #8e96a1; font-size: 10px; font-weight: 800; margin-bottom: 8px; }
+    .summary-item strong { display: block; color: #f8fafc; font-size: 20px; line-height: 1.15; }
+    .details { margin-top: 14px; }
+    table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 10px; }
+    th, td { border: 1px solid #2a3038; padding: 7px; word-break: break-word; }
+    th { background: #e31e24; color: #ffffff; text-align: left; font-size: 9px; }
+    td { color: #dbe2ea; background: #101317; }
+    td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+    tfoot td { color: #ffffff; background: #191d23; font-weight: 900; }
+    .footer { margin-top: 10px; color: #7d8590; font-size: 10px; text-align: right; }
+    @media screen {
+      body { background: #050608; padding: 18px; }
+      .report { max-width: 1180px; min-height: auto; margin: 0 auto; box-shadow: 0 18px 50px rgba(0,0,0,.42); }
+    }
+    @media print {
+      .panel, .header, tr { break-inside: avoid; page-break-inside: avoid; }
+      body { background: #07090c !important; }
+      .report { background: #07090c !important; }
+    }
+  </style>
+</head>
+<body>
+  <main class="report">
+    <section class="header">
+      <div class="header-left">
+        <div class="mark" aria-hidden="true"><span></span><span></span><span></span></div>
+        <div>
+          <h1>RELATORIO RANKING DE VENDAS</h1>
+          <div class="header-meta" style="text-align:left;">${escapeHtml(clientName || 'Cliente')} | ${escapeHtml(periodLabel)}</div>
+        </div>
+      </div>
+      <div class="header-meta">
+        <div>Tipo de produto: ${escapeHtml(typeLabel)}</div>
+        <div>Vendedores: ${escapeHtml(sellerLabel || 'Todos')}</div>
+        <div>Gerado em ${escapeHtml(generatedAt)}</div>
+      </div>
+    </section>
+
+    <section class="dashboard">
+      <div class="panel">
+        <div class="panel-head">
+          <h2 class="panel-title">RANKING TOP 5 - VENDAS</h2>
+          <div class="pill">TIPO DE PRODUTO - ${escapeHtml(typeLabel.toUpperCase())}</div>
+        </div>
+        <div class="rank-list">${chartRows}</div>
+      </div>
+
+      <aside class="panel">
+        <div class="panel-head">
+          <h2 class="panel-title">RESUMO</h2>
+        </div>
+        <div class="summary-grid">
+          <div class="summary-item"><span>VENDEDORES NO RANKING</span><strong>${escapeHtml(rows.length)}</strong></div>
+          <div class="summary-item"><span>QTD. VENDIDA</span><strong>${escapeHtml(fmtNum(totals.qtdVenda, 3))}</strong></div>
+          <div class="summary-item"><span>TOTAL VENDIDO</span><strong>${escapeHtml(fmtBRL(totals.totalVenda))}</strong></div>
+        </div>
+      </aside>
+    </section>
+
+    <section class="panel details">
+      <div class="panel-head">
+        <h2 class="panel-title">DETALHAMENTO</h2>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th style="width:46px;">POS.</th>
+            <th style="width:78px;">MES</th>
+            <th style="width:74px;">COD.</th>
+            <th>VENDEDOR</th>
+            <th class="num">QTD.</th>
+            <th class="num">SUBTOTAL</th>
+            <th class="num">TOTAL</th>
+          </tr>
+        </thead>
+        <tbody>${tableRows}</tbody>
+        <tfoot>
+          <tr>
+            <td colspan="4">TOTAL DO PERIODO</td>
+            <td class="num">${escapeHtml(fmtNum(totals.qtdVenda, 3))}</td>
+            <td class="num">${escapeHtml(fmtBRL(totals.subtotalVenda))}</td>
+            <td class="num">${escapeHtml(fmtBRL(totals.totalVenda))}</td>
+          </tr>
+        </tfoot>
+      </table>
+    </section>
+    <footer class="footer">STARVL | Relatorio Ranking de Vendas</footer>
+  </main>
+</body>
+</html>`;
+
+  return html;
+}
+
 const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients }) => {
   const [activeTab, setActiveTab] = useState('descarregamentos');
   const [data, setData] = useState({ descarregamentos: null, vendas: null, historico: null, consolidado: null, controle: null });
@@ -1962,6 +2170,15 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
   const [error, setError] = useState({});
   const [descSubTab, setDescSubTab] = useState('comNota');
   const [showControlPrintPanel, setShowControlPrintPanel] = useState(false);
+  const [showRankingPrintPanel, setShowRankingPrintPanel] = useState(false);
+  const [rankingReportHtml, setRankingReportHtml] = useState('');
+  const [vendedores, setVendedores] = useState([]);
+  const [rankingFilters, setRankingFilters] = useState({
+    dataInicial: '',
+    dataFinal: '',
+    tipoProd: '1',
+    vendedores: [],
+  });
   const [controlPrintFilters, setControlPrintFilters] = useState({
     dataInicial: '',
     dataFinal: '',
@@ -1971,6 +2188,7 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
   });
 
   const fetchTab = useCallback(async (tab) => {
+    if (tab === 'outros') return;
     const client = (clients || []).find(c => c.nome === selectedClient) || (clients || [])[0];
     const empresa = client ? client.codigoEmpresa : null;
     const periodo = selectedPeriod ? selectedPeriod.replace('/', '') : null;
@@ -2018,6 +2236,33 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
     }
   }, [clients, selectedClient, selectedPeriod]);
 
+  const fetchVendedores = useCallback(async () => {
+    const client = (clients || []).find(c => c.nome === selectedClient) || (clients || [])[0];
+    const empresa = client ? client.codigoEmpresa : null;
+    if (!empresa) return;
+    setLoading(prev => ({ ...prev, vendedores: true }));
+    setError(prev => ({ ...prev, vendedores: null }));
+    try {
+      const r = await fetch(`${API_URL}/api/relatorios/vendedores?empresa=${empresa}`);
+      const result = await r.json();
+      if (result.error) throw new Error(result.error);
+      const rows = Array.isArray(result.vendedores) ? result.vendedores : [];
+      setVendedores(rows);
+      setRankingFilters(prev => ({
+        ...prev,
+        vendedores: (() => {
+          const validCodes = new Set(rows.map(v => String(v.codigo)));
+          const selected = prev.vendedores.filter(codigo => validCodes.has(String(codigo)));
+          return selected.length ? selected : rows.map(v => String(v.codigo));
+        })(),
+      }));
+    } catch (err) {
+      setError(prev => ({ ...prev, vendedores: err.message }));
+    } finally {
+      setLoading(prev => ({ ...prev, vendedores: false }));
+    }
+  }, [clients, selectedClient]);
+
   useEffect(() => {
     fetchTab(activeTab);
   }, [activeTab, fetchTab]);
@@ -2025,6 +2270,7 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
   const tabs = [
     { id: 'descarregamentos', label: 'Descarregamentos', icon: <Droplet size={15} /> },
     { id: 'vendas',           label: 'Vendas PDV',       icon: <BarChart2 size={15} /> },
+    { id: 'outros',           label: 'Outros Relatorios', icon: <FileText size={15} /> },
   ];
 
   const renderDescarregamentos = () => {
@@ -2396,6 +2642,117 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
     }
   };
 
+  const getRankingSellerLabel = (selectedCodes = rankingFilters.vendedores) => {
+    if (!vendedores.length || !selectedCodes.length || selectedCodes.length === vendedores.length) return 'Todos';
+    const selected = vendedores.filter(v => selectedCodes.includes(String(v.codigo))).map(v => v.nome);
+    if (selected.length <= 2) return selected.join(', ');
+    return `${selected.slice(0, 2).join(', ')} +${selected.length - 2}`;
+  };
+
+  const openRankingPrintPanel = () => {
+    const range = getPeriodDateRange(selectedPeriod);
+    setRankingFilters(prev => ({
+      ...prev,
+      dataInicial: prev.dataInicial || range.dataInicial,
+      dataFinal: prev.dataFinal || range.dataFinal,
+      tipoProd: prev.tipoProd || '1',
+    }));
+    setShowRankingPrintPanel(true);
+    fetchVendedores();
+  };
+
+  const handleGenerateRankingReport = async () => {
+    const client = (clients || []).find(c => c.nome === selectedClient) || (clients || [])[0];
+    const empresa = client ? client.codigoEmpresa : null;
+    if (!empresa) return;
+
+    const range = getPeriodDateRange(selectedPeriod);
+    const filters = {
+      ...rankingFilters,
+      dataInicial: rankingFilters.dataInicial || range.dataInicial,
+      dataFinal: rankingFilters.dataFinal || range.dataFinal,
+      tipoProd: rankingFilters.tipoProd || '1',
+    };
+
+    if (filters.dataInicial > filters.dataFinal) {
+      window.alert('A data inicial nao pode ser maior que a data final.');
+      return;
+    }
+
+    if (vendedores.length && !filters.vendedores.length) {
+      window.alert('Selecione pelo menos um vendedor.');
+      return;
+    }
+
+    setLoading(prev => ({ ...prev, rankingExport: true }));
+    try {
+      const params = new URLSearchParams({
+        empresa: String(empresa),
+        dataInicial: filters.dataInicial,
+        dataFinal: filters.dataFinal,
+        tipoProd: String(filters.tipoProd),
+      });
+      if (vendedores.length && filters.vendedores.length < vendedores.length) {
+        params.set('vendedores', filters.vendedores.join(','));
+      }
+
+      const r = await fetch(`${API_URL}/api/relatorios/ranking-vendas?${params.toString()}`);
+      const result = await r.json();
+      if (result.error) throw new Error(result.error);
+
+      const html = buildRankingSalesReportHtml({
+        report: result,
+        filters,
+        clientName: selectedClient,
+        sellerLabel: getRankingSellerLabel(filters.vendedores),
+      });
+      if (html) {
+        setRankingReportHtml(html);
+      }
+      setShowRankingPrintPanel(false);
+    } catch (err) {
+      window.alert(`Erro ao gerar relatorio: ${getFriendlyApiError(err)}`);
+    } finally {
+      setLoading(prev => ({ ...prev, rankingExport: false }));
+    }
+  };
+
+  const renderOutrosRelatorios = () => (
+    <div className="other-reports-panel">
+      <div className="other-reports-list">
+        <button type="button" className="other-report-row" onClick={openRankingPrintPanel}>
+          <div className="other-report-index">REL 1</div>
+          <div className="other-report-icon"><Trophy size={22} /></div>
+          <div className="other-report-main">
+            <strong>Ranking de venda</strong>
+            <span>Ranking de vendedores por total vendido</span>
+          </div>
+          <ChevronRight size={20} />
+        </button>
+      </div>
+
+      {showRankingPrintPanel && (
+        <RankingSalesFilterPanel
+          vendedores={vendedores}
+          filters={rankingFilters}
+          setFilters={setRankingFilters}
+          loading={!!loading.rankingExport}
+          loadingVendedores={!!loading.vendedores}
+          vendedoresError={error.vendedores}
+          onClose={() => setShowRankingPrintPanel(false)}
+          onGenerate={handleGenerateRankingReport}
+        />
+      )}
+
+      {!!rankingReportHtml && (
+        <RankingReportPreview
+          html={rankingReportHtml}
+          onClose={() => setRankingReportHtml('')}
+        />
+      )}
+    </div>
+  );
+
   const renderControle = () => {
     const d = data.controle;
     if (!d) return null;
@@ -2511,6 +2868,7 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
   };
 
   const renderContent = () => {
+    if (activeTab === 'outros') return renderOutrosRelatorios();
     if (loading[activeTab]) {
       return (
         <LoadingState label="Carregando informacoes do relatorio..." />
@@ -2578,6 +2936,188 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
 
       <div style={{ minHeight: '200px' }}>
         {renderContent()}
+      </div>
+    </div>
+  );
+};
+
+const RankingReportPreview = ({ html, onClose }) => {
+  const iframeRef = useRef(null);
+
+  const handlePrint = () => {
+    const frameWindow = iframeRef.current?.contentWindow;
+    if (!frameWindow) {
+      window.alert('Nao foi possivel carregar a pre-visualizacao do relatorio.');
+      return;
+    }
+    frameWindow.focus();
+    frameWindow.print();
+  };
+
+  return (
+    <div className="modal-overlay report-preview-overlay">
+      <div className="report-preview-shell">
+        <div className="report-preview-header">
+          <div className="control-print-title">
+            <span className="control-print-icon"><Trophy size={24} /></span>
+            <h3>RELATORIO RANKING DE VENDAS</h3>
+          </div>
+          <div className="report-preview-actions">
+            <button type="button" className="btn-secondary control-print-cancel" onClick={onClose}>
+              <X size={20} />
+              FECHAR
+            </button>
+            <button type="button" className="btn-primary control-print-generate" onClick={handlePrint}>
+              <Printer size={20} />
+              IMPRIMIR
+            </button>
+          </div>
+        </div>
+        <iframe
+          ref={iframeRef}
+          className="report-preview-frame"
+          title="Relatorio Ranking de Vendas"
+          srcDoc={html}
+        />
+      </div>
+    </div>
+  );
+};
+
+const RankingSalesFilterPanel = ({ vendedores, filters, setFilters, loading, loadingVendedores, vendedoresError, onClose, onGenerate }) => {
+  const update = (field) => (e) => setFilters(prev => ({ ...prev, [field]: e.target.value }));
+  const selectedCodes = (filters.vendedores || []).map(String);
+  const allSelected = vendedores.length > 0 && selectedCodes.length === vendedores.length;
+
+  const toggleAll = () => {
+    setFilters(prev => ({
+      ...prev,
+      vendedores: allSelected ? [] : vendedores.map(v => String(v.codigo)),
+    }));
+  };
+
+  const toggleSeller = (codigo) => {
+    const code = String(codigo);
+    setFilters(prev => {
+      const current = (prev.vendedores || []).map(String);
+      const exists = current.includes(code);
+      return {
+        ...prev,
+        vendedores: exists ? current.filter(item => item !== code) : [...current, code],
+      };
+    });
+  };
+
+  return (
+    <div className="modal-overlay control-print-overlay" onClick={onClose}>
+      <div className="control-print-panel ranking-filter-panel" onClick={(e) => e.stopPropagation()}>
+        <div className="control-print-header">
+          <div className="control-print-title">
+            <span className="control-print-icon"><Filter size={25} /></span>
+            <h3>FILTROS DO RANKING DE VENDAS</h3>
+          </div>
+          <button type="button" className="control-print-close" onClick={onClose} aria-label="Fechar filtros">
+            <X size={28} />
+          </button>
+        </div>
+
+        <div className="control-print-body">
+          <div className="control-print-grid ranking-filter-grid">
+            <section className="control-print-section">
+              <div className="control-print-section-title">
+                <Calendar size={20} />
+                <span>PERIODO</span>
+              </div>
+              <div className="control-print-date-row">
+                <label className="control-print-field">
+                  <span>DATA INICIAL</span>
+                  <div className="control-print-input">
+                    <input type="date" value={filters.dataInicial} onChange={update('dataInicial')} />
+                    <Calendar size={19} />
+                  </div>
+                </label>
+                <label className="control-print-field">
+                  <span>DATA FINAL</span>
+                  <div className="control-print-input">
+                    <input type="date" value={filters.dataFinal} onChange={update('dataFinal')} />
+                    <Calendar size={19} />
+                  </div>
+                </label>
+              </div>
+            </section>
+
+            <section className="control-print-section">
+              <div className="control-print-section-title">
+                <Package size={20} />
+                <span>TIPO DE PRODUTO</span>
+              </div>
+              <label className={`control-print-option ${String(filters.tipoProd) === '1' ? 'selected' : ''}`}>
+                <Droplet size={28} />
+                <div>
+                  <strong>COMBUSTIVEL</strong>
+                  <span>prodtipo = 1</span>
+                </div>
+                <input type="radio" name="rankingTipoProduto" value="1" checked={String(filters.tipoProd) === '1'} onChange={update('tipoProd')} />
+              </label>
+              <label className={`control-print-option ${String(filters.tipoProd) === '2' ? 'selected' : ''}`}>
+                <Package size={28} />
+                <div>
+                  <strong>PRODUTOS</strong>
+                  <span>prodtipo = 2</span>
+                </div>
+                <input type="radio" name="rankingTipoProduto" value="2" checked={String(filters.tipoProd) === '2'} onChange={update('tipoProd')} />
+              </label>
+            </section>
+          </div>
+
+          <section className="control-print-section ranking-sellers-section">
+            <div className="control-print-section-title">
+              <UsersIcon size={20} />
+              <span>VENDEDORES</span>
+              {vendedores.length > 0 && <em>{selectedCodes.length}/{vendedores.length}</em>}
+            </div>
+
+            <label className={`ranking-seller-check ranking-seller-all ${allSelected ? 'selected' : ''}`}>
+              <input type="checkbox" checked={allSelected} onChange={toggleAll} />
+              <span>Todos os vendedores</span>
+            </label>
+
+            <div className="ranking-seller-list">
+              {loadingVendedores && <div className="ranking-seller-state">Carregando vendedores...</div>}
+              {vendedoresError && !loadingVendedores && (
+                <div className="ranking-seller-state error">{getFriendlyApiError(vendedoresError)}</div>
+              )}
+              {!loadingVendedores && !vendedoresError && vendedores.length === 0 && (
+                <div className="ranking-seller-state">Nenhum vendedor encontrado.</div>
+              )}
+              {!loadingVendedores && !vendedoresError && vendedores.map(vendedor => {
+                const checked = selectedCodes.includes(String(vendedor.codigo));
+                return (
+                  <label key={vendedor.codigo} className={`ranking-seller-check ${checked ? 'selected' : ''}`}>
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggleSeller(vendedor.codigo)}
+                    />
+                    <span>{vendedor.nome}</span>
+                    <small>{vendedor.codigo}</small>
+                  </label>
+                );
+              })}
+            </div>
+          </section>
+        </div>
+
+        <div className="control-print-footer">
+          <button type="button" className="btn-secondary control-print-cancel" onClick={onClose}>
+            <X size={20} />
+            CANCELAR
+          </button>
+          <button type="button" className="btn-primary control-print-generate" onClick={onGenerate} disabled={loading || loadingVendedores}>
+            <Printer size={20} />
+            {loading ? 'GERANDO...' : 'GERAR IMPRESSAO'}
+          </button>
+        </div>
       </div>
     </div>
   );

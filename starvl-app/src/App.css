@@ -2042,6 +2042,230 @@ body.theme-light-body {
   white-space: nowrap;
 }
 
+.other-reports-panel {
+  min-height: 360px;
+}
+
+.other-reports-list {
+  max-height: 520px;
+  overflow-y: auto;
+  display: grid;
+  gap: 10px;
+  padding-right: 4px;
+}
+
+.other-report-row {
+  width: 100%;
+  min-height: 76px;
+  display: grid;
+  grid-template-columns: 70px 48px minmax(0, 1fr) 28px;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  background: #121212;
+  border: 1px solid #2a2a2a;
+  border-radius: 8px;
+  color: #f5f5f5;
+  font-family: 'Montserrat', sans-serif;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s, transform 0.2s;
+}
+
+.other-report-row:hover {
+  background: #171717;
+  border-color: rgba(227, 30, 36, 0.68);
+  transform: translateY(-1px);
+}
+
+.other-report-index {
+  color: #9ca3af;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.other-report-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(227, 30, 36, 0.1);
+  border: 1px solid rgba(227, 30, 36, 0.25);
+  color: #E31E24;
+}
+
+.other-report-main {
+  min-width: 0;
+}
+
+.other-report-main strong,
+.other-report-main span {
+  display: block;
+}
+
+.other-report-main strong {
+  color: #f5f5f5;
+  font-size: 15px;
+  font-weight: 800;
+  margin-bottom: 5px;
+}
+
+.other-report-main span {
+  color: #8b949e;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.ranking-filter-panel {
+  width: min(1040px, 96vw);
+}
+
+.ranking-filter-grid {
+  grid-template-columns: 1fr 0.95fr;
+}
+
+.ranking-sellers-section {
+  margin-top: 16px;
+}
+
+.ranking-sellers-section .control-print-section-title {
+  justify-content: flex-start;
+}
+
+.ranking-sellers-section .control-print-section-title em {
+  margin-left: auto;
+  color: #9aa0a8;
+  font-style: normal;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.ranking-seller-all {
+  margin-bottom: 12px;
+}
+
+.ranking-seller-list {
+  max-height: 246px;
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  padding-right: 4px;
+}
+
+.ranking-seller-check {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #15191e;
+  border: 1px solid #272d34;
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: #dfe3e8;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.ranking-seller-check:hover,
+.ranking-seller-check.selected {
+  border-color: rgba(227, 30, 36, 0.7);
+  background: #181d22;
+}
+
+.ranking-seller-check input {
+  width: 18px;
+  height: 18px;
+  accent-color: #E31E24;
+  flex: 0 0 auto;
+}
+
+.ranking-seller-check span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.ranking-seller-check small {
+  color: #7f8791;
+  font-size: 11px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.ranking-seller-state {
+  grid-column: 1 / -1;
+  min-height: 58px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #9aa0a8;
+  border: 1px dashed #303741;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.ranking-seller-state.error {
+  color: #fca5a5;
+  border-color: rgba(239, 68, 68, 0.35);
+}
+
+.report-preview-overlay {
+  padding: 18px;
+  align-items: stretch;
+}
+
+.report-preview-shell {
+  width: min(1280px, 98vw);
+  height: min(920px, 96vh);
+  margin: auto;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  background: #0b0e11;
+  border: 1px solid #23282d;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 28px 70px rgba(0, 0, 0, 0.58);
+}
+
+.report-preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 18px;
+  background: #111519;
+  border-bottom: 1px solid #20242a;
+}
+
+.report-preview-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.report-preview-actions .control-print-cancel,
+.report-preview-actions .control-print-generate {
+  min-width: 132px;
+  padding: 11px 16px;
+}
+
+.report-preview-frame {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: #07090c;
+}
+
 .data-table thead {
   background: #E31E24;
 }
@@ -3483,7 +3707,12 @@ body.theme-light-body {
   }
 
   .control-print-grid,
+  .ranking-filter-grid,
   .control-print-date-row {
+    grid-template-columns: 1fr;
+  }
+
+  .ranking-seller-list {
     grid-template-columns: 1fr;
   }
 
@@ -3682,6 +3911,17 @@ body.theme-light-body {
     padding: 0 12px 2px !important;
   }
 
+  .other-report-row {
+    grid-template-columns: 54px 42px minmax(0, 1fr) 24px;
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .other-report-icon {
+    width: 40px;
+    height: 40px;
+  }
+
   .tab {
     flex: 0 0 auto;
     padding: 10px 16px;
@@ -3810,6 +4050,31 @@ body.theme-light-body {
     padding-left: 16px;
     padding-right: 16px;
   }
+
+  .report-preview-overlay {
+    padding: 0;
+  }
+
+  .report-preview-shell {
+    width: 100%;
+    height: 100dvh;
+    border-radius: 0;
+  }
+
+  .report-preview-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .report-preview-actions {
+    width: 100%;
+  }
+
+  .report-preview-actions .control-print-cancel,
+  .report-preview-actions .control-print-generate {
+    flex: 1;
+    min-width: 0;
+  }
 }
 
 @media (max-width: 480px) {
@@ -3896,6 +4161,14 @@ body.theme-light-body {
 
   .control-print-format-row {
     grid-template-columns: 1fr;
+  }
+
+  .other-report-row {
+    grid-template-columns: 40px minmax(0, 1fr) 24px;
+  }
+
+  .other-report-index {
+    display: none;
   }
 
   .projection-controls {
@@ -4110,6 +4383,11 @@ body.theme-light-body {
 .theme-light .period-select,
 .theme-light .table-container,
 .theme-light .reports-card,
+.theme-light .other-report-row,
+.theme-light .other-report-icon,
+.theme-light .ranking-seller-check,
+.theme-light .report-preview-shell,
+.theme-light .report-preview-header,
 .theme-light .stock-tank-card,
 .theme-light .stock-projection-card,
 .theme-light .stock-values-card,
@@ -4170,6 +4448,26 @@ body.theme-light-body {
 .theme-light .table-info,
 .theme-light .rows-per-page label {
   color: #667085;
+}
+
+.theme-light .other-report-main strong,
+.theme-light .ranking-seller-check span {
+  color: #111827;
+}
+
+.theme-light .other-report-main span,
+.theme-light .other-report-index,
+.theme-light .ranking-seller-check small,
+.theme-light .ranking-sellers-section .control-print-section-title em,
+.theme-light .ranking-seller-state {
+  color: #667085;
+}
+
+.theme-light .other-report-row:hover,
+.theme-light .ranking-seller-check:hover,
+.theme-light .ranking-seller-check.selected {
+  background: #f8fafc;
+  border-color: rgba(227, 30, 36, 0.55);
 }
 
 .theme-light .modal-body input,
