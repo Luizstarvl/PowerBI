@@ -130,10 +130,13 @@ const Login = ({ onLogin, adminUsers }) => {
           playsInline
         />
         <div className="login-bg-overlay" />
-        <div className="red-gradient" />
         <div className="white-glow" />
-        <div className="arc1" />
-        <div className="arc2" />
+        <div className="neon-circle nc1" />
+        <div className="neon-circle nc2" />
+        <div className="neon-circle nc3" />
+        <div className="neon-circle nc4" />
+        <div className="neon-circle nc5" />
+        <div className="neon-circle nc6" />
 
         {/* Lado esquerdo */}
         <div className="left">
