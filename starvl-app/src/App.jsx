@@ -131,12 +131,6 @@ const Login = ({ onLogin, adminUsers }) => {
         />
         <div className="login-bg-overlay" />
         <div className="white-glow" />
-        <div className="neon-circle nc1" />
-        <div className="neon-circle nc2" />
-        <div className="neon-circle nc3" />
-        <div className="neon-circle nc4" />
-        <div className="neon-circle nc5" />
-        <div className="neon-circle nc6" />
 
         {/* Lado esquerdo */}
         <div className="left">
