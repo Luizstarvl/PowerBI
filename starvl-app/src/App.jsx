@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import logoStarvl from './logo-starvl.png';
 import logoStarvlBlack from './logo-starvl-black.png';
 import * as XLSX from 'xlsx';
@@ -2040,53 +2040,53 @@ function buildRankingSalesReportHtml({ report, filters, clientName, sellerLabel 
       print-color-adjust: exact !important;
       color-adjust: exact !important;
     }
-    body { margin: 0; font-family: Arial, Helvetica, sans-serif; color: #f8fafc; background: #07090c; }
-    .report { min-height: 100vh; padding: 18px; background: #07090c; }
-    .header { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 16px 18px; border: 1px solid #20242b; border-radius: 8px; background: #111418; margin-bottom: 14px; }
+    body { margin: 0; font-family: Arial, Helvetica, sans-serif; color: #111827; background: #ffffff; }
+    .report { min-height: 100vh; padding: 18px; background: #ffffff; }
+    .header { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 16px 18px; border: 1px solid #e5e7eb; border-bottom: 3px solid #e31e24; border-radius: 8px; background: #ffffff; margin-bottom: 14px; }
     .header-left { display: flex; align-items: center; gap: 14px; min-width: 0; }
-    .mark { width: 44px; height: 44px; border-radius: 8px; background: #171b20; border: 1px solid #272d34; display: grid; place-items: end center; padding: 8px; gap: 3px; grid-template-columns: repeat(3, 1fr); }
+    .mark { width: 44px; height: 44px; border-radius: 8px; background: #fff5f5; border: 1px solid #fecaca; display: grid; place-items: end center; padding: 8px; gap: 3px; grid-template-columns: repeat(3, 1fr); }
     .mark span { display: block; width: 7px; border-radius: 3px 3px 0 0; background: #e31e24; }
     .mark span:nth-child(1) { height: 14px; opacity: .75; }
     .mark span:nth-child(2) { height: 24px; }
     .mark span:nth-child(3) { height: 32px; opacity: .85; }
     h1 { margin: 0; font-size: 22px; letter-spacing: 0; line-height: 1.15; }
-    .header-meta { color: #a6adb7; font-size: 11px; line-height: 1.45; text-align: right; }
+    .header-meta { color: #667085; font-size: 11px; line-height: 1.45; text-align: right; }
     .dashboard { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(300px, .85fr); gap: 14px; align-items: stretch; }
-    .panel { border: 1px solid #20242b; border-radius: 8px; background: #101317; padding: 18px; }
+    .panel { border: 1px solid #e5e7eb; border-radius: 8px; background: #ffffff; padding: 18px; }
     .panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
-    .panel-title { margin: 0; color: #f8fafc; font-size: 14px; font-weight: 800; }
-    .pill { border: 1px solid #333b45; border-radius: 8px; color: #d7dce3; padding: 8px 10px; font-size: 10px; font-weight: 800; white-space: nowrap; }
+    .panel-title { margin: 0; color: #111827; font-size: 14px; font-weight: 800; }
+    .pill { border: 1px solid #d0d5dd; border-radius: 8px; color: #344054; padding: 8px 10px; font-size: 10px; font-weight: 800; white-space: nowrap; background: #f9fafb; }
     .rank-list { display: grid; gap: 16px; }
     .rank-row { display: grid; grid-template-columns: 46px minmax(180px, 230px) minmax(160px, 1fr) 118px; align-items: center; gap: 12px; min-height: 52px; }
-    .rank-pos { color: #f1f5f9; font-size: 22px; font-weight: 900; }
+    .rank-pos { color: #111827; font-size: 22px; font-weight: 900; }
     .rank-person { display: flex; align-items: center; gap: 10px; min-width: 0; }
-    .avatar { width: 42px; height: 42px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #ffffff; background: linear-gradient(135deg, #394150, #111827); border: 2px solid #d1d5db; font-size: 12px; font-weight: 900; flex: 0 0 auto; }
+    .avatar { width: 42px; height: 42px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #ffffff; background: #475467; border: 2px solid #d1d5db; font-size: 12px; font-weight: 900; flex: 0 0 auto; }
     .person-text { min-width: 0; }
-    .person-text strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: #f8fafc; }
-    .person-text span { display: block; margin-top: 4px; color: #8b949e; font-size: 10px; font-weight: 700; }
-    .bar-track { height: 38px; background: #171b20; border-radius: 0; overflow: hidden; }
+    .person-text strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: #111827; }
+    .person-text span { display: block; margin-top: 4px; color: #667085; font-size: 10px; font-weight: 700; }
+    .bar-track { height: 38px; background: #e5e7eb; border-radius: 0; overflow: hidden; }
     .bar-fill { height: 100%; border-radius: 0; }
-    .bar-value { color: #f8fafc; font-size: 12px; font-weight: 900; text-align: right; white-space: nowrap; }
+    .bar-value { color: #111827; font-size: 12px; font-weight: 900; text-align: right; white-space: nowrap; }
     .summary-grid { display: grid; gap: 12px; }
-    .summary-item { border: 1px solid #252b33; border-radius: 8px; background: #15191e; padding: 14px; }
-    .summary-item span { display: block; color: #8e96a1; font-size: 10px; font-weight: 800; margin-bottom: 8px; }
-    .summary-item strong { display: block; color: #f8fafc; font-size: 20px; line-height: 1.15; }
+    .summary-item { border: 1px solid #e5e7eb; border-radius: 8px; background: #f9fafb; padding: 14px; }
+    .summary-item span { display: block; color: #667085; font-size: 10px; font-weight: 800; margin-bottom: 8px; }
+    .summary-item strong { display: block; color: #111827; font-size: 20px; line-height: 1.15; }
     .details { margin-top: 14px; }
     table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 10px; }
-    th, td { border: 1px solid #2a3038; padding: 7px; word-break: break-word; }
+    th, td { border: 1px solid #d0d5dd; padding: 7px; word-break: break-word; }
     th { background: #e31e24; color: #ffffff; text-align: left; font-size: 9px; }
-    td { color: #dbe2ea; background: #101317; }
+    td { color: #111827; background: #ffffff; }
     td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
-    tfoot td { color: #ffffff; background: #191d23; font-weight: 900; }
-    .footer { margin-top: 10px; color: #7d8590; font-size: 10px; text-align: right; }
+    tfoot td { color: #111827; background: #f3f4f6; font-weight: 900; }
+    .footer { margin-top: 10px; color: #667085; font-size: 10px; text-align: right; }
     @media screen {
-      body { background: #050608; padding: 18px; }
-      .report { max-width: 1180px; min-height: auto; margin: 0 auto; box-shadow: 0 18px 50px rgba(0,0,0,.42); }
+      body { background: #f3f4f6; padding: 18px; }
+      .report { max-width: 1180px; min-height: auto; margin: 0 auto; box-shadow: 0 18px 50px rgba(15,23,42,.12); }
     }
     @media print {
       .panel, .header, tr { break-inside: avoid; page-break-inside: avoid; }
-      body { background: #07090c !important; }
-      .report { background: #07090c !important; }
+      body { background: #ffffff !important; }
+      .report { background: #ffffff !important; box-shadow: none !important; }
     }
   </style>
 </head>
@@ -2163,6 +2163,27 @@ function buildRankingSalesReportHtml({ report, filters, clientName, sellerLabel 
   return html;
 }
 
+function exportRankingSalesReport({ report, filters, clientName, sellerLabel }) {
+  const html = buildRankingSalesReportHtml({ report, filters, clientName, sellerLabel });
+  if (!html) return;
+
+  const printWindow = window.open('', '_blank');
+  if (!printWindow) {
+    window.alert('Permita pop-ups para gerar a impressao do relatorio.');
+    return;
+  }
+
+  printWindow.document.open();
+  printWindow.document.write(html.replace('</body>', `
+    <script>
+      window.addEventListener('load', function () {
+        setTimeout(function () { window.print(); }, 500);
+      });
+    </script>
+  </body>`));
+  printWindow.document.close();
+}
+
 const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients }) => {
   const [activeTab, setActiveTab] = useState('descarregamentos');
   const [data, setData] = useState({ descarregamentos: null, vendas: null, historico: null, consolidado: null, controle: null });
@@ -2171,7 +2192,6 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
   const [descSubTab, setDescSubTab] = useState('comNota');
   const [showControlPrintPanel, setShowControlPrintPanel] = useState(false);
   const [showRankingPrintPanel, setShowRankingPrintPanel] = useState(false);
-  const [rankingReportHtml, setRankingReportHtml] = useState('');
   const [vendedores, setVendedores] = useState([]);
   const [rankingFilters, setRankingFilters] = useState({
     dataInicial: '',
@@ -2700,15 +2720,12 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
       const result = await r.json();
       if (result.error) throw new Error(result.error);
 
-      const html = buildRankingSalesReportHtml({
+      exportRankingSalesReport({
         report: result,
         filters,
         clientName: selectedClient,
         sellerLabel: getRankingSellerLabel(filters.vendedores),
       });
-      if (html) {
-        setRankingReportHtml(html);
-      }
       setShowRankingPrintPanel(false);
     } catch (err) {
       window.alert(`Erro ao gerar relatorio: ${getFriendlyApiError(err)}`);
@@ -2744,12 +2761,6 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
         />
       )}
 
-      {!!rankingReportHtml && (
-        <RankingReportPreview
-          html={rankingReportHtml}
-          onClose={() => setRankingReportHtml('')}
-        />
-      )}
     </div>
   );
 
@@ -2936,49 +2947,6 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
 
       <div style={{ minHeight: '200px' }}>
         {renderContent()}
-      </div>
-    </div>
-  );
-};
-
-const RankingReportPreview = ({ html, onClose }) => {
-  const iframeRef = useRef(null);
-
-  const handlePrint = () => {
-    const frameWindow = iframeRef.current?.contentWindow;
-    if (!frameWindow) {
-      window.alert('Nao foi possivel carregar a pre-visualizacao do relatorio.');
-      return;
-    }
-    frameWindow.focus();
-    frameWindow.print();
-  };
-
-  return (
-    <div className="modal-overlay report-preview-overlay">
-      <div className="report-preview-shell">
-        <div className="report-preview-header">
-          <div className="control-print-title">
-            <span className="control-print-icon"><Trophy size={24} /></span>
-            <h3>RELATORIO RANKING DE VENDAS</h3>
-          </div>
-          <div className="report-preview-actions">
-            <button type="button" className="btn-secondary control-print-cancel" onClick={onClose}>
-              <X size={20} />
-              FECHAR
-            </button>
-            <button type="button" className="btn-primary control-print-generate" onClick={handlePrint}>
-              <Printer size={20} />
-              IMPRIMIR
-            </button>
-          </div>
-        </div>
-        <iframe
-          ref={iframeRef}
-          className="report-preview-frame"
-          title="Relatorio Ranking de Vendas"
-          srcDoc={html}
-        />
       </div>
     </div>
   );
