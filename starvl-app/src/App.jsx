@@ -461,6 +461,18 @@ function vpDateStr(d) {
 }
 
 /**
+ * Garante que `dia` vindo da API esteja no formato "YYYY-MM-DD".
+ * O driver pg pode retornar datas como objeto Date JS (toString = "Wed May 20 2026...")
+ * em vez de string ISO, o que corromperia os labels do gráfico.
+ */
+function vpNormalizeDia(dia) {
+  const s = String(dia ?? '');
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.substring(0, 10);  // já é ISO
+  const d = new Date(s);
+  return isNaN(d.getTime()) ? s.substring(0, 10) : vpDateStr(d); // converte para ISO
+}
+
+/**
  * Deriva dataInicio/dataFim com base no mês selecionado e na granularidade.
  * - diario/semanal → apenas o mês selecionado (totais coerentes entre si)
  * - mensal         → últimos 12 meses encerrados no mês selecionado
@@ -571,7 +583,8 @@ const VendasPista = ({ clients, selectedClient, selectedPeriod }) => {
     // Agrupamento por granularidade
     const bucket = {};
     sourceData.forEach(row => {
-      const d = String(row.dia).substring(0, 10);
+      // Normaliza para YYYY-MM-DD independente do formato retornado pela API
+      const d = vpNormalizeDia(row.dia);
       let key;
       if (periodKey === 'diario') {
         key = d;
@@ -603,14 +616,19 @@ const VendasPista = ({ clients, selectedClient, selectedPeriod }) => {
       // MA7: média_dia[i] = média( valor[i-(maWin-1)] … valor[i] )
       const slice = fatTotals.slice(Math.max(0, i - maWin + 1), i + 1);
       const ma7   = slice.reduce((s, v) => s + v, 0) / slice.length;
+      // Labels via Date para evitar dependência de posição de substring
+      const dt = new Date(
+        periodKey === 'anual' ? `${key}-01-01T12:00:00` : `${key.substring(0, 7)}-01T12:00:00`
+      );
       let label;
       if (periodKey === 'diario' || periodKey === 'semanal') {
-        const mIdx = parseInt(key.substring(5, 7)) - 1;
-        label = `${key.substring(8, 10)}/${PT_MON[mIdx]}`;
+        // Para dia/semana usamos o próprio key que já está em YYYY-MM-DD
+        const dtDay = new Date(key + 'T12:00:00');
+        label = `${String(dtDay.getDate()).padStart(2,'0')}/${PT_MON[dtDay.getMonth()]}`;
       } else if (periodKey === 'mensal') {
-        label = `${PT_MON[parseInt(key.substring(5, 7)) - 1]}/${key.substring(2, 4)}`;
+        label = `${PT_MON[dt.getMonth()]}/${String(dt.getFullYear()).substring(2)}`;
       } else {
-        label = key;
+        label = key;  // "2025", "2026"
       }
       return { ...bucket[key], label, ma7 };
     });

@@ -278,7 +278,7 @@ router.get('/vendas-pista', async (req, res) => {
   try {
     const result = await query(
       `SELECT
-         vda.vdamovimento::date                              AS dia,
+         TO_CHAR(vda.vdamovimento, 'YYYY-MM-DD')            AS dia,
          prod.prodcodigo                                     AS codigo_produto,
          prod.prodresumo                                     AS combustivel,
          COALESCE(atde.atdenome, 'Sem Vendedor')             AS vendedor,
@@ -295,7 +295,7 @@ router.get('/vendas-pista', async (req, res) => {
          AND vda.vdamovimento <= $3
          AND (vda.vdastatus IS NULL OR vda.vdastatus = 0)
          AND prod.prodtipo = 1
-       GROUP BY vda.vdamovimento::date, prod.prodcodigo, prod.prodresumo, atde.atdenome
+       GROUP BY TO_CHAR(vda.vdamovimento, 'YYYY-MM-DD'), prod.prodcodigo, prod.prodresumo, atde.atdenome
        ORDER BY dia, combustivel, vendedor`,
       [empresa, dataInicio, dataFim]
     );
