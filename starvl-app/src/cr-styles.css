@@ -37,6 +37,13 @@
 .cr-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
 .cr-table thead tr { background: #E31E24; }
 .cr-table thead th { padding: 11px 12px; text-align: left; font-size: 10px; font-weight: 700; letter-spacing: 0.07em; color: #fff; white-space: nowrap; }
+/* Monetary / numeric columns — right-align header to match cell values */
+.cr-table thead th:nth-child(3),
+.cr-table thead th:nth-child(5),
+.cr-table thead th:nth-child(6),
+.cr-table thead th:nth-child(7),
+.cr-table thead th:nth-child(8),
+.cr-table thead th:nth-child(9) { text-align: right; }
 .cr-row { border-bottom: 1px solid #1a2332; transition: background 0.12s; }
 .cr-row:hover { background: rgba(248,250,252,0.03); }
 .cr-row td { padding: 10px 12px; color: #cbd5e1; vertical-align: middle; }
@@ -118,6 +125,7 @@
 .cr-modal-val { color: #f8fafc; font-weight: 600; text-align: right; }
 
 /* Light theme */
+.theme-light .cr-table thead tr { background: #E31E24 !important; }
 .theme-light .cr-header-title h2 { color: #111827; }
 .theme-light .cr-kpi { background: #fff; border-color: #e2e8f0; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
 .theme-light .cr-kpi-label { color: #9ca3af; }
