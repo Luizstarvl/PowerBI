@@ -223,11 +223,11 @@ const Login = ({ onLogin, adminUsers }) => {
 const Sidebar = ({ currentPage, setCurrentPage, onLogout, themeMode }) => {
   const menuItems = [
     { icon: Home,      label: 'DASHBOARD',           page: 'dashboard' },
-    { icon: Package,   label: 'POSIÇÃO ESTOQUE',      page: 'stock'     },
-    { icon: Truck,     label: 'LIVRO DE MOVIMENTAÇÃO',page: 'control'   },
-    { icon: Wallet,    label: 'CONTAS A RECEBER',     page: 'receber'   },
+    { icon: Package,   label: 'ESTOQUE',              page: 'stock'     },
+    { icon: Truck,     label: 'LIVROS',               page: 'control'   },
+    { icon: Wallet,    label: 'FINANCEIRO',           page: 'receber'   },
     { icon: FileText,  label: 'RELATÓRIOS',           page: 'reports'   },
-    { icon: Settings,  label: 'PARÂMETROS',           page: 'params'    },
+    { icon: Settings,  label: 'CONFIGURAÇÕES',        page: 'params'    },
   ];
 
   return (
