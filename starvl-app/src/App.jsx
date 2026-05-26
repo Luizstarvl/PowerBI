@@ -514,6 +514,8 @@ const VendasPista = ({ clients, selectedClient, selectedPeriod }) => {
   const { chartData, groupKeys, totais } = useMemo(() => {
     if (!rawData.length) return { chartData: [], groupKeys: [], totais: { faturamento: 0, litros: 0 } };
 
+    const PT_MON = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+
     // Dimensão selecionada: combustível ou vendedor
     const getDim = row => viewMode === 'combustivel' ? row.combustivel : (row.vendedor || 'Sem Vendedor');
     const dims = [...new Set(rawData.map(getDim))].sort();
@@ -530,8 +532,10 @@ const VendasPista = ({ clients, selectedClient, selectedPeriod }) => {
         const dow = dt.getDay() === 0 ? 7 : dt.getDay();
         const mon = new Date(dt); mon.setDate(dt.getDate() - dow + 1);
         key = vpDateStr(mon);
+      } else if (periodKey === 'mensal') {
+        key = d.substring(0, 7);   // YYYY-MM → 1 barra por mês
       } else {
-        key = d.substring(0, 7); // YYYY-MM
+        key = d.substring(0, 4);   // YYYY    → 1 barra por ano
       }
       if (!bucket[key]) {
         bucket[key] = { key, total: 0, litros: 0 };
@@ -552,19 +556,23 @@ const VendasPista = ({ clients, selectedClient, selectedPeriod }) => {
       const ma    = slice.reduce((s, v) => s + v, 0) / slice.length;
       let label;
       if (periodKey === 'diario' || periodKey === 'semanal') {
-        label = `${key.substring(8,10)}/${key.substring(5,7)}`;
+        const mIdx = parseInt(key.substring(5, 7)) - 1;
+        label = `${key.substring(8, 10)}/${PT_MON[mIdx]}`;   // "26/mai"
+      } else if (periodKey === 'mensal') {
+        label = `${PT_MON[parseInt(key.substring(5, 7)) - 1]}/${key.substring(2, 4)}`; // "mai/26"
       } else {
-        const MONTHS = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
-        label = `${MONTHS[parseInt(key.substring(5,7))-1]}/${key.substring(2,4)}`;
+        label = key; // "2025", "2026"
       }
       return { ...bucket[key], label, ma };
     });
 
     // chartData = todos os pontos do intervalo selecionado (sem corte artificial)
     const chartData = allPoints;
+    // KPI = total do ÚLTIMO bucket (= período mais recente visível no gráfico)
+    const last = chartData[chartData.length - 1];
     const totais = {
-      faturamento: chartData.reduce((s, r) => s + r.total, 0),
-      litros:      chartData.reduce((s, r) => s + r.litros, 0),
+      faturamento: last?.total  || 0,
+      litros:      last?.litros || 0,
     };
     const groupKeys = dims.map(d => ({ dim: d, key: `d_${d}` }));
     return { chartData, groupKeys, totais };
@@ -577,12 +585,12 @@ const VendasPista = ({ clients, selectedClient, selectedPeriod }) => {
     return `R$ ${n.toLocaleString('pt-BR',{maximumFractionDigits:0})}`;
   };
   const fmtL = v => Number(v||0).toLocaleString('pt-BR',{maximumFractionDigits:0});
-  const maLabel = periodKey==='diario'?'MM 7 dias':periodKey==='semanal'?'MM 4 sem.':periodKey==='mensal'?'MM 3 meses':'MM 4 meses';
+  const maLabel = periodKey==='diario'?'MM 7 dias':periodKey==='semanal'?'MM 4 sem.':periodKey==='mensal'?'MM 3 meses':'MM anual';
   const lastMa  = chartData.length ? chartData[chartData.length-1].ma : 0;
-  // Rótulo do intervalo de referência dos KPIs
-  const kpiRangeLabel = (periodKey === 'diario' || periodKey === 'semanal')
-    ? (selectedPeriod || '')
-    : periodKey === 'mensal' ? '12 meses' : '24 meses';
+  // Rótulo do período do último bucket (referência dos KPIs)
+  const kpiRangeLabel = chartData.length
+    ? chartData[chartData.length - 1].label
+    : (selectedPeriod || '');
 
   return (
     <div className="chart-card">
@@ -624,27 +632,49 @@ const VendasPista = ({ clients, selectedClient, selectedPeriod }) => {
       {error   && <ApiErrorNotice message={error} />}
 
       {!loading && !error && chartData.length > 0 && (
-        <ResponsiveContainer width="100%" height={320}>
-          <ComposedChart data={chartData} margin={{ top: 28, right: 16, left: 6, bottom: 0 }}>
+        <ResponsiveContainer width="100%" height={340}>
+          <ComposedChart data={chartData} margin={{ top: 28, right: 60, left: 6, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke={DASHBOARD_COLORS.grid} />
-            <XAxis dataKey="label" stroke={DASHBOARD_COLORS.axis} tick={{ fill: DASHBOARD_COLORS.axis, fontSize: 11 }}
-              interval={chartData.length > 20 ? Math.floor(chartData.length / 10) : 0} />
-            <YAxis stroke={DASHBOARD_COLORS.axis} tick={{ fill: DASHBOARD_COLORS.axis, fontSize: 11 }}
-              tickFormatter={v => v>=1000?`${(v/1000).toFixed(0)}k`:v} />
+            <XAxis
+              dataKey="label"
+              stroke={DASHBOARD_COLORS.axis}
+              tick={{ fill: DASHBOARD_COLORS.axis, fontSize: 11 }}
+              interval={Math.max(0, Math.ceil(chartData.length / 8) - 1)}
+            />
+            {/* Eixo esquerdo: Faturamento (R$) */}
+            <YAxis
+              yAxisId="left"
+              stroke={DASHBOARD_COLORS.axis}
+              tick={{ fill: DASHBOARD_COLORS.axis, fontSize: 11 }}
+              tickFormatter={v => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v}
+            />
+            {/* Eixo direito: Volume (L) */}
+            <YAxis
+              yAxisId="right"
+              orientation="right"
+              stroke="#38bdf8"
+              tick={{ fill: '#38bdf8', fontSize: 10 }}
+              tickFormatter={v => v >= 1000 ? `${(v/1000).toFixed(0)}kL` : `${v}L`}
+            />
             <Tooltip
               contentStyle={{ background: DASHBOARD_COLORS.tooltipBg, border:`1px solid ${DASHBOARD_COLORS.sale}`, borderRadius:8, color:'#f8fafc' }}
-              formatter={(v, name) => name===maLabel
-                ? [`R$ ${Number(v).toLocaleString('pt-BR',{maximumFractionDigits:0})}`, name]
-                : [`R$ ${Number(v).toLocaleString('pt-BR',{maximumFractionDigits:0})}`, name]}
+              formatter={(v, name) => {
+                if (name === 'Litros') return [`${Number(v).toLocaleString('pt-BR',{maximumFractionDigits:0})} L`, name];
+                return [`R$ ${Number(v).toLocaleString('pt-BR',{maximumFractionDigits:0})}`, name];
+              }}
             />
             <Legend />
             {groupKeys.map((g, i) => (
-              <Bar key={g.key} dataKey={g.key} name={g.dim} stackId="s"
+              <Bar key={g.key} yAxisId="left" dataKey={g.key} name={g.dim} stackId="s"
                 fill={viewMode==='combustivel' ? getFuelColor(g.dim) : `hsl(${(i*67)%360},65%,55%)`}
                 radius={i===groupKeys.length-1?[6,6,0,0]:undefined} />
             ))}
-            <Line type="monotone" dataKey="ma" name={maLabel}
+            {/* Média Móvel (faturamento) */}
+            <Line yAxisId="left" type="monotone" dataKey="ma" name={maLabel}
               stroke="#ffffff" strokeWidth={2.5} dot={false} strokeDasharray="6 3" />
+            {/* Linha de Volume em Litros */}
+            <Line yAxisId="right" type="monotone" dataKey="litros" name="Litros"
+              stroke="#38bdf8" strokeWidth={2} dot={false} strokeDasharray="4 2" />
           </ComposedChart>
         </ResponsiveContainer>
       )}
