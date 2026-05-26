@@ -1883,7 +1883,8 @@ body.theme-light-body {
   border: 1px solid #2a2a2a;
   border-radius: 12px;
   overflow-x: auto;
-  overflow-y: hidden;
+  overflow-y: auto;
+  max-height: 520px;
   -webkit-overflow-scrolling: touch;
 }
 
@@ -1943,7 +1944,7 @@ body.theme-light-body {
 }
 
 .data-table thead {
-  background: #1a1a1a;
+  background: #E31E24;
 }
 
 .data-table th {
@@ -1953,9 +1954,13 @@ body.theme-light-body {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 1px;
-  color: #E31E24;
-  border-bottom: 1px solid #2a2a2a;
+  color: #ffffff;
+  border-bottom: 1px solid #c01a1f;
   white-space: nowrap;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #E31E24;
 }
 
 .data-table tbody tr {
@@ -3922,11 +3927,20 @@ body.theme-light-body {
 }
 
 .theme-light .admin-card-header,
-.theme-light .data-table thead,
 .theme-light .data-table tfoot,
 .theme-light .users-table thead,
 .theme-light .admin-table thead {
   background: #f8fafc;
+}
+
+.theme-light .data-table thead {
+  background: #E31E24;
+}
+
+.theme-light .data-table th {
+  color: #ffffff;
+  background: #E31E24;
+  border-bottom-color: #c01a1f;
 }
 
 .theme-light .modal-header,
