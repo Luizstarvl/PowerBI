@@ -339,4 +339,40 @@ router.get('/vendas-pista', async (req, res) => {
   }
 });
 
+// GET /api/dashboard/prod-categorias?prodtipo=2
+// Retorna todas as seções (spro) e grupos (gpro) disponíveis para um prodtipo
+router.get('/prod-categorias', async (req, res) => {
+  const prodtipo = parseInt(req.query.prodtipo) || 1;
+
+  try {
+    const sproResult = await query(
+      `SELECT DISTINCT spro.sprocodigo AS codigo, spro.spronome AS nome
+       FROM prod
+       JOIN spro ON spro.sprocodigo = prod.prodsecao
+       WHERE prod.prodtipo = $1
+         AND spro.spronome IS NOT NULL
+       ORDER BY spro.spronome`,
+      [prodtipo]
+    );
+
+    const gproResult = await query(
+      `SELECT DISTINCT gpro.gprocodigo AS codigo, gpro.gpronome AS nome
+       FROM prod
+       JOIN gpro ON gpro.gprocodigo = prod.prodgrupo
+       WHERE prod.prodtipo = $1
+         AND gpro.gpronome IS NOT NULL
+       ORDER BY gpro.gpronome`,
+      [prodtipo]
+    );
+
+    res.json({
+      secoes: sproResult.rows.map(r => ({ codigo: r.codigo, nome: r.nome })),
+      grupos: gproResult.rows.map(r => ({ codigo: r.codigo, nome: r.nome })),
+    });
+  } catch (err) {
+    console.error('Error in /dashboard/prod-categorias:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

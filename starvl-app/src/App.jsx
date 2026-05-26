@@ -560,6 +560,16 @@ const _VP_MOCK_CONV_PRODS = [
   { nome: 'Água Destilada',     preco:  6.50, rangeQtd:[ 5,20],  secao:'Filtros',  grupo:'Aditivos'       },
 ];
 
+// Listas de spro/gpro derivadas do mock (fallback quando não há API)
+function vpMockCatLists(prodtipo) {
+  const prods = prodtipo === 1 ? _VP_MOCK_FUELS : _VP_MOCK_CONV_PRODS;
+  const secoes = [...new Map(prods.map(p => [p.secao, { codigo: p.secao, nome: p.secao }])).values()]
+    .sort((a, b) => a.nome.localeCompare(b.nome));
+  const grupos = [...new Map(prods.map(p => [p.grupo, { codigo: p.grupo, nome: p.grupo }])).values()]
+    .sort((a, b) => a.nome.localeCompare(b.nome));
+  return { secoes, grupos };
+}
+
 function vpMockConvRows(days = 35) {
   const today = new Date();
   const rows  = [];
@@ -589,6 +599,7 @@ const VendasPista = ({ clients, selectedClient, selectedPeriod }) => {
   const [secao, setSecao]         = useState('combustivel'); // 'combustivel' | 'conveniencia'
   const [catTipo, setCatTipo]     = useState('secao');       // 'secao' | 'grupo'
   const [catValor, setCatValor]   = useState(null);          // null = todos
+  const [catLists, setCatLists]   = useState({ secoes: [], grupos: [] }); // spro/gpro do banco
   const [rawData, setRawData]     = useState([]);
   const [loading, setLoading]     = useState(false);
   const [error, setError]         = useState(null);
@@ -623,11 +634,32 @@ const VendasPista = ({ clients, selectedClient, selectedPeriod }) => {
       .finally(() => setLoading(false));
   }, [empresa, dataInicio, dataFim, secao]);
 
+  // Busca seções (spro) e grupos (gpro) direto do banco quando muda o tipo de produto
+  useEffect(() => {
+    const prodtipo = secao === 'combustivel' ? 1 : 2;
+    if (!empresa) return; // sem empresa usa mock/derivado
+    fetch(`${API_URL}/api/dashboard/prod-categorias?prodtipo=${prodtipo}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.error || !data.secoes) return; // cai no fallback derivado
+        setCatLists({ secoes: data.secoes || [], grupos: data.grupos || [] });
+      })
+      .catch(() => {}); // falha silenciosa → usa catOptions derivado dos dados
+  }, [empresa, secao]);
+
   // Mock data gerado uma vez como fallback (combustível ou conveniência)
   const mockRows     = useMemo(() => vpMockRows(35), []);
   const mockConvRows = useMemo(() => vpMockConvRows(35), []);
   const sourceMock   = secao === 'combustivel' ? mockRows : mockConvRows;
   const sourceData   = usingMock ? sourceMock : rawData;
+
+  // Quando usa mock e catLists está vazio, popula a partir das constantes mock
+  useEffect(() => {
+    if (usingMock && catLists.secoes.length === 0) {
+      const prodtipo = secao === 'combustivel' ? 1 : 2;
+      setCatLists(vpMockCatLists(prodtipo));
+    }
+  }, [usingMock, secao, catLists.secoes.length]);
 
   const { chartData, groupKeys, totais, catOptions } = useMemo(() => {
     const empty = { chartData: [], groupKeys: [], totais: { faturamento: 0, litros: 0 }, catOptions: [] };
@@ -738,7 +770,7 @@ const VendasPista = ({ clients, selectedClient, selectedPeriod }) => {
           {[{k:'combustivel',l:'⛽ Combustível'},{k:'conveniencia',l:'🏪 Conveniência'}].map(v=>(
             <button key={v.k} type="button"
               className={`vp-period-btn vp-secao-btn${secao===v.k?' active':''}`}
-              onClick={()=>{ setSecao(v.k); setViewMode('combustivel'); setRawData([]); setCatValor(null); }}>{v.l}
+              onClick={()=>{ setSecao(v.k); setViewMode('combustivel'); setRawData([]); setCatValor(null); setCatLists({ secoes:[], grupos:[] }); }}>{v.l}
             </button>
           ))}
         </div>
@@ -797,33 +829,40 @@ const VendasPista = ({ clients, selectedClient, selectedPeriod }) => {
         </div>
       </div>
 
-      {/* ── Zona 3: Filtrar por Seção / Grupo ────────────────────────────── */}
-      {catOptions.length > 0 && (
-        <div className="vp-cat-row">
-          <div style={{ display:'flex', alignItems:'center', gap:6 }}>
-            <span className="vp-ctrl-label">Filtrar por</span>
-            <div className="vp-toggle-group">
-              {[{k:'secao',l:'Seção'},{k:'grupo',l:'Grupo'}].map(v=>(
-                <button key={v.k} type="button"
-                  className={`vp-period-btn vp-cat-tipo-btn${catTipo===v.k?' active':''}`}
-                  onClick={()=>{ setCatTipo(v.k); setCatValor(null); }}>{v.l}
+      {/* ── Zona 3: Filtrar por Seção (spro) / Grupo (gpro) ─────────────── */}
+      {(() => {
+        // Usa listas do banco quando disponíveis; fallback = derivado dos dados
+        const listaAtiva = catTipo === 'secao'
+          ? (catLists.secoes.length ? catLists.secoes : catOptions.map(n => ({ codigo: n, nome: n })))
+          : (catLists.grupos.length ? catLists.grupos : catOptions.map(n => ({ codigo: n, nome: n })));
+        if (!listaAtiva.length) return null;
+        return (
+          <div className="vp-cat-row">
+            <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+              <span className="vp-ctrl-label">Filtrar por</span>
+              <div className="vp-toggle-group">
+                {[{k:'secao',l:'Seção'},{k:'grupo',l:'Grupo'}].map(v=>(
+                  <button key={v.k} type="button"
+                    className={`vp-period-btn vp-cat-tipo-btn${catTipo===v.k?' active':''}`}
+                    onClick={()=>{ setCatTipo(v.k); setCatValor(null); }}>{v.l}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="vp-cat-chips">
+              <button type="button"
+                className={`vp-cat-chip${!catValor?' active':''}`}
+                onClick={()=>setCatValor(null)}>Todos</button>
+              {listaAtiva.map(item=>(
+                <button key={item.codigo} type="button"
+                  className={`vp-cat-chip${catValor===item.nome?' active':''}`}
+                  onClick={()=>setCatValor(prev => prev===item.nome ? null : item.nome)}>{item.nome}
                 </button>
               ))}
             </div>
           </div>
-          <div className="vp-cat-chips">
-            <button type="button"
-              className={`vp-cat-chip${!catValor?' active':''}`}
-              onClick={()=>setCatValor(null)}>Todos</button>
-            {catOptions.map(c=>(
-              <button key={c} type="button"
-                className={`vp-cat-chip${catValor===c?' active':''}`}
-                onClick={()=>setCatValor(prev => prev===c ? null : c)}>{c}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
+        );
+      })()}
 
       {loading && <LoadingState compact label="Carregando vendas pista..." />}
       {error && !usingMock && <ApiErrorNotice message={error} />}
