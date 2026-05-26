@@ -3,7 +3,7 @@ import logoStarvl from './logo-starvl.png';
 import logoStarvlBlack from './logo-starvl-black.png';
 import * as XLSX from 'xlsx';
 import { LineChart, Line, BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Area, AreaChart, LabelList, ComposedChart, ReferenceLine } from 'recharts';
-import { Home, FileText, Users as UsersIcon, Truck, Package, LogOut, Eye, Search, Plus, Edit2, Trash2, X, Calendar, TrendingUp, Droplet, DollarSign, Calculator, Bell, ChevronDown, Activity, Settings, Building2, Phone, Mail, MapPin, Hash, Clock, BarChart2, Layers, CircleDollarSign, UserCheck, UserPlus, AlertCircle, Globe, Camera, Building, Tag, RefreshCw, Database, ChevronRight, ChevronLeft, Filter, Printer, Moon, Sun, Trophy, Lock, Unlock, Wallet, Download, CreditCard, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { Home, FileText, Users as UsersIcon, Truck, Package, LogOut, Eye, Search, Plus, Edit2, Trash2, X, Calendar, TrendingUp, Droplet, DollarSign, Calculator, Bell, ChevronDown, Activity, Settings, Building2, Phone, Mail, MapPin, Hash, Clock, BarChart2, Layers, CircleDollarSign, UserCheck, UserPlus, AlertCircle, Globe, Camera, Building, Tag, RefreshCw, Database, ChevronRight, ChevronLeft, Filter, Printer, Moon, Sun, Trophy, Lock, Unlock, Wallet, Download, CreditCard, CheckCircle2, AlertTriangle, Save } from 'lucide-react';
 import './App.css';
 import './cr-styles.css';
 import './pm-styles.css';
@@ -4383,6 +4383,9 @@ const ConvenienciaManager = ({ themeMode }) => {
   const [dataInicio, setDataInicio] = useState('');
   const [dataFim, setDataFim]       = useState('');
   const [viewProd, setViewProd]     = useState(null);
+  const [editProd, setEditProd]     = useState(null);
+  const [editForm, setEditForm]     = useState({});
+  const [localEdits, setLocalEdits] = useState({});
   const LIMIT = 7;
 
   // Reset page on filter change
@@ -4391,16 +4394,53 @@ const ConvenienciaManager = ({ themeMode }) => {
   const fmtBRL  = v => 'R$ ' + Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const fmtDate = s => { if (!s) return '—'; const [y,m,d] = s.split('-'); return `${d}/${m}/${y}`; };
 
-  // Compute status for all products
+  // Compute status for all products (merge localEdits)
   const allProds = useMemo(() => {
     const today = new Date(); today.setHours(0,0,0,0);
     return PM_MOCK_PRODUCTS.map(p => {
-      const vencDate = new Date(p.venc + 'T00:00:00');
+      const edits = localEdits[p.id] || {};
+      const merged = { ...p, ...edits };
+      const vencDate = new Date(merged.venc + 'T00:00:00');
       const dias = Math.round((vencDate - today) / 86400000);
       const status = dias < 0 ? 'vencido' : dias === 0 ? 'vencendo_hoje' : dias <= 7 ? 'prox_vencer' : 'ok';
-      return { ...p, dias, status, valorEstoque: p.custo * p.estoque };
+      return { ...merged, dias, status, valorEstoque: merged.custo * merged.estoque };
     });
-  }, []);
+  }, [localEdits]);
+
+  const openEdit = useCallback((p) => {
+    const merged = { ...p, ...(localEdits[p.id] || {}) };
+    setEditProd(merged);
+    setEditForm({
+      custo:      String(merged.custo),
+      preco:      String(merged.preco),
+      estoque:    String(merged.estoque),
+      estMin:     String(merged.estMin || 5),
+      local:      merged.local || '',
+      marca:      merged.marca || merged.sub || '',
+      desc:       merged.desc  || '',
+      forn:       merged.forn,
+      controlVenc: merged.controlVenc !== undefined ? merged.controlVenc : true,
+    });
+  }, [localEdits]);
+
+  const saveEdit = useCallback(() => {
+    if (!editProd) return;
+    setLocalEdits(prev => ({
+      ...prev,
+      [editProd.id]: {
+        custo:       parseFloat(editForm.custo)   || editProd.custo,
+        preco:       parseFloat(editForm.preco)   || editProd.preco,
+        estoque:     parseInt(editForm.estoque)   || editProd.estoque,
+        estMin:      parseInt(editForm.estMin)    || 5,
+        local:       editForm.local,
+        marca:       editForm.marca,
+        desc:        editForm.desc,
+        forn:        editForm.forn,
+        controlVenc: editForm.controlVenc,
+      },
+    }));
+    setEditProd(null);
+  }, [editProd, editForm]);
 
   // KPIs
   const kpis = useMemo(() => {
@@ -4614,7 +4654,7 @@ const ConvenienciaManager = ({ themeMode }) => {
                   <td>
                     <div className="pm-actions">
                       <button className="pm-action-btn" title="Ver" onClick={() => setViewProd(p)}><Eye size={13} /></button>
-                      <button className="pm-action-btn pm-action-edit" title="Editar" onClick={() => alert('Edição disponível na versão completa')}><Edit2 size={13} /></button>
+                      <button className="pm-action-btn pm-action-edit" title="Editar" onClick={() => openEdit(p)}><Edit2 size={13} /></button>
                     </div>
                   </td>
                 </tr>
@@ -4714,6 +4754,223 @@ const ConvenienciaManager = ({ themeMode }) => {
           </button>
         </div>
       </div>
+
+      {/* ─── EDIT OVERLAY ─── */}
+      {editProd && (
+        <div className="pm-edit-overlay">
+          {/* Top bar */}
+          <div className="pm-edit-topbar">
+            <div className="pm-edit-topbar-title">
+              <button className="pm-edit-back" onClick={() => setEditProd(null)}>
+                <ChevronLeft size={14} /> VOLTAR
+              </button>
+              <span style={{ color: '#3a3a3a', margin: '0 4px' }}>|</span>
+              <Package size={16} color="#E31E24" />
+              EDIÇÃO DE PRODUTO — CONVENIÊNCIA
+            </div>
+            <div className="pm-edit-topbar-actions">
+              <button className="pm-btn-outline" onClick={() => setEditProd(null)}>
+                <X size={13} /> CANCELAR
+              </button>
+              <button className="pm-btn-primary" onClick={saveEdit}>
+                <Save size={13} /> SALVAR ALTERAÇÕES
+              </button>
+              <button className="pm-btn-outline" onClick={() => window.print()}>
+                <Printer size={13} /> IMPRIMIR PRODUTO
+              </button>
+            </div>
+          </div>
+
+          {/* Body */}
+          <div className="pm-edit-body">
+            {/* 3-col grid */}
+            <div className="pm-edit-grid">
+
+              {/* LEFT: Image + Status */}
+              <div className="pm-edit-col">
+                <div className="pm-edit-panel">
+                  <div className="pm-edit-panel-title"><Camera size={12} /> FOTO DO PRODUTO</div>
+                  <div className="pm-edit-img-box" style={{ background: editProd.cor + '22' }}>
+                    {editProd.emoji}
+                  </div>
+                  <p className="pm-edit-img-hint">Formatos aceitos: JPG, PNG, WEBP<br />Tamanho máximo: 2 MB</p>
+                  <div className="pm-edit-img-btns">
+                    <button className="pm-edit-img-btn" style={{ background: '#1a1a1a', border: '1px solid #3a3a3a', color: '#94a3b8' }}>
+                      <Camera size={11} /> ALTERAR
+                    </button>
+                    <button className="pm-edit-img-btn" style={{ background: 'transparent', border: '1px solid #3a3a3a', color: '#ef4444' }}>
+                      <Trash2 size={11} /> REMOVER
+                    </button>
+                  </div>
+                </div>
+                <div className="pm-edit-panel" style={{ textAlign: 'center' }}>
+                  <div className="pm-edit-panel-title"><Tag size={12} /> STATUS DO PRODUTO</div>
+                  <span className={`pm-badge ${PM_STATUS_CLS[editProd.status]}`} style={{ fontSize: '13px', padding: '6px 18px' }}>
+                    {PM_STATUS_LABEL[editProd.status]}
+                  </span>
+                  <div style={{ marginTop: 10, fontSize: '11px', color: '#64748b' }}>
+                    {editProd.dias < 0 ? `Vencido há ${Math.abs(editProd.dias)} dias` : editProd.dias === 0 ? 'Vence hoje' : `Vence em ${editProd.dias} dias`}
+                  </div>
+                  <div style={{ marginTop: 6, fontSize: '10px', color: '#505050' }}>
+                    Vencimento: {fmtDate(editProd.venc)}
+                  </div>
+                </div>
+              </div>
+
+              {/* CENTER: Info + Prices */}
+              <div className="pm-edit-col">
+                <div className="pm-edit-panel">
+                  <div className="pm-edit-panel-title"><Package size={12} /> INFORMAÇÕES BÁSICAS</div>
+                  <div className="pm-edit-fg2">
+                    <div className="pm-edit-field span2">
+                      <label className="pm-edit-label">Nome do Produto</label>
+                      <input className="pm-edit-input" readOnly value={editProd.nome} />
+                      <span className="pm-edit-hint">Campo não editável</span>
+                    </div>
+                    <div className="pm-edit-field">
+                      <label className="pm-edit-label">Código de Barras</label>
+                      <input className="pm-edit-input" readOnly value={editProd.codigo} />
+                    </div>
+                    <div className="pm-edit-field">
+                      <label className="pm-edit-label">Categoria</label>
+                      <input className="pm-edit-input" readOnly value={editProd.cat} />
+                    </div>
+                    <div className="pm-edit-field">
+                      <label className="pm-edit-label">Unidade de Medida</label>
+                      <input className="pm-edit-input" readOnly value={editProd.uni} />
+                    </div>
+                    <div className="pm-edit-field">
+                      <label className="pm-edit-label">Marca <span className="req">*</span></label>
+                      <input className="pm-edit-input" value={editForm.marca}
+                        onChange={e => setEditForm(f => ({ ...f, marca: e.target.value }))} />
+                    </div>
+                  </div>
+                  <div className="pm-edit-field" style={{ marginTop: 12 }}>
+                    <label className="pm-edit-label">Descrição</label>
+                    <textarea className="pm-edit-textarea" value={editForm.desc}
+                      onChange={e => setEditForm(f => ({ ...f, desc: e.target.value }))}
+                      placeholder="Descrição do produto..." />
+                  </div>
+                </div>
+
+                <div className="pm-edit-panel">
+                  <div className="pm-edit-panel-title"><DollarSign size={12} /> PREÇOS E MARGEM</div>
+                  <div className="pm-edit-fg2">
+                    <div className="pm-edit-field">
+                      <label className="pm-edit-label">Custo Médio (R$) <span className="req">*</span></label>
+                      <input className="pm-edit-input" type="number" step="0.01" min="0" value={editForm.custo}
+                        onChange={e => setEditForm(f => ({ ...f, custo: e.target.value }))} />
+                    </div>
+                    <div className="pm-edit-field">
+                      <label className="pm-edit-label">Preço de Venda (R$) <span className="req">*</span></label>
+                      <input className="pm-edit-input" type="number" step="0.01" min="0" value={editForm.preco}
+                        onChange={e => setEditForm(f => ({ ...f, preco: e.target.value }))} />
+                    </div>
+                  </div>
+                  {(() => {
+                    const c = parseFloat(editForm.custo) || 0;
+                    const v = parseFloat(editForm.preco) || 0.01;
+                    const margem = ((v - c) / v * 100);
+                    const cPct   = Math.min(c / v * 100, 100);
+                    const mColor = margem >= 20 ? '#22c55e' : margem >= 10 ? '#f59e0b' : '#ef4444';
+                    return (
+                      <div style={{ marginTop: 10 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                          <span style={{ fontSize: '11px', color: '#64748b' }}>Margem calculada</span>
+                          <span style={{ fontSize: '14px', fontWeight: 800, color: mColor }}>
+                            {margem.toFixed(1)}%
+                          </span>
+                        </div>
+                        <div className="pm-edit-margin-bar">
+                          <div className="pm-edit-mc" style={{ width: cPct + '%' }}>
+                            {cPct >= 20 ? `Custo ${cPct.toFixed(0)}%` : ''}
+                          </div>
+                          <div className="pm-edit-ml">
+                            {(100 - cPct) >= 20 ? `Lucro ${(100 - cPct).toFixed(0)}%` : ''}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              </div>
+
+              {/* RIGHT: Stock + Sales */}
+              <div className="pm-edit-col">
+                <div className="pm-edit-panel">
+                  <div className="pm-edit-panel-title"><Database size={12} /> DADOS DE ESTOQUE</div>
+                  <div className="pm-edit-fg2">
+                    <div className="pm-edit-field">
+                      <label className="pm-edit-label">Estoque Atual</label>
+                      <input className="pm-edit-input" type="number" min="0" value={editForm.estoque}
+                        onChange={e => setEditForm(f => ({ ...f, estoque: e.target.value }))} />
+                    </div>
+                    <div className="pm-edit-field">
+                      <label className="pm-edit-label">Estoque Mínimo</label>
+                      <input className="pm-edit-input" type="number" min="0" value={editForm.estMin}
+                        onChange={e => setEditForm(f => ({ ...f, estMin: e.target.value }))} />
+                    </div>
+                  </div>
+                  <div className="pm-edit-field" style={{ marginTop: 12 }}>
+                    <label className="pm-edit-label">Localização no Estoque</label>
+                    <input className="pm-edit-input" value={editForm.local} placeholder="Ex: Prateleira A3"
+                      onChange={e => setEditForm(f => ({ ...f, local: e.target.value }))} />
+                  </div>
+                  <div className="pm-toggle-wrap" style={{ marginTop: 14 }}>
+                    <label className="pm-toggle">
+                      <input type="checkbox" checked={!!editForm.controlVenc}
+                        onChange={e => setEditForm(f => ({ ...f, controlVenc: e.target.checked }))} />
+                      <span className="pm-toggle-slider" />
+                    </label>
+                    <span className="pm-toggle-lbl">Controle de Vencimento</span>
+                  </div>
+                </div>
+
+                <div className="pm-edit-panel">
+                  <div className="pm-edit-panel-title"><TrendingUp size={12} /> VENDAS DO MÊS</div>
+                  {(() => {
+                    const qtd    = 20 + (editProd.id % 60);
+                    const preco  = parseFloat(editForm.preco) || editProd.preco;
+                    const est    = parseInt(editForm.estoque) || 1;
+                    return [
+                      ['Total Vendido (mês)', fmtBRL(qtd * preco)],
+                      ['Qtd. Vendida',        `${qtd} un.`],
+                      ['Ticket Médio',        fmtBRL(preco)],
+                      ['Giro de Estoque',     (qtd / est).toFixed(1) + 'x'],
+                    ].map(([lbl, val]) => (
+                      <div key={lbl} className="pm-edit-stat">
+                        <span className="pm-edit-stat-lbl">{lbl}</span>
+                        <span className="pm-edit-stat-val">{val}</span>
+                      </div>
+                    ));
+                  })()}
+                </div>
+              </div>
+            </div>{/* end grid */}
+
+            {/* Additional info bar */}
+            <div className="pm-edit-addl">
+              <div className="pm-edit-field">
+                <label className="pm-edit-label">Fornecedor <span className="req">*</span></label>
+                <input className="pm-edit-input" value={editForm.forn}
+                  onChange={e => setEditForm(f => ({ ...f, forn: e.target.value }))} />
+              </div>
+              <div className="pm-edit-field">
+                <label className="pm-edit-label">Data de Cadastro</label>
+                <input className="pm-edit-input" readOnly value="15/01/2024" />
+              </div>
+              <div className="pm-edit-field">
+                <label className="pm-edit-label">Última Alteração</label>
+                <input className="pm-edit-input" readOnly value={new Date().toLocaleDateString('pt-BR')} />
+              </div>
+              <div className="pm-edit-field">
+                <label className="pm-edit-label">Situação</label>
+                <input className="pm-edit-input" readOnly value="ATIVO" />
+              </div>
+            </div>
+          </div>{/* end body */}
+        </div>
+      )}
 
       {/* Modal de detalhes */}
       {viewProd && (
