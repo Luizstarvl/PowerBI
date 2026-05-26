@@ -593,7 +593,7 @@ function vpMockConvRows(days = 35) {
 }
 
 // ── Componente ────────────────────────────────────────────────────────────────
-const VendasPista = ({ clients, selectedClient, selectedPeriod }) => {
+const VendasPista = ({ clients, selectedClient, selectedPeriod, themeMode }) => {
   const [periodKey, setPeriodKey] = useState('diario');
   const [viewMode, setViewMode]   = useState('combustivel');
   const [secao, setSecao]         = useState('combustivel'); // 'combustivel' | 'conveniencia'
@@ -937,7 +937,7 @@ const VendasPista = ({ clients, selectedClient, selectedPeriod }) => {
               type="monotone"
               dataKey="ma7"
               name={maLabel}
-              stroke="#ffffff"
+              stroke={themeMode === 'light' ? '#1e293b' : '#ffffff'}
               strokeWidth={2.5}
               dot={false}
               strokeDasharray="6 3"
@@ -1256,7 +1256,7 @@ const ProductMatrixTooltip = ({ active, payload }) => {
 };
 
 // Dashboard Component
-const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcControle, estoques, loading, clients, selectedClient, selectedPeriod }) => {
+const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcControle, estoques, loading, clients, selectedClient, selectedPeriod, themeMode }) => {
   const [selectedFuelDonut, setSelectedFuelDonut] = useState(null);
   const [isCompactDashboard, setIsCompactDashboard] = useState(false);
   const [productMatrixUnit, setProductMatrixUnit] = useState('Pista');
@@ -1619,7 +1619,7 @@ const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcContr
         <div className="dashboard-static-wide">{dashboardSections.salesFuel}</div>
         <div>{dashboardSections.stock}</div>
         <div className="dashboard-static-full">
-          <VendasPista clients={clients} selectedClient={selectedClient} selectedPeriod={selectedPeriod} />
+          <VendasPista clients={clients} selectedClient={selectedClient} selectedPeriod={selectedPeriod} themeMode={themeMode} />
         </div>
         <div className="dashboard-static-full">{dashboardSections.productMatrix}</div>
         <div className="dashboard-static-full">
@@ -4800,7 +4800,7 @@ export default function App() {
   const renderPage = () => {
     switch (currentPage) {
       case 'dashboard':
-        return <Dashboard kpis={apiData.kpis} combustiveis={apiData.combustiveis} vendasDiarias={apiData.vendasDiarias} vendasHorarias={apiData.vendasHorarias} lmcControle={apiData.dashboardLmcControle} estoques={apiData.estoques} loading={apiData.loading} clients={clients} selectedClient={selectedClient} selectedPeriod={dashboardPeriod} />;
+        return <Dashboard kpis={apiData.kpis} combustiveis={apiData.combustiveis} vendasDiarias={apiData.vendasDiarias} vendasHorarias={apiData.vendasHorarias} lmcControle={apiData.dashboardLmcControle} estoques={apiData.estoques} loading={apiData.loading} clients={clients} selectedClient={selectedClient} selectedPeriod={dashboardPeriod} themeMode={themeMode} />;
       case 'reports':
         return <Reports selectedClient={selectedClient} selectedPeriod={reportsPeriod} setSelectedPeriod={setReportsPeriod} clients={clients} />;
       case 'control':
@@ -4814,7 +4814,7 @@ export default function App() {
       case 'admin':
         return <Parameters clients={clients} setClients={setClients} isAdmin={isAdmin} />;
       default:
-        return <Dashboard kpis={apiData.kpis} combustiveis={apiData.combustiveis} vendasDiarias={apiData.vendasDiarias} vendasHorarias={apiData.vendasHorarias} lmcControle={apiData.dashboardLmcControle} estoques={apiData.estoques} loading={apiData.loading} clients={clients} selectedClient={selectedClient} selectedPeriod={dashboardPeriod} />;
+        return <Dashboard kpis={apiData.kpis} combustiveis={apiData.combustiveis} vendasDiarias={apiData.vendasDiarias} vendasHorarias={apiData.vendasHorarias} lmcControle={apiData.dashboardLmcControle} estoques={apiData.estoques} loading={apiData.loading} clients={clients} selectedClient={selectedClient} selectedPeriod={dashboardPeriod} themeMode={themeMode} />;
     }
   };
 
