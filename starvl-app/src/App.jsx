@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import logoStarvl from './logo-starvl.png';
 import logoStarvlBlack from './logo-starvl-black.png';
 import * as XLSX from 'xlsx';
-import { LineChart, Line, BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Area, AreaChart, LabelList, ComposedChart } from 'recharts';
+import { LineChart, Line, BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Area, AreaChart, LabelList, ComposedChart, ReferenceLine } from 'recharts';
 import { Home, FileText, Users as UsersIcon, Truck, Package, LogOut, Eye, Search, Plus, Edit2, Trash2, X, Calendar, TrendingUp, Droplet, DollarSign, Calculator, Bell, ChevronDown, Activity, Settings, Building2, Phone, Mail, MapPin, Hash, Clock, BarChart2, Layers, CircleDollarSign, UserCheck, UserPlus, AlertCircle, Globe, Camera, Building, Tag, RefreshCw, Database, ChevronRight, Filter, Printer, Moon, Sun } from 'lucide-react';
 import './App.css';
 
@@ -793,6 +793,215 @@ const VendasPista = ({ clients, selectedClient, selectedPeriod }) => {
   );
 };
 // ── fim VendasPista ────────────────────────────────────────────────────────────
+
+// ── ProjecaoVendas ──────────────────────────────────────────────────────────
+const PV_TODAY_DIA  = 26;   // dia de hoje em maio/2026
+const PV_TOTAL_DIAS = 31;   // dias em maio/2026
+const PV_UNITS      = ['Combustível', 'Conveniência'];
+const PV_DAY_TYPES  = ['Todos', 'Dias Úteis', 'Finais de Semana'];
+
+// Metadados de cada dia de maio/2026: dia, dow (0=Dom, 6=Sáb), isFDS
+const PV_DAYS_META = Array.from({ length: PV_TOTAL_DIAS }, (_, i) => {
+  const dia = i + 1;
+  const dow = new Date(2026, 4, dia).getDay();
+  return { dia, dow, isFDS: dow === 0 || dow === 6 };
+});
+
+// Faturamento diário realizado (mai/2026, dias 1–26)
+const PV_REALIZED = {
+  Combustível: {
+    1:14820, 2:21350, 3:19840, 4:13250, 5:14620, 6:15380, 7:12980, 8:16450,
+    9:22180, 10:20640, 11:13760, 12:14980, 13:16230, 14:15410, 15:17890,
+    16:23540, 17:21780, 18:14230, 19:15670, 20:16890, 21:13450, 22:17320,
+    23:24160, 24:22340, 25:15890, 26:16540,
+  },
+  Conveniência: {
+    1:3640, 2:6820, 3:6120, 4:2980, 5:3210, 6:3540, 7:2870, 8:3890,
+    9:7340, 10:6980, 11:3120, 12:3450, 13:3780, 14:3320, 15:4120,
+    16:7890, 17:7230, 18:3080, 19:3560, 20:3920, 21:2980, 22:4230,
+    23:8120, 24:7680, 25:3640, 26:3820,
+  },
+};
+
+const PvTooltip = ({ active, payload }) => {
+  if (!active || !payload?.length) return null;
+  const pt   = payload[0]?.payload;
+  const real = payload.find(p => p.dataKey === 'realizado');
+  const proj = payload.find(p => p.dataKey === 'projetado');
+  const fmtBRL = n => Number(n || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
+  return (
+    <div className="pv-tooltip">
+      <strong>Dia {pt?.dia}/mai</strong>
+      {real?.value != null && <span style={{ color: '#38bdf8' }}>Realizado: {fmtBRL(real.value)}</span>}
+      {proj?.value != null && pt?.isProjection && <span style={{ color: '#fb923c' }}>Projetado: {fmtBRL(proj.value)}</span>}
+    </div>
+  );
+};
+
+const ProjecaoVendas = () => {
+  const [unit,    setUnit]    = useState('Combustível');
+  const [dayType, setDayType] = useState('Todos');
+
+  const { chartData, totalRealizado, mediaDiaria, projecaoTotal, diasRestantes, lastRealDia } = useMemo(() => {
+    const realized = PV_REALIZED[unit] || {};
+
+    const allFiltered = PV_DAYS_META.filter(d => {
+      if (dayType === 'Dias Úteis')       return !d.isFDS;
+      if (dayType === 'Finais de Semana') return  d.isFDS;
+      return true;
+    });
+
+    const passedDays = allFiltered.filter(d => d.dia <= PV_TODAY_DIA);
+    const futureDays = allFiltered.filter(d => d.dia >  PV_TODAY_DIA);
+
+    const totalReal = passedDays.reduce((s, d) => s + (realized[d.dia] || 0), 0);
+    const media     = passedDays.length > 0 ? totalReal / passedDays.length : 0;
+    const projTotal = totalReal + media * futureDays.length;
+
+    const lastDia = passedDays.length > 0 ? passedDays[passedDays.length - 1].dia : 0;
+    const lastVal = realized[lastDia] || 0;
+
+    const data = allFiltered.map(d => ({
+      dia:          d.dia,
+      label:        String(d.dia),
+      isProjection: d.dia > lastDia,
+      realizado:    d.dia <= PV_TODAY_DIA ? (realized[d.dia] ?? null) : null,
+      // projetado: null para dias anteriores ao último real;
+      //            no último dia real = mesmo valor (ponto de conexão);
+      //            futuros = média diária
+      projetado:    d.dia <  lastDia ? null
+                  : d.dia === lastDia ? lastVal
+                  : media,
+    }));
+
+    return { chartData: data, totalRealizado: totalReal, mediaDiaria: media,
+             projecaoTotal: projTotal, diasRestantes: futureDays.length, lastRealDia: lastDia };
+  }, [unit, dayType]);
+
+  const pct  = projecaoTotal > 0 ? Math.min(100, Math.round((totalRealizado / projecaoTotal) * 100)) : 0;
+  const fmtK = n => {
+    const v = Number(n || 0);
+    if (v >= 1_000_000) return `R$\xa0${(v / 1_000_000).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}M`;
+    if (v >= 1_000)     return `R$\xa0${(v / 1_000).toLocaleString('pt-BR', { maximumFractionDigits: 0 })}k`;
+    return `R$\xa0${v.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}`;
+  };
+
+  return (
+    <div className="chart-card pv-card">
+      {/* ── Cabeçalho ──────────────────────────────────────────────────── */}
+      <div className="card-header pv-header">
+        <div className="pv-title">
+          <h3>PROJEÇÃO DE VENDAS — RUN RATE</h3>
+          <span>Faturamento realizado + projeção sazonalizada · {unit.toLowerCase()} · mai/2026</span>
+        </div>
+        <div className="pv-controls">
+          <div className="segmented-filter" aria-label="Unidade de negócio">
+            {PV_UNITS.map(u => (
+              <button key={u} type="button" className={unit === u ? 'active' : ''} onClick={() => setUnit(u)}>{u}</button>
+            ))}
+          </div>
+          <div className="segmented-filter" aria-label="Tipo de dia">
+            {PV_DAY_TYPES.map(t => (
+              <button key={t} type="button" className={dayType === t ? 'active' : ''} onClick={() => setDayType(t)}>{t}</button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ── KPIs ────────────────────────────────────────────────────────── */}
+      <div className="vp-kpi-row">
+        <div className="vp-kpi">
+          <span className="vp-kpi-label">Realizado até hoje</span>
+          <span className="vp-kpi-value" style={{ color: '#38bdf8' }}>{fmtK(totalRealizado)}</span>
+        </div>
+        <div className="vp-kpi">
+          <span className="vp-kpi-label">Projeção do mês</span>
+          <span className="vp-kpi-value" style={{ color: '#fb923c' }}>{fmtK(projecaoTotal)}</span>
+        </div>
+        <div className="vp-kpi">
+          <span className="vp-kpi-label">Média diária</span>
+          <span className="vp-kpi-value">{fmtK(mediaDiaria)}</span>
+        </div>
+        <div className="vp-kpi">
+          <span className="vp-kpi-label">Dias restantes</span>
+          <span className="vp-kpi-value">{diasRestantes}</span>
+        </div>
+        <div className="vp-kpi pv-kpi-progress">
+          <span className="vp-kpi-label">Andamento do mês — {pct}%</span>
+          <div className="pv-progress-bar">
+            <div className="pv-progress-fill" style={{ width: `${pct}%` }} />
+          </div>
+          <span className="pv-progress-sub">{fmtK(totalRealizado)} / {fmtK(projecaoTotal)}</span>
+        </div>
+      </div>
+
+      {/* ── Gráfico ─────────────────────────────────────────────────────── */}
+      <ResponsiveContainer width="100%" height={300}>
+        <ComposedChart data={chartData} margin={{ top: 24, right: 36, left: 4, bottom: 4 }}>
+          <defs>
+            <linearGradient id="pvProjGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%"  stopColor="#fb923c" stopOpacity={0.28} />
+              <stop offset="95%" stopColor="#fb923c" stopOpacity={0.03} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid strokeDasharray="3 3" stroke="#1e2d3d" vertical={false} />
+          <XAxis
+            dataKey="label"
+            stroke="#475569"
+            tick={{ fill: '#64748b', fontSize: 11 }}
+            interval={dayType === 'Todos' ? 2 : 0}
+          />
+          <YAxis
+            stroke="#475569"
+            tick={{ fill: '#64748b', fontSize: 11 }}
+            tickFormatter={v => `R$${(v / 1000).toFixed(0)}k`}
+            width={60}
+          />
+          <Tooltip content={<PvTooltip />} />
+          {/* Área sombreada sob a projeção */}
+          <Area dataKey="projetado" fill="url(#pvProjGrad)" stroke="none"
+            connectNulls={false} isAnimationActive={false} />
+          {/* Linha realizado — sólida */}
+          <Line type="monotone" dataKey="realizado" name="Realizado"
+            stroke="#38bdf8" strokeWidth={2.5} dot={false}
+            activeDot={{ r: 5, fill: '#38bdf8', stroke: '#0f172a', strokeWidth: 2 }}
+            connectNulls={false} isAnimationActive={false} />
+          {/* Linha projetado — tracejada */}
+          <Line type="monotone" dataKey="projetado" name="Projeção"
+            stroke="#fb923c" strokeWidth={2} strokeDasharray="8 4" dot={false}
+            activeDot={{ r: 5, fill: '#fb923c', stroke: '#0f172a', strokeWidth: 2 }}
+            connectNulls={false} isAnimationActive={false} />
+          {/* Marcador vertical "Hoje" */}
+          <ReferenceLine
+            x={String(lastRealDia)}
+            stroke="#94a3b8" strokeDasharray="4 3" strokeWidth={1.5} strokeOpacity={0.7}
+            label={{ value: 'Hoje', position: 'top', fill: '#94a3b8', fontSize: 11, fontWeight: 700 }}
+          />
+        </ComposedChart>
+      </ResponsiveContainer>
+
+      {/* ── Legenda ─────────────────────────────────────────────────────── */}
+      <div className="pv-legend">
+        <span className="pv-legend-item">
+          <span className="pv-legend-line pv-legend-real" />
+          Faturamento realizado
+        </span>
+        <span className="pv-legend-item">
+          <span className="pv-legend-line pv-legend-proj" />
+          Projeção (run rate)
+        </span>
+        {dayType === 'Finais de Semana' && (
+          <span className="pv-legend-note">⚠️ Projeção apenas para os {diasRestantes} FDS restantes</span>
+        )}
+        {dayType === 'Dias Úteis' && (
+          <span className="pv-legend-note">📅 Projeção para os {diasRestantes} dias úteis restantes</span>
+        )}
+      </div>
+    </div>
+  );
+};
+// ── fim ProjecaoVendas ──────────────────────────────────────────────────────
+
 const PRODUCT_MATRIX_UNITS = ['Pista', 'Conveniência', 'Combustível'];
 const PRODUCT_MATRIX_PERIODS = [
   { value: 'Diário', factor: 0.08, marginShift: -0.6 },
@@ -1251,6 +1460,9 @@ const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcContr
           <VendasPista clients={clients} selectedClient={selectedClient} selectedPeriod={selectedPeriod} />
         </div>
         <div className="dashboard-static-full">{dashboardSections.productMatrix}</div>
+        <div className="dashboard-static-full">
+          <ProjecaoVendas />
+        </div>
       </div>
     </div>
   );
