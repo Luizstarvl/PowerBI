@@ -9,6 +9,7 @@ const dashboardRoutes = require('./routes/dashboard');
 const lmcRoutes = require('./routes/lmc');
 const estoqueRoutes = require('./routes/estoque');
 const relatoriosRoutes = require('./routes/relatorios');
+const receberRoutes = require('./routes/receber');
 
 const app = express();
 const PORT = process.env.PORT || process.env.API_PORT || 3001;
@@ -87,6 +88,7 @@ app.get('/api/test-empresa', async (req, res) => {
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/lmc', lmcRoutes);
 app.use('/api/estoque', estoqueRoutes);
+app.use('/api/receber', receberRoutes);
 app.use('/api/relatorios', relatoriosRoutes);
 
 if (fs.existsSync(clientBuildPath)) {

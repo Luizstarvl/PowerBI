@@ -3,8 +3,9 @@ import logoStarvl from './logo-starvl.png';
 import logoStarvlBlack from './logo-starvl-black.png';
 import * as XLSX from 'xlsx';
 import { LineChart, Line, BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Area, AreaChart, LabelList, ComposedChart, ReferenceLine } from 'recharts';
-import { Home, FileText, Users as UsersIcon, Truck, Package, LogOut, Eye, Search, Plus, Edit2, Trash2, X, Calendar, TrendingUp, Droplet, DollarSign, Calculator, Bell, ChevronDown, Activity, Settings, Building2, Phone, Mail, MapPin, Hash, Clock, BarChart2, Layers, CircleDollarSign, UserCheck, UserPlus, AlertCircle, Globe, Camera, Building, Tag, RefreshCw, Database, ChevronRight, Filter, Printer, Moon, Sun, Trophy, Lock, Unlock } from 'lucide-react';
+import { Home, FileText, Users as UsersIcon, Truck, Package, LogOut, Eye, Search, Plus, Edit2, Trash2, X, Calendar, TrendingUp, Droplet, DollarSign, Calculator, Bell, ChevronDown, Activity, Settings, Building2, Phone, Mail, MapPin, Hash, Clock, BarChart2, Layers, CircleDollarSign, UserCheck, UserPlus, AlertCircle, Globe, Camera, Building, Tag, RefreshCw, Database, ChevronRight, ChevronLeft, Filter, Printer, Moon, Sun, Trophy, Lock, Unlock, Wallet, Download, CreditCard, CheckCircle2, AlertTriangle } from 'lucide-react';
 import './App.css';
+import './cr-styles.css';
 
 // Mock data
 const hourlyData = [
@@ -221,11 +222,12 @@ const Login = ({ onLogin, adminUsers }) => {
 // Sidebar Component
 const Sidebar = ({ currentPage, setCurrentPage, onLogout, themeMode }) => {
   const menuItems = [
-    { icon: Home,      label: 'DASHBOARD',      page: 'dashboard' },
-    { icon: Package,   label: 'POSIÇÃO ESTOQUE', page: 'stock'     },
-    { icon: Truck,     label: 'LIVRO DE MOVIMENTAÇÃO', page: 'control'   },
-    { icon: FileText,  label: 'RELATÓRIOS',      page: 'reports'   },
-    { icon: Settings,  label: 'PARÂMETROS',      page: 'params'    },
+    { icon: Home,      label: 'DASHBOARD',           page: 'dashboard' },
+    { icon: Package,   label: 'POSIÇÃO ESTOQUE',      page: 'stock'     },
+    { icon: Truck,     label: 'LIVRO DE MOVIMENTAÇÃO',page: 'control'   },
+    { icon: Wallet,    label: 'CONTAS A RECEBER',     page: 'receber'   },
+    { icon: FileText,  label: 'RELATÓRIOS',           page: 'reports'   },
+    { icon: Settings,  label: 'PARÂMETROS',           page: 'params'    },
   ];
 
   return (
@@ -267,6 +269,7 @@ const PAGE_TITLES = {
   reports: 'Relatórios',
   control: 'Livro de Movimentação',
   stock: 'Posição de Estoque',
+  receber: 'Contas a Receber',
   users: 'Gerenciamento de Usuários',
   params: 'Parâmetros',
 };
@@ -1254,6 +1257,534 @@ const ProductMatrixTooltip = ({ active, payload }) => {
     </div>
   );
 };
+
+// ── ContasReceber ─────────────────────────────────────────────────────────────
+
+// Mock clientes
+const CR_CLIENTES = [
+  { codigo:  1, nome:'Mercado Brisa LTDA',          cnpj:'12.345.678/0001-90' },
+  { codigo:  2, nome:'Comercial Alpha LTDA',         cnpj:'23.456.789/0001-01' },
+  { codigo:  3, nome:'Distribuidora Nova Era',        cnpj:'34.567.890/0001-12' },
+  { codigo:  4, nome:'Supermercado Ideal',            cnpj:'45.678.901/0001-23' },
+  { codigo:  5, nome:'Restaurante Sabor & Cia',       cnpj:'56.789.012/0001-34' },
+  { codigo:  6, nome:'Padaria Pão Quente',            cnpj:'67.890.123/0001-45' },
+  { codigo:  7, nome:'Auto Peças São Paulo',          cnpj:'78.901.234/0001-56' },
+  { codigo:  8, nome:'Transportes Rápido LTDA',       cnpj:'89.012.345/0001-67' },
+  { codigo:  9, nome:'Farmácia Popular',              cnpj:'90.123.456/0001-78' },
+  { codigo: 10, nome:'Construtora Horizonte',         cnpj:'01.234.567/0001-89' },
+  { codigo: 11, nome:'Hotel Bela Vista',              cnpj:'12.345.678/0002-71' },
+  { codigo: 12, nome:'Atacado Do Sul LTDA',           cnpj:'23.456.789/0002-82' },
+  { codigo: 13, nome:'Escola Futuro',                 cnpj:'34.567.890/0002-93' },
+  { codigo: 14, nome:'Metalúrgica Santos',            cnpj:'45.678.901/0002-04' },
+  { codigo: 15, nome:'Clínica São José',              cnpj:'56.789.012/0002-15' },
+];
+
+function crMockContas() {
+  const ref = new Date(2026, 4, 26); // hoje = 26/mai/2026
+  const contas = [];
+  // distribuição: ~16% atrasado, ~6% vence_hoje, ~40% a_vencer, ~38% recebido
+  const dist = [
+    ...Array(20).fill('atrasado'),
+    ...Array( 7).fill('vence_hoje'),
+    ...Array(50).fill('a_vencer'),
+    ...Array(47).fill('recebido'),
+  ];
+  for (let i = 0; i < 124; i++) {
+    const cli = CR_CLIENTES[i % CR_CLIENTES.length];
+    const st  = dist[i % dist.length];
+    const seed = (i * 7 + 13) % 100;
+
+    let vencDays;
+    if (st === 'atrasado')   vencDays = -(1 + (seed % 75));
+    else if (st === 'vence_hoje') vencDays = 0;
+    else if (st === 'a_vencer')   vencDays = 1 + (seed % 90);
+    else                          vencDays = -(1 + (seed % 60));
+
+    const venc = new Date(ref);
+    venc.setDate(venc.getDate() + vencDays);
+    const vencStr = venc.toISOString().split('T')[0];
+
+    const valor    = 5000 + (seed * 1031 % 70000);
+    const juros    = st === 'atrasado' ? Math.round(valor * 0.02 * (Math.abs(vencDays) / 30) * 100) / 100 : 0;
+    const desconto = st === 'recebido' && seed > 70 ? Math.round(valor * 0.03 * 100) / 100 : 0;
+
+    contas.push({
+      id:              1250 + i + 1,
+      cliente:         cli.nome,
+      cnpj:            cli.cnpj,
+      documento:       `Fatura ${String(1250 + i + 1).padStart(7, '0')}`,
+      vencimento:      vencStr,
+      valor,
+      juros,
+      desconto,
+      valorAReceber:   valor + juros - desconto,
+      status:          st,
+      diasAtraso:      st === 'atrasado' ? Math.abs(vencDays) : 0,
+      dataRecebimento: st === 'recebido' ? vencStr : null,
+    });
+  }
+  return contas.sort((a, b) => {
+    const ord = { atrasado:0, vence_hoje:1, a_vencer:2, recebido:3 };
+    return (ord[a.status] - ord[b.status]) || a.vencimento.localeCompare(b.vencimento);
+  });
+}
+
+const CR_ALL_MOCK = crMockContas();
+
+function crMockResumo(contas) {
+  const today = '2026-05-26';
+  let totalAReceber = 0, aReceberHoje = 0, emAtraso = 0, recebidosMes = 0;
+  contas.forEach(c => {
+    if (c.status !== 'recebido') {
+      totalAReceber += c.valorAReceber;
+      if (c.status === 'vence_hoje') aReceberHoje += c.valorAReceber;
+      if (c.status === 'atrasado')   emAtraso     += c.valorAReceber;
+    } else {
+      if (c.vencimento >= '2026-05-01' && c.vencimento <= today) recebidosMes += c.valor;
+    }
+  });
+  return {
+    totalAReceber, aReceberHoje, emAtraso,
+    recebidosMes,
+    inadimplencia: totalAReceber > 0 ? (emAtraso / totalAReceber) * 100 : 0,
+  };
+}
+
+function crMockAnaliticos(contas) {
+  let aVencer = 0, venceHoje = 0, atrasado = 0, recebido = 0;
+  let f1 = 0, f2 = 0, f3 = 0, f4 = 0;
+  const divPorCli = {};
+  contas.forEach(c => {
+    if (c.status === 'a_vencer')   aVencer   += c.valorAReceber;
+    if (c.status === 'vence_hoje') venceHoje += c.valorAReceber;
+    if (c.status === 'atrasado')   atrasado  += c.valorAReceber;
+    if (c.status === 'recebido')   recebido  += c.valor;
+    if (c.status === 'atrasado') {
+      const d = c.diasAtraso;
+      if (d <= 15)      f1 += c.valor;
+      else if (d <= 30) f2 += c.valor;
+      else if (d <= 60) f3 += c.valor;
+      else              f4 += c.valor;
+    }
+    if (c.status !== 'recebido') {
+      divPorCli[c.cliente] = (divPorCli[c.cliente] || 0) + c.valorAReceber;
+    }
+  });
+  const totalAberto = aVencer + venceHoje + atrasado;
+  const top5 = Object.entries(divPorCli).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([cliente,divida])=>({cliente,divida}));
+  const abertos = contas.filter(c => c.status !== 'recebido');
+  const ticketMedio = abertos.length ? abertos.reduce((s,c)=>s+c.valor,0)/abertos.length : 0;
+  return {
+    porStatus: { aVencer, venceHoje, atrasado, recebido },
+    faixaAtraso: { f1, f2, f3, f4, total: f1+f2+f3+f4 },
+    top5,
+    indices: {
+      ticketMedio,
+      prazoMedio: 32,
+      inadimplencia: totalAberto > 0 ? (atrasado / totalAberto) * 100 : 0,
+      recebimentoAntecip: 5.4,
+    },
+  };
+}
+
+// Status helpers
+const CR_STATUS_LABEL = { a_vencer:'A Vencer', vence_hoje:'Vence Hoje', atrasado:'Atrasado', recebido:'Recebido' };
+const CR_STATUS_CLS   = { a_vencer:'cr-badge-vencer', vence_hoje:'cr-badge-hoje', atrasado:'cr-badge-atraso', recebido:'cr-badge-recebido' };
+
+const ContasReceber = ({ clients, selectedClient }) => {
+  const [resumo,      setResumo]     = useState(null);
+  const [contas,      setContas]     = useState([]);
+  const [pagination,  setPagination] = useState({ page:1, totalPages:1, total:0, limit:10 });
+  const [analiticos,  setAnaliticos] = useState(null);
+  const [search,      setSearch]     = useState('');
+  const [statusFiltro,setStatusFiltro] = useState('todos');
+  const [dataInicio,  setDataInicio] = useState('');
+  const [dataFim,     setDataFim]    = useState('');
+  const [page,        setPage]       = useState(1);
+  const [loading,     setLoading]    = useState(false);
+  const [usingMock,   setUsingMock]  = useState(false);
+  const [viewConta,   setViewConta]  = useState(null);
+
+  const empresa = useMemo(() => {
+    const c = (clients||[]).find(cl=>cl.nome===selectedClient)||(clients||[])[0];
+    return c?.codigoEmpresa||null;
+  }, [clients, selectedClient]);
+
+  // Busca resumo + analíticos
+  useEffect(() => {
+    if (!empresa) {
+      const mock = CR_ALL_MOCK;
+      setResumo(crMockResumo(mock));
+      setAnaliticos(crMockAnaliticos(mock));
+      setUsingMock(true);
+      return;
+    }
+    Promise.all([
+      fetch(`${API_URL}/api/receber/resumo?empresa=${empresa}`).then(r=>r.json()),
+      fetch(`${API_URL}/api/receber/analiticos?empresa=${empresa}`).then(r=>r.json()),
+    ]).then(([res, ana]) => {
+      if (res.error) throw new Error(res.error);
+      setResumo(res);
+      setAnaliticos(ana);
+      setUsingMock(false);
+    }).catch(() => {
+      const mock = CR_ALL_MOCK;
+      setResumo(crMockResumo(mock));
+      setAnaliticos(crMockAnaliticos(mock));
+      setUsingMock(true);
+    });
+  }, [empresa]);
+
+  // Busca tabela paginada
+  useEffect(() => {
+    if (usingMock || !empresa) {
+      // Filtro local no mock
+      let filtered = CR_ALL_MOCK;
+      if (search)       filtered = filtered.filter(c => c.cliente.toLowerCase().includes(search.toLowerCase()) || c.documento.toLowerCase().includes(search.toLowerCase()) || c.cnpj.includes(search));
+      if (statusFiltro !== 'todos') filtered = filtered.filter(c => c.status === statusFiltro);
+      if (dataInicio)   filtered = filtered.filter(c => c.vencimento >= dataInicio);
+      if (dataFim)      filtered = filtered.filter(c => c.vencimento <= dataFim);
+      const limit = 10;
+      const total = filtered.length;
+      const totalPages = Math.max(1, Math.ceil(total / limit));
+      const slice = filtered.slice((page-1)*limit, page*limit);
+      setContas(slice);
+      setPagination({ page, totalPages, total, limit });
+      return;
+    }
+    setLoading(true);
+    const qs = new URLSearchParams({ empresa, page, limit:10, search, status:statusFiltro, ...(dataInicio&&{dataInicio}), ...(dataFim&&{dataFim}) });
+    fetch(`${API_URL}/api/receber/contas?${qs}`)
+      .then(r=>r.json())
+      .then(data => { setContas(data.data||[]); setPagination(data.pagination||{page,totalPages:1,total:0,limit:10}); })
+      .catch(() => setUsingMock(true))
+      .finally(() => setLoading(false));
+  }, [empresa, usingMock, page, search, statusFiltro, dataInicio, dataFim]);
+
+  const fmtBRL = v => `R$ ${Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}`;
+  const fmtPct = v => `${Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}%`;
+  const fmtDate = s => s ? String(s).substring(0,10).split('-').reverse().join('/') : '-';
+
+  const totaisTabela = useMemo(() => {
+    const t = { valor:0, juros:0, desconto:0, valorAReceber:0 };
+    contas.forEach(c => { t.valor+=c.valor; t.juros+=c.juros; t.desconto+=c.desconto; t.valorAReceber+=c.valorAReceber; });
+    return t;
+  }, [contas]);
+
+  // Paginação renderizada
+  const renderPagination = () => {
+    const { page:pg, totalPages:tp, total } = pagination;
+    const pages = [];
+    if (tp <= 7) { for(let i=1;i<=tp;i++) pages.push(i); }
+    else {
+      pages.push(1);
+      if (pg > 3) pages.push('...');
+      for(let i=Math.max(2,pg-1); i<=Math.min(tp-1,pg+1); i++) pages.push(i);
+      if (pg < tp - 2) pages.push('...');
+      pages.push(tp);
+    }
+    return (
+      <div className="cr-pagination">
+        <span className="cr-pag-info">Mostrando {(pg-1)*pagination.limit+1} a {Math.min(pg*pagination.limit,total)} de {total} contas</span>
+        <div className="cr-pag-btns">
+          <button className="cr-pag-btn" disabled={pg<=1} onClick={()=>setPage(1)}>«</button>
+          <button className="cr-pag-btn" disabled={pg<=1} onClick={()=>setPage(pg-1)}><ChevronLeft size={14}/></button>
+          {pages.map((p,i) => p==='...'
+            ? <span key={`e${i}`} className="cr-pag-ellipsis">...</span>
+            : <button key={p} className={`cr-pag-btn${pg===p?' active':''}`} onClick={()=>setPage(p)}>{p}</button>
+          )}
+          <button className="cr-pag-btn" disabled={pg>=tp} onClick={()=>setPage(pg+1)}><ChevronRight size={14}/></button>
+          <button className="cr-pag-btn" disabled={pg>=tp} onClick={()=>setPage(tp)}>»</button>
+        </div>
+      </div>
+    );
+  };
+
+  // Dados do gráfico pizza
+  const pizzaData = analiticos ? [
+    { name:'A Vencer',   value: analiticos.porStatus.aVencer,   color:'#3b82f6' },
+    { name:'Vence Hoje', value: analiticos.porStatus.venceHoje, color:'#f59e0b' },
+    { name:'Atrasado',   value: analiticos.porStatus.atrasado,  color:'#ef4444' },
+    { name:'Recebido',   value: analiticos.porStatus.recebido,  color:'#22c55e' },
+  ].filter(d=>d.value>0) : [];
+  const pizzaTotal = pizzaData.reduce((s,d)=>s+d.value,0);
+
+  const handleExport = () => {
+    const rows = contas.map(c => ({
+      Cliente: c.cliente, CNPJ: c.cnpj, Documento: c.documento,
+      Vencimento: fmtDate(c.vencimento), 'Dias Atraso': c.diasAtraso,
+      Valor: c.valor, Juros: c.juros, Desconto: c.desconto,
+      'Valor a Receber': c.valorAReceber, Status: CR_STATUS_LABEL[c.status],
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Contas a Receber');
+    XLSX.writeFile(wb, 'contas-a-receber.xlsx');
+  };
+
+  return (
+    <div className="cr-page">
+      {/* ── Topo ─────────────────────────────────────────────────────────── */}
+      <div className="cr-header">
+        <div className="cr-header-title">
+          <CreditCard size={28} color="#E31E24" />
+          <h2>GERENCIAMENTO DE CONTAS A RECEBER</h2>
+          {usingMock && <span className="cr-demo-badge">demonstração</span>}
+        </div>
+        <div className="cr-header-actions">
+          <button className="cr-btn-export" onClick={handleExport}>
+            <Download size={15}/> Exportar Excel
+          </button>
+        </div>
+      </div>
+
+      {/* ── KPI Cards ────────────────────────────────────────────────────── */}
+      <div className="cr-kpi-row">
+        {[
+          { label:'Total a Receber',   value: fmtBRL(resumo?.totalAReceber),  icon: DollarSign,    color:'#22c55e', bg:'rgba(34,197,94,0.12)' },
+          { label:'A Receber Hoje',    value: fmtBRL(resumo?.aReceberHoje),   icon: Calendar,      color:'#f59e0b', bg:'rgba(245,158,11,0.12)' },
+          { label:'Em Atraso',         value: fmtBRL(resumo?.emAtraso),       icon: AlertTriangle, color:'#ef4444', bg:'rgba(239,68,68,0.12)' },
+          { label:'Recebidos (mês)',   value: fmtBRL(resumo?.recebidosMes),   icon: TrendingUp,    color:'#3b82f6', bg:'rgba(59,130,246,0.12)' },
+          { label:'Inadimplência',     value: fmtPct(resumo?.inadimplencia),  icon: BarChart2,     color:'#a855f7', bg:'rgba(168,85,247,0.12)', pct: true },
+        ].map(kpi => (
+          <div key={kpi.label} className="cr-kpi">
+            <div className="cr-kpi-icon" style={{ background: kpi.bg }}>
+              <kpi.icon size={22} color={kpi.color} />
+            </div>
+            <div className="cr-kpi-body">
+              <span className="cr-kpi-label">{kpi.label}</span>
+              <span className="cr-kpi-value" style={{ color: kpi.color }}>{resumo ? kpi.value : '...'}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Filtros ───────────────────────────────────────────────────────── */}
+      <div className="cr-filters">
+        <div className="cr-search-wrap">
+          <Search size={15} className="cr-search-icon"/>
+          <input className="cr-search" placeholder="Buscar cliente, descrição, nº documento..."
+            value={search} onChange={e=>{ setSearch(e.target.value); setPage(1); }} />
+        </div>
+        <select className="cr-select" value={statusFiltro} onChange={e=>{ setStatusFiltro(e.target.value); setPage(1); }}>
+          <option value="todos">Todos os Status</option>
+          <option value="a_vencer">A Vencer</option>
+          <option value="vence_hoje">Vence Hoje</option>
+          <option value="atrasado">Atrasado</option>
+          <option value="recebido">Recebido</option>
+        </select>
+        <div className="cr-date-range">
+          <span className="cr-date-label">Vencimento de</span>
+          <input type="date" className="cr-date-input" value={dataInicio} onChange={e=>{ setDataInicio(e.target.value); setPage(1); }} />
+          <span className="cr-date-label">até</span>
+          <input type="date" className="cr-date-input" value={dataFim}    onChange={e=>{ setDataFim(e.target.value);    setPage(1); }} />
+          {(dataInicio||dataFim) && <button className="cr-clear-btn" onClick={()=>{ setDataInicio(''); setDataFim(''); setPage(1); }}><X size={13}/></button>}
+        </div>
+      </div>
+
+      {/* ── Tabela ────────────────────────────────────────────────────────── */}
+      <div className="cr-table-wrap">
+        {loading && <div className="cr-loading">Carregando...</div>}
+        <table className="cr-table">
+          <thead>
+            <tr>
+              <th>CLIENTE</th>
+              <th>CNPJ</th>
+              <th>TOTAL POR CLIENTE</th>
+              <th>VENCIMENTO</th>
+              <th>DIAS DE ATRASO</th>
+              <th>VALOR CONSUMIDO</th>
+              <th>JUROS</th>
+              <th>DESCONTOS</th>
+              <th>VALOR A RECEBER</th>
+              <th>STATUS</th>
+              <th>AÇÕES</th>
+            </tr>
+          </thead>
+          <tbody>
+            {contas.map(c => (
+              <tr key={c.id} className="cr-row">
+                <td>
+                  <div className="cr-cli-cell">
+                    <span className="cr-cli-nome">{c.cliente}</span>
+                    <span className="cr-cli-doc">{c.documento}</span>
+                  </div>
+                </td>
+                <td className="cr-mono">{c.cnpj}</td>
+                <td className="cr-mono cr-right">{fmtBRL(c.valor)}</td>
+                <td className="cr-mono">{fmtDate(c.vencimento)}</td>
+                <td className={`cr-mono cr-right ${c.diasAtraso > 0 ? 'cr-red' : c.diasAtraso === 0 && c.status !== 'recebido' ? 'cr-amber' : ''}`}>
+                  {c.status === 'recebido' ? '-' : c.diasAtraso > 0 ? c.diasAtraso : c.status === 'vence_hoje' ? '0' : `-${Math.ceil((new Date(c.vencimento)-new Date('2026-05-26'))/(86400000))}`}
+                </td>
+                <td className="cr-mono cr-right">{fmtBRL(c.valor)}</td>
+                <td className="cr-mono cr-right cr-green">{fmtBRL(c.juros)}</td>
+                <td className="cr-mono cr-right cr-amber">{fmtBRL(c.desconto)}</td>
+                <td className="cr-mono cr-right cr-bold">{fmtBRL(c.valorAReceber)}</td>
+                <td><span className={`cr-badge ${CR_STATUS_CLS[c.status]}`}>{CR_STATUS_LABEL[c.status]}</span></td>
+                <td>
+                  <div className="cr-actions">
+                    <button className="cr-action-btn" title="Visualizar" onClick={()=>setViewConta(c)}><Eye size={15}/></button>
+                    <button className="cr-action-btn" title="Exportar"><FileText size={15}/></button>
+                    <button className="cr-action-btn cr-action-down" title="Registrar Recebimento"><Download size={15}/></button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+          {contas.length > 0 && (
+            <tfoot>
+              <tr className="cr-totals">
+                <td colSpan={2}><strong>TOTAIS</strong></td>
+                <td className="cr-mono cr-right"><strong>{fmtBRL(totaisTabela.valor)}</strong></td>
+                <td>-</td>
+                <td>-</td>
+                <td className="cr-mono cr-right"><strong>{fmtBRL(totaisTabela.valor)}</strong></td>
+                <td className="cr-mono cr-right cr-green"><strong>{fmtBRL(totaisTabela.juros)}</strong></td>
+                <td className="cr-mono cr-right cr-amber"><strong>{fmtBRL(totaisTabela.desconto)}</strong></td>
+                <td className="cr-mono cr-right cr-bold"><strong>{fmtBRL(totaisTabela.valorAReceber)}</strong></td>
+                <td colSpan={2}></td>
+              </tr>
+            </tfoot>
+          )}
+        </table>
+        {contas.length === 0 && !loading && (
+          <div className="cr-empty">Nenhuma conta encontrada para os filtros aplicados.</div>
+        )}
+      </div>
+
+      {renderPagination()}
+
+      {/* ── Painéis Analíticos ─────────────────────────────────────────── */}
+      {analiticos && (
+        <div className="cr-analytics">
+
+          {/* Pizza por status */}
+          <div className="cr-panel">
+            <h4 className="cr-panel-title">RESUMO POR STATUS</h4>
+            <div className="cr-pizza-wrap">
+              <div className="cr-pizza-chart">
+                {pizzaData.map((seg, i, arr) => {
+                  const filled = arr.slice(0, i).reduce((s, d) => s + d.value, 0);
+                  const pct    = pizzaTotal > 0 ? (filled / pizzaTotal) * 100 : 0;
+                  return null; // SVG handled via CSS conic-gradient
+                })}
+                <div className="cr-donut" style={{
+                  background: pizzaTotal > 0
+                    ? `conic-gradient(${pizzaData.map((seg, i) => {
+                        const prev = pizzaData.slice(0, i).reduce((s, d) => s + d.value, 0) / pizzaTotal * 360;
+                        const cur  = seg.value / pizzaTotal * 360;
+                        return `${seg.color} ${prev.toFixed(1)}deg ${(prev+cur).toFixed(1)}deg`;
+                      }).join(', ')})`
+                    : '#334155',
+                }}><span className="cr-donut-center">{fmtPct(resumo?.inadimplencia)}<small>Inadimp.</small></span></div>
+              </div>
+              <div className="cr-pizza-legend">
+                {[
+                  { label:'A Vencer',   v: analiticos.porStatus.aVencer,   color:'#3b82f6' },
+                  { label:'Vence Hoje', v: analiticos.porStatus.venceHoje, color:'#f59e0b' },
+                  { label:'Atrasado',   v: analiticos.porStatus.atrasado,  color:'#ef4444' },
+                  { label:'Recebido',   v: analiticos.porStatus.recebido,  color:'#22c55e' },
+                ].map(l => (
+                  <div key={l.label} className="cr-legend-item">
+                    <span className="cr-legend-dot" style={{background:l.color}}></span>
+                    <span className="cr-legend-label">{l.label}</span>
+                    <span className="cr-legend-val">{fmtBRL(l.v)}</span>
+                    <span className="cr-legend-pct">{pizzaTotal>0?fmtPct(l.v/pizzaTotal*100):'0,00%'}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Faixa de atraso */}
+          <div className="cr-panel">
+            <h4 className="cr-panel-title">FAIXA DE ATRASO</h4>
+            {[
+              { label:'1 a 15 dias',  v: analiticos.faixaAtraso.f1 },
+              { label:'16 a 30 dias', v: analiticos.faixaAtraso.f2 },
+              { label:'31 a 60 dias', v: analiticos.faixaAtraso.f3 },
+              { label:'+ 60 dias',    v: analiticos.faixaAtraso.f4 },
+            ].map(f => {
+              const tot = analiticos.faixaAtraso.total;
+              const pct = tot > 0 ? f.v / tot * 100 : 0;
+              return (
+                <div key={f.label} className="cr-faixa-row">
+                  <span className="cr-faixa-label">{f.label}</span>
+                  <div className="cr-faixa-bar-wrap">
+                    <div className="cr-faixa-bar" style={{width:`${Math.min(pct,100).toFixed(1)}%`}}></div>
+                  </div>
+                  <span className="cr-faixa-val">{fmtBRL(f.v)}</span>
+                  <span className="cr-faixa-pct">{fmtPct(pct)}</span>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Top 5 clientes */}
+          <div className="cr-panel">
+            <h4 className="cr-panel-title">TOP 5 CLIENTES (MAIOR DÍVIDA)</h4>
+            {analiticos.top5.map((t, i) => (
+              <div key={t.cliente} className="cr-top-row">
+                <span className="cr-top-rank">{i+1}.</span>
+                <span className="cr-top-nome">{t.cliente}</span>
+                <span className="cr-top-val">{fmtBRL(t.divida)}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Índices financeiros */}
+          <div className="cr-panel">
+            <h4 className="cr-panel-title">ÍNDICES FINANCEIROS</h4>
+            {[
+              { label:'Ticket Médio',           value: fmtBRL(analiticos.indices.ticketMedio) },
+              { label:'Prazo Médio (dias)',      value: analiticos.indices.prazoMedio },
+              { label:'Índice de Inadimplência', value: fmtPct(analiticos.indices.inadimplencia), red: true },
+              { label:'Recebimento Antecipado',  value: fmtPct(analiticos.indices.recebimentoAntecip) },
+            ].map(idx => (
+              <div key={idx.label} className="cr-idx-row">
+                <span className="cr-idx-label">{idx.label}</span>
+                <span className={`cr-idx-val ${idx.red ? 'cr-red' : ''}`}>{idx.value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal de Visualização ─────────────────────────────────────────── */}
+      {viewConta && (
+        <div className="cr-modal-overlay" onClick={()=>setViewConta(null)}>
+          <div className="cr-modal" onClick={e=>e.stopPropagation()}>
+            <div className="cr-modal-header">
+              <h3>Detalhes da Conta</h3>
+              <button className="cr-modal-close" onClick={()=>setViewConta(null)}><X size={18}/></button>
+            </div>
+            <div className="cr-modal-body">
+              {[
+                ['Cliente',         viewConta.cliente],
+                ['CNPJ',            viewConta.cnpj],
+                ['Documento',       viewConta.documento],
+                ['Vencimento',      fmtDate(viewConta.vencimento)],
+                ['Status',          CR_STATUS_LABEL[viewConta.status]],
+                ['Dias de Atraso',  viewConta.diasAtraso > 0 ? `${viewConta.diasAtraso} dias` : '-'],
+                ['Valor',           fmtBRL(viewConta.valor)],
+                ['Juros',           fmtBRL(viewConta.juros)],
+                ['Desconto',        fmtBRL(viewConta.desconto)],
+                ['Valor a Receber', fmtBRL(viewConta.valorAReceber)],
+                ...(viewConta.dataRecebimento ? [['Data Recebimento', fmtDate(viewConta.dataRecebimento)]] : []),
+              ].map(([k,v]) => (
+                <div key={k} className="cr-modal-row">
+                  <span className="cr-modal-key">{k}</span>
+                  <span className="cr-modal-val">{v}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+// ── fim ContasReceber ─────────────────────────────────────────────────────────
 
 // Dashboard Component
 const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcControle, estoques, loading, clients, selectedClient, selectedPeriod, themeMode }) => {
@@ -4807,6 +5338,8 @@ export default function App() {
         return <Control lmcRegistros={apiData.lmcRegistros} lmcDiario={apiData.lmcDiario} lmcControle={apiData.lmcControle} selectedPeriod={controlPeriod} setSelectedPeriod={setControlPeriod} selectedClient={selectedClient} clients={clients} />;
       case 'stock':
         return <StockPosition estoques={apiData.estoques} projecao={apiData.projecao} loading={apiData.loading} selectedClient={selectedClient} clients={clients} />;
+      case 'receber':
+        return <ContasReceber clients={clients} selectedClient={selectedClient} />;
       case 'users':
         return <Users adminUsers={adminUsers} setAdminUsers={setAdminUsers} isAdmin={isAdmin} />;
       case 'params':
