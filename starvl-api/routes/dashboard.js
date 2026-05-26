@@ -51,17 +51,32 @@ router.get('/kpis', async (req, res) => {
       [empresa, dataInicio, dataFim]
     );
 
-    // Compras 110 (com nota fiscal - entcpachave NOT NULL)
+    // Compras de Combustível: NF (entcpi, entcpachave NOT NULL) + Pedidos (pedi/pede)
     const compras110Result = await query(
-      `SELECT
-         COUNT(DISTINCT entcpa.entcpacodigo) AS total_nf,
-         COALESCE(SUM(entcpi.entcpitotal), 0) AS valor_compras_110
-       FROM entcpa
-       JOIN entcpi ON entcpi.entcpicompra = entcpa.entcpacodigo
-       WHERE entcpa.entcpaempresa = $1
-         AND DATE(entcpa.entcpachegada) >= $2
-         AND DATE(entcpa.entcpachegada) <= $3
-         AND entcpa.entcpachave IS NOT NULL`,
+      `WITH c110 AS (
+         SELECT COALESCE(SUM(ei.entcpitotal), 0) AS valor,
+                COUNT(DISTINCT ec.entcpacodigo)   AS total
+         FROM entcpa ec
+         JOIN entcpi ei ON ei.entcpicompra = ec.entcpacodigo
+         WHERE ec.entcpaempresa = $1
+           AND DATE(ec.entcpachegada) >= $2
+           AND DATE(ec.entcpachegada) <= $3
+           AND ec.entcpachave IS NOT NULL
+       ),
+       c220 AS (
+         SELECT COALESCE(SUM(pi.peditotal), 0) AS valor,
+                COUNT(DISTINCT pd.pedecodigo)   AS total
+         FROM pede pd
+         JOIN pedi pi ON pi.pedicodigopede = pd.pedecodigo
+                     AND pi.pediempresa    = pd.pedeempresa
+         WHERE pd.pedeempresa = $1
+           AND pd.pededatarecebimento IS NOT NULL
+           AND DATE(pd.pededatarecebimento) >= $2
+           AND DATE(pd.pededatarecebimento) <= $3
+       )
+       SELECT
+         (SELECT valor FROM c110) + (SELECT valor FROM c220) AS valor_compras,
+         (SELECT total FROM c110) + (SELECT total FROM c220) AS total_compras`,
       [empresa, dataInicio, dataFim]
     );
 
@@ -102,8 +117,8 @@ router.get('/kpis', async (req, res) => {
         valor: parseFloat(combustivelResult.rows[0].valor_combustivel),
       },
       compras110: {
-        total: parseInt(compras110Result.rows[0].total_nf),
-        valor: parseFloat(compras110Result.rows[0].valor_compras_110),
+        total: parseInt(compras110Result.rows[0].total_compras),
+        valor: parseFloat(compras110Result.rows[0].valor_compras),
       },
       compras220: {
         total: parseInt(compras220Result.rows[0].total_sem_nf),

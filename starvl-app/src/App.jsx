@@ -1210,8 +1210,8 @@ const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcContr
 
   const dashboardKpis = kpis ? [
     { label: 'Total Vendas', value: 'R$ ' + fmt(kpis.vendas?.valor), icon: DollarSign, sub: `${(kpis.vendas?.total || 0).toLocaleString('pt-BR')} vendas` },
-    { label: 'Litros Vendidos', value: 'R$ ' + fmt(kpis.combustivel?.valor), icon: Droplet, sub: fmt(kpis.combustivel?.litros) + ' L' },
-    { label: 'Compras c/ NF (110)', value: 'R$ ' + fmt(kpis.compras110?.valor), icon: FileText, sub: `${(kpis.compras110?.total || 0).toLocaleString('pt-BR')} NFs` },
+    { label: 'Litros Vendidos', value: fmt(kpis.combustivel?.litros) + ' L', icon: Droplet, sub: 'R$ ' + fmt(kpis.combustivel?.valor) },
+    { label: 'Compras de Combustível', value: 'R$ ' + fmt(kpis.compras110?.valor), icon: FileText, sub: `${(kpis.compras110?.total || 0).toLocaleString('pt-BR')} compras` },
     { label: 'Aferições', value: fmt(kpis.afericoes?.qtd) + ' L', icon: Activity, sub: `${(kpis.afericoes?.total || 0).toLocaleString('pt-BR')} aferições` },
   ] : [
     { label: 'Carregando...', value: '—', icon: DollarSign, sub: '' },
