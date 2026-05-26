@@ -1855,13 +1855,13 @@ const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcContr
 
   const vendasCombustivelFallback = [{ name: 'Sem dados', litros: 0, color: DASHBOARD_COLORS.sale }];
 
-  // Mock top-4 conveniência mais vendida (demo)
+  // Mock top-4 conveniência mais vendida (demo) — produtos individuais
   const _CONV_DASH_COLORS = ['#3b82f6', '#8b5cf6', '#f59e0b', '#06b6d4'];
   const _CONV_DASH_BASE   = [
-    { name: 'Refrigerante', qty: 1842 },
-    { name: 'Cigarro',      qty: 1205 },
-    { name: 'Água 500ml',   qty:  987 },
-    { name: 'Café Expresso',qty:  756 },
+    { name: 'Refrig. 350ml',   qty: 1842 },
+    { name: 'Água 500ml',      qty: 1725 },
+    { name: 'Café Expresso',   qty:  930 },
+    { name: 'Marlboro',        qty:  760 },
   ];
   const salesConvChartData = _CONV_DASH_BASE.map((r, i) => ({ ...r, color: _CONV_DASH_COLORS[i] }));
 
@@ -1979,7 +1979,7 @@ const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcContr
               <CartesianGrid strokeDasharray="3 3" stroke={DASHBOARD_COLORS.grid} />
               <XAxis dataKey="name" stroke={DASHBOARD_COLORS.axis} tick={xTickStyle} interval={0} height={isCompactDashboard ? 46 : 30} angle={isCompactDashboard ? -18 : 0} textAnchor={isCompactDashboard ? 'end' : 'middle'} />
               <YAxis stroke={DASHBOARD_COLORS.axis} tick={xTickStyle} width={isCompactDashboard ? 46 : 60} />
-              <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: '#fff' }} formatter={(v, _name, props) => [<span style={{ color: props.payload?.color || '#60a5fa', fontWeight: 700 }}>{Number(v).toLocaleString('pt-BR') + ' un.'}</span>, 'Unidades']} />
+              <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: '#fff' }} formatter={(v, _name, props) => [<span style={{ color: props.payload?.color || '#60a5fa', fontWeight: 700 }}>{Number(v).toLocaleString('pt-BR') + ' un.'}</span>, <span style={{ color: props.payload?.color || '#60a5fa' }}>Unidades</span>]} />
               <Bar dataKey="qty" name="Unidades vendidas" radius={[8, 8, 0, 0]}>
                 {salesConvChartData.map((entry, index) => (
                   <Cell key={`sales-conv-${entry.name}-${index}`} fill={entry.color} />
