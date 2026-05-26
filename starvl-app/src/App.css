@@ -1237,6 +1237,18 @@ body.theme-light-body {
   font-size: 13px;
 }
 
+/* ABC legend strip */
+.pm-abc-legend {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+  padding: 6px 16px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #94a3b8;
+  flex-wrap: wrap;
+}
+
 .product-matrix-tooltip span {
   color: #a1a1aa;
   font-size: 12px;
