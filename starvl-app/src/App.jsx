@@ -4485,7 +4485,6 @@ const ConvenienciaManager = ({ themeMode }) => {
           <h2 className="pm-title">GERENCIAMENTO DE PRODUTOS — CONVENIÊNCIA</h2>
         </div>
         <div className="pm-header-actions">
-          <button className="pm-btn-primary" onClick={() => alert('Funcionalidade disponível na versão completa')}><Plus size={15} /> NOVO PRODUTO</button>
           <button className="pm-btn-outline"><Filter size={14} /> FILTROS</button>
         </div>
       </div>
@@ -4616,7 +4615,6 @@ const ConvenienciaManager = ({ themeMode }) => {
                     <div className="pm-actions">
                       <button className="pm-action-btn" title="Ver" onClick={() => setViewProd(p)}><Eye size={13} /></button>
                       <button className="pm-action-btn pm-action-edit" title="Editar" onClick={() => alert('Edição disponível na versão completa')}><Edit2 size={13} /></button>
-                      <button className="pm-action-btn pm-action-del" title="Excluir" onClick={() => alert('Exclusão disponível na versão completa')}><Trash2 size={13} /></button>
                     </div>
                   </td>
                 </tr>
