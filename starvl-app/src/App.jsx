@@ -6,6 +6,7 @@ import { LineChart, Line, BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tool
 import { Home, FileText, Users as UsersIcon, Truck, Package, LogOut, Eye, Search, Plus, Edit2, Trash2, X, Calendar, TrendingUp, Droplet, DollarSign, Calculator, Bell, ChevronDown, Activity, Settings, Building2, Phone, Mail, MapPin, Hash, Clock, BarChart2, Layers, CircleDollarSign, UserCheck, UserPlus, AlertCircle, Globe, Camera, Building, Tag, RefreshCw, Database, ChevronRight, ChevronLeft, Filter, Printer, Moon, Sun, Trophy, Lock, Unlock, Wallet, Download, CreditCard, CheckCircle2, AlertTriangle } from 'lucide-react';
 import './App.css';
 import './cr-styles.css';
+import './pm-styles.css';
 
 // Mock data
 const hourlyData = [
@@ -4306,6 +4307,476 @@ const ControlPrintPanel = ({ fuels, filters, setFilters, onClose, onGenerate }) 
   );
 };
 
+// ═══════════════════════════════════════════════════════════════════════════
+// GERENCIAMENTO DE PRODUTOS - CONVENIÊNCIA
+// ═══════════════════════════════════════════════════════════════════════════
+
+function pmDateFromNow(days) {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  return d.toISOString().split('T')[0];
+}
+
+const PM_MOCK_PRODUCTS = [
+  // Bebidas
+  { id:1,  nome:'Coca-Cola Lata 350ml',           sub:'Refrigerante',      codigo:'7894900011517', cat:'Bebidas',            forn:'Ambev',          uni:'UN', estoque:120, preco:6.24, custo:4.12, venc:pmDateFromNow(13),   emoji:'🥤', cor:'#ef4444' },
+  { id:2,  nome:'Guaraná Antarctica 350ml',        sub:'Refrigerante',      codigo:'7891991010832', cat:'Bebidas',            forn:'Ambev',          uni:'UN', estoque:80,  preco:5.99, custo:3.80, venc:pmDateFromNow(25),   emoji:'🥤', cor:'#22c55e' },
+  { id:3,  nome:'Água Mineral 500ml',              sub:'Água',              codigo:'7896050600067', cat:'Bebidas',            forn:'Nestlé',         uni:'UN', estoque:200, preco:2.50, custo:1.20, venc:pmDateFromNow(180),  emoji:'💧', cor:'#38bdf8' },
+  { id:4,  nome:'Suco Del Valle Laranja 290ml',    sub:'Suco de Fruta',     codigo:'7894900700046', cat:'Bebidas',            forn:'Coca-Cola',      uni:'UN', estoque:60,  preco:4.99, custo:3.10, venc:pmDateFromNow(45),   emoji:'🍹', cor:'#f97316' },
+  { id:5,  nome:'Red Bull Energy 250ml',           sub:'Energético',        codigo:'90162072000014',cat:'Bebidas',            forn:'Red Bull',       uni:'UN', estoque:30,  preco:14.90,custo:9.50, venc:pmDateFromNow(90),   emoji:'⚡', cor:'#eab308' },
+  // Bebidas Alcoólicas
+  { id:6,  nome:'Cerveja Heineken 330ml',          sub:'Cerveja Long Neck', codigo:'7894900013218', cat:'Bebidas Alcoólicas', forn:'Heineken',       uni:'UN', estoque:15,  preco:7.99, custo:4.30, venc:pmDateFromNow(-5),   emoji:'🍺', cor:'#16a34a' },
+  { id:7,  nome:'Cerveja Brahma Lata 350ml',       sub:'Cerveja Lata',      codigo:'7891991030045', cat:'Bebidas Alcoólicas', forn:'Ambev',          uni:'UN', estoque:48,  preco:5.49, custo:3.20, venc:pmDateFromNow(60),   emoji:'🍺', cor:'#92400e' },
+  { id:8,  nome:'Vinho Seco Tinto 750ml',          sub:'Vinho',             codigo:'7896081900231', cat:'Bebidas Alcoólicas', forn:'Vinhos LTDA',    uni:'UN', estoque:6,   preco:39.90,custo:22.00,venc:pmDateFromNow(730),  emoji:'🍷', cor:'#7c3aed' },
+  // Doces
+  { id:9,  nome:'Chocolate Bis Lacta 126g',        sub:'Chocolate',         codigo:'7622210017863', cat:'Doces',              forn:'Mondelez',       uni:'UN', estoque:80,  preco:7.49, custo:3.65, venc:pmDateFromNow(10),   emoji:'🍫', cor:'#92400e' },
+  { id:10, nome:'Bala Fini Morango 120g',          sub:'Bala',              codigo:'7896894851019', cat:'Doces',              forn:'Fini',           uni:'UN', estoque:25,  preco:5.90, custo:3.20, venc:pmDateFromNow(120),  emoji:'🍬', cor:'#ec4899' },
+  { id:11, nome:'Biscoito Oreo Chocolate 90g',     sub:'Biscoito Doce',     codigo:'7622300489656', cat:'Doces',              forn:'Mondelez',       uni:'UN', estoque:40,  preco:6.99, custo:4.10, venc:pmDateFromNow(30),   emoji:'🍪', cor:'#1e3a8a' },
+  { id:12, nome:'Kit Kat Miniatures 130g',         sub:'Chocolate',         codigo:'7891000063942', cat:'Doces',              forn:'Nestlé',         uni:'UN', estoque:18,  preco:14.90,custo:8.80, venc:pmDateFromNow(60),   emoji:'🍫', cor:'#d97706' },
+  // Salgadinhos
+  { id:13, nome:'Doritos Queijo Nacho 84g',        sub:'Salgadinho',        codigo:'7892840819576', cat:'Salgadinhos',        forn:'PepsiCo',        uni:'UN', estoque:45,  preco:6.99, custo:3.10, venc:pmDateFromNow(7),    emoji:'🌽', cor:'#f59e0b' },
+  { id:14, nome:'Pringles Original 109g',          sub:'Salgadinho',        codigo:'38000845263001',cat:'Salgadinhos',        forn:'Kelloggs',       uni:'UN', estoque:20,  preco:19.90,custo:11.50,venc:pmDateFromNow(90),   emoji:'🥔', cor:'#dc2626' },
+  { id:15, nome:'Cheetos Requeijão 45g',           sub:'Salgadinho',        codigo:'7892840016014', cat:'Salgadinhos',        forn:'PepsiCo',        uni:'UN', estoque:30,  preco:4.99, custo:2.50, venc:pmDateFromNow(15),   emoji:'🧀', cor:'#f97316' },
+  { id:16, nome:'Ruffles Original 96g',            sub:'Salgadinho',        codigo:'7892840002185', cat:'Salgadinhos',        forn:'PepsiCo',        uni:'UN', estoque:22,  preco:8.99, custo:4.80, venc:pmDateFromNow(45),   emoji:'🥔', cor:'#b45309' },
+  // Laticínios
+  { id:17, nome:'Leite Longa Vida Integral 1L',    sub:'Leite UHT',         codigo:'7896223002187', cat:'Laticínios',         forn:'Piracanjuba',    uni:'UN', estoque:30,  preco:5.49, custo:3.20, venc:pmDateFromNow(2),    emoji:'🥛', cor:'#e2e8f0' },
+  { id:18, nome:'Iogurte Grego Morango 100g',      sub:'Iogurte',           codigo:'7891025117892', cat:'Laticínios',         forn:'Nestlé',         uni:'UN', estoque:20,  preco:3.49, custo:2.10, venc:pmDateFromNow(-1),   emoji:'🍦', cor:'#fb7185' },
+  { id:19, nome:'Queijo Minas Frescal 300g',       sub:'Queijo',            codigo:'7896187500018', cat:'Laticínios',         forn:'Laticínios MG',  uni:'UN', estoque:8,   preco:9.99, custo:6.80, venc:pmDateFromNow(5),    emoji:'🧀', cor:'#fde68a' },
+  { id:20, nome:'Creme de Leite Piracanjuba 200g', sub:'Creme de Leite',    codigo:'7898215150010', cat:'Laticínios',         forn:'Piracanjuba',    uni:'UN', estoque:8,   preco:4.29, custo:2.45, venc:pmDateFromNow(-7),   emoji:'🥛', cor:'#fde68a' },
+  { id:21, nome:'Manteiga com Sal Aviação 200g',   sub:'Manteiga',          codigo:'7896010806021', cat:'Laticínios',         forn:'Aviação',        uni:'UN', estoque:12,  preco:8.99, custo:5.90, venc:pmDateFromNow(45),   emoji:'🧈', cor:'#fbbf24' },
+  { id:22, nome:'Requeijão Cremoso Catupiry 230g', sub:'Requeijão',         codigo:'7891118001029', cat:'Laticínios',         forn:'Catupiry',       uni:'UN', estoque:10,  preco:9.99, custo:6.50, venc:pmDateFromNow(20),   emoji:'🧀', cor:'#fde68a' },
+  // Fumo
+  { id:23, nome:'Cigarro Marlboro 20un',           sub:'Cigarro',           codigo:'7896186300011', cat:'Fumo',               forn:'Philip Morris',  uni:'UN', estoque:50,  preco:15.00,custo:9.80, venc:pmDateFromNow(365),  emoji:'🚬', cor:'#94a3b8' },
+  { id:24, nome:'Cigarro L&M 20un',               sub:'Cigarro',            codigo:'7896186300022', cat:'Fumo',               forn:'Philip Morris',  uni:'UN', estoque:35,  preco:13.00,custo:8.50, venc:pmDateFromNow(365),  emoji:'🚬', cor:'#94a3b8' },
+  { id:25, nome:'Cigarro Camel 20un',              sub:'Cigarro',           codigo:'7896186300033', cat:'Fumo',               forn:'Reynolds',       uni:'UN', estoque:20,  preco:13.50,custo:8.80, venc:pmDateFromNow(365),  emoji:'🚬', cor:'#94a3b8' },
+  // Higiene
+  { id:26, nome:'Sabonete Dove Hidratação 90g',    sub:'Sabonete',          codigo:'7891150060843', cat:'Higiene',            forn:'Unilever',       uni:'UN', estoque:18,  preco:3.99, custo:2.30, venc:pmDateFromNow(730),  emoji:'🧼', cor:'#60a5fa' },
+  { id:27, nome:'Desodorante Rexona Men 150ml',    sub:'Desodorante',       codigo:'7891150044119', cat:'Higiene',            forn:'Unilever',       uni:'UN', estoque:10,  preco:12.90,custo:7.80, venc:pmDateFromNow(730),  emoji:'💨', cor:'#38bdf8' },
+  { id:28, nome:'Shampoo Clear Anticaspa 200ml',   sub:'Shampoo',           codigo:'7891150072457', cat:'Higiene',            forn:'Unilever',       uni:'UN', estoque:8,   preco:14.90,custo:9.20, venc:pmDateFromNow(730),  emoji:'🧴', cor:'#818cf8' },
+  // Automotivo
+  { id:29, nome:'Óleo Motor 5W30 1L',              sub:'Lubrificante',      codigo:'7896021034108', cat:'Automotivo',         forn:'Castrol',        uni:'UN', estoque:5,   preco:42.50,custo:28.00,venc:pmDateFromNow(1095), emoji:'🛢️',cor:'#92400e' },
+  { id:30, nome:'Aditivo Radiador 1L',             sub:'Aditivo',           codigo:'7896021034207', cat:'Automotivo',         forn:'Prestone',       uni:'UN', estoque:3,   preco:22.90,custo:14.50,venc:pmDateFromNow(1095), emoji:'💧', cor:'#0284c7' },
+  { id:31, nome:'Fluido de Freio DOT4 500ml',      sub:'Fluido',            codigo:'7896021034308', cat:'Automotivo',         forn:'Mobil',          uni:'UN', estoque:4,   preco:28.90,custo:18.00,venc:pmDateFromNow(1095), emoji:'🔧', cor:'#64748b' },
+  // Alimentos
+  { id:32, nome:'Café 3 Corações Torrado 250g',    sub:'Café em Pó',        codigo:'7896045102059', cat:'Alimentos',          forn:'3 Corações',     uni:'UN', estoque:25,  preco:9.99, custo:6.50, venc:pmDateFromNow(180),  emoji:'☕', cor:'#78350f' },
+  { id:33, nome:'Biscoito Cream Cracker 200g',     sub:'Biscoito Salgado',  codigo:'7896003701027', cat:'Alimentos',          forn:'Marilan',        uni:'UN', estoque:35,  preco:3.49, custo:1.90, venc:pmDateFromNow(60),   emoji:'🍞', cor:'#d97706' },
+  { id:34, nome:'Açúcar União Cristal 1kg',        sub:'Açúcar',            codigo:'7896001006219', cat:'Alimentos',          forn:'União',          uni:'UN', estoque:20,  preco:5.99, custo:3.80, venc:pmDateFromNow(365),  emoji:'🫙', cor:'#f8fafc' },
+  { id:35, nome:'Farinha de Trigo Dona Benta 1kg', sub:'Farinha',           codigo:'7896050601001', cat:'Alimentos',          forn:'Dona Benta',     uni:'UN', estoque:10,  preco:4.99, custo:2.90, venc:pmDateFromNow(180),  emoji:'🌾', cor:'#fbbf24' },
+];
+
+const PM_STATUS_LABEL = { ok:'OK', prox_vencer:'PRÓX. VENCER', vencendo_hoje:'VENCENDO HOJE', vencido:'VENCIDO' };
+const PM_STATUS_CLS   = { ok:'pm-badge-ok', prox_vencer:'pm-badge-prox', vencendo_hoje:'pm-badge-hoje', vencido:'pm-badge-vencido' };
+const PM_DIAS_CLS     = { ok:'pm-dias-ok', prox_vencer:'pm-dias-prox', vencendo_hoje:'pm-dias-hoje', vencido:'pm-dias-vencido' };
+
+function pmBuildDonut(parts) {
+  let cum = 0;
+  const segs = parts.filter(p => p.pct > 0).map(p => {
+    const from = cum; cum += p.pct;
+    return `${p.color} ${from.toFixed(1)}% ${cum.toFixed(1)}%`;
+  });
+  return `conic-gradient(${segs.join(', ')})`;
+}
+
+const ConvenienciaManager = ({ themeMode }) => {
+  const [page, setPage]           = useState(1);
+  const [search, setSearch]       = useState('');
+  const [categoria, setCategoria] = useState('Todas');
+  const [fornecedor, setFornecedor] = useState('Todos');
+  const [statusFilt, setStatusFilt] = useState('Todos');
+  const [dataInicio, setDataInicio] = useState('');
+  const [dataFim, setDataFim]       = useState('');
+  const [viewProd, setViewProd]     = useState(null);
+  const LIMIT = 7;
+
+  // Reset page on filter change
+  useEffect(() => { setPage(1); }, [search, categoria, fornecedor, statusFilt, dataInicio, dataFim]);
+
+  const fmtBRL  = v => 'R$ ' + Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const fmtDate = s => { if (!s) return '—'; const [y,m,d] = s.split('-'); return `${d}/${m}/${y}`; };
+
+  // Compute status for all products
+  const allProds = useMemo(() => {
+    const today = new Date(); today.setHours(0,0,0,0);
+    return PM_MOCK_PRODUCTS.map(p => {
+      const vencDate = new Date(p.venc + 'T00:00:00');
+      const dias = Math.round((vencDate - today) / 86400000);
+      const status = dias < 0 ? 'vencido' : dias === 0 ? 'vencendo_hoje' : dias <= 7 ? 'prox_vencer' : 'ok';
+      return { ...p, dias, status, valorEstoque: p.custo * p.estoque };
+    });
+  }, []);
+
+  // KPIs
+  const kpis = useMemo(() => {
+    const n = allProds.length;
+    const valorTotal = allProds.reduce((s, p) => s + p.valorEstoque, 0);
+    const proxVencer = allProds.filter(p => p.status === 'prox_vencer').length;
+    const vencidos   = allProds.filter(p => p.status === 'vencido').length;
+    const margem     = allProds.reduce((s, p) => s + (p.preco - p.custo) / p.preco * 100, 0) / n;
+    return { n, valorTotal, proxVencer, vencidos, margem };
+  }, [allProds]);
+
+  // Filter
+  const filtered = useMemo(() => {
+    let list = allProds;
+    if (search)              { const q = search.toLowerCase(); list = list.filter(p => p.nome.toLowerCase().includes(q) || p.codigo.includes(q)); }
+    if (categoria !== 'Todas')  list = list.filter(p => p.cat  === categoria);
+    if (fornecedor !== 'Todos') list = list.filter(p => p.forn === fornecedor);
+    if (statusFilt !== 'Todos') list = list.filter(p => p.status === statusFilt);
+    if (dataInicio)             list = list.filter(p => p.venc >= dataInicio);
+    if (dataFim)                list = list.filter(p => p.venc <= dataFim);
+    return list;
+  }, [allProds, search, categoria, fornecedor, statusFilt, dataInicio, dataFim]);
+
+  const totalPages = Math.ceil(filtered.length / LIMIT);
+  const paginated  = filtered.slice((page - 1) * LIMIT, page * LIMIT);
+  const totalValor = paginated.reduce((s, p) => s + p.valorEstoque, 0);
+
+  // Analytics
+  const analytics = useMemo(() => {
+    const total = allProds.length;
+    const sc = { ok:0, prox:0, hoje:0, vencido:0 };
+    allProds.forEach(p => {
+      if (p.status === 'ok') sc.ok++;
+      else if (p.status === 'prox_vencer') sc.prox++;
+      else if (p.status === 'vencendo_hoje') sc.hoje++;
+      else sc.vencido++;
+    });
+    const notExp = allProds.filter(p => p.dias >= 0);
+    const exp = {
+      e7:    notExp.filter(p => p.dias <= 7).length,
+      e8_15: notExp.filter(p => p.dias >= 8  && p.dias <= 15).length,
+      e16_30:notExp.filter(p => p.dias >= 16 && p.dias <= 30).length,
+      e30p:  notExp.filter(p => p.dias > 30).length,
+    };
+    const catMap = {};
+    allProds.forEach(p => { catMap[p.cat] = (catMap[p.cat] || 0) + p.valorEstoque; });
+    const cats = Object.entries(catMap).map(([nome, val]) => ({ nome, val })).sort((a,b) => b.val - a.val).slice(0, 4);
+    return { sc, total, exp, cats };
+  }, [allProds]);
+
+  const { sc, total: aTotal, exp, cats: catList } = analytics;
+  const donutParts = [
+    { label:'OK (Válidos)',          count: sc.ok,      pct: sc.ok/aTotal*100,      color:'#22c55e' },
+    { label:'Próx. Vencer (7 dias)', count: sc.prox,    pct: sc.prox/aTotal*100,    color:'#f59e0b' },
+    { label:'Vencendo Hoje',         count: sc.hoje,    pct: sc.hoje/aTotal*100,    color:'#fb923c' },
+    { label:'Vencidos',              count: sc.vencido, pct: sc.vencido/aTotal*100, color:'#ef4444' },
+  ];
+  const donutBg = pmBuildDonut(donutParts);
+
+  const cats = ['Todas', ...new Set(PM_MOCK_PRODUCTS.map(p => p.cat))].sort((a,b) => a === 'Todas' ? -1 : a.localeCompare(b));
+  const fors  = ['Todos', ...new Set(PM_MOCK_PRODUCTS.map(p => p.forn))].sort((a,b) => a === 'Todos' ? -1 : a.localeCompare(b));
+
+  // Pagination helper
+  const pagBtns = () => {
+    const btns = []; const delta = 1;
+    let prev = null;
+    for (let i = 1; i <= totalPages; i++) {
+      if (i === 1 || i === totalPages || (i >= page - delta && i <= page + delta)) {
+        if (prev && i - prev > 1) btns.push('…');
+        btns.push(i); prev = i;
+      }
+    }
+    return btns;
+  };
+
+  return (
+    <div className="pm-page">
+      {/* Header */}
+      <div className="pm-header">
+        <div className="pm-header-left">
+          <div className="pm-header-icon"><Package size={22} color="#E31E24" /></div>
+          <h2 className="pm-title">GERENCIAMENTO DE PRODUTOS — CONVENIÊNCIA</h2>
+        </div>
+        <div className="pm-header-actions">
+          <button className="pm-btn-primary" onClick={() => alert('Funcionalidade disponível na versão completa')}><Plus size={15} /> NOVO PRODUTO</button>
+          <button className="pm-btn-outline"><Filter size={14} /> FILTROS</button>
+        </div>
+      </div>
+
+      {/* KPIs */}
+      <div className="pm-kpi-row">
+        <div className="pm-kpi">
+          <div className="pm-kpi-icon" style={{ background: 'rgba(99,102,241,0.15)' }}><Package size={22} color="#818cf8" /></div>
+          <div className="pm-kpi-body">
+            <div className="pm-kpi-label">Total de Produtos</div>
+            <div className="pm-kpi-value" style={{ color:'#818cf8' }}>{kpis.n}</div>
+            <div className="pm-kpi-sub">ativos cadastrados</div>
+          </div>
+        </div>
+        <div className="pm-kpi">
+          <div className="pm-kpi-icon" style={{ background: 'rgba(34,197,94,0.15)' }}><Layers size={22} color="#22c55e" /></div>
+          <div className="pm-kpi-body">
+            <div className="pm-kpi-label">Valor Total em Estoque</div>
+            <div className="pm-kpi-value" style={{ color:'#22c55e', fontSize:'1rem' }}>{fmtBRL(kpis.valorTotal)}</div>
+            <div className="pm-kpi-sub">valor de custo</div>
+          </div>
+        </div>
+        <div className="pm-kpi">
+          <div className="pm-kpi-icon" style={{ background: 'rgba(245,158,11,0.15)' }}><AlertTriangle size={22} color="#f59e0b" /></div>
+          <div className="pm-kpi-body">
+            <div className="pm-kpi-label">Próx. do Vencimento</div>
+            <div className="pm-kpi-value" style={{ color:'#f59e0b' }}>{kpis.proxVencer}</div>
+            <div className="pm-kpi-sub">vencem em até 7 dias</div>
+          </div>
+        </div>
+        <div className="pm-kpi">
+          <div className="pm-kpi-icon" style={{ background: 'rgba(239,68,68,0.15)' }}><AlertCircle size={22} color="#ef4444" /></div>
+          <div className="pm-kpi-body">
+            <div className="pm-kpi-label">Produtos Vencidos</div>
+            <div className="pm-kpi-value" style={{ color:'#ef4444' }}>{kpis.vencidos}</div>
+            <div className="pm-kpi-sub">em estoque</div>
+          </div>
+        </div>
+        <div className="pm-kpi">
+          <div className="pm-kpi-icon" style={{ background: 'rgba(59,130,246,0.15)' }}><TrendingUp size={22} color="#60a5fa" /></div>
+          <div className="pm-kpi-body">
+            <div className="pm-kpi-label">Margem Média</div>
+            <div className="pm-kpi-value" style={{ color:'#60a5fa' }}>{kpis.margem.toFixed(1)}%</div>
+            <div className="pm-kpi-sub">margem estimada</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className="pm-filters">
+        <div className="pm-search-wrap">
+          <Search size={14} className="pm-search-icon" />
+          <input className="pm-search" placeholder="Buscar produto, código, marca..." value={search} onChange={e => setSearch(e.target.value)} />
+        </div>
+        <span className="pm-filter-label">Categoria</span>
+        <select className="pm-select" value={categoria} onChange={e => setCategoria(e.target.value)}>
+          {cats.map(c => <option key={c}>{c}</option>)}
+        </select>
+        <span className="pm-filter-label">Fornecedor</span>
+        <select className="pm-select" value={fornecedor} onChange={e => setFornecedor(e.target.value)}>
+          {fors.map(f => <option key={f}>{f}</option>)}
+        </select>
+        <span className="pm-filter-label">Status</span>
+        <select className="pm-select" value={statusFilt} onChange={e => setStatusFilt(e.target.value)}>
+          <option value="Todos">Todos</option>
+          <option value="ok">OK</option>
+          <option value="prox_vencer">Próx. Vencer</option>
+          <option value="vencendo_hoje">Vencendo Hoje</option>
+          <option value="vencido">Vencido</option>
+        </select>
+        <div className="pm-date-range">
+          <span className="pm-filter-label">Vencimento de</span>
+          <input type="date" className="pm-date-input" value={dataInicio} onChange={e => setDataInicio(e.target.value)} />
+          <span className="pm-filter-label">até</span>
+          <input type="date" className="pm-date-input" value={dataFim} onChange={e => setDataFim(e.target.value)} />
+        </div>
+        {(search || categoria !== 'Todas' || fornecedor !== 'Todos' || statusFilt !== 'Todos' || dataInicio || dataFim) && (
+          <button className="pm-clear-btn" onClick={() => { setSearch(''); setCategoria('Todas'); setFornecedor('Todos'); setStatusFilt('Todos'); setDataInicio(''); setDataFim(''); }}>LIMPAR</button>
+        )}
+      </div>
+
+      {/* Table */}
+      <div className="pm-table-wrap">
+        {filtered.length === 0 ? (
+          <div className="pm-empty">Nenhum produto encontrado.</div>
+        ) : (
+          <table className="pm-table">
+            <thead>
+              <tr>
+                <th>FOTO</th>
+                <th>PRODUTO</th>
+                <th>CÓDIGO</th>
+                <th>CATEGORIA</th>
+                <th className="num">ESTOQUE</th>
+                <th className="num">PREÇO VENDA</th>
+                <th className="num">CUSTO MÉDIO</th>
+                <th className="num">VALOR ESTOQUE</th>
+                <th>VENCIMENTO</th>
+                <th className="num">DIAS</th>
+                <th>STATUS</th>
+                <th>AÇÕES</th>
+              </tr>
+            </thead>
+            <tbody>
+              {paginated.map(p => (
+                <tr key={p.id} className={`pm-row${p.status === 'vencido' ? ' pm-row-vencido' : ''}`}>
+                  <td>
+                    <div className="pm-foto-box" style={{ background: p.cor + '22' }}>{p.emoji}</div>
+                  </td>
+                  <td>
+                    <div className="pm-prod-cell">
+                      <span className="pm-prod-nome">{p.nome}</span>
+                      <span className="pm-prod-sub">{p.sub}</span>
+                    </div>
+                  </td>
+                  <td style={{ fontFamily:'monospace', fontSize:'11px', color:'#64748b' }}>{p.codigo}</td>
+                  <td>{p.cat}</td>
+                  <td className="pm-num">{p.estoque}</td>
+                  <td className="pm-num">{fmtBRL(p.preco)}</td>
+                  <td className="pm-num">{fmtBRL(p.custo)}</td>
+                  <td className="pm-num" style={{ fontWeight:700, color:'#f8fafc' }}>{fmtBRL(p.valorEstoque)}</td>
+                  <td>{fmtDate(p.venc)}</td>
+                  <td className={`pm-dias ${PM_DIAS_CLS[p.status]}`}>
+                    {p.dias < 0 ? p.dias : p.dias === 0 ? '0' : `+${p.dias}`}
+                  </td>
+                  <td><span className={`pm-badge ${PM_STATUS_CLS[p.status]}`}>{PM_STATUS_LABEL[p.status]}</span></td>
+                  <td>
+                    <div className="pm-actions">
+                      <button className="pm-action-btn" title="Ver" onClick={() => setViewProd(p)}><Eye size={13} /></button>
+                      <button className="pm-action-btn pm-action-edit" title="Editar" onClick={() => alert('Edição disponível na versão completa')}><Edit2 size={13} /></button>
+                      <button className="pm-action-btn pm-action-del" title="Excluir" onClick={() => alert('Exclusão disponível na versão completa')}><Trash2 size={13} /></button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr className="pm-totals">
+                <td colSpan={7} style={{ color:'#64748b', fontSize:'12px' }}>Mostrando {(page-1)*LIMIT+1} a {Math.min(page*LIMIT, filtered.length)} de {filtered.length} produto{filtered.length !== 1 ? 's' : ''}</td>
+                <td className="pm-num">{fmtBRL(filtered.reduce((s,p) => s+p.valorEstoque, 0))}</td>
+                <td colSpan={4} />
+              </tr>
+            </tfoot>
+          </table>
+        )}
+      </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="pm-pagination">
+          <span className="pm-pag-info">Página {page} de {totalPages}</span>
+          <div className="pm-pag-btns">
+            <button className="pm-pag-btn" disabled={page===1} onClick={() => setPage(1)}>«</button>
+            <button className="pm-pag-btn" disabled={page===1} onClick={() => setPage(p => p-1)}>‹</button>
+            {pagBtns().map((b,i) => b === '…'
+              ? <span key={`e${i}`} className="pm-pag-ellipsis">…</span>
+              : <button key={b} className={`pm-pag-btn${page===b?' active':''}`} onClick={() => setPage(b)}>{b}</button>
+            )}
+            <button className="pm-pag-btn" disabled={page===totalPages} onClick={() => setPage(p => p+1)}>›</button>
+            <button className="pm-pag-btn" disabled={page===totalPages} onClick={() => setPage(totalPages)}>»</button>
+          </div>
+        </div>
+      )}
+
+      {/* Analytics */}
+      <div className="pm-analytics">
+        {/* Donut status */}
+        <div className="pm-panel">
+          <div className="pm-panel-title">Distribuição por Status de Vencimento</div>
+          <div className="pm-donut-wrap">
+            <div className="pm-donut" style={{ background: donutBg }}>
+              <div className="pm-donut-center">
+                <span>{((sc.ok / aTotal)*100).toFixed(0)}%</span>
+                <small>válidos</small>
+              </div>
+            </div>
+            <div className="pm-legend">
+              {donutParts.map(dp => (
+                <div key={dp.label} className="pm-legend-item">
+                  <div className="pm-legend-dot" style={{ background: dp.color }} />
+                  <span className="pm-legend-label">{dp.label}</span>
+                  <span className="pm-legend-val">{dp.count}</span>
+                  <span className="pm-legend-pct">{dp.pct.toFixed(1)}%</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Expiration by period */}
+        <div className="pm-panel">
+          <div className="pm-panel-title">▶ Expiração por Período</div>
+          {[
+            { label:'Até 7 dias',    count: exp.e7    },
+            { label:'De 8 a 15 dias',count: exp.e8_15 },
+            { label:'De 16 a 30 dias',count:exp.e16_30},
+            { label:'Acima de 30 dias',count:exp.e30p },
+          ].map(row => (
+            <div key={row.label} className="pm-exp-row">
+              <span className="pm-exp-label">{row.label}</span>
+              <div className="pm-exp-right">
+                <span className="pm-exp-count">{row.count}</span>
+                <span className="pm-exp-pct">({((row.count/aTotal)*100).toFixed(1)}%)</span>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Categories by stock value */}
+        <div className="pm-panel">
+          <div className="pm-panel-title">▶ Categorias (Valor em Estoque)</div>
+          {catList.map((c, i) => (
+            <div key={c.nome} className="pm-cat-row">
+              <span className="pm-cat-rank">{i+1}.</span>
+              <span className="pm-cat-nome">{c.nome}</span>
+              <span className="pm-cat-val">{fmtBRL(c.val)}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* Vencimento CTA */}
+        <div className="pm-panel">
+          <div className="pm-panel-title">▶ Controle de Vencimento</div>
+          <div className="pm-venc-icon"><Calendar size={20} color="#E31E24" /></div>
+          <p className="pm-venc-desc">Mantenha o controle dos produtos próximos do vencimento para evitar perdas.</p>
+          <button className="pm-venc-cta" onClick={() => { setStatusFilt('prox_vencer'); setPage(1); }}>
+            VER PRODUTOS PRÓXIMOS DO VENCIMENTO
+          </button>
+        </div>
+      </div>
+
+      {/* Modal de detalhes */}
+      {viewProd && (
+        <div className="pm-modal-overlay" onClick={() => setViewProd(null)}>
+          <div className="pm-modal" onClick={e => e.stopPropagation()}>
+            <div className="pm-modal-header">
+              <h3 className="pm-modal-title">Detalhes do Produto</h3>
+              <button className="pm-modal-close" onClick={() => setViewProd(null)}><X size={18} /></button>
+            </div>
+            <div className="pm-modal-body">
+              <div className="pm-modal-foto" style={{ background: viewProd.cor + '22' }}>{viewProd.emoji}</div>
+              {[
+                ['Produto',        viewProd.nome],
+                ['Categoria',      viewProd.sub],
+                ['Código',         viewProd.codigo],
+                ['Categoria',      viewProd.cat],
+                ['Fornecedor',     viewProd.forn],
+                ['Unidade',        viewProd.uni],
+                ['Estoque',        viewProd.estoque + ' un.'],
+                ['Preço de Venda', fmtBRL(viewProd.preco)],
+                ['Custo Médio',    fmtBRL(viewProd.custo)],
+                ['Valor em Estoque', fmtBRL(viewProd.valorEstoque)],
+                ['Vencimento',     fmtDate(viewProd.venc)],
+                ['Dias p/ Vencer', viewProd.dias < 0 ? `${Math.abs(viewProd.dias)} dias vencido` : viewProd.dias === 0 ? 'Vence hoje' : `${viewProd.dias} dias`],
+                ['Status',         PM_STATUS_LABEL[viewProd.status]],
+              ].map(([k, v]) => (
+                <div key={k} className="pm-modal-row">
+                  <span className="pm-modal-key">{k}</span>
+                  <span className="pm-modal-val">{v}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ─── EstoqueManager — wraps Pista (StockPosition) + Conveniência ───────────
+const EstoqueManager = ({ estoques, projecao, loading, selectedClient, clients, themeMode }) => {
+  const [tab, setTab] = useState('pista');
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
+      <div className="estoque-tab-bar">
+        <div className="vp-toggle-group">
+          <button type="button" className={`vp-period-btn vp-secao-btn${tab === 'pista' ? ' active' : ''}`} onClick={() => setTab('pista')}>⛽ Pista</button>
+          <button type="button" className={`vp-period-btn vp-secao-btn${tab === 'conveniencia' ? ' active' : ''}`} onClick={() => setTab('conveniencia')}>🏪 Conveniência</button>
+        </div>
+      </div>
+      {tab === 'pista'
+        ? <StockPosition estoques={estoques} projecao={projecao} loading={loading} selectedClient={selectedClient} clients={clients} />
+        : <ConvenienciaManager themeMode={themeMode} />
+      }
+    </div>
+  );
+};
+
 // Stock Position Component
 const StockPosition = ({ estoques, projecao, loading, selectedClient, clients }) => {
   const [selectedFuelId, setSelectedFuelId] = useState(null);
@@ -5376,7 +5847,7 @@ export default function App() {
       case 'control':
         return <Control lmcRegistros={apiData.lmcRegistros} lmcDiario={apiData.lmcDiario} lmcControle={apiData.lmcControle} selectedPeriod={controlPeriod} setSelectedPeriod={setControlPeriod} selectedClient={selectedClient} clients={clients} />;
       case 'stock':
-        return <StockPosition estoques={apiData.estoques} projecao={apiData.projecao} loading={apiData.loading} selectedClient={selectedClient} clients={clients} />;
+        return <EstoqueManager estoques={apiData.estoques} projecao={apiData.projecao} loading={apiData.loading} selectedClient={selectedClient} clients={clients} themeMode={themeMode} />;
       case 'receber':
         return <ContasReceber clients={clients} selectedClient={selectedClient} />;
       case 'users':
