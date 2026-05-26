@@ -266,4 +266,53 @@ router.get('/combustiveis', async (req, res) => {
   }
 });
 
+// GET /api/dashboard/vendas-pista?empresa=7432&dataInicio=2026-04-20&dataFim=2026-05-26
+router.get('/vendas-pista', async (req, res) => {
+  const empresa = parseInt(req.query.empresa);
+  const { dataInicio, dataFim } = req.query;
+
+  if (!empresa || !dataInicio || !dataFim) {
+    return res.status(400).json({ error: 'empresa, dataInicio e dataFim são obrigatórios' });
+  }
+
+  try {
+    const result = await query(
+      `SELECT
+         vda.vdamovimento::date                              AS dia,
+         prod.prodcodigo                                     AS codigo_produto,
+         prod.prodresumo                                     AS combustivel,
+         COALESCE(atde.atdenome, 'Sem Vendedor')             AS vendedor,
+         COALESCE(SUM(vdit.vditqtd),   0)                   AS litros,
+         COALESCE(SUM(vdit.vdittotal), 0)                   AS faturamento,
+         COUNT(DISTINCT vda.vdacodigo)                      AS qtd_vendas
+       FROM vda
+       JOIN vdit ON vdit.vditcodigovda = vda.vdacodigo
+                AND vdit.vditempresa   = vda.vdaempresa
+       JOIN prod ON prod.prodcodigo    = vdit.vditproduto
+       LEFT JOIN atde ON atde.atdecodigo = vdit.vditvendedor
+       WHERE vda.vdaempresa = $1
+         AND vda.vdamovimento >= $2
+         AND vda.vdamovimento <= $3
+         AND (vda.vdastatus IS NULL OR vda.vdastatus = 0)
+         AND prod.prodtipo = 1
+       GROUP BY vda.vdamovimento::date, prod.prodcodigo, prod.prodresumo, atde.atdenome
+       ORDER BY dia, combustivel, vendedor`,
+      [empresa, dataInicio, dataFim]
+    );
+
+    res.json(result.rows.map(r => ({
+      dia:           String(r.dia).substring(0, 10),
+      codigoProduto: r.codigo_produto,
+      combustivel:   r.combustivel,
+      vendedor:      r.vendedor,
+      litros:        parseFloat(r.litros),
+      faturamento:   parseFloat(r.faturamento),
+      qtdVendas:     parseInt(r.qtd_vendas),
+    })));
+  } catch (err) {
+    console.error('Error in /dashboard/vendas-pista:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

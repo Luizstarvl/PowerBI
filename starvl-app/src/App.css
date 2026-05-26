@@ -3812,6 +3812,90 @@ body.theme-light-body {
   }
 }
 
+/* ── VendasPista ──────────────────────────────────────────── */
+.vp-toggle-group {
+  display: flex;
+  gap: 3px;
+}
+
+.vp-period-btn {
+  padding: 5px 13px;
+  border-radius: 6px;
+  border: 1px solid #333;
+  background: transparent;
+  color: #888;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: 'Montserrat', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.vp-period-btn.active {
+  background: #E31E24;
+  color: #fff;
+  border-color: #E31E24;
+}
+
+.vp-period-btn:hover:not(.active) {
+  background: rgba(227, 30, 36, 0.12);
+  color: #E31E24;
+  border-color: #E31E24;
+}
+
+.vp-kpi-row {
+  display: flex;
+  gap: 12px;
+  margin: 14px 0 18px;
+}
+
+.vp-kpi {
+  flex: 1;
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
+  border-radius: 8px;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.vp-kpi-label {
+  font-size: 11px;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.vp-kpi-value {
+  font-size: 17px;
+  font-weight: 700;
+  font-family: 'Orbitron', sans-serif;
+}
+
+/* light overrides */
+.theme-light .vp-period-btn {
+  border-color: #d1d5db;
+  color: #6b7280;
+}
+
+.theme-light .vp-period-btn.active {
+  background: #E31E24;
+  color: #fff;
+  border-color: #E31E24;
+}
+
+.theme-light .vp-kpi {
+  background: #f8fafc;
+  border-color: #e5e7eb;
+}
+
+.theme-light .vp-kpi-label {
+  color: #9ca3af;
+}
+/* ── fim VendasPista ─────────────────────────────────────── */
+
 /* LIGHT THEME */
 .app.theme-light {
   background: #f4f6f8;

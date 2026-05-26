@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import logoStarvl from './logo-starvl.png';
 import logoStarvlBlack from './logo-starvl-black.png';
 import * as XLSX from 'xlsx';
-import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Area, AreaChart, LabelList } from 'recharts';
+import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Area, AreaChart, LabelList, ComposedChart } from 'recharts';
 import { Home, FileText, Users as UsersIcon, Truck, Package, LogOut, Eye, Search, Plus, Edit2, Trash2, X, Calendar, TrendingUp, Droplet, DollarSign, Calculator, Bell, ChevronDown, Activity, Settings, Building2, Phone, Mail, MapPin, Hash, Clock, BarChart2, Layers, CircleDollarSign, UserCheck, UserPlus, AlertCircle, Globe, Camera, Building, Tag, RefreshCw, Database, ChevronRight, Filter, Printer, Moon, Sun } from 'lucide-react';
 import './App.css';
 
@@ -448,8 +448,178 @@ const getFuelColor = (name, fallback = DASHBOARD_COLORS.sale) => {
   return fallback;
 };
 
+// ── VendasPista ──────────────────────────────────────────────────────────────
+const VP_PERIODS = [
+  { key: 'diario',  label: 'Diário',  fetchDays: 36,  showCount: 30, maWin: 7  },
+  { key: 'semanal', label: 'Semanal', fetchDays: 90,  showCount: 12, maWin: 4  },
+  { key: 'mensal',  label: 'Mensal',  fetchDays: 395, showCount: 12, maWin: 3  },
+  { key: 'anual',   label: 'Anual',   fetchDays: 730, showCount: 24, maWin: 4  },
+];
+
+function vpDateStr(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+const VendasPista = ({ clients, selectedClient }) => {
+  const [periodKey, setPeriodKey] = useState('diario');
+  const [viewMode, setViewMode]   = useState('combustivel'); // 'combustivel' | 'vendedor'
+  const [rawData, setRawData]     = useState([]);
+  const [loading, setLoading]     = useState(false);
+  const [error, setError]         = useState(null);
+
+  const period = VP_PERIODS.find(p => p.key === periodKey);
+
+  const empresa = useMemo(() => {
+    const c = (clients || []).find(cl => cl.nome === selectedClient) || (clients || [])[0];
+    return c?.codigoEmpresa || null;
+  }, [clients, selectedClient]);
+
+  useEffect(() => {
+    if (!empresa) return;
+    const end   = new Date();
+    const start = new Date(end);
+    start.setDate(start.getDate() - period.fetchDays);
+    setLoading(true); setError(null);
+    fetch(`${API_URL}/api/dashboard/vendas-pista?empresa=${empresa}&dataInicio=${vpDateStr(start)}&dataFim=${vpDateStr(end)}`)
+      .then(r => r.json())
+      .then(data => { if (data.error) throw new Error(data.error); setRawData(Array.isArray(data) ? data : []); })
+      .catch(err => setError(err.message))
+      .finally(() => setLoading(false));
+  }, [periodKey, empresa]);
+
+  const { chartData, groupKeys, totais } = useMemo(() => {
+    if (!rawData.length) return { chartData: [], groupKeys: [], totais: { faturamento: 0, litros: 0 } };
+
+    // Dimensão selecionada: combustível ou vendedor
+    const getDim = row => viewMode === 'combustivel' ? row.combustivel : (row.vendedor || 'Sem Vendedor');
+    const dims = [...new Set(rawData.map(getDim))].sort();
+
+    // Agrupamento por período
+    const bucket = {};
+    rawData.forEach(row => {
+      const d = String(row.dia).substring(0, 10);
+      let key;
+      if (periodKey === 'diario') {
+        key = d;
+      } else if (periodKey === 'semanal') {
+        const dt = new Date(d + 'T12:00:00');
+        const dow = dt.getDay() === 0 ? 7 : dt.getDay();
+        const mon = new Date(dt); mon.setDate(dt.getDate() - dow + 1);
+        key = vpDateStr(mon);
+      } else {
+        key = d.substring(0, 7); // YYYY-MM
+      }
+      if (!bucket[key]) {
+        bucket[key] = { key, total: 0, litros: 0 };
+        dims.forEach(dim => { bucket[key][`d_${dim}`] = 0; });
+      }
+      const dim = getDim(row);
+      bucket[key][`d_${dim}`] = (bucket[key][`d_${dim}`] || 0) + row.faturamento;
+      bucket[key].total  += row.faturamento;
+      bucket[key].litros += row.litros;
+    });
+
+    const sorted  = Object.keys(bucket).sort();
+    const totals  = sorted.map(k => bucket[k].total);
+    const { maWin, showCount } = period;
+
+    const allPoints = sorted.map((key, i) => {
+      const slice = totals.slice(Math.max(0, i - maWin + 1), i + 1);
+      const ma    = slice.reduce((s, v) => s + v, 0) / slice.length;
+      let label;
+      if (periodKey === 'diario' || periodKey === 'semanal') {
+        label = `${key.substring(8,10)}/${key.substring(5,7)}`;
+      } else {
+        const MONTHS = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+        label = `${MONTHS[parseInt(key.substring(5,7))-1]}/${key.substring(2,4)}`;
+      }
+      return { ...bucket[key], label, ma };
+    });
+
+    const chartData = allPoints.slice(-showCount);
+    const totais = {
+      faturamento: chartData.reduce((s, r) => s + r.total, 0),
+      litros:      chartData.reduce((s, r) => s + r.litros, 0),
+    };
+    const groupKeys = dims.map(d => ({ dim: d, key: `d_${d}` }));
+    return { chartData, groupKeys, totais };
+  }, [rawData, periodKey, viewMode, period]);
+
+  const fmtBig = v => {
+    const n = Number(v || 0);
+    if (n >= 1e6) return `R$ ${(n/1e6).toLocaleString('pt-BR',{maximumFractionDigits:1})} mi`;
+    if (n >= 1e3) return `R$ ${(n/1e3).toLocaleString('pt-BR',{maximumFractionDigits:1})} mil`;
+    return `R$ ${n.toLocaleString('pt-BR',{maximumFractionDigits:0})}`;
+  };
+  const fmtL = v => Number(v||0).toLocaleString('pt-BR',{maximumFractionDigits:0});
+  const maLabel = periodKey==='diario'?'MM 7 dias':periodKey==='semanal'?'MM 4 sem.':periodKey==='mensal'?'MM 3 meses':'MM 4 meses';
+  const lastMa = chartData.length ? chartData[chartData.length-1].ma : 0;
+
+  return (
+    <div className="chart-card">
+      <div className="card-header" style={{ flexWrap: 'wrap', gap: 8 }}>
+        <h3>DESEMPENHO E VOLUME DE VENDAS PISTA</h3>
+        <div style={{ display:'flex', gap: 8, flexWrap:'wrap' }}>
+          {/* Dimensão */}
+          <div className="vp-toggle-group">
+            {[{k:'combustivel',l:'Combustível'},{k:'vendedor',l:'Vendedor'}].map(v=>(
+              <button key={v.k} type="button" className={`vp-period-btn${viewMode===v.k?' active':''}`} onClick={()=>setViewMode(v.k)}>{v.l}</button>
+            ))}
+          </div>
+          {/* Período */}
+          <div className="vp-toggle-group">
+            {VP_PERIODS.map(p=>(
+              <button key={p.key} type="button" className={`vp-period-btn${periodKey===p.key?' active':''}`} onClick={()=>setPeriodKey(p.key)}>{p.label}</button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* KPIs */}
+      <div className="vp-kpi-row">
+        <div className="vp-kpi"><span className="vp-kpi-label">Faturamento Bruto</span><span className="vp-kpi-value" style={{color:DASHBOARD_COLORS.sale}}>{fmtBig(totais.faturamento)}</span></div>
+        <div className="vp-kpi"><span className="vp-kpi-label">Volume Total</span><span className="vp-kpi-value" style={{color:FUEL_COLORS.ethanol}}>{fmtL(totais.litros)} L</span></div>
+        <div className="vp-kpi"><span className="vp-kpi-label">{maLabel}</span><span className="vp-kpi-value" style={{color:'#fff'}}>{fmtBig(lastMa)}</span></div>
+      </div>
+
+      {loading && <LoadingState compact label="Carregando vendas pista..." />}
+      {error   && <ApiErrorNotice message={error} />}
+
+      {!loading && !error && chartData.length > 0 && (
+        <ResponsiveContainer width="100%" height={320}>
+          <ComposedChart data={chartData} margin={{ top: 28, right: 16, left: 6, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke={DASHBOARD_COLORS.grid} />
+            <XAxis dataKey="label" stroke={DASHBOARD_COLORS.axis} tick={{ fill: DASHBOARD_COLORS.axis, fontSize: 11 }}
+              interval={chartData.length > 20 ? Math.floor(chartData.length / 10) : 0} />
+            <YAxis stroke={DASHBOARD_COLORS.axis} tick={{ fill: DASHBOARD_COLORS.axis, fontSize: 11 }}
+              tickFormatter={v => v>=1000?`${(v/1000).toFixed(0)}k`:v} />
+            <Tooltip
+              contentStyle={{ background: DASHBOARD_COLORS.tooltipBg, border:`1px solid ${DASHBOARD_COLORS.sale}`, borderRadius:8, color:'#f8fafc' }}
+              formatter={(v, name) => name===maLabel
+                ? [`R$ ${Number(v).toLocaleString('pt-BR',{maximumFractionDigits:0})}`, name]
+                : [`R$ ${Number(v).toLocaleString('pt-BR',{maximumFractionDigits:0})}`, name]}
+            />
+            <Legend />
+            {groupKeys.map((g, i) => (
+              <Bar key={g.key} dataKey={g.key} name={g.dim} stackId="s"
+                fill={viewMode==='combustivel' ? getFuelColor(g.dim) : `hsl(${(i*67)%360},65%,55%)`}
+                radius={i===groupKeys.length-1?[6,6,0,0]:undefined} />
+            ))}
+            <Line type="monotone" dataKey="ma" name={maLabel}
+              stroke="#ffffff" strokeWidth={2.5} dot={false} strokeDasharray="6 3" />
+          </ComposedChart>
+        </ResponsiveContainer>
+      )}
+      {!loading && !error && chartData.length===0 && (
+        <div style={{ textAlign:'center', color:'#555', padding:'48px 0', fontSize:14 }}>Sem dados para o período selecionado.</div>
+      )}
+    </div>
+  );
+};
+// ── fim VendasPista ────────────────────────────────────────────────────────────
+
 // Dashboard Component
-const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcControle, estoques, loading }) => {
+const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcControle, estoques, loading, clients, selectedClient }) => {
   const [selectedFuelDonut, setSelectedFuelDonut] = useState(null);
   const [isCompactDashboard, setIsCompactDashboard] = useState(false);
 
@@ -641,6 +811,9 @@ const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcContr
       <div className="dashboard-grid dashboard-static-grid">
         <div className="dashboard-static-wide">{dashboardSections.salesFuel}</div>
         <div>{dashboardSections.stock}</div>
+        <div className="dashboard-static-full">
+          <VendasPista clients={clients} selectedClient={selectedClient} />
+        </div>
       </div>
     </div>
   );
@@ -3252,7 +3425,7 @@ export default function App() {
   const renderPage = () => {
     switch (currentPage) {
       case 'dashboard':
-        return <Dashboard kpis={apiData.kpis} combustiveis={apiData.combustiveis} vendasDiarias={apiData.vendasDiarias} vendasHorarias={apiData.vendasHorarias} lmcControle={apiData.dashboardLmcControle} estoques={apiData.estoques} loading={apiData.loading} />;
+        return <Dashboard kpis={apiData.kpis} combustiveis={apiData.combustiveis} vendasDiarias={apiData.vendasDiarias} vendasHorarias={apiData.vendasHorarias} lmcControle={apiData.dashboardLmcControle} estoques={apiData.estoques} loading={apiData.loading} clients={clients} selectedClient={selectedClient} />;
       case 'reports':
         return <Reports selectedClient={selectedClient} selectedPeriod={reportsPeriod} setSelectedPeriod={setReportsPeriod} clients={clients} />;
       case 'control':
@@ -3266,7 +3439,7 @@ export default function App() {
       case 'admin':
         return <Parameters clients={clients} setClients={setClients} isAdmin={isAdmin} />;
       default:
-        return <Dashboard kpis={apiData.kpis} combustiveis={apiData.combustiveis} vendasDiarias={apiData.vendasDiarias} vendasHorarias={apiData.vendasHorarias} lmcControle={apiData.dashboardLmcControle} estoques={apiData.estoques} loading={apiData.loading} />;
+        return <Dashboard kpis={apiData.kpis} combustiveis={apiData.combustiveis} vendasDiarias={apiData.vendasDiarias} vendasHorarias={apiData.vendasHorarias} lmcControle={apiData.dashboardLmcControle} estoques={apiData.estoques} loading={apiData.loading} clients={clients} selectedClient={selectedClient} />;
     }
   };
 
