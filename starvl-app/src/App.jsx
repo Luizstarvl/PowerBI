@@ -1790,6 +1790,7 @@ const ContasReceber = ({ clients, selectedClient }) => {
 const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcControle, estoques, loading, clients, selectedClient, selectedPeriod, themeMode }) => {
   const [selectedFuelDonut, setSelectedFuelDonut] = useState(null);
   const [isCompactDashboard, setIsCompactDashboard] = useState(false);
+  const [salesFuelSection, setSalesFuelSection] = useState('combustivel');
   const [productMatrixUnit, setProductMatrixUnit] = useState('Pista');
   const [productMatrixPeriod, setProductMatrixPeriod] = useState('Mensal');
 
@@ -1853,6 +1854,16 @@ const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcContr
     .slice(0, 6);
 
   const vendasCombustivelFallback = [{ name: 'Sem dados', litros: 0, color: DASHBOARD_COLORS.sale }];
+
+  // Mock top-4 conveniência mais vendida (demo)
+  const _CONV_DASH_COLORS = ['#3b82f6', '#8b5cf6', '#f59e0b', '#06b6d4'];
+  const _CONV_DASH_BASE   = [
+    { name: 'Refrigerante', qty: 1842 },
+    { name: 'Cigarro',      qty: 1205 },
+    { name: 'Água 500ml',   qty:  987 },
+    { name: 'Café Expresso',qty:  756 },
+  ];
+  const salesConvChartData = _CONV_DASH_BASE.map((r, i) => ({ ...r, color: _CONV_DASH_COLORS[i] }));
 
   const monthlyChart = vendasDiarias && vendasDiarias.length > 0
     ? vendasDiarias.map(r => ({ day: new Date(r.dia).getUTCDate(), value: r.valorTotal }))
@@ -1932,24 +1943,52 @@ const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcContr
     ),
     salesFuel: (
       <div className="chart-card">
-        <div className="card-header">
-          <h3>COMBUSTÍVEIS MAIS VENDIDOS</h3>
-          <span style={{ fontSize: '12px', color: '#666' }}>litros no período</span>
-        </div>
-        <ResponsiveContainer width="100%" height={wideChartHeight}>
-          <BarChart data={salesFuelChartData} margin={{ top: 28, right: 12, left: 6, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke={DASHBOARD_COLORS.grid} />
-            <XAxis dataKey="name" stroke={DASHBOARD_COLORS.axis} tick={xTickStyle} interval={0} height={isCompactDashboard ? 46 : 30} angle={isCompactDashboard ? -18 : 0} textAnchor={isCompactDashboard ? 'end' : 'middle'} />
-            <YAxis stroke={DASHBOARD_COLORS.axis} tick={xTickStyle} width={isCompactDashboard ? 46 : 60} />
-            <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: '#fff' }} formatter={(v) => [fmtLitersLabel(v), 'Litros']} />
-            <Bar dataKey="litros" name="Litros vendidos" fill={DASHBOARD_COLORS.sale} radius={[8, 8, 0, 0]}>
-              {salesFuelChartData.map((entry, index) => (
-                <Cell key={`sales-fuel-${entry.name}-${index}`} fill={entry.color || DASHBOARD_COLORS.sale} />
+        <div className="card-header" style={{ flexWrap: 'wrap', gap: 8 }}>
+          <h3>{salesFuelSection === 'combustivel' ? 'COMBUSTÍVEIS MAIS VENDIDOS' : 'CONVENIÊNCIA MAIS VENDIDA'}</h3>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginLeft: 'auto', flexWrap: 'wrap' }}>
+            <div className="vp-toggle-group">
+              {[{ k: 'combustivel', l: '⛽ Combustível' }, { k: 'conveniencia', l: '🏪 Conveniência' }].map(v => (
+                <button key={v.k} type="button"
+                  className={`vp-period-btn${salesFuelSection === v.k ? ' active' : ''}`}
+                  onClick={() => setSalesFuelSection(v.k)}>{v.l}</button>
               ))}
-              <LabelList dataKey="litros" position="top" formatter={(v) => Number(v) > 0 ? fmtLitersLabel(v) : ''} {...labelStyle} fontSize={isCompactDashboard ? 10 : 12} />
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
+            </div>
+            <span style={{ fontSize: '12px', color: '#666' }}>
+              {salesFuelSection === 'combustivel' ? 'litros no período' : 'unidades no período'}
+            </span>
+          </div>
+        </div>
+        {salesFuelSection === 'combustivel' ? (
+          <ResponsiveContainer width="100%" height={wideChartHeight}>
+            <BarChart data={salesFuelChartData} margin={{ top: 28, right: 12, left: 6, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke={DASHBOARD_COLORS.grid} />
+              <XAxis dataKey="name" stroke={DASHBOARD_COLORS.axis} tick={xTickStyle} interval={0} height={isCompactDashboard ? 46 : 30} angle={isCompactDashboard ? -18 : 0} textAnchor={isCompactDashboard ? 'end' : 'middle'} />
+              <YAxis stroke={DASHBOARD_COLORS.axis} tick={xTickStyle} width={isCompactDashboard ? 46 : 60} />
+              <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: '#fff' }} formatter={(v) => [fmtLitersLabel(v), 'Litros']} />
+              <Bar dataKey="litros" name="Litros vendidos" fill={DASHBOARD_COLORS.sale} radius={[8, 8, 0, 0]}>
+                {salesFuelChartData.map((entry, index) => (
+                  <Cell key={`sales-fuel-${entry.name}-${index}`} fill={entry.color || DASHBOARD_COLORS.sale} />
+                ))}
+                <LabelList dataKey="litros" position="top" formatter={(v) => Number(v) > 0 ? fmtLitersLabel(v) : ''} {...labelStyle} fontSize={isCompactDashboard ? 10 : 12} />
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        ) : (
+          <ResponsiveContainer width="100%" height={wideChartHeight}>
+            <BarChart data={salesConvChartData} margin={{ top: 28, right: 12, left: 6, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke={DASHBOARD_COLORS.grid} />
+              <XAxis dataKey="name" stroke={DASHBOARD_COLORS.axis} tick={xTickStyle} interval={0} height={isCompactDashboard ? 46 : 30} angle={isCompactDashboard ? -18 : 0} textAnchor={isCompactDashboard ? 'end' : 'middle'} />
+              <YAxis stroke={DASHBOARD_COLORS.axis} tick={xTickStyle} width={isCompactDashboard ? 46 : 60} />
+              <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: '#fff' }} formatter={(v) => [Number(v).toLocaleString('pt-BR') + ' un.', 'Unidades']} />
+              <Bar dataKey="qty" name="Unidades vendidas" radius={[8, 8, 0, 0]}>
+                {salesConvChartData.map((entry, index) => (
+                  <Cell key={`sales-conv-${entry.name}-${index}`} fill={entry.color} />
+                ))}
+                <LabelList dataKey="qty" position="top" formatter={(v) => Number(v) > 0 ? Number(v).toLocaleString('pt-BR') + ' un.' : ''} {...labelStyle} fontSize={isCompactDashboard ? 10 : 12} />
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        )}
       </div>
     ),
     stock: (
