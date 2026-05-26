@@ -4757,7 +4757,7 @@ const ConvenienciaManager = ({ themeMode }) => {
 
 // ─── EstoqueManager — wraps Pista (StockPosition) + Conveniência ───────────
 const EstoqueManager = ({ estoques, projecao, loading, selectedClient, clients, themeMode }) => {
-  const [tab, setTab] = useState('pista');
+  const [tab, setTab] = useState('conveniencia');
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
       <div className="estoque-tab-bar">
