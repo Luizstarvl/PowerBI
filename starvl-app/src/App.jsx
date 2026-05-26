@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import logoStarvl from './logo-starvl.png';
+import logoStarvlBlack from './logo-starvl-black.png';
 import * as XLSX from 'xlsx';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Area, AreaChart, LabelList } from 'recharts';
 import { Home, FileText, Users as UsersIcon, Truck, Package, LogOut, Eye, Search, Plus, Edit2, Trash2, X, Calendar, TrendingUp, Droplet, DollarSign, Calculator, Bell, ChevronDown, Activity, Settings, Building2, Phone, Mail, MapPin, Hash, Clock, BarChart2, Layers, CircleDollarSign, UserCheck, UserPlus, AlertCircle, Globe, Camera, Building, Tag, RefreshCw, Database, ChevronRight, Filter, Printer, Moon, Sun } from 'lucide-react';
@@ -218,7 +219,7 @@ const Login = ({ onLogin, adminUsers }) => {
 };
 
 // Sidebar Component
-const Sidebar = ({ currentPage, setCurrentPage, onLogout }) => {
+const Sidebar = ({ currentPage, setCurrentPage, onLogout, themeMode }) => {
   const menuItems = [
     { icon: Home,      label: 'DASHBOARD',      page: 'dashboard' },
     { icon: Package,   label: 'POSIÇÃO ESTOQUE', page: 'stock'     },
@@ -231,7 +232,11 @@ const Sidebar = ({ currentPage, setCurrentPage, onLogout }) => {
     <div className="sidebar">
       <div className="sidebar-header">
         <div className="logo-container">
-          <img src={logoStarvl} alt="STARVL" className="sidebar-logo" />
+          <img
+            src={themeMode === 'light' ? logoStarvlBlack : logoStarvl}
+            alt="STARVL"
+            className="sidebar-logo"
+          />
         </div>
       </div>
 
@@ -3349,6 +3354,7 @@ export default function App() {
         currentPage={currentPage}
         setCurrentPage={setCurrentPage}
         onLogout={() => { setIsLoggedIn(false); setLoggedUser(null); }}
+        themeMode={themeMode}
       />
       <main className="main-content">
         <TopBar

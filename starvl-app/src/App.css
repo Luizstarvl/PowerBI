@@ -3652,8 +3652,7 @@ body.theme-light-body {
 }
 
 .theme-light .sidebar-logo {
-  filter: brightness(0) saturate(100%);
-  opacity: 0.92;
+  opacity: 1;
 }
 
 .theme-light .nav-item {
