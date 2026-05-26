@@ -609,24 +609,26 @@ const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcContr
             </select>
           </div>
         )}
-        <div className="stock-visual">
-          <ResponsiveContainer width="100%" height={stockChartHeight}>
-            <PieChart>
-              <Pie data={[{ name: 'Disponível', value: fuelPct || 1 }, { name: 'Capacidade restante', value: Math.max(0, 100 - fuelPct) }]} cx="50%" cy="50%" innerRadius={isCompactDashboard ? 52 : 60} outerRadius={isCompactDashboard ? 78 : 90} paddingAngle={5} dataKey="value">
-                <Cell fill={activeFuelColor} />
-                <Cell fill={DASHBOARD_COLORS.neutral} />
-              </Pie>
-            </PieChart>
-          </ResponsiveContainer>
-          <div className="stock-center">
-            <div className="stock-total">Estoque</div>
-            <div className="stock-number">{activeFuelEstoque ? fmt(activeFuelEstoque.estoqueTotal) : '—'}</div>
-            <div className="stock-unit">litros</div>
+        <div className="tank-visual">
+          <div className="fuel-tank-wrap" style={{ filter: `drop-shadow(0 0 24px ${activeFuelColor}88)` }}>
+            <div className="tank-neck" />
+            <div className="tank">
+              <div className="tank-fill" style={{ height: `${fuelPct}%`, background: activeFuelColor }}>
+                <div className="liquid-wave" />
+              </div>
+              <div className="tank-label">
+                <div className="tank-title">QTD COMBUSTÍVEL</div>
+                <div className="tank-value" style={{ color: activeFuelColor }}>{activeFuelEstoque ? fmt(activeFuelEstoque.estoqueTotal) : '—'}</div>
+                <div className="tank-unit">LITROS</div>
+              </div>
+              <div className="tank-gloss" />
+            </div>
           </div>
         </div>
-        <div className="stock-legend">
-          <div className="legend-item"><span className="dot available" style={{ background: activeFuelColor }}></span><span>Estoque</span><span className="value">{activeFuelEstoque ? fmt(activeFuelEstoque.estoqueTotal) + ' (' + fuelPct + '%)' : '—'}</span></div>
-          <div className="legend-item"><span className="dot unavailable"></span><span>Capacidade</span><span className="value">{activeFuelEstoque ? fmt(activeFuelEstoque.capacidadeTotal, 0) + ' L' : '—'}</span></div>
+        <div className="update-time">
+          <Calendar size={18} />
+          <span>CAPACIDADE TOTAL:</span>
+          <strong style={{ color: activeFuelColor }}>{activeFuelEstoque ? fmt(activeFuelEstoque.capacidadeTotal, 0) + ' L' : '—'}</strong>
         </div>
       </div>
     ),
