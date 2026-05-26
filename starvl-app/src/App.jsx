@@ -1979,7 +1979,7 @@ const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcContr
               <CartesianGrid strokeDasharray="3 3" stroke={DASHBOARD_COLORS.grid} />
               <XAxis dataKey="name" stroke={DASHBOARD_COLORS.axis} tick={xTickStyle} interval={0} height={isCompactDashboard ? 46 : 30} angle={isCompactDashboard ? -18 : 0} textAnchor={isCompactDashboard ? 'end' : 'middle'} />
               <YAxis stroke={DASHBOARD_COLORS.axis} tick={xTickStyle} width={isCompactDashboard ? 46 : 60} />
-              <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: '#fff' }} formatter={(v) => [Number(v).toLocaleString('pt-BR') + ' un.', 'Unidades']} />
+              <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: '#fff' }} formatter={(v, _name, props) => [<span style={{ color: props.payload?.color || '#60a5fa', fontWeight: 700 }}>{Number(v).toLocaleString('pt-BR') + ' un.'}</span>, 'Unidades']} />
               <Bar dataKey="qty" name="Unidades vendidas" radius={[8, 8, 0, 0]}>
                 {salesConvChartData.map((entry, index) => (
                   <Cell key={`sales-conv-${entry.name}-${index}`} fill={entry.color} />
