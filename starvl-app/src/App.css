@@ -1156,6 +1156,93 @@ body.theme-light-body {
   height: 100%;
 }
 
+.product-matrix-card {
+  overflow: hidden;
+}
+
+.product-matrix-header {
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.product-matrix-title {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.product-matrix-title span {
+  color: #777;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.product-matrix-controls {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.segmented-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px;
+  background: #0c0c0c;
+  border: 1px solid #2a2a2a;
+  border-radius: 9px;
+}
+
+.segmented-filter button {
+  min-height: 30px;
+  border: none;
+  border-radius: 6px;
+  padding: 0 10px;
+  background: transparent;
+  color: #8a8a8a;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+}
+
+.segmented-filter button:hover {
+  color: #fff;
+}
+
+.segmented-filter button.active {
+  background: #E31E24;
+  color: #fff;
+  box-shadow: 0 6px 16px rgba(227, 30, 36, 0.22);
+}
+
+.product-matrix-tooltip {
+  min-width: 190px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 11px 12px;
+  background: rgba(15, 15, 15, 0.96);
+  border: 1px solid rgba(227, 30, 36, 0.78);
+  border-radius: 8px;
+  color: #e5e7eb;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.38);
+}
+
+.product-matrix-tooltip strong {
+  color: #fff;
+  font-size: 13px;
+}
+
+.product-matrix-tooltip span {
+  color: #a1a1aa;
+  font-size: 12px;
+  font-weight: 600;
+}
+
 .card-header {
   display: flex;
   justify-content: space-between;
@@ -3896,6 +3983,30 @@ body.theme-light-body {
 }
 /* ── fim VendasPista ─────────────────────────────────────── */
 
+@media (max-width: 768px) {
+  .product-matrix-header,
+  .product-matrix-controls {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .product-matrix-controls,
+  .segmented-filter {
+    width: 100%;
+  }
+
+  .segmented-filter {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+  }
+
+  .segmented-filter button {
+    padding: 0 6px;
+    font-size: 10px;
+  }
+}
+
 /* LIGHT THEME */
 .app.theme-light {
   background: #f4f6f8;
@@ -4089,6 +4200,43 @@ body.theme-light-body {
   background: #f8fafc;
   border: 1px solid #e5e7eb;
   color: #111827;
+}
+
+.theme-light .product-matrix-title span {
+  color: #667085;
+}
+
+.theme-light .segmented-filter {
+  background: #f8fafc;
+  border-color: #e5e7eb;
+}
+
+.theme-light .segmented-filter button {
+  color: #667085;
+}
+
+.theme-light .segmented-filter button:hover {
+  color: #E31E24;
+}
+
+.theme-light .segmented-filter button.active {
+  background: #E31E24;
+  color: #ffffff;
+}
+
+.theme-light .product-matrix-tooltip {
+  background: #ffffff;
+  border-color: rgba(227, 30, 36, 0.75);
+  color: #111827;
+  box-shadow: 0 14px 32px rgba(17, 24, 39, 0.16);
+}
+
+.theme-light .product-matrix-tooltip strong {
+  color: #111827;
+}
+
+.theme-light .product-matrix-tooltip span {
+  color: #667085;
 }
 
 .theme-light .value-item.highlight {

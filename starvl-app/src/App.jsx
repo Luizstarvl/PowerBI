@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import logoStarvl from './logo-starvl.png';
 import logoStarvlBlack from './logo-starvl-black.png';
 import * as XLSX from 'xlsx';
-import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Area, AreaChart, LabelList, ComposedChart } from 'recharts';
+import { LineChart, Line, BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Area, AreaChart, LabelList, ComposedChart, ScatterChart, Scatter, ReferenceLine, ReferenceArea } from 'recharts';
 import { Home, FileText, Users as UsersIcon, Truck, Package, LogOut, Eye, Search, Plus, Edit2, Trash2, X, Calendar, TrendingUp, Droplet, DollarSign, Calculator, Bell, ChevronDown, Activity, Settings, Building2, Phone, Mail, MapPin, Hash, Clock, BarChart2, Layers, CircleDollarSign, UserCheck, UserPlus, AlertCircle, Globe, Camera, Building, Tag, RefreshCw, Database, ChevronRight, Filter, Printer, Moon, Sun } from 'lucide-react';
 import './App.css';
 
@@ -775,11 +775,96 @@ const VendasPista = ({ clients, selectedClient, selectedPeriod }) => {
   );
 };
 // ── fim VendasPista ────────────────────────────────────────────────────────────
+const PRODUCT_MATRIX_UNITS = ['Pista', 'Conveniência'];
+const PRODUCT_MATRIX_PERIODS = [
+  { value: 'Diário', factor: 0.08, marginShift: -0.6 },
+  { value: 'Semanal', factor: 0.32, marginShift: 0.4 },
+  { value: 'Mensal', factor: 1, marginShift: 0 },
+  { value: 'Anual', factor: 12, marginShift: 1.2 },
+];
+
+const PRODUCT_MATRIX_MOCK = {
+  Pista: [
+    { name: 'Etanol Hidratado', volume: 840, margin: 33 },
+    { name: 'Gasolina Aditivada', volume: 760, margin: 36 },
+    { name: 'Diesel S10', volume: 910, margin: 31 },
+    { name: 'GNV Veicular', volume: 630, margin: 34 },
+    { name: 'Óleo Sintético 5W30', volume: 540, margin: 42 },
+    { name: 'Gasolina Comum', volume: 960, margin: 17 },
+    { name: 'Diesel S500', volume: 740, margin: 15 },
+    { name: 'Arla 32', volume: 680, margin: 19 },
+    { name: 'Óleo 2T', volume: 580, margin: 21 },
+    { name: 'Lavagem Simples', volume: 620, margin: 22 },
+    { name: 'Fluido Radiador', volume: 260, margin: 39 },
+    { name: 'Aditivo Flex', volume: 320, margin: 37 },
+    { name: 'Palheta Limpador', volume: 180, margin: 44 },
+    { name: 'Cristalizador Para-brisa', volume: 140, margin: 41 },
+    { name: 'Filtro de Óleo', volume: 390, margin: 35 },
+    { name: 'Gasolina Premium', volume: 230, margin: 18 },
+    { name: 'Desengraxante Motor', volume: 170, margin: 14 },
+    { name: 'Funil Abastecimento', volume: 90, margin: 16 },
+    { name: 'Recarga TAG', volume: 300, margin: 12 },
+    { name: 'Extintor Revisão', volume: 120, margin: 11 },
+  ],
+  Conveniência: [
+    { name: 'Café Expresso', volume: 880, margin: 48 },
+    { name: 'Pão de Queijo', volume: 790, margin: 39 },
+    { name: 'Água Mineral 500ml', volume: 940, margin: 34 },
+    { name: 'Energético Lata', volume: 710, margin: 41 },
+    { name: 'Salgado Assado', volume: 680, margin: 36 },
+    { name: 'Refrigerante 2L', volume: 870, margin: 19 },
+    { name: 'Cerveja Long Neck', volume: 750, margin: 22 },
+    { name: 'Chocolate Barra', volume: 640, margin: 18 },
+    { name: 'Cigarro Carteira', volume: 920, margin: 12 },
+    { name: 'Gelo 5kg', volume: 560, margin: 20 },
+    { name: 'Vinho Seleção', volume: 170, margin: 45 },
+    { name: 'Castanhas Premium', volume: 240, margin: 43 },
+    { name: 'Suco Natural', volume: 310, margin: 38 },
+    { name: 'Sanduíche Natural', volume: 360, margin: 35 },
+    { name: 'Acessório Celular', volume: 130, margin: 46 },
+    { name: 'Biscoito Recheado', volume: 310, margin: 16 },
+    { name: 'Chiclete Unitário', volume: 210, margin: 14 },
+    { name: 'Raspadinha', volume: 80, margin: 10 },
+    { name: 'Isqueiro', volume: 190, margin: 18 },
+    { name: 'Copo Descartável', volume: 110, margin: 13 },
+  ],
+};
+
+const PRODUCT_MATRIX_COLORS = {
+  stars: '#22c55e',
+  workhorses: '#3b82f6',
+  questions: '#facc15',
+  dogs: '#ef4444',
+};
+
+const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+
+const getProductMatrixColor = (item, xMid, yMid) => {
+  if (item.volume >= xMid && item.margin >= yMid) return PRODUCT_MATRIX_COLORS.stars;
+  if (item.volume >= xMid && item.margin < yMid) return PRODUCT_MATRIX_COLORS.workhorses;
+  if (item.volume < xMid && item.margin >= yMid) return PRODUCT_MATRIX_COLORS.questions;
+  return PRODUCT_MATRIX_COLORS.dogs;
+};
+
+const ProductMatrixTooltip = ({ active, payload }) => {
+  if (!active || !payload?.length) return null;
+  const item = payload[0].payload;
+
+  return (
+    <div className="product-matrix-tooltip">
+      <strong>{item.name}</strong>
+      <span>Volume: {Number(item.volume || 0).toLocaleString('pt-BR')} vendas</span>
+      <span>Margem: {Number(item.margin || 0).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%</span>
+    </div>
+  );
+};
 
 // Dashboard Component
 const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcControle, estoques, loading, clients, selectedClient, selectedPeriod }) => {
   const [selectedFuelDonut, setSelectedFuelDonut] = useState(null);
   const [isCompactDashboard, setIsCompactDashboard] = useState(false);
+  const [productMatrixUnit, setProductMatrixUnit] = useState('Pista');
+  const [productMatrixPeriod, setProductMatrixPeriod] = useState('Mensal');
 
   useEffect(() => {
     const media = window.matchMedia('(max-width: 768px)');
@@ -869,11 +954,22 @@ const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcContr
   const purchaseTooltipStyle = { ...tooltipStyle, border: `1px solid ${DASHBOARD_COLORS.purchase110}` };
   const labelStyle = { fill: DASHBOARD_COLORS.label, fontWeight: 700 };
   const wideChartHeight = isCompactDashboard ? 240 : 300;
-  const stockChartHeight = 200;
+  const productMatrixHeight = isCompactDashboard ? 360 : 430;
   const purchaseChartHeight = isCompactDashboard ? 260 : 280;
   const smallChartHeight = isCompactDashboard ? 185 : 150;
   const xTickStyle = { fill: DASHBOARD_COLORS.axis, fontSize: isCompactDashboard ? 10 : 11 };
   const showDenseValueLabels = !isCompactDashboard;
+  const selectedMatrixPeriod = PRODUCT_MATRIX_PERIODS.find(period => period.value === productMatrixPeriod) || PRODUCT_MATRIX_PERIODS[2];
+  const productMatrixData = (PRODUCT_MATRIX_MOCK[productMatrixUnit] || PRODUCT_MATRIX_MOCK.Pista).map((item, index) => ({
+    ...item,
+    volume: Math.round(item.volume * selectedMatrixPeriod.factor + (index % 4) * selectedMatrixPeriod.factor * 6),
+    margin: clamp(item.margin + selectedMatrixPeriod.marginShift + ((index % 3) - 1) * 0.7, 4, 50),
+  }));
+  const productMatrixXMax = Math.max(100, Math.ceil((Math.max(...productMatrixData.map(item => item.volume), 0) * 1.12) / 100) * 100);
+  const productMatrixXMid = productMatrixXMax / 2;
+  const productMatrixYMax = 50;
+  const productMatrixYMid = productMatrixYMax / 2;
+  const productMatrixLabel = { fontSize: isCompactDashboard ? 10 : 13, fontWeight: 800 };
 
   const dashboardKpis = kpis ? [
     { label: 'Total Vendas', value: 'R$ ' + fmt(kpis.vendas?.valor), icon: DollarSign, sub: `${(kpis.vendas?.total || 0).toLocaleString('pt-BR')} vendas` },
@@ -960,6 +1056,152 @@ const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcContr
         </div>
       </div>
     ),
+    purchases: (
+      <div className="chart-card">
+        <div className="card-header"><h3>COMPRAS 110 / 220 POR COMBUSTÍVEL</h3><span style={{ fontSize: '12px', color: '#666' }}>litros no período</span></div>
+        <ResponsiveContainer width="100%" height={purchaseChartHeight}>
+          <BarChart data={purchasesChartData} margin={{ top: 24, right: 12, left: 6, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke={DASHBOARD_COLORS.grid} />
+            <XAxis dataKey="name" stroke={DASHBOARD_COLORS.axis} tick={xTickStyle} interval={0} height={isCompactDashboard ? 46 : 30} angle={isCompactDashboard ? -18 : 0} textAnchor={isCompactDashboard ? 'end' : 'middle'} />
+            <YAxis stroke={DASHBOARD_COLORS.axis} tick={xTickStyle} width={isCompactDashboard ? 46 : 60} />
+            <Tooltip
+              cursor={false}
+              contentStyle={purchaseTooltipStyle}
+              labelStyle={{ color: '#fff' }}
+              formatter={(v) => [fmt(v) + ' L', 'Litros']}
+            />
+            <Legend />
+            <Bar dataKey="compra110" name="Compra 110" fill={DASHBOARD_COLORS.purchase110} radius={[8, 8, 0, 0]}>
+              <LabelList dataKey="compra110" position="top" formatter={(v) => Number(v) > 0 ? fmtCompactLiters(v) : ''} {...labelStyle} fontSize={isCompactDashboard ? 9 : 11} />
+            </Bar>
+            <Bar dataKey="compra220" name="Compra 220" fill={DASHBOARD_COLORS.purchase220} radius={[8, 8, 0, 0]}>
+              <LabelList dataKey="compra220" position="top" formatter={(v) => Number(v) > 0 ? fmtCompactLiters(v) : ''} {...labelStyle} fontSize={isCompactDashboard ? 9 : 11} />
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    ),
+    productMatrix: (
+      <div className="chart-card product-matrix-card">
+        <div className="card-header product-matrix-header">
+          <div className="product-matrix-title">
+            <h3>MATRIZ DE DISPERSÃO DE PRODUTOS</h3>
+            <span>Portfólio ABC por volume e margem bruta</span>
+          </div>
+          <div className="product-matrix-controls">
+            <div className="segmented-filter" aria-label="Unidade de Negócio">
+              {PRODUCT_MATRIX_UNITS.map(unit => (
+                <button
+                  key={unit}
+                  type="button"
+                  className={productMatrixUnit === unit ? 'active' : ''}
+                  onClick={() => setProductMatrixUnit(unit)}
+                >
+                  {unit}
+                </button>
+              ))}
+            </div>
+            <div className="segmented-filter" aria-label="Período">
+              {PRODUCT_MATRIX_PERIODS.map(period => (
+                <button
+                  key={period.value}
+                  type="button"
+                  className={productMatrixPeriod === period.value ? 'active' : ''}
+                  onClick={() => setProductMatrixPeriod(period.value)}
+                >
+                  {period.value}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <ResponsiveContainer width="100%" height={productMatrixHeight}>
+          <ScatterChart margin={{ top: 24, right: isCompactDashboard ? 12 : 28, left: isCompactDashboard ? 0 : 12, bottom: 26 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke={DASHBOARD_COLORS.grid} />
+            <ReferenceArea x1={productMatrixXMid} x2={productMatrixXMax} y1={productMatrixYMid} y2={productMatrixYMax} fill={PRODUCT_MATRIX_COLORS.stars} fillOpacity={0.1} ifOverflow="extendDomain" label={{ value: '⭐ Estrelas', position: 'insideTopRight', fill: '#86efac', ...productMatrixLabel }} />
+            <ReferenceArea x1={productMatrixXMid} x2={productMatrixXMax} y1={0} y2={productMatrixYMid} fill={PRODUCT_MATRIX_COLORS.workhorses} fillOpacity={0.1} ifOverflow="extendDomain" label={{ value: '🐴 Cavalos de Carga', position: 'insideBottomRight', fill: '#93c5fd', ...productMatrixLabel }} />
+            <ReferenceArea x1={0} x2={productMatrixXMid} y1={productMatrixYMid} y2={productMatrixYMax} fill={PRODUCT_MATRIX_COLORS.questions} fillOpacity={0.1} ifOverflow="extendDomain" label={{ value: '❓ Interrogações', position: 'insideTopLeft', fill: '#fde68a', ...productMatrixLabel }} />
+            <ReferenceArea x1={0} x2={productMatrixXMid} y1={0} y2={productMatrixYMid} fill={PRODUCT_MATRIX_COLORS.dogs} fillOpacity={0.1} ifOverflow="extendDomain" label={{ value: '🐒 Micos', position: 'insideBottomLeft', fill: '#fca5a5', ...productMatrixLabel }} />
+            <ReferenceLine x={productMatrixXMid} stroke="#94a3b8" strokeDasharray="6 6" strokeOpacity={0.65} />
+            <ReferenceLine y={productMatrixYMid} stroke="#94a3b8" strokeDasharray="6 6" strokeOpacity={0.65} />
+            <XAxis
+              type="number"
+              dataKey="volume"
+              name="Quantidade de Vendas"
+              domain={[0, productMatrixXMax]}
+              stroke={DASHBOARD_COLORS.axis}
+              tick={xTickStyle}
+              tickFormatter={(value) => Number(value).toLocaleString('pt-BR')}
+              label={{ value: 'Quantidade de Vendas (Volume / Frequência de saída)', position: 'insideBottom', offset: -14, fill: DASHBOARD_COLORS.axis, fontSize: isCompactDashboard ? 10 : 12 }}
+            />
+            <YAxis
+              type="number"
+              dataKey="margin"
+              name="Margem de Lucro Bruto"
+              domain={[0, productMatrixYMax]}
+              stroke={DASHBOARD_COLORS.axis}
+              tick={xTickStyle}
+              tickFormatter={(value) => `${value}%`}
+              label={{ value: 'Margem de Lucro Bruto (%)', angle: -90, position: 'insideLeft', fill: DASHBOARD_COLORS.axis, fontSize: isCompactDashboard ? 10 : 12 }}
+            />
+            <Tooltip cursor={{ stroke: '#cbd5e1', strokeDasharray: '3 3', strokeOpacity: 0.35 }} content={<ProductMatrixTooltip />} />
+            <Scatter name="Produtos" data={productMatrixData}>
+              {productMatrixData.map((item, index) => (
+                <Cell key={`${item.name}-${index}`} fill={getProductMatrixColor(item, productMatrixXMid, productMatrixYMid)} stroke="#0f172a" strokeWidth={1.5} />
+              ))}
+            </Scatter>
+          </ScatterChart>
+        </ResponsiveContainer>
+      </div>
+    ),
+    hourly: (
+      <div className="chart-card">
+        <div className="card-header"><h3>VENDAS P/HORA</h3></div>
+        <div className="metric-display"><div className="metric-icon-box"><Clock size={20} /></div><div className="metric-info"><div className="metric-label">Valor de combustível vendido</div><div className="metric-value">{kpis ? fmtCompactCurrency(kpis.combustivel?.valor) : '—'}<span className="trend positive"><TrendingUp size={16} />no período</span></div><div className="metric-sublabel">quebra por hora</div></div></div>
+        <ResponsiveContainer width="100%" height={smallChartHeight}>
+          <BarChart data={hourlyChart} margin={{ top: 22, right: 8, left: 0, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke={DASHBOARD_COLORS.grid} vertical={false} />
+            <XAxis dataKey="hour" stroke={DASHBOARD_COLORS.axis} tick={xTickStyle} interval={isCompactDashboard ? 5 : 3} />
+            <YAxis hide />
+            <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: '#fff' }} formatter={(v) => [fmtCompactCurrency(v), 'Valor']} />
+            <Bar dataKey="value" fill={DASHBOARD_COLORS.sale} radius={[6, 6, 0, 0]}>{showDenseValueLabels && <LabelList dataKey="value" position="top" formatter={(v) => Number(v) > 0 ? fmtCompactCurrency(v) : ''} {...labelStyle} fontSize={9} />}</Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    ),
+    weekly: (
+      <div className="chart-card">
+        <div className="card-header"><h3>VENDAS P/SEMANA</h3></div>
+        <div className="metric-display"><div className="metric-icon-box"><Calendar size={20} /></div><div className="metric-info"><div className="metric-label">Valor de combustível vendido</div><div className="metric-value">{fmtCompactCurrency(monthlyTotal)}<span className="trend positive"><TrendingUp size={16} />no período</span></div><div className="metric-sublabel">Semana 1, 2, 3 e 4</div></div></div>
+        <ResponsiveContainer width="100%" height={smallChartHeight}>
+          <AreaChart data={weeklyChart} margin={{ top: 22, right: 8, left: 0, bottom: 0 }}>
+            <defs><linearGradient id="colorWeekly" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={DASHBOARD_COLORS.sale} stopOpacity={0.8}/><stop offset="95%" stopColor={DASHBOARD_COLORS.sale} stopOpacity={0}/></linearGradient></defs>
+            <CartesianGrid strokeDasharray="3 3" stroke={DASHBOARD_COLORS.grid} vertical={false} />
+            <XAxis dataKey="name" stroke={DASHBOARD_COLORS.axis} tick={xTickStyle} />
+            <YAxis hide />
+            <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: '#fff' }} formatter={(v) => [fmtCompactCurrency(v), 'Valor']} />
+            <Area type="monotone" dataKey="value" stroke={DASHBOARD_COLORS.sale} fillOpacity={1} fill="url(#colorWeekly)"><LabelList dataKey="value" position="top" formatter={(v) => Number(v) > 0 ? fmtCompactCurrency(v) : ''} {...labelStyle} fontSize={isCompactDashboard ? 9 : 10} /></Area>
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
+    ),
+    monthly: (
+      <div className="chart-card">
+        <div className="card-header"><h3>VENDAS P/MÊS</h3></div>
+        <div className="metric-display"><div className="metric-icon-box"><BarChart2 size={20} /></div><div className="metric-info"><div className="metric-label">Valor de combustível vendido</div><div className="metric-value">{fmtCompactCurrency(monthlyTotal)}<span className="trend positive"><TrendingUp size={16} />no período</span></div><div className="metric-sublabel">total mensal de combustível</div></div></div>
+        <ResponsiveContainer width="100%" height={smallChartHeight}>
+          <AreaChart data={monthlyChart} margin={{ top: 22, right: 8, left: 0, bottom: 0 }}>
+            <defs><linearGradient id="colorMonthly" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={DASHBOARD_COLORS.sale} stopOpacity={0.8}/><stop offset="95%" stopColor={DASHBOARD_COLORS.sale} stopOpacity={0}/></linearGradient></defs>
+            <CartesianGrid strokeDasharray="3 3" stroke={DASHBOARD_COLORS.grid} vertical={false} />
+            <YAxis hide />
+            <Area type="monotone" dataKey="value" stroke={DASHBOARD_COLORS.sale} fillOpacity={1} fill="url(#colorMonthly)">{showDenseValueLabels && <LabelList dataKey="value" position="top" formatter={(v) => Number(v) > 0 ? fmtCompactCurrency(v) : ''} {...labelStyle} fontSize={9} />}</Area>
+            <XAxis dataKey="day" stroke={DASHBOARD_COLORS.axis} tick={xTickStyle} interval={isCompactDashboard ? 6 : 4} />
+            <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: '#fff' }} formatter={(v) => [fmtCompactCurrency(v), 'Valor']} />
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
+    ),
   };
 
   return (
@@ -972,6 +1214,7 @@ const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcContr
         <div className="dashboard-static-full">
           <VendasPista clients={clients} selectedClient={selectedClient} selectedPeriod={selectedPeriod} />
         </div>
+        <div className="dashboard-static-full">{dashboardSections.productMatrix}</div>
       </div>
     </div>
   );
