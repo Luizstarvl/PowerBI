@@ -532,10 +532,47 @@ function vpMockRows(days = 35) {
   return rows;
 }
 
+// ── Mock Data: Conveniência / Loja (prodtipo = 2) ────────────────────────────
+const _VP_MOCK_CONV_PRODS = [
+  { nome: 'Arla 32 20L',       preco: 89.90,  rangeQtd: [2, 10] },
+  { nome: 'Óleo Motor 5W30',   preco: 42.50,  rangeQtd: [2, 8]  },
+  { nome: 'Óleo Motor 10W40',  preco: 38.90,  rangeQtd: [3, 10] },
+  { nome: 'Lavagem Simples',   preco: 35.00,  rangeQtd: [4, 18] },
+  { nome: 'Lavagem Completa',  preco: 65.00,  rangeQtd: [2, 10] },
+  { nome: 'Calibragem',        preco: 8.00,   rangeQtd: [8, 35] },
+  { nome: 'Filtro de Óleo',    preco: 28.90,  rangeQtd: [2, 7]  },
+  { nome: 'Fluido Freio DOT4', preco: 18.50,  rangeQtd: [1, 5]  },
+  { nome: 'Aditivo Radiador',  preco: 22.90,  rangeQtd: [1, 4]  },
+  { nome: 'Água Destilada',    preco: 6.50,   rangeQtd: [5, 20] },
+];
+
+function vpMockConvRows(days = 35) {
+  const today = new Date();
+  const rows  = [];
+  for (let ago = days - 1; ago >= 0; ago--) {
+    const d   = new Date(today);
+    d.setDate(d.getDate() - ago);
+    const dia = vpDateStr(d);
+    const wk  = (d.getDay() === 0 || d.getDay() === 6) ? 1.2 : 1.0;
+    _VP_MOCK_CONV_PRODS.forEach(prod => {
+      const [lo, hi] = prod.rangeQtd;
+      const dayQtd   = Math.round((lo + Math.random() * (hi - lo)) * wk);
+      _VP_MOCK_VEND.forEach((vendedor, vi) => {
+        const qtd = Math.max(0, Math.round(dayQtd * _VP_MOCK_SHARES[vi] * (0.7 + Math.random() * 0.6)));
+        if (qtd === 0) return;
+        const faturamento = Math.round(qtd * prod.preco * (0.97 + Math.random() * 0.06) * 100) / 100;
+        rows.push({ dia, combustivel: prod.nome, vendedor, litros: qtd, faturamento });
+      });
+    });
+  }
+  return rows;
+}
+
 // ── Componente ────────────────────────────────────────────────────────────────
 const VendasPista = ({ clients, selectedClient, selectedPeriod }) => {
   const [periodKey, setPeriodKey] = useState('diario');
   const [viewMode, setViewMode]   = useState('combustivel');
+  const [secao, setSecao]         = useState('combustivel'); // 'combustivel' | 'conveniencia'
   const [rawData, setRawData]     = useState([]);
   const [loading, setLoading]     = useState(false);
   const [error, setError]         = useState(null);
@@ -553,11 +590,12 @@ const VendasPista = ({ clients, selectedClient, selectedPeriod }) => {
     [periodKey, selectedPeriod]
   );
 
-  // Re-busca quando mudar empresa ou intervalo de datas; cai no mock se não houver dados
+  // Re-busca quando mudar empresa, intervalo de datas ou seção; cai no mock se não houver dados
   useEffect(() => {
     if (!empresa || !dataInicio || !dataFim) { setUsingMock(true); return; }
     setLoading(true); setError(null); setUsingMock(false);
-    fetch(`${API_URL}/api/dashboard/vendas-pista?empresa=${empresa}&dataInicio=${dataInicio}&dataFim=${dataFim}`)
+    const prodtipo = secao === 'combustivel' ? 1 : 2;
+    fetch(`${API_URL}/api/dashboard/vendas-pista?empresa=${empresa}&dataInicio=${dataInicio}&dataFim=${dataFim}&prodtipo=${prodtipo}`)
       .then(r => r.json())
       .then(data => {
         if (data.error) throw new Error(data.error);
@@ -567,11 +605,13 @@ const VendasPista = ({ clients, selectedClient, selectedPeriod }) => {
       })
       .catch(err => { setError(err.message); setUsingMock(true); })
       .finally(() => setLoading(false));
-  }, [empresa, dataInicio, dataFim]);
+  }, [empresa, dataInicio, dataFim, secao]);
 
-  // Mock data gerado uma vez como fallback
-  const mockRows   = useMemo(() => vpMockRows(35), []);
-  const sourceData = usingMock ? mockRows : rawData;
+  // Mock data gerado uma vez como fallback (combustível ou conveniência)
+  const mockRows     = useMemo(() => vpMockRows(35), []);
+  const mockConvRows = useMemo(() => vpMockConvRows(35), []);
+  const sourceMock   = secao === 'combustivel' ? mockRows : mockConvRows;
+  const sourceData   = usingMock ? sourceMock : rawData;
 
   const { chartData, groupKeys, totais } = useMemo(() => {
     if (!sourceData.length) return { chartData: [], groupKeys: [], totais: { faturamento: 0, litros: 0 } };
@@ -655,7 +695,7 @@ const VendasPista = ({ clients, selectedClient, selectedPeriod }) => {
       {/* ── Cabeçalho ─────────────────────────────────────────────────────── */}
       <div className="card-header" style={{ flexWrap:'wrap', gap:8 }}>
         <h3>
-          DESEMPENHO E VOLUME DE VENDAS PISTA
+          DESEMPENHO E VOLUME DE {secao === 'combustivel' ? 'VENDAS PISTA' : 'CONVENIÊNCIA / LOJA'}
           {usingMock && (
             <span style={{ fontSize:'0.68em', color:'#64748b', fontWeight:400, marginLeft:10 }}>
               (demonstração)
@@ -663,9 +703,21 @@ const VendasPista = ({ clients, selectedClient, selectedPeriod }) => {
           )}
         </h3>
         <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
-          {/* Dimensão: Combustível | Vendedor */}
+          {/* Seção: Combustível | Conveniência */}
           <div className="vp-toggle-group">
-            {[{k:'combustivel',l:'Combustível'},{k:'vendedor',l:'Vendedor'}].map(v=>(
+            {[{k:'combustivel',l:'Combustível'},{k:'conveniencia',l:'Conveniência'}].map(v=>(
+              <button key={v.k} type="button"
+                className={`vp-period-btn vp-secao-btn${secao===v.k?' active':''}`}
+                onClick={()=>{ setSecao(v.k); setViewMode('combustivel'); setRawData([]); }}>{v.l}
+              </button>
+            ))}
+          </div>
+          {/* Dimensão: Combustível/Produto | Vendedor */}
+          <div className="vp-toggle-group">
+            {[
+              {k:'combustivel', l: secao==='combustivel' ? 'Combustível' : 'Produto'},
+              {k:'vendedor',    l:'Vendedor'},
+            ].map(v=>(
               <button key={v.k} type="button"
                 className={`vp-period-btn${viewMode===v.k?' active':''}`}
                 onClick={()=>setViewMode(v.k)}>{v.l}
@@ -695,10 +747,12 @@ const VendasPista = ({ clients, selectedClient, selectedPeriod }) => {
         </div>
         <div className="vp-kpi">
           <span className="vp-kpi-label">
-            Volume Vendido&nbsp;
+            {secao === 'combustivel' ? 'Volume Vendido' : 'Qtd Vendida'}&nbsp;
             <span style={{opacity:.6,fontSize:'0.8em'}}>({kpiLabel})</span>
           </span>
-          <span className="vp-kpi-value" style={{color:'#38bdf8'}}>{fmtL(totais.litros)} L</span>
+          <span className="vp-kpi-value" style={{color:'#38bdf8'}}>
+            {fmtL(totais.litros)}&nbsp;{secao === 'combustivel' ? 'L' : 'un'}
+          </span>
         </div>
         <div className="vp-kpi">
           <span className="vp-kpi-label">{maLabel}</span>
@@ -727,19 +781,23 @@ const VendasPista = ({ clients, selectedClient, selectedPeriod }) => {
               tick={{ fill:DASHBOARD_COLORS.axis, fontSize:11 }}
               tickFormatter={v => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v}
             />
-            {/* Eixo direito — Volume L */}
+            {/* Eixo direito — Volume L ou Qtd un */}
             <YAxis
               yAxisId="right"
               orientation="right"
               stroke="#38bdf8"
               tick={{ fill:'#38bdf8', fontSize:10 }}
-              tickFormatter={v => v >= 1000 ? `${(v/1000).toFixed(0)}kL` : `${v}L`}
+              tickFormatter={v => secao === 'combustivel'
+                ? (v >= 1000 ? `${(v/1000).toFixed(0)}kL` : `${v}L`)
+                : `${v}un`}
             />
             <Tooltip
               contentStyle={{ background:DASHBOARD_COLORS.tooltipBg, border:'1px solid #E31E24', borderRadius:8, color:'#f8fafc' }}
               formatter={(v, name) => {
-                if (name === 'Litros (L)')
-                  return [`${Number(v).toLocaleString('pt-BR',{maximumFractionDigits:0})} L`, name];
+                const volLabel = secao === 'combustivel' ? 'Litros (L)' : 'Qtd (un)';
+                const volUnit  = secao === 'combustivel' ? 'L' : 'un';
+                if (name === volLabel)
+                  return [`${Number(v).toLocaleString('pt-BR',{maximumFractionDigits:0})} ${volUnit}`, name];
                 return [`R$ ${Number(v).toLocaleString('pt-BR',{maximumFractionDigits:0})}`, name];
               }}
             />
@@ -758,11 +816,11 @@ const VendasPista = ({ clients, selectedClient, selectedPeriod }) => {
               />
             ))}
 
-            {/* GRUPO 2 — Volume em Litros (eixo direito, agrupado ao lado) */}
+            {/* GRUPO 2 — Volume em Litros (combustível) ou Qtd (conveniência) */}
             <Bar
               yAxisId="right"
               dataKey="litros"
-              name="Litros (L)"
+              name={secao === 'combustivel' ? 'Litros (L)' : 'Qtd (un)'}
               fill="rgba(56,189,248,0.38)"
               stroke="#38bdf8"
               strokeWidth={1}

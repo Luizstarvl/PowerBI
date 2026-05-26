@@ -281,9 +281,11 @@ router.get('/combustiveis', async (req, res) => {
   }
 });
 
-// GET /api/dashboard/vendas-pista?empresa=7432&dataInicio=2026-04-20&dataFim=2026-05-26
+// GET /api/dashboard/vendas-pista?empresa=7432&dataInicio=2026-04-20&dataFim=2026-05-26&prodtipo=1
+// prodtipo: 1 = combustíveis (padrão), 2 = conveniência/loja
 router.get('/vendas-pista', async (req, res) => {
-  const empresa = parseInt(req.query.empresa);
+  const empresa  = parseInt(req.query.empresa);
+  const prodtipo = parseInt(req.query.prodtipo) || 1;
   const { dataInicio, dataFim } = req.query;
 
   if (!empresa || !dataInicio || !dataFim) {
@@ -309,10 +311,10 @@ router.get('/vendas-pista', async (req, res) => {
          AND vda.vdamovimento >= $2
          AND vda.vdamovimento <= $3
          AND (vda.vdastatus IS NULL OR vda.vdastatus = 0)
-         AND prod.prodtipo = 1
+         AND prod.prodtipo = $4
        GROUP BY TO_CHAR(vda.vdamovimento, 'YYYY-MM-DD'), prod.prodcodigo, prod.prodresumo, atde.atdenome
        ORDER BY dia, combustivel, vendedor`,
-      [empresa, dataInicio, dataFim]
+      [empresa, dataInicio, dataFim, prodtipo]
     );
 
     res.json(result.rows.map(r => ({
