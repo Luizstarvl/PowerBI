@@ -2025,6 +2025,107 @@ body.theme-light-body {
   box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.16);
 }
 
+/* ── LMC: âncora e seleção de linha ──────────────────────────── */
+
+/* Linhas clicáveis */
+.lmc-row {
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+/* Dia selecionado — destaque azul */
+.lmc-row-selected > td {
+  background: rgba(56, 189, 248, 0.09) !important;
+}
+.lmc-row-selected > td:first-child {
+  box-shadow: inset 3px 0 0 #38bdf8;
+}
+
+/* Célula DIA: ícone + texto lado a lado */
+.lmc-day-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+/* Botão âncora / cadeado */
+.lmc-anchor-btn {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  border: 1px solid #2a2a2a;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #475569;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+  padding: 0;
+}
+
+.lmc-anchor-btn:hover {
+  border-color: #38bdf8;
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.1);
+}
+
+/* Estado: ancorado = desbloqueado (verde) */
+.lmc-anchor-btn.unlocked {
+  border-color: #22c55e;
+  color: #22c55e;
+  background: rgba(34, 197, 94, 0.1);
+}
+
+.lmc-anchor-btn.unlocked:hover {
+  border-color: #f87171;
+  color: #f87171;
+  background: rgba(248, 113, 113, 0.1);
+}
+
+/* Input de abertura quando bloqueado */
+.lmc-input-locked {
+  background: transparent !important;
+  border-color: transparent !important;
+  color: #64748b !important;
+  cursor: default;
+  pointer-events: none;
+  box-shadow: none !important;
+}
+
+/* Legenda âncora no rodapé */
+.lmc-anchor-legend {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: #64748b;
+}
+
+/* light theme */
+.theme-light .lmc-row-selected > td {
+  background: rgba(14, 165, 233, 0.07) !important;
+}
+.theme-light .lmc-anchor-btn {
+  border-color: #d1d5db;
+  color: #9ca3af;
+}
+.theme-light .lmc-anchor-btn:hover {
+  border-color: #0ea5e9;
+  color: #0ea5e9;
+  background: rgba(14, 165, 233, 0.08);
+}
+.theme-light .lmc-anchor-btn.unlocked {
+  border-color: #16a34a;
+  color: #16a34a;
+  background: rgba(22, 163, 74, 0.08);
+}
+.theme-light .lmc-input-locked {
+  color: #9ca3af !important;
+}
+
 .save-feedback {
   order: 2;
   margin-left: auto;

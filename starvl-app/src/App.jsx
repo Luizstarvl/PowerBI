@@ -3,7 +3,7 @@ import logoStarvl from './logo-starvl.png';
 import logoStarvlBlack from './logo-starvl-black.png';
 import * as XLSX from 'xlsx';
 import { LineChart, Line, BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Area, AreaChart, LabelList, ComposedChart, ReferenceLine } from 'recharts';
-import { Home, FileText, Users as UsersIcon, Truck, Package, LogOut, Eye, Search, Plus, Edit2, Trash2, X, Calendar, TrendingUp, Droplet, DollarSign, Calculator, Bell, ChevronDown, Activity, Settings, Building2, Phone, Mail, MapPin, Hash, Clock, BarChart2, Layers, CircleDollarSign, UserCheck, UserPlus, AlertCircle, Globe, Camera, Building, Tag, RefreshCw, Database, ChevronRight, Filter, Printer, Moon, Sun, Trophy } from 'lucide-react';
+import { Home, FileText, Users as UsersIcon, Truck, Package, LogOut, Eye, Search, Plus, Edit2, Trash2, X, Calendar, TrendingUp, Droplet, DollarSign, Calculator, Bell, ChevronDown, Activity, Settings, Building2, Phone, Mail, MapPin, Hash, Clock, BarChart2, Layers, CircleDollarSign, UserCheck, UserPlus, AlertCircle, Globe, Camera, Building, Tag, RefreshCw, Database, ChevronRight, Filter, Printer, Moon, Sun, Trophy, Lock, Unlock } from 'lucide-react';
 import './App.css';
 
 // Mock data
@@ -3116,6 +3116,16 @@ const Control = ({ lmcRegistros, lmcDiario, lmcControle, selectedPeriod, setSele
       return {};
     }
   });
+  // anchoredDays: { [aberturaKey]: true } — dias "ancorados" têm abertura editável
+  const [anchoredDays, setAnchoredDays] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('starvl:lmc-anchors') || '{}');
+    } catch {
+      return {};
+    }
+  });
+  // selectedRowKey: qual linha está destacada no momento
+  const [selectedRowKey, setSelectedRowKey] = useState(null);
   const [savedEditKey, setSavedEditKey] = useState(null);
 
   const fmt2 = (n) => (n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -3230,6 +3240,18 @@ const Control = ({ lmcRegistros, lmcDiario, lmcControle, selectedPeriod, setSele
     window.setTimeout(() => setSavedEditKey(current => current === savedKey ? null : current), 1200);
   }
 
+  function toggleAnchor(aberturaKey) {
+    setAnchoredDays(prev => {
+      const next = { ...prev, [aberturaKey]: !prev[aberturaKey] };
+      localStorage.setItem('starvl:lmc-anchors', JSON.stringify(next));
+      return next;
+    });
+  }
+
+  function handleRowClick(key) {
+    setSelectedRowKey(prev => (prev === key ? null : key));
+  }
+
   const tableRows = buildControlReportRows({
     lmcRegistros,
     lmcControle,
@@ -3322,40 +3344,68 @@ const Control = ({ lmcRegistros, lmcDiario, lmcControle, selectedPeriod, setSele
                 </tr>
               </thead>
               <tbody>
-                {tableRows.map((row) => (
-                  <tr key={row.key}>
-                    <td>{row.dia}</td>
-                    <td>
-                      <input
-                        className={`lmc-fisico-input ${savedEditKey === `abertura:${row.aberturaKey}` ? 'saved' : ''}`}
-                        type="text"
-                        inputMode="decimal"
-                        value={row.aberturaInput}
-                        onChange={(e) => persistAberturaEdit(row.aberturaKey, e.target.value)}
-                        aria-label={`Estoque abertura ${row.dia}`}
-                      />
-                    </td>
-                    <td>{fmt2(row.compras110)}</td>
-                    <td>{fmt2(row.compras220)}</td>
-                    <td>{fmt2(row.afericoes)}</td>
-                    <td>{fmt2(row.vendas)}</td>
-                    <td>{fmt2(row.fechamento)}</td>
-                    <td>
-                      <input
-                        className={`lmc-fisico-input ${savedEditKey === `fisico:${row.fisicoKey}` ? 'saved' : ''}`}
-                        type="text"
-                        inputMode="decimal"
-                        value={row.fisicoInput}
-                        placeholder="0,00"
-                        onChange={(e) => persistFisicoEdit(row.fisicoKey, e.target.value)}
-                        aria-label={`Estoque fisico ${row.dia}`}
-                      />
-                    </td>
-                    <td style={{ color: row.perdas < -0.01 ? '#f87171' : row.perdas > 0.01 ? '#22c55e' : 'inherit' }}>
-                      {fmt2(row.perdas)}
-                    </td>
-                  </tr>
-                ))}
+                {tableRows.map((row) => {
+                  const isAnchored = !!anchoredDays[row.aberturaKey];
+                  const isSelected = selectedRowKey === row.key;
+                  // buildControlReportRows já popula aberturaInput com o valor calculado
+                  // quando não há edição do usuário — pode ser usado diretamente
+                  const aberturaDisplayValue = row.aberturaInput;
+                  return (
+                    <tr
+                      key={row.key}
+                      className={`lmc-row${isSelected ? ' lmc-row-selected' : ''}${isAnchored ? ' lmc-row-anchored' : ''}`}
+                      onClick={() => handleRowClick(row.key)}
+                    >
+                      <td>
+                        <div className="lmc-day-cell">
+                          <button
+                            type="button"
+                            className={`lmc-anchor-btn${isAnchored ? ' unlocked' : ''}`}
+                            title={isAnchored ? 'Bloquear — clique para impedir edição da abertura' : 'Ancorar — clique para liberar edição da abertura'}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleAnchor(row.aberturaKey);
+                              setSelectedRowKey(row.key);
+                            }}
+                          >
+                            {isAnchored ? <Unlock size={13} /> : <Lock size={13} />}
+                          </button>
+                          <span>{row.dia}</span>
+                        </div>
+                      </td>
+                      <td>
+                        <input
+                          className={`lmc-fisico-input${savedEditKey === `abertura:${row.aberturaKey}` ? ' saved' : ''}${!isAnchored ? ' lmc-input-locked' : ''}`}
+                          type="text"
+                          inputMode="decimal"
+                          value={aberturaDisplayValue}
+                          readOnly={!isAnchored}
+                          onChange={isAnchored ? (e) => persistAberturaEdit(row.aberturaKey, e.target.value) : undefined}
+                          aria-label={`Estoque abertura ${row.dia}`}
+                        />
+                      </td>
+                      <td>{fmt2(row.compras110)}</td>
+                      <td>{fmt2(row.compras220)}</td>
+                      <td>{fmt2(row.afericoes)}</td>
+                      <td>{fmt2(row.vendas)}</td>
+                      <td>{fmt2(row.fechamento)}</td>
+                      <td>
+                        <input
+                          className={`lmc-fisico-input${savedEditKey === `fisico:${row.fisicoKey}` ? ' saved' : ''}`}
+                          type="text"
+                          inputMode="decimal"
+                          value={row.fisicoInput}
+                          placeholder="0,00"
+                          onChange={(e) => persistFisicoEdit(row.fisicoKey, e.target.value)}
+                          aria-label={`Estoque fisico ${row.dia}`}
+                        />
+                      </td>
+                      <td style={{ color: row.perdas < -0.01 ? '#f87171' : row.perdas > 0.01 ? '#22c55e' : 'inherit' }}>
+                        {fmt2(row.perdas)}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
               <tfoot>
                 <tr>
@@ -3377,6 +3427,12 @@ const Control = ({ lmcRegistros, lmcDiario, lmcControle, selectedPeriod, setSele
           <div className="table-footer">
             {savedEditKey && <div className="save-feedback">Alteracao salva</div>}
             <div className="table-info">Exibindo {tableRows.length} dias — {fuels.find(f => f.codigo === activeFuelId)?.nome || ''}</div>
+            <div className="lmc-anchor-legend">
+              <Lock size={11} />
+              <span>Bloqueado — clique no cadeado para liberar edição da abertura</span>
+              <Unlock size={11} style={{ marginLeft: 8, color: '#22c55e' }} />
+              <span style={{ color: '#22c55e' }}>Ancorado — abertura editável</span>
+            </div>
           </div>
         </>
       )}
