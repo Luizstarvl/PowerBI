@@ -494,11 +494,11 @@ function vpDateRange(periodKey, selectedPeriod) {
 
 // ── Mock Data: 35 dias realistas para posto de combustível ───────────────────
 const _VP_MOCK_FUELS = [
-  { nome: 'Gasolina Comum',     preco: 5.89 },
-  { nome: 'Gasolina Aditivada', preco: 6.29 },
-  { nome: 'Etanol Comum',       preco: 3.89 },
-  { nome: 'Diesel S10',         preco: 6.19 },
-  { nome: 'GNV',                preco: 4.20 },
+  { nome: 'Gasolina Comum',     preco: 5.89, secao: 'Combustíveis', grupo: 'Gasolinas' },
+  { nome: 'Gasolina Aditivada', preco: 6.29, secao: 'Combustíveis', grupo: 'Gasolinas' },
+  { nome: 'Etanol Comum',       preco: 3.89, secao: 'Combustíveis', grupo: 'Etanol'    },
+  { nome: 'Diesel S10',         preco: 6.19, secao: 'Combustíveis', grupo: 'Diesel'    },
+  { nome: 'GNV',                preco: 4.20, secao: 'Combustíveis', grupo: 'GNV'       },
 ];
 const _VP_MOCK_VEND   = ['João', 'Maria', 'Carlos', 'Ana'];
 const _VP_MOCK_SHARES = [0.30, 0.25, 0.25, 0.20];    // proporção de vendas por vendedor
@@ -525,7 +525,7 @@ function vpMockRows(days = 35) {
       _VP_MOCK_VEND.forEach((vendedor, vi) => {
         const litros      = Math.round(dayVol * _VP_MOCK_SHARES[vi] * (0.88 + Math.random() * 0.24) * 100) / 100;
         const faturamento = Math.round(litros * fuel.preco * (0.97 + Math.random() * 0.06) * 100) / 100;
-        rows.push({ dia, combustivel: fuel.nome, vendedor, litros, faturamento });
+        rows.push({ dia, combustivel: fuel.nome, vendedor, litros, faturamento, secao: fuel.secao, grupo: fuel.grupo });
       });
     });
   }
@@ -534,16 +534,16 @@ function vpMockRows(days = 35) {
 
 // ── Mock Data: Conveniência / Loja (prodtipo = 2) ────────────────────────────
 const _VP_MOCK_CONV_PRODS = [
-  { nome: 'Arla 32 20L',       preco: 89.90,  rangeQtd: [2, 10] },
-  { nome: 'Óleo Motor 5W30',   preco: 42.50,  rangeQtd: [2, 8]  },
-  { nome: 'Óleo Motor 10W40',  preco: 38.90,  rangeQtd: [3, 10] },
-  { nome: 'Lavagem Simples',   preco: 35.00,  rangeQtd: [4, 18] },
-  { nome: 'Lavagem Completa',  preco: 65.00,  rangeQtd: [2, 10] },
-  { nome: 'Calibragem',        preco: 8.00,   rangeQtd: [8, 35] },
-  { nome: 'Filtro de Óleo',    preco: 28.90,  rangeQtd: [2, 7]  },
-  { nome: 'Fluido Freio DOT4', preco: 18.50,  rangeQtd: [1, 5]  },
-  { nome: 'Aditivo Radiador',  preco: 22.90,  rangeQtd: [1, 4]  },
-  { nome: 'Água Destilada',    preco: 6.50,   rangeQtd: [5, 20] },
+  { nome: 'Arla 32 20L',       preco: 89.90, rangeQtd:[2,10],  secao:'Lubrificantes', grupo:'Aditivos'       },
+  { nome: 'Óleo Motor 5W30',   preco: 42.50, rangeQtd:[2, 8],  secao:'Lubrificantes', grupo:'Óleos Motor'    },
+  { nome: 'Óleo Motor 10W40',  preco: 38.90, rangeQtd:[3,10],  secao:'Lubrificantes', grupo:'Óleos Motor'    },
+  { nome: 'Lavagem Simples',   preco: 35.00, rangeQtd:[4,18],  secao:'Serviços',      grupo:'Lavagem'        },
+  { nome: 'Lavagem Completa',  preco: 65.00, rangeQtd:[2,10],  secao:'Serviços',      grupo:'Lavagem'        },
+  { nome: 'Calibragem',        preco:  8.00, rangeQtd:[8,35],  secao:'Serviços',      grupo:'Serviços Pista' },
+  { nome: 'Filtro de Óleo',    preco: 28.90, rangeQtd:[2, 7],  secao:'Filtros',       grupo:'Filtros Motor'  },
+  { nome: 'Fluido Freio DOT4', preco: 18.50, rangeQtd:[1, 5],  secao:'Lubrificantes', grupo:'Fluidos'        },
+  { nome: 'Aditivo Radiador',  preco: 22.90, rangeQtd:[1, 4],  secao:'Lubrificantes', grupo:'Aditivos'       },
+  { nome: 'Água Destilada',    preco:  6.50, rangeQtd:[5,20],  secao:'Lubrificantes', grupo:'Aditivos'       },
 ];
 
 function vpMockConvRows(days = 35) {
@@ -561,7 +561,7 @@ function vpMockConvRows(days = 35) {
         const qtd = Math.max(0, Math.round(dayQtd * _VP_MOCK_SHARES[vi] * (0.7 + Math.random() * 0.6)));
         if (qtd === 0) return;
         const faturamento = Math.round(qtd * prod.preco * (0.97 + Math.random() * 0.06) * 100) / 100;
-        rows.push({ dia, combustivel: prod.nome, vendedor, litros: qtd, faturamento });
+        rows.push({ dia, combustivel: prod.nome, vendedor, litros: qtd, faturamento, secao: prod.secao, grupo: prod.grupo });
       });
     });
   }
@@ -573,6 +573,8 @@ const VendasPista = ({ clients, selectedClient, selectedPeriod }) => {
   const [periodKey, setPeriodKey] = useState('diario');
   const [viewMode, setViewMode]   = useState('combustivel');
   const [secao, setSecao]         = useState('combustivel'); // 'combustivel' | 'conveniencia'
+  const [catTipo, setCatTipo]     = useState('secao');       // 'secao' | 'grupo'
+  const [catValor, setCatValor]   = useState(null);          // null = todos
   const [rawData, setRawData]     = useState([]);
   const [loading, setLoading]     = useState(false);
   const [error, setError]         = useState(null);
@@ -613,17 +615,34 @@ const VendasPista = ({ clients, selectedClient, selectedPeriod }) => {
   const sourceMock   = secao === 'combustivel' ? mockRows : mockConvRows;
   const sourceData   = usingMock ? sourceMock : rawData;
 
-  const { chartData, groupKeys, totais } = useMemo(() => {
-    if (!sourceData.length) return { chartData: [], groupKeys: [], totais: { faturamento: 0, litros: 0 } };
+  const { chartData, groupKeys, totais, catOptions } = useMemo(() => {
+    const empty = { chartData: [], groupKeys: [], totais: { faturamento: 0, litros: 0 }, catOptions: [] };
+    if (!sourceData.length) return empty;
 
     const PT_MON = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
     const getDim  = row => viewMode === 'combustivel' ? row.combustivel : (row.vendedor || 'Sem Vendedor');
-    const dims    = [...new Set(sourceData.map(getDim))].sort();
+    const getCat  = row => catTipo === 'secao' ? (row.secao || 'Sem Seção') : (row.grupo || 'Sem Grupo');
+
+    // Opções disponíveis para o filtro de categoria (sem duplicatas, ordenadas)
+    const catOptions = [...new Set(sourceData.map(getCat))].sort();
+
+    // Filtra por categoria selecionada (null = todos)
+    const filtered = catValor ? sourceData.filter(r => getCat(r) === catValor) : sourceData;
+
+    // Calcula total de faturamento por dimensão (para ordenar top-5)
+    const dimTotals = {};
+    filtered.forEach(row => {
+      const d = getDim(row);
+      dimTotals[d] = (dimTotals[d] || 0) + row.faturamento;
+    });
+    const sortedDims = Object.keys(dimTotals).sort((a, b) => dimTotals[b] - dimTotals[a]);
+    const top5       = sortedDims.slice(0, 5);
+    const hasOthers  = sortedDims.length > 5;
+    const activeDims = hasOthers ? [...top5, 'Outros'] : top5;
 
     // Agrupamento por granularidade
     const bucket = {};
-    sourceData.forEach(row => {
-      // Normaliza para YYYY-MM-DD independente do formato retornado pela API
+    filtered.forEach(row => {
       const d = vpNormalizeDia(row.dia);
       let key;
       if (periodKey === 'diario') {
@@ -634,50 +653,49 @@ const VendasPista = ({ clients, selectedClient, selectedPeriod }) => {
         const mon = new Date(dt); mon.setDate(dt.getDate() - dow + 1);
         key = vpDateStr(mon);
       } else if (periodKey === 'mensal') {
-        key = d.substring(0, 7);   // YYYY-MM
+        key = d.substring(0, 7);
       } else {
-        key = d.substring(0, 4);   // YYYY
+        key = d.substring(0, 4);
       }
       if (!bucket[key]) {
         bucket[key] = { key, totalFat: 0, litros: 0 };
-        dims.forEach(dim => { bucket[key][`d_${dim}`] = 0; });
+        activeDims.forEach(dim => { bucket[key][`d_${dim}`] = 0; });
       }
-      const dim = getDim(row);
-      bucket[key][`d_${dim}`] = (bucket[key][`d_${dim}`] || 0) + row.faturamento;
+      const dim    = getDim(row);
+      const bDim   = top5.includes(dim) ? dim : (hasOthers ? 'Outros' : null);
+      if (!bDim) return;
+      bucket[key][`d_${bDim}`]  = (bucket[key][`d_${bDim}`] || 0) + row.faturamento;
       bucket[key].totalFat += row.faturamento;
       bucket[key].litros   += row.litros;
     });
 
-    const sorted     = Object.keys(bucket).sort();
-    const fatTotals  = sorted.map(k => bucket[k].totalFat);
-    const { maWin }  = period;
+    const sorted    = Object.keys(bucket).sort();
+    const fatTotals = sorted.map(k => bucket[k].totalFat);
+    const { maWin } = period;
 
     const allPoints = sorted.map((key, i) => {
-      // MA7: média_dia[i] = média( valor[i-(maWin-1)] … valor[i] )
       const slice = fatTotals.slice(Math.max(0, i - maWin + 1), i + 1);
       const ma7   = slice.reduce((s, v) => s + v, 0) / slice.length;
-      // Labels via Date para evitar dependência de posição de substring
-      const dt = new Date(
+      const dt    = new Date(
         periodKey === 'anual' ? `${key}-01-01T12:00:00` : `${key.substring(0, 7)}-01T12:00:00`
       );
       let label;
       if (periodKey === 'diario' || periodKey === 'semanal') {
-        // Para dia/semana usamos o próprio key que já está em YYYY-MM-DD
         const dtDay = new Date(key + 'T12:00:00');
         label = `${String(dtDay.getDate()).padStart(2,'0')}/${PT_MON[dtDay.getMonth()]}`;
       } else if (periodKey === 'mensal') {
         label = `${PT_MON[dt.getMonth()]}/${String(dt.getFullYear()).substring(2)}`;
       } else {
-        label = key;  // "2025", "2026"
+        label = key;
       }
       return { ...bucket[key], label, ma7 };
     });
 
     const last   = allPoints[allPoints.length - 1];
     const totais = { faturamento: last?.totalFat || 0, litros: last?.litros || 0 };
-    const groupKeys = dims.map(d => ({ dim: d, key: `d_${d}` }));
-    return { chartData: allPoints, groupKeys, totais };
-  }, [sourceData, periodKey, viewMode, period]);
+    const groupKeys = activeDims.map(d => ({ dim: d, key: `d_${d}` }));
+    return { chartData: allPoints, groupKeys, totais, catOptions };
+  }, [sourceData, periodKey, viewMode, period, catTipo, catValor]);
 
   const fmtBig  = v => {
     const n = Number(v || 0);
@@ -708,7 +726,7 @@ const VendasPista = ({ clients, selectedClient, selectedPeriod }) => {
             {[{k:'combustivel',l:'Combustível'},{k:'conveniencia',l:'Conveniência'}].map(v=>(
               <button key={v.k} type="button"
                 className={`vp-period-btn vp-secao-btn${secao===v.k?' active':''}`}
-                onClick={()=>{ setSecao(v.k); setViewMode('combustivel'); setRawData([]); }}>{v.l}
+                onClick={()=>{ setSecao(v.k); setViewMode('combustivel'); setRawData([]); setCatValor(null); }}>{v.l}
               </button>
             ))}
           </div>
@@ -759,6 +777,31 @@ const VendasPista = ({ clients, selectedClient, selectedPeriod }) => {
           <span className="vp-kpi-value" style={{color:'#fff'}}>{fmtBig(lastMa)}</span>
         </div>
       </div>
+
+      {/* ── Filtro de Categoria: Seção / Grupo ────────────────────────────── */}
+      {catOptions.length > 0 && (
+        <div className="vp-cat-row">
+          <div className="vp-toggle-group">
+            {[{k:'secao',l:'Seção'},{k:'grupo',l:'Grupo'}].map(v=>(
+              <button key={v.k} type="button"
+                className={`vp-period-btn vp-cat-tipo-btn${catTipo===v.k?' active':''}`}
+                onClick={()=>{ setCatTipo(v.k); setCatValor(null); }}>{v.l}
+              </button>
+            ))}
+          </div>
+          <div className="vp-cat-chips">
+            <button type="button"
+              className={`vp-cat-chip${!catValor?' active':''}`}
+              onClick={()=>setCatValor(null)}>Todos</button>
+            {catOptions.map(c=>(
+              <button key={c} type="button"
+                className={`vp-cat-chip${catValor===c?' active':''}`}
+                onClick={()=>setCatValor(prev => prev===c ? null : c)}>{c}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {loading && <LoadingState compact label="Carregando vendas pista..." />}
       {error && !usingMock && <ApiErrorNotice message={error} />}

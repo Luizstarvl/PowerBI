@@ -299,6 +299,8 @@ router.get('/vendas-pista', async (req, res) => {
          prod.prodcodigo                                     AS codigo_produto,
          prod.prodresumo                                     AS combustivel,
          COALESCE(atde.atdenome, 'Sem Vendedor')             AS vendedor,
+         COALESCE(spro.spronome, prod.prodsecao::text, 'Sem Seção')  AS secao,
+         COALESCE(gpro.gpronome, prod.prodgrupo::text, 'Sem Grupo')  AS grupo,
          COALESCE(SUM(vdit.vditqtd),   0)                   AS litros,
          COALESCE(SUM(vdit.vdittotal), 0)                   AS faturamento,
          COUNT(DISTINCT vda.vdacodigo)                      AS qtd_vendas
@@ -307,12 +309,15 @@ router.get('/vendas-pista', async (req, res) => {
                 AND vdit.vditempresa   = vda.vdaempresa
        JOIN prod ON prod.prodcodigo    = vdit.vditproduto
        LEFT JOIN atde ON atde.atdecodigo = vdit.vditvendedor
+       LEFT JOIN spro ON spro.sprocodigo = prod.prodsecao
+       LEFT JOIN gpro ON gpro.gprocodigo = prod.prodgrupo
        WHERE vda.vdaempresa = $1
          AND vda.vdamovimento >= $2
          AND vda.vdamovimento <= $3
          AND (vda.vdastatus IS NULL OR vda.vdastatus = 0)
          AND prod.prodtipo = $4
-       GROUP BY TO_CHAR(vda.vdamovimento, 'YYYY-MM-DD'), prod.prodcodigo, prod.prodresumo, atde.atdenome
+       GROUP BY TO_CHAR(vda.vdamovimento, 'YYYY-MM-DD'), prod.prodcodigo, prod.prodresumo,
+                atde.atdenome, spro.spronome, prod.prodsecao, gpro.gpronome, prod.prodgrupo
        ORDER BY dia, combustivel, vendedor`,
       [empresa, dataInicio, dataFim, prodtipo]
     );
@@ -322,6 +327,8 @@ router.get('/vendas-pista', async (req, res) => {
       codigoProduto: r.codigo_produto,
       combustivel:   r.combustivel,
       vendedor:      r.vendedor,
+      secao:         r.secao  || 'Sem Seção',
+      grupo:         r.grupo  || 'Sem Grupo',
       litros:        parseFloat(r.litros),
       faturamento:   parseFloat(r.faturamento),
       qtdVendas:     parseInt(r.qtd_vendas),
