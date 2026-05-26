@@ -450,10 +450,10 @@ const getFuelColor = (name, fallback = DASHBOARD_COLORS.sale) => {
 
 // ── VendasPista ──────────────────────────────────────────────────────────────
 const VP_PERIODS = [
-  { key: 'diario',  label: 'Diário',  maWin: 7 },
-  { key: 'semanal', label: 'Semanal', maWin: 4 },
-  { key: 'mensal',  label: 'Mensal',  maWin: 3 },
-  { key: 'anual',   label: 'Anual',   maWin: 4 },
+  { key: 'diario',  label: 'Diário',  maWin: 7 },   // MA7 = 7 dias
+  { key: 'semanal', label: 'Semanal', maWin: 4 },   // MA4 = 4 semanas
+  { key: 'mensal',  label: 'Mensal',  maWin: 3 },   // MA3 = 3 meses
+  { key: 'anual',   label: 'Anual',   maWin: 4 },   // MA4 = 4 anos
 ];
 
 function vpDateStr(d) {
@@ -480,147 +480,207 @@ function vpDateRange(periodKey, selectedPeriod) {
   return { dataInicio: vpDateStr(startDate), dataFim };
 }
 
+// ── Mock Data: 35 dias realistas para posto de combustível ───────────────────
+const _VP_MOCK_FUELS = [
+  { nome: 'Gasolina Comum',     preco: 5.89 },
+  { nome: 'Gasolina Aditivada', preco: 6.29 },
+  { nome: 'Etanol Comum',       preco: 3.89 },
+  { nome: 'Diesel S10',         preco: 6.19 },
+  { nome: 'GNV',                preco: 4.20 },
+];
+const _VP_MOCK_VEND   = ['João', 'Maria', 'Carlos', 'Ana'];
+const _VP_MOCK_SHARES = [0.30, 0.25, 0.25, 0.20];    // proporção de vendas por vendedor
+const _VP_MOCK_RANGES = {                              // [litros/dia mín, máx]
+  'Gasolina Comum':    [550, 950],
+  'Gasolina Aditivada':[120, 320],
+  'Etanol Comum':      [280, 560],
+  'Diesel S10':        [900, 1550],
+  'GNV':               [40,  130],
+};
+
+function vpMockRows(days = 35) {
+  const today = new Date();
+  const rows  = [];
+  for (let ago = days - 1; ago >= 0; ago--) {
+    const d   = new Date(today);
+    d.setDate(d.getDate() - ago);
+    const dia = vpDateStr(d);
+    // Pico no fim de semana
+    const wk  = (d.getDay() === 0 || d.getDay() === 6) ? 1.15 : 1.0;
+    _VP_MOCK_FUELS.forEach(fuel => {
+      const [lo, hi] = _VP_MOCK_RANGES[fuel.nome];
+      const dayVol   = (lo + Math.random() * (hi - lo)) * wk;
+      _VP_MOCK_VEND.forEach((vendedor, vi) => {
+        const litros      = Math.round(dayVol * _VP_MOCK_SHARES[vi] * (0.88 + Math.random() * 0.24) * 100) / 100;
+        const faturamento = Math.round(litros * fuel.preco * (0.97 + Math.random() * 0.06) * 100) / 100;
+        rows.push({ dia, combustivel: fuel.nome, vendedor, litros, faturamento });
+      });
+    });
+  }
+  return rows;
+}
+
+// ── Componente ────────────────────────────────────────────────────────────────
 const VendasPista = ({ clients, selectedClient, selectedPeriod }) => {
   const [periodKey, setPeriodKey] = useState('diario');
-  const [viewMode, setViewMode]   = useState('combustivel'); // 'combustivel' | 'vendedor'
+  const [viewMode, setViewMode]   = useState('combustivel');
   const [rawData, setRawData]     = useState([]);
   const [loading, setLoading]     = useState(false);
   const [error, setError]         = useState(null);
+  const [usingMock, setUsingMock] = useState(false);
 
-  const period = VP_PERIODS.find(p => p.key === periodKey);
+  const period  = VP_PERIODS.find(p => p.key === periodKey);
 
   const empresa = useMemo(() => {
     const c = (clients || []).find(cl => cl.nome === selectedClient) || (clients || [])[0];
     return c?.codigoEmpresa || null;
   }, [clients, selectedClient]);
 
-  // dataInicio/dataFim derivados do mês selecionado + granularidade
   const { dataInicio, dataFim } = useMemo(
     () => vpDateRange(periodKey, selectedPeriod),
     [periodKey, selectedPeriod]
   );
 
-  // Re-busca apenas quando mudar empresa ou intervalo de datas (diario↔semanal não re-busca)
+  // Re-busca quando mudar empresa ou intervalo de datas; cai no mock se não houver dados
   useEffect(() => {
-    if (!empresa || !dataInicio || !dataFim) return;
-    setLoading(true); setError(null);
+    if (!empresa || !dataInicio || !dataFim) { setUsingMock(true); return; }
+    setLoading(true); setError(null); setUsingMock(false);
     fetch(`${API_URL}/api/dashboard/vendas-pista?empresa=${empresa}&dataInicio=${dataInicio}&dataFim=${dataFim}`)
       .then(r => r.json())
-      .then(data => { if (data.error) throw new Error(data.error); setRawData(Array.isArray(data) ? data : []); })
-      .catch(err => setError(err.message))
+      .then(data => {
+        if (data.error) throw new Error(data.error);
+        const arr = Array.isArray(data) ? data : [];
+        if (arr.length === 0) { setUsingMock(true); return; }
+        setRawData(arr);
+      })
+      .catch(err => { setError(err.message); setUsingMock(true); })
       .finally(() => setLoading(false));
   }, [empresa, dataInicio, dataFim]);
 
+  // Mock data gerado uma vez como fallback
+  const mockRows   = useMemo(() => vpMockRows(35), []);
+  const sourceData = usingMock ? mockRows : rawData;
+
   const { chartData, groupKeys, totais } = useMemo(() => {
-    if (!rawData.length) return { chartData: [], groupKeys: [], totais: { faturamento: 0, litros: 0 } };
+    if (!sourceData.length) return { chartData: [], groupKeys: [], totais: { faturamento: 0, litros: 0 } };
 
     const PT_MON = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+    const getDim  = row => viewMode === 'combustivel' ? row.combustivel : (row.vendedor || 'Sem Vendedor');
+    const dims    = [...new Set(sourceData.map(getDim))].sort();
 
-    // Dimensão selecionada: combustível ou vendedor
-    const getDim = row => viewMode === 'combustivel' ? row.combustivel : (row.vendedor || 'Sem Vendedor');
-    const dims = [...new Set(rawData.map(getDim))].sort();
-
-    // Agrupamento por período
+    // Agrupamento por granularidade
     const bucket = {};
-    rawData.forEach(row => {
+    sourceData.forEach(row => {
       const d = String(row.dia).substring(0, 10);
       let key;
       if (periodKey === 'diario') {
         key = d;
       } else if (periodKey === 'semanal') {
-        const dt = new Date(d + 'T12:00:00');
+        const dt  = new Date(d + 'T12:00:00');
         const dow = dt.getDay() === 0 ? 7 : dt.getDay();
         const mon = new Date(dt); mon.setDate(dt.getDate() - dow + 1);
         key = vpDateStr(mon);
       } else if (periodKey === 'mensal') {
-        key = d.substring(0, 7);   // YYYY-MM → 1 barra por mês
+        key = d.substring(0, 7);   // YYYY-MM
       } else {
-        key = d.substring(0, 4);   // YYYY    → 1 barra por ano
+        key = d.substring(0, 4);   // YYYY
       }
       if (!bucket[key]) {
-        bucket[key] = { key, total: 0, litros: 0 };
+        bucket[key] = { key, totalFat: 0, litros: 0 };
         dims.forEach(dim => { bucket[key][`d_${dim}`] = 0; });
       }
       const dim = getDim(row);
       bucket[key][`d_${dim}`] = (bucket[key][`d_${dim}`] || 0) + row.faturamento;
-      bucket[key].total  += row.faturamento;
-      bucket[key].litros += row.litros;
+      bucket[key].totalFat += row.faturamento;
+      bucket[key].litros   += row.litros;
     });
 
-    const sorted  = Object.keys(bucket).sort();
-    const totals  = sorted.map(k => bucket[k].total);
-    const { maWin } = period;
+    const sorted     = Object.keys(bucket).sort();
+    const fatTotals  = sorted.map(k => bucket[k].totalFat);
+    const { maWin }  = period;
 
     const allPoints = sorted.map((key, i) => {
-      const slice = totals.slice(Math.max(0, i - maWin + 1), i + 1);
-      const ma    = slice.reduce((s, v) => s + v, 0) / slice.length;
+      // MA7: média_dia[i] = média( valor[i-(maWin-1)] … valor[i] )
+      const slice = fatTotals.slice(Math.max(0, i - maWin + 1), i + 1);
+      const ma7   = slice.reduce((s, v) => s + v, 0) / slice.length;
       let label;
       if (periodKey === 'diario' || periodKey === 'semanal') {
         const mIdx = parseInt(key.substring(5, 7)) - 1;
-        label = `${key.substring(8, 10)}/${PT_MON[mIdx]}`;   // "26/mai"
+        label = `${key.substring(8, 10)}/${PT_MON[mIdx]}`;
       } else if (periodKey === 'mensal') {
-        label = `${PT_MON[parseInt(key.substring(5, 7)) - 1]}/${key.substring(2, 4)}`; // "mai/26"
+        label = `${PT_MON[parseInt(key.substring(5, 7)) - 1]}/${key.substring(2, 4)}`;
       } else {
-        label = key; // "2025", "2026"
+        label = key;
       }
-      return { ...bucket[key], label, ma };
+      return { ...bucket[key], label, ma7 };
     });
 
-    // chartData = todos os pontos do intervalo selecionado (sem corte artificial)
-    const chartData = allPoints;
-    // KPI = total do ÚLTIMO bucket (= período mais recente visível no gráfico)
-    const last = chartData[chartData.length - 1];
-    const totais = {
-      faturamento: last?.total  || 0,
-      litros:      last?.litros || 0,
-    };
+    const last   = allPoints[allPoints.length - 1];
+    const totais = { faturamento: last?.totalFat || 0, litros: last?.litros || 0 };
     const groupKeys = dims.map(d => ({ dim: d, key: `d_${d}` }));
-    return { chartData, groupKeys, totais };
-  }, [rawData, periodKey, viewMode, period]);
+    return { chartData: allPoints, groupKeys, totais };
+  }, [sourceData, periodKey, viewMode, period]);
 
-  const fmtBig = v => {
+  const fmtBig  = v => {
     const n = Number(v || 0);
     if (n >= 1e6) return `R$ ${(n/1e6).toLocaleString('pt-BR',{maximumFractionDigits:1})} mi`;
     if (n >= 1e3) return `R$ ${(n/1e3).toLocaleString('pt-BR',{maximumFractionDigits:1})} mil`;
     return `R$ ${n.toLocaleString('pt-BR',{maximumFractionDigits:0})}`;
   };
-  const fmtL = v => Number(v||0).toLocaleString('pt-BR',{maximumFractionDigits:0});
+  const fmtL    = v => Number(v||0).toLocaleString('pt-BR',{maximumFractionDigits:0});
   const maLabel = periodKey==='diario'?'MM 7 dias':periodKey==='semanal'?'MM 4 sem.':periodKey==='mensal'?'MM 3 meses':'MM anual';
-  const lastMa  = chartData.length ? chartData[chartData.length-1].ma : 0;
-  // Rótulo do período do último bucket (referência dos KPIs)
-  const kpiRangeLabel = chartData.length
-    ? chartData[chartData.length - 1].label
-    : (selectedPeriod || '');
+  const lastMa  = chartData.length ? chartData[chartData.length-1].ma7 : 0;
+  const kpiLabel = chartData.length ? chartData[chartData.length-1].label : (selectedPeriod || '');
 
   return (
     <div className="chart-card">
-      <div className="card-header" style={{ flexWrap: 'wrap', gap: 8 }}>
-        <h3>DESEMPENHO E VOLUME DE VENDAS PISTA</h3>
-        <div style={{ display:'flex', gap: 8, flexWrap:'wrap' }}>
-          {/* Dimensão */}
+      {/* ── Cabeçalho ─────────────────────────────────────────────────────── */}
+      <div className="card-header" style={{ flexWrap:'wrap', gap:8 }}>
+        <h3>
+          DESEMPENHO E VOLUME DE VENDAS PISTA
+          {usingMock && (
+            <span style={{ fontSize:'0.68em', color:'#64748b', fontWeight:400, marginLeft:10 }}>
+              (demonstração)
+            </span>
+          )}
+        </h3>
+        <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+          {/* Dimensão: Combustível | Vendedor */}
           <div className="vp-toggle-group">
             {[{k:'combustivel',l:'Combustível'},{k:'vendedor',l:'Vendedor'}].map(v=>(
-              <button key={v.k} type="button" className={`vp-period-btn${viewMode===v.k?' active':''}`} onClick={()=>setViewMode(v.k)}>{v.l}</button>
+              <button key={v.k} type="button"
+                className={`vp-period-btn${viewMode===v.k?' active':''}`}
+                onClick={()=>setViewMode(v.k)}>{v.l}
+              </button>
             ))}
           </div>
-          {/* Período */}
+          {/* Granularidade: Diário | Semanal | Mensal | Anual */}
           <div className="vp-toggle-group">
             {VP_PERIODS.map(p=>(
-              <button key={p.key} type="button" className={`vp-period-btn${periodKey===p.key?' active':''}`} onClick={()=>setPeriodKey(p.key)}>{p.label}</button>
+              <button key={p.key} type="button"
+                className={`vp-period-btn${periodKey===p.key?' active':''}`}
+                onClick={()=>setPeriodKey(p.key)}>{p.label}
+              </button>
             ))}
           </div>
         </div>
       </div>
 
-      {/* KPIs */}
+      {/* ── KPIs ──────────────────────────────────────────────────────────── */}
       <div className="vp-kpi-row">
         <div className="vp-kpi">
-          <span className="vp-kpi-label">Faturamento Bruto <span style={{opacity:.65,fontSize:'0.82em'}}>({kpiRangeLabel})</span></span>
-          <span className="vp-kpi-value" style={{color:DASHBOARD_COLORS.sale}}>{fmtBig(totais.faturamento)}</span>
+          <span className="vp-kpi-label">
+            Faturamento Bruto&nbsp;
+            <span style={{opacity:.6,fontSize:'0.8em'}}>({kpiLabel})</span>
+          </span>
+          <span className="vp-kpi-value" style={{color:'#E31E24'}}>{fmtBig(totais.faturamento)}</span>
         </div>
         <div className="vp-kpi">
-          <span className="vp-kpi-label">Volume Total <span style={{opacity:.65,fontSize:'0.82em'}}>({kpiRangeLabel})</span></span>
-          <span className="vp-kpi-value" style={{color:FUEL_COLORS.ethanol}}>{fmtL(totais.litros)} L</span>
+          <span className="vp-kpi-label">
+            Volume Vendido&nbsp;
+            <span style={{opacity:.6,fontSize:'0.8em'}}>({kpiLabel})</span>
+          </span>
+          <span className="vp-kpi-value" style={{color:'#38bdf8'}}>{fmtL(totais.litros)} L</span>
         </div>
         <div className="vp-kpi">
           <span className="vp-kpi-label">{maLabel}</span>
@@ -629,57 +689,87 @@ const VendasPista = ({ clients, selectedClient, selectedPeriod }) => {
       </div>
 
       {loading && <LoadingState compact label="Carregando vendas pista..." />}
-      {error   && <ApiErrorNotice message={error} />}
+      {error && !usingMock && <ApiErrorNotice message={error} />}
 
-      {!loading && !error && chartData.length > 0 && (
+      {/* ── Gráfico: Colunas Agrupadas (Fat + Litros) + Linha de Tendência ─── */}
+      {chartData.length > 0 && (
         <ResponsiveContainer width="100%" height={340}>
-          <ComposedChart data={chartData} margin={{ top: 28, right: 60, left: 6, bottom: 0 }}>
+          <ComposedChart data={chartData} margin={{ top:28, right:64, left:6, bottom:0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke={DASHBOARD_COLORS.grid} />
             <XAxis
               dataKey="label"
               stroke={DASHBOARD_COLORS.axis}
-              tick={{ fill: DASHBOARD_COLORS.axis, fontSize: 11 }}
+              tick={{ fill:DASHBOARD_COLORS.axis, fontSize:11 }}
               interval={Math.max(0, Math.ceil(chartData.length / 8) - 1)}
             />
-            {/* Eixo esquerdo: Faturamento (R$) */}
+            {/* Eixo esquerdo — Faturamento R$ */}
             <YAxis
               yAxisId="left"
               stroke={DASHBOARD_COLORS.axis}
-              tick={{ fill: DASHBOARD_COLORS.axis, fontSize: 11 }}
+              tick={{ fill:DASHBOARD_COLORS.axis, fontSize:11 }}
               tickFormatter={v => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v}
             />
-            {/* Eixo direito: Volume (L) */}
+            {/* Eixo direito — Volume L */}
             <YAxis
               yAxisId="right"
               orientation="right"
               stroke="#38bdf8"
-              tick={{ fill: '#38bdf8', fontSize: 10 }}
+              tick={{ fill:'#38bdf8', fontSize:10 }}
               tickFormatter={v => v >= 1000 ? `${(v/1000).toFixed(0)}kL` : `${v}L`}
             />
             <Tooltip
-              contentStyle={{ background: DASHBOARD_COLORS.tooltipBg, border:`1px solid ${DASHBOARD_COLORS.sale}`, borderRadius:8, color:'#f8fafc' }}
+              contentStyle={{ background:DASHBOARD_COLORS.tooltipBg, border:'1px solid #E31E24', borderRadius:8, color:'#f8fafc' }}
               formatter={(v, name) => {
-                if (name === 'Litros') return [`${Number(v).toLocaleString('pt-BR',{maximumFractionDigits:0})} L`, name];
+                if (name === 'Litros (L)')
+                  return [`${Number(v).toLocaleString('pt-BR',{maximumFractionDigits:0})} L`, name];
                 return [`R$ ${Number(v).toLocaleString('pt-BR',{maximumFractionDigits:0})}`, name];
               }}
             />
-            <Legend />
+            <Legend wrapperStyle={{ fontSize:12, paddingTop:8 }} />
+
+            {/* GRUPO 1 — Faturamento empilhado por dimensão (eixo esquerdo) */}
             {groupKeys.map((g, i) => (
-              <Bar key={g.key} yAxisId="left" dataKey={g.key} name={g.dim} stackId="s"
-                fill={viewMode==='combustivel' ? getFuelColor(g.dim) : `hsl(${(i*67)%360},65%,55%)`}
-                radius={i===groupKeys.length-1?[6,6,0,0]:undefined} />
+              <Bar
+                key={g.key}
+                yAxisId="left"
+                dataKey={g.key}
+                name={g.dim}
+                stackId="fat"
+                fill={getFuelColor(g.dim, `hsl(${(i*73)%360},65%,55%)`)}
+                radius={i === groupKeys.length - 1 ? [4,4,0,0] : undefined}
+              />
             ))}
-            {/* Média Móvel (faturamento) */}
-            <Line yAxisId="left" type="monotone" dataKey="ma" name={maLabel}
-              stroke="#ffffff" strokeWidth={2.5} dot={false} strokeDasharray="6 3" />
-            {/* Linha de Volume em Litros */}
-            <Line yAxisId="right" type="monotone" dataKey="litros" name="Litros"
-              stroke="#38bdf8" strokeWidth={2} dot={false} strokeDasharray="4 2" />
+
+            {/* GRUPO 2 — Volume em Litros (eixo direito, agrupado ao lado) */}
+            <Bar
+              yAxisId="right"
+              dataKey="litros"
+              name="Litros (L)"
+              fill="rgba(56,189,248,0.38)"
+              stroke="#38bdf8"
+              strokeWidth={1}
+              radius={[4,4,0,0]}
+            />
+
+            {/* Linha de Média Móvel — faturamento */}
+            <Line
+              yAxisId="left"
+              type="monotone"
+              dataKey="ma7"
+              name={maLabel}
+              stroke="#ffffff"
+              strokeWidth={2.5}
+              dot={false}
+              strokeDasharray="6 3"
+            />
           </ComposedChart>
         </ResponsiveContainer>
       )}
-      {!loading && !error && chartData.length===0 && (
-        <div style={{ textAlign:'center', color:'#555', padding:'48px 0', fontSize:14 }}>Sem dados para o período selecionado.</div>
+
+      {!loading && chartData.length === 0 && (
+        <div style={{ textAlign:'center', color:'#777', padding:'48px 0', fontSize:14 }}>
+          Sem dados para o período selecionado.
+        </div>
       )}
     </div>
   );
