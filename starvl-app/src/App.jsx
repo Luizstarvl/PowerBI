@@ -6170,6 +6170,16 @@ export default function App() {
   const [controlPeriod, setControlPeriod] = useState(getCurrentPeriod());
   const [adminUsers, setAdminUsers] = useState(initialAdminUsers);
   const [themeMode, setThemeMode] = useState(() => localStorage.getItem('starvl-theme-mode') || 'dark');
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+
+  const handleLogoutRequest = useCallback(() => setShowLogoutConfirm(true), []);
+  const handleLogoutConfirm = useCallback(() => {
+    setShowLogoutConfirm(false);
+    // Tenta fechar a guia; se o browser bloquear, faz logout mesmo assim
+    const closed = (() => { try { window.close(); return true; } catch { return false; } })();
+    if (!closed) { setIsLoggedIn(false); setLoggedUser(null); setCurrentPage('dashboard'); }
+  }, []);
+  const handleLogoutCancel = useCallback(() => setShowLogoutConfirm(false), []);
 
   const isAdmin = loggedUser?.perfil === 'admin';
 
@@ -6302,7 +6312,7 @@ export default function App() {
   };
 
   if (!isLoggedIn) {
-    return <Login onLogin={(user) => { setIsLoggedIn(true); setLoggedUser(user); }} adminUsers={adminUsers} />;
+    return <Login onLogin={(user) => { setIsLoggedIn(true); setLoggedUser(user); setCurrentPage('dashboard'); }} adminUsers={adminUsers} />;
   }
 
   return (
@@ -6310,7 +6320,7 @@ export default function App() {
       <Sidebar
         currentPage={currentPage}
         setCurrentPage={setCurrentPage}
-        onLogout={() => { setIsLoggedIn(false); setLoggedUser(null); }}
+        onLogout={handleLogoutRequest}
         themeMode={themeMode}
       />
       <main className="main-content">
@@ -6325,7 +6335,7 @@ export default function App() {
           selectedPeriod={dashboardPeriod}
           setSelectedPeriod={setDashboardPeriod}
           onRefresh={handleRefresh}
-          onLogout={() => { setIsLoggedIn(false); setLoggedUser(null); }}
+          onLogout={handleLogoutRequest}
           loggedUser={loggedUser}
           themeMode={themeMode}
           setThemeMode={setThemeMode}
@@ -6333,6 +6343,43 @@ export default function App() {
         {apiData.error && <ApiErrorNotice message={apiData.error} onRetry={handleRefresh} />}
         {renderPage()}
       </main>
+
+      {/* Confirmação de saída */}
+      {showLogoutConfirm && (
+        <div
+          style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.75)', zIndex:99999, display:'flex', alignItems:'center', justifyContent:'center' }}
+          onClick={handleLogoutCancel}
+        >
+          <div
+            style={{ background: themeMode === 'light' ? '#fff' : '#1a1a1a', border: `1px solid ${themeMode === 'light' ? '#e2e8f0' : '#2a2a2a'}`, borderRadius:16, padding:'32px 36px', minWidth:340, textAlign:'center', boxShadow:'0 20px 60px rgba(0,0,0,0.5)' }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ width:52, height:52, borderRadius:'50%', background:'rgba(227,30,36,0.12)', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 16px' }}>
+              <LogOut size={24} color="#E31E24" />
+            </div>
+            <h3 style={{ margin:'0 0 8px', fontSize:17, fontWeight:800, color: themeMode === 'light' ? '#111827' : '#f8fafc', letterSpacing:'.02em' }}>
+              Deseja realmente sair?
+            </h3>
+            <p style={{ margin:'0 0 24px', fontSize:13, color: themeMode === 'light' ? '#6b7280' : '#64748b', lineHeight:1.5 }}>
+              Você será desconectado do sistema<br />e a guia será fechada.
+            </p>
+            <div style={{ display:'flex', gap:12, justifyContent:'center' }}>
+              <button
+                onClick={handleLogoutCancel}
+                style={{ flex:1, padding:'10px 0', borderRadius:8, border:`1px solid ${themeMode === 'light' ? '#e2e8f0' : '#2a2a2a'}`, background:'transparent', color: themeMode === 'light' ? '#374151' : '#94a3b8', fontWeight:700, fontSize:13, cursor:'pointer' }}
+              >
+                NÃO
+              </button>
+              <button
+                onClick={handleLogoutConfirm}
+                style={{ flex:1, padding:'10px 0', borderRadius:8, border:'none', background:'#E31E24', color:'#fff', fontWeight:700, fontSize:13, cursor:'pointer' }}
+              >
+                SIM, SAIR
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
