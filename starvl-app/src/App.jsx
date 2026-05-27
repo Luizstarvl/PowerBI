@@ -252,7 +252,7 @@ const Login = ({ onLogin, adminUsers }) => {
 };
 
 // Sidebar Component
-const Sidebar = ({ currentPage, setCurrentPage, onLogout, themeMode }) => {
+const Sidebar = ({ currentPage, setCurrentPage, onLogout, themeMode, collapsed, onToggleCollapse }) => {
   const menuItems = [
     { icon: Home,      label: 'HOME',                 page: 'dashboard' },
     { icon: Package,   label: 'ESTOQUE',              page: 'stock'     },
@@ -263,14 +263,23 @@ const Sidebar = ({ currentPage, setCurrentPage, onLogout, themeMode }) => {
   ];
 
   return (
-    <div className="sidebar">
+    <div className={`sidebar${collapsed ? ' collapsed' : ''}`}>
       <div className="sidebar-header">
-        <div className="logo-container">
-          <img
-            src={themeMode === 'light' ? logoStarvlBlack : logoStarvl}
-            alt="STARVL"
-            className="sidebar-logo"
-          />
+        <div className="sidebar-header-inner">
+          {!collapsed && (
+            <img
+              src={themeMode === 'light' ? logoStarvlBlack : logoStarvl}
+              alt="STARVL"
+              className="sidebar-logo"
+            />
+          )}
+          <button
+            className="sidebar-collapse-btn"
+            onClick={onToggleCollapse}
+            title={collapsed ? 'Expandir menu' : 'Recolher menu'}
+          >
+            {collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+          </button>
         </div>
       </div>
 
@@ -280,6 +289,7 @@ const Sidebar = ({ currentPage, setCurrentPage, onLogout, themeMode }) => {
             key={item.page}
             className={`nav-item ${currentPage === item.page ? 'active' : ''}`}
             onClick={() => setCurrentPage(item.page)}
+            title={collapsed ? item.label : undefined}
           >
             <item.icon size={20} />
             <span>{item.label}</span>
@@ -287,7 +297,11 @@ const Sidebar = ({ currentPage, setCurrentPage, onLogout, themeMode }) => {
         ))}
       </nav>
 
-      <button className="nav-item logout-btn" onClick={onLogout}>
+      <button
+        className="nav-item logout-btn"
+        onClick={onLogout}
+        title={collapsed ? 'SAIR' : undefined}
+      >
         <LogOut size={20} />
         <span>SAIR</span>
       </button>
@@ -6264,6 +6278,7 @@ export default function App() {
   const [adminUsers, setAdminUsers] = useState(initialAdminUsers);
   const [themeMode, setThemeMode] = useState(() => localStorage.getItem('starvl-theme-mode') || 'dark');
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const handleLogoutRequest = useCallback(() => setShowLogoutConfirm(true), []);
   const handleLogoutConfirm = useCallback(() => {
@@ -6271,6 +6286,7 @@ export default function App() {
     setIsLoggedIn(false);
     setLoggedUser(null);
     setCurrentPage('dashboard');
+    setSidebarCollapsed(false);
     // Tenta fechar a guia como bônus (bloqueado pelo browser se não foi aberta por script)
     try { window.close(); } catch { /* ignorar */ }
   }, []);
@@ -6407,7 +6423,7 @@ export default function App() {
   };
 
   if (!isLoggedIn) {
-    return <Login onLogin={(user) => { setIsLoggedIn(true); setLoggedUser(user); setCurrentPage('dashboard'); }} adminUsers={adminUsers} />;
+    return <Login onLogin={(user) => { setIsLoggedIn(true); setLoggedUser(user); setCurrentPage('dashboard'); setSidebarCollapsed(false); }} adminUsers={adminUsers} />;
   }
 
   return (
@@ -6417,8 +6433,10 @@ export default function App() {
         setCurrentPage={setCurrentPage}
         onLogout={handleLogoutRequest}
         themeMode={themeMode}
+        collapsed={sidebarCollapsed}
+        onToggleCollapse={() => setSidebarCollapsed(prev => !prev)}
       />
-      <main className="main-content">
+      <main className={`main-content${sidebarCollapsed ? ' sidebar-collapsed' : ''}`}>
         <TopBar
           currentPage={currentPage}
           setCurrentPage={setCurrentPage}
