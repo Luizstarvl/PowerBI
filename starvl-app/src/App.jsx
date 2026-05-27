@@ -4847,9 +4847,6 @@ const ConvenienciaManager = ({ themeMode }) => {
           <div className="pm-header-icon"><Package size={22} color="#E31E24" /></div>
           <h2 className="pm-title">GERENCIAMENTO DE PRODUTOS — CONVENIÊNCIA</h2>
         </div>
-        <div className="pm-header-actions">
-          <button className="pm-btn-outline"><Filter size={14} /> FILTROS</button>
-        </div>
       </div>
 
       {/* KPIs */}

@@ -524,7 +524,8 @@ body.theme-light-body {
   display: flex;
   align-items: center;
   gap: 10px;
-  flex-shrink: 0;
+  flex: 1 1 auto;
+  justify-content: center;
 }
 
 .connection-status {
@@ -607,7 +608,7 @@ body.theme-light-body {
   border-radius: 8px;
   padding: 6px 10px;
   transition: border-color 0.2s;
-  min-width: 160px;
+  min-width: 480px;
 }
 
 .quicknav-wrap:focus-within {
@@ -627,7 +628,8 @@ body.theme-light-body {
   font-family: 'Montserrat', sans-serif;
   font-size: 13px;
   font-weight: 500;
-  width: 120px;
+  width: 100%;
+  flex: 1;
 }
 
 .quicknav-input::placeholder {
@@ -653,7 +655,8 @@ body.theme-light-body {
   position: absolute;
   top: calc(100% + 6px);
   left: 0;
-  min-width: 180px;
+  width: 100%;
+  min-width: 220px;
   background: #1a1a1a;
   border: 1px solid #2a2a2a;
   border-radius: 10px;
@@ -1087,7 +1090,7 @@ body.theme-light-body {
 }
 
 .page-content {
-  padding: 32px 40px 40px;
+  padding: 24px 32px 40px;
   animation: pageFadeIn 0.25s ease;
 }
 
@@ -3918,6 +3921,15 @@ body.theme-light-body {
     flex-shrink: 1;
   }
 
+  /* QuickNav ocupa linha inteira no mobile */
+  .quicknav {
+    grid-column: span 2;
+  }
+  .quicknav-wrap {
+    min-width: unset;
+    width: 100%;
+  }
+
   .connection-status {
     grid-column: span 2;
     justify-content: center;
@@ -4452,26 +4464,26 @@ body.theme-light-body {
   border-color: #E31E24;
 }
 
-/* Botão de seção (Combustível / Conveniência) — ativo em azul para diferenciar */
+/* Botão de seção (Combustível / Conveniência) — mesmo vermelho do padrão */
 .vp-secao-btn.active {
-  background: #2563eb;
-  border-color: #2563eb;
+  background: #E31E24;
+  border-color: #E31E24;
   color: #fff;
 }
 .vp-secao-btn:hover:not(.active) {
-  background: rgba(37, 99, 235, 0.12);
-  color: #2563eb;
-  border-color: #2563eb;
+  background: rgba(227, 30, 36, 0.12);
+  color: #E31E24;
+  border-color: #E31E24;
 }
 .theme-light .vp-secao-btn.active {
-  background: #2563eb;
-  border-color: #2563eb;
+  background: #E31E24;
+  border-color: #E31E24;
   color: #fff;
 }
 .theme-light .vp-secao-btn:hover:not(.active) {
-  background: rgba(37, 99, 235, 0.1);
-  color: #2563eb;
-  border-color: #2563eb;
+  background: rgba(227, 30, 36, 0.1);
+  color: #E31E24;
+  border-color: #E31E24;
 }
 
 /* Zona 2: barra de controles (Agrupar por + Período) */
