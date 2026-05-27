@@ -4786,7 +4786,7 @@ function buildRankingSalesReportHtml({ report, filters, clientName, sellerLabel 
   <main class="report">
     <section class="header">
       <div class="header-left">
-        <div class="mark" aria-hidden="true"><span></span><span></span><span></span></div>
+        <div class="mark">🎯</div>
         <div>
           <h1>RELATORIO RANKING DE VENDAS</h1>
           <div class="header-meta" style="text-align:left;">${escapeHtml(clientName || 'Cliente')} | ${escapeHtml(periodLabel)}</div>
@@ -8533,11 +8533,7 @@ const GoalManager = ({ themeMode = 'dark' }) => {
     .report{min-height:100vh;padding:18px;background:#ffffff!important}
     .header{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:16px 18px;border:1px solid #e5e7eb;border-bottom:3px solid #e31e24;border-radius:8px;background:#ffffff;margin-bottom:14px}
     .header-left{display:flex;align-items:center;gap:14px;min-width:0}
-    .mark{width:44px;height:44px;border-radius:8px;background:#fff5f5;border:1px solid #fecaca;display:grid;place-items:end center;padding:8px;gap:3px;grid-template-columns:repeat(3,1fr)}
-    .mark span{display:block;width:7px;border-radius:3px 3px 0 0;background:#e31e24}
-    .mark span:nth-child(1){height:14px;opacity:.75}
-    .mark span:nth-child(2){height:24px}
-    .mark span:nth-child(3){height:32px;opacity:.85}
+    .mark{width:44px;height:44px;border-radius:8px;background:#fff5f5;border:1px solid #fecaca;display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0;line-height:1}
     h1{margin:0;font-size:20px;letter-spacing:0;line-height:1.15;font-weight:900}
     .header-sub{color:#667085;font-size:11px;margin-top:3px}
     .header-meta{color:#667085;font-size:11px;line-height:1.45;text-align:right}
@@ -8682,7 +8678,7 @@ const GoalManager = ({ themeMode = 'dark' }) => {
       <body><main class="report">
         <section class="header">
           <div class="header-left">
-            <div class="mark" aria-hidden="true"><span></span><span></span><span></span></div>
+            <div class="mark">🎯</div>
             <div>
               <h1>RELATÓRIO GESTÃO DE METAS</h1>
               <div class="header-sub">Visão Geral — ${new Date().toLocaleDateString('pt-BR',{month:'long',year:'numeric'})}</div>
@@ -8771,7 +8767,7 @@ const GoalManager = ({ themeMode = 'dark' }) => {
       <body><main class="report">
         <section class="header">
           <div class="header-left">
-            <div class="mark" aria-hidden="true"><span></span><span></span><span></span></div>
+            <div class="mark">🎯</div>
             <div>
               <h1>RELATÓRIO GESTÃO DE METAS</h1>
               <div class="header-sub">
