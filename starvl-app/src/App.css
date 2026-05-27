@@ -4,6 +4,22 @@
   --brand-red: #E31E24;
   --font-primary: 'Montserrat', sans-serif;
   --font-display: 'Orbitron', sans-serif;
+
+  /* ── Escala de fontes padronizada ── */
+  --fs-xs:   10px;   /* badges, rótulos minúsculos        */
+  --fs-sm:   11px;   /* sub-labels, notas                 */
+  --fs-base: 13px;   /* texto padrão, inputs, nav         */
+  --fs-md:   14px;   /* descrições, células de tabela     */
+  --fs-lg:   16px;   /* títulos de card                   */
+  --fs-xl:   20px;   /* cabeçalhos de seção               */
+  --fs-2xl:  24px;   /* títulos de página                 */
+
+  /* ── Pesos padronizados ── */
+  --fw-normal: 400;
+  --fw-medium: 500;
+  --fw-semi:   600;
+  --fw-bold:   700;
+  --fw-black:  800;
 }
 
 * {
@@ -800,11 +816,11 @@ body.theme-light-body {
 }
 
 .top-bar-title {
-  font-family: 'Orbitron', sans-serif;
-  font-size: 15px;
-  font-weight: 700;
+  font-family: var(--font-display);
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-bold);
   color: #fff;
-  letter-spacing: 1px;
+  letter-spacing: 0.06em;
 }
 
 .top-bar-date {
@@ -906,16 +922,69 @@ body.theme-light-body {
 }
 
 .user-avatar-sm {
-  width: 26px;
-  height: 26px;
+  width: 30px;
+  height: 30px;
   background: linear-gradient(135deg, #E31E24, #C41A1F);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   color: #fff;
+  flex-shrink: 0;
+}
+
+.user-avatar-sm-img {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid rgba(227,30,36,0.5);
+  flex-shrink: 0;
+}
+
+/* Foto circular na tabela de usuários */
+.avatar-img-circle {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #2a2a2a;
+  display: block;
+}
+
+/* Upload de foto no modal de usuário */
+.user-avatar-upload {
+  position: relative;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.user-avatar-img {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #E31E24;
+  display: block;
+}
+
+.user-avatar-overlay {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.18s;
+  color: #fff;
+}
+
+.user-avatar-upload:hover .user-avatar-overlay {
+  opacity: 1;
 }
 
 /* SIDEBAR */
@@ -938,7 +1007,7 @@ body.theme-light-body {
 }
 
 .sidebar-header {
-  padding: 0 20px 30px;
+  padding: 4px 20px 20px;
   border-bottom: 1px solid #2a2a2a;
   transition: padding 0.25s ease;
 }
@@ -1004,7 +1073,7 @@ body.theme-light-body {
 
 .sidebar-nav {
   flex: 1;
-  padding: 20px 0;
+  padding: 14px 0;
 }
 
 .nav-item {
@@ -1012,18 +1081,18 @@ body.theme-light-body {
   align-items: center;
   gap: 12px;
   width: 100%;
-  padding: 14px 20px;
+  padding: 13px 20px;
   background: transparent;
   border: none;
   color: #888;
-  font-size: 14px;
-  font-weight: 600;
-  font-family: 'Montserrat', sans-serif;
+  font-size: var(--fs-base);
+  font-weight: var(--fw-semi);
+  font-family: var(--font-primary);
   text-align: left;
   cursor: pointer;
   transition: background 0.2s, color 0.2s, transform 0.2s, box-shadow 0.2s;
   border-left: 3px solid transparent;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.04em;
   transform-origin: center bottom;
 }
 
@@ -1107,10 +1176,10 @@ body.theme-light-body {
 }
 
 .page-header h2 {
-  font-family: 'Orbitron', sans-serif;
-  font-size: 24px;
-  font-weight: 700;
-  letter-spacing: 1px;
+  font-family: var(--font-display);
+  font-size: var(--fs-2xl);
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.05em;
   color: #fff;
 }
 
@@ -1429,10 +1498,10 @@ body.theme-light-body {
 }
 
 .card-header h3 {
-  font-family: 'Orbitron', sans-serif;
-  font-size: 14px;
-  font-weight: 700;
-  letter-spacing: 1px;
+  font-family: var(--font-display);
+  font-size: var(--fs-base);
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.07em;
   color: #E31E24;
 }
 
@@ -2657,40 +2726,104 @@ body.theme-light-body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  filter: drop-shadow(0 0 24px rgba(227, 30, 36, 0.35));
+  filter: drop-shadow(0 4px 20px rgba(227, 30, 36, 0.3));
 }
 
-.tank-neck {
-  width: 48px;
-  height: 20px;
-  background: linear-gradient(180deg, #3d3d3d 0%, #2a2a2a 100%);
-  border-radius: 6px 6px 0 0;
-  border: 2px solid #3d3d3d;
-  border-bottom: none;
+/* ── Conjunto topo: tubo + tampa ── */
+.tank-top-assembly {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   position: relative;
   z-index: 2;
 }
 
+.tank-vent-pipe {
+  width: 18px;
+  height: 22px;
+  background: linear-gradient(180deg, #4a4a4a 0%, #333 100%);
+  border: 2px solid #555;
+  border-bottom: none;
+  border-radius: 4px 4px 0 0;
+}
+
+.tank-top-cap {
+  width: 120px;
+  height: 14px;
+  background: linear-gradient(180deg, #444 0%, #2e2e2e 100%);
+  border: 2px solid #555;
+  border-bottom: none;
+  border-radius: 5px 5px 0 0;
+}
+
+/* ── Corpo principal — forma industrial (retangular) ── */
 .tank {
   position: relative;
   width: 158px;
   height: 290px;
   background: linear-gradient(180deg, #1e1e1e 0%, #141414 100%);
-  border-radius: 79px 79px 60px 60px;
-  border: 3px solid #333;
+  border-radius: 6px 6px 8px 8px;
+  border: 3px solid #3a3a3a;
   overflow: hidden;
   box-shadow:
     inset 0 0 40px rgba(0, 0, 0, 0.6),
-    inset -6px 0 18px rgba(0, 0, 0, 0.4);
+    inset -8px 0 20px rgba(0, 0, 0, 0.35),
+    inset 8px 0 12px rgba(255,255,255,0.03);
+}
+
+/* ── Marcadores de nível ── */
+.tank-scale {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 6;
+}
+
+.tank-scale-mark {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: rgba(255,255,255,0.12);
+  display: flex;
+  align-items: center;
+}
+
+.tank-scale-label {
+  position: absolute;
+  right: 6px;
+  font-size: 9px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.35);
+  line-height: 1;
+  transform: translateY(-50%);
+  top: 0;
+  letter-spacing: 0.03em;
+}
+
+/* ── Pés de suporte ── */
+.tank-legs {
+  display: flex;
+  justify-content: space-between;
+  width: 110px;
+}
+
+.tank-leg {
+  width: 22px;
+  height: 16px;
+  background: linear-gradient(180deg, #2e2e2e, #222);
+  border: 2px solid #3a3a3a;
+  border-top: none;
+  border-radius: 0 0 5px 5px;
 }
 
 .tank-gloss {
   position: absolute;
-  top: 20px;
-  left: 14px;
-  width: 18px;
-  height: 52%;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.1) 0%, transparent 100%);
+  top: 12px;
+  left: 10px;
+  width: 14px;
+  height: 55%;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.09) 0%, transparent 100%);
   border-radius: 20px;
   pointer-events: none;
   z-index: 5;
@@ -4956,9 +5089,23 @@ body.theme-light-body {
     0 14px 40px rgba(15, 23, 42, 0.08);
 }
 
-.theme-light .tank-neck {
+.theme-light .tank-top-cap,
+.theme-light .tank-vent-pipe {
   background: linear-gradient(180deg, #e5e7eb 0%, #cbd5e1 100%);
   border-color: #cbd5e1;
+}
+
+.theme-light .tank-leg {
+  background: linear-gradient(180deg, #e5e7eb, #d1d5db);
+  border-color: #cbd5e1;
+}
+
+.theme-light .tank-scale-mark {
+  background: rgba(0,0,0,0.08);
+}
+
+.theme-light .tank-scale-label {
+  color: rgba(0,0,0,0.3);
 }
 
 .theme-light .tank-title,

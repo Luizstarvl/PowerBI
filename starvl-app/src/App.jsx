@@ -390,7 +390,14 @@ const QuickNav = ({ setCurrentPage, themeMode }) => {
 
 const TopBar = ({ currentPage, setCurrentPage, isConnected, apiError, clients, selectedClient, setSelectedClient, onLogout, loggedUser, themeMode, setThemeMode }) => {
   const [showAdminMenu, setShowAdminMenu] = useState(false);
+  const [profileImg, setProfileImg] = useState(null);
   const connectionLabel = isConnected ? 'Conectado' : (apiError ? 'Servidor offline' : 'Desconectado');
+
+  useEffect(() => {
+    if (loggedUser?.id) {
+      userImgLoadOne(loggedUser.id).then(img => setProfileImg(img || null)).catch(() => {});
+    }
+  }, [loggedUser?.id]);
 
   return (
     <div className="top-bar">
@@ -443,7 +450,10 @@ const TopBar = ({ currentPage, setCurrentPage, isConnected, apiError, clients, s
           </button>
         </div>
         <div className="top-bar-user" style={{ position: 'relative' }} onClick={() => setShowAdminMenu((v) => !v)}>
-          <div className="user-avatar-sm">{(loggedUser?.usuario || 'U').charAt(0).toUpperCase()}</div>
+          {profileImg
+            ? <img src={profileImg} alt="avatar" className="user-avatar-sm user-avatar-sm-img" />
+            : <div className="user-avatar-sm">{(loggedUser?.usuario || 'U').charAt(0).toUpperCase()}</div>
+          }
           <span>{loggedUser?.usuario || 'Usuário'}</span>
           <ChevronDown size={14} />
           {showAdminMenu && (
@@ -4527,6 +4537,58 @@ async function imgLoadAll() {
   });
 }
 
+// ── Repositório de imagens de usuário (IndexedDB) ──────────────────────────
+const USER_IMG_DB  = 'starvl-user-images';
+const USER_IMG_STR = 'images';
+function _userImgDB() {
+  return new Promise((res, rej) => {
+    const req = indexedDB.open(USER_IMG_DB, 1);
+    req.onupgradeneeded = e => e.target.result.createObjectStore(USER_IMG_STR);
+    req.onsuccess = e => res(e.target.result);
+    req.onerror   = e => rej(e.target.error);
+  });
+}
+async function userImgSave(id, dataUrl) {
+  const db = await _userImgDB();
+  return new Promise((res, rej) => {
+    const tx = db.transaction(USER_IMG_STR, 'readwrite');
+    tx.objectStore(USER_IMG_STR).put(dataUrl, String(id));
+    tx.oncomplete = () => { db.close(); res(); };
+    tx.onerror    = e => { db.close(); rej(e.target.error); };
+  });
+}
+async function userImgDelete(id) {
+  const db = await _userImgDB();
+  return new Promise((res, rej) => {
+    const tx = db.transaction(USER_IMG_STR, 'readwrite');
+    tx.objectStore(USER_IMG_STR).delete(String(id));
+    tx.oncomplete = () => { db.close(); res(); };
+    tx.onerror    = e => { db.close(); rej(e.target.error); };
+  });
+}
+async function userImgLoadAll() {
+  const db = await _userImgDB();
+  return new Promise((res, rej) => {
+    const tx  = db.transaction(USER_IMG_STR, 'readonly');
+    const all = {};
+    const req = tx.objectStore(USER_IMG_STR).openCursor();
+    req.onsuccess = e => {
+      const cur = e.target.result;
+      if (cur) { all[cur.key] = cur.value; cur.continue(); }
+      else { db.close(); res(all); }
+    };
+    req.onerror = e => { db.close(); rej(e.target.error); };
+  });
+}
+async function userImgLoadOne(id) {
+  const db = await _userImgDB();
+  return new Promise((res, rej) => {
+    const req = db.transaction(USER_IMG_STR, 'readonly').objectStore(USER_IMG_STR).get(String(id));
+    req.onsuccess = () => { db.close(); res(req.result || null); };
+    req.onerror   = e => { db.close(); rej(e.target.error); };
+  });
+}
+
 function printProductCard({ prod, editForm, editImg }) {
   const custo  = parseFloat(editForm.custo)  || prod.custo;
   const preco  = parseFloat(editForm.preco)  || prod.preco;
@@ -5499,7 +5561,12 @@ const StockPosition = ({ estoques, projecao, loading, selectedClient, clients })
 
           <div className="tank-visual">
             <div className="fuel-tank-wrap">
-              <div className="tank-neck" />
+              {/* Tampa superior + tubo de ventilação */}
+              <div className="tank-top-assembly">
+                <div className="tank-vent-pipe" />
+                <div className="tank-top-cap" />
+              </div>
+              {/* Corpo principal do tanque */}
               <div className="tank">
                 <div className="tank-fill" style={{ height: `${tankPct}%`, background: stockFuelColor }}>
                   <div className="liquid-wave" />
@@ -5509,7 +5576,20 @@ const StockPosition = ({ estoques, projecao, loading, selectedClient, clients })
                   <div className="tank-value">{activeFuel ? fmt2(activeFuel.estoqueTotal) : '—'}</div>
                   <div className="tank-unit">LITROS</div>
                 </div>
+                {/* Marcadores de nível */}
+                <div className="tank-scale">
+                  {[75, 50, 25].map(pct => (
+                    <div key={pct} className="tank-scale-mark" style={{ bottom: `${pct}%` }}>
+                      <span className="tank-scale-label">{pct}%</span>
+                    </div>
+                  ))}
+                </div>
                 <div className="tank-gloss" />
+              </div>
+              {/* Suportes/pés do tanque */}
+              <div className="tank-legs">
+                <div className="tank-leg" />
+                <div className="tank-leg" />
               </div>
             </div>
           </div>
@@ -5694,10 +5774,15 @@ const Users = ({ adminUsers, setAdminUsers, isAdmin }) => {
       return userToAdmin(u, existing);
     }));
   };
-  const [showModal, setShowModal] = useState(false);
+  const [showModal, setShowModal]     = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
-  const [modalMode, setModalMode] = useState('edit');
-  const [searchTerm, setSearchTerm] = useState('');
+  const [modalMode, setModalMode]     = useState('edit');
+  const [searchTerm, setSearchTerm]   = useState('');
+  const [userImages, setUserImages]   = useState({});
+
+  useEffect(() => {
+    userImgLoadAll().then(setUserImages).catch(() => {});
+  }, []);
 
   const filteredUsers = users.filter((user) => {
     const query = searchTerm.toLowerCase();
@@ -5745,26 +5830,29 @@ const Users = ({ adminUsers, setAdminUsers, isAdmin }) => {
     }
   };
 
-  const handleSave = (formData) => {
+  const handleSave = (formData, imgData) => {
+    let savedId;
     if (modalMode === 'create') {
-      const firstLetter = formData.name.trim().charAt(0).toUpperCase() || 'U';
-      setUsers([
-        ...users,
-        {
-          ...formData,
-          id: Date.now(),
-          avatar: firstLetter,
-          lastAccess: 'Nunca',
-        },
-      ]);
+      savedId = Date.now();
+      setUsers([...users, {
+        ...formData,
+        id: savedId,
+        avatar: formData.name.trim().charAt(0).toUpperCase() || 'U',
+        lastAccess: 'Nunca',
+      }]);
     } else {
-      setUsers(users.map((user) => (
-        user.id === selectedUser.id
-          ? { ...user, ...formData }
-          : user
-      )));
+      savedId = selectedUser.id;
+      setUsers(users.map(u => u.id === savedId ? { ...u, ...formData } : u));
     }
-
+    if (imgData) {
+      userImgSave(savedId, imgData)
+        .then(() => setUserImages(prev => ({ ...prev, [String(savedId)]: imgData })))
+        .catch(() => toast('Erro ao salvar foto.', 'error'));
+    } else if (userImages[String(savedId)] && imgData === null) {
+      userImgDelete(savedId)
+        .then(() => setUserImages(prev => { const n = { ...prev }; delete n[String(savedId)]; return n; }))
+        .catch(() => {});
+    }
     setShowModal(false);
   };
 
@@ -5852,7 +5940,10 @@ const Users = ({ adminUsers, setAdminUsers, isAdmin }) => {
             {filteredUsers.map((user) => (
               <tr key={user.id}>
                 <td>
-                  <div className="avatar">{user.avatar}</div>
+                  {userImages[String(user.id)]
+                    ? <img src={userImages[String(user.id)]} alt={user.avatar} className="avatar avatar-img-circle" />
+                    : <div className="avatar">{user.avatar}</div>
+                  }
                 </td>
                 <td>{user.name}</td>
                 <td>{user.email}</td>
@@ -5906,6 +5997,7 @@ const Users = ({ adminUsers, setAdminUsers, isAdmin }) => {
           mode={modalMode}
           onClose={() => setShowModal(false)}
           onSave={handleSave}
+          existingImg={userImages[String(selectedUser?.id)] || null}
         />
       )}
     </div>
@@ -5913,7 +6005,7 @@ const Users = ({ adminUsers, setAdminUsers, isAdmin }) => {
 };
 
 // User Edit Modal
-const UserEditModal = ({ user, mode, onClose, onSave }) => {
+const UserEditModal = ({ user, mode, onClose, onSave, existingImg }) => {
   const [formData, setFormData] = useState({
     name: user.name,
     email: user.email || '',
@@ -5923,18 +6015,50 @@ const UserEditModal = ({ user, mode, onClose, onSave }) => {
     notifications: false,
     apiAccess: false,
   });
+  const [editImg, setEditImg] = useState(existingImg || null);
+  const imgInputRef = useRef(null);
+
+  const handleImgChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 3 * 1024 * 1024) { toast('Imagem muito grande. Máximo 3MB.', 'warn'); return; }
+    const reader = new FileReader();
+    reader.onload = ev => setEditImg(ev.target.result);
+    reader.readAsDataURL(file);
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSave(formData);
+    onSave(formData, editImg);
   };
+
+  const initials = (formData.name || user.avatar || 'U').trim().charAt(0).toUpperCase();
 
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <div className="modal-title">
-            <div className="avatar large">{user.avatar}</div>
+            <div
+              className="user-avatar-upload"
+              onClick={() => imgInputRef.current?.click()}
+              title="Clique para alterar foto"
+            >
+              {editImg
+                ? <img src={editImg} alt="avatar" className="user-avatar-img" />
+                : <div className="avatar large">{initials}</div>
+              }
+              <div className="user-avatar-overlay">
+                <Camera size={14} />
+              </div>
+              <input
+                ref={imgInputRef}
+                type="file"
+                accept="image/*"
+                style={{ display: 'none' }}
+                onChange={handleImgChange}
+              />
+            </div>
             <h3>{mode === 'create' ? 'NOVO USUÁRIO' : `EDITAR USUÁRIO: ${user.name.toUpperCase()}`}</h3>
           </div>
           <button type="button" className="close-btn" onClick={onClose}>
@@ -6341,6 +6465,18 @@ export default function App() {
   const [themeMode, setThemeMode] = useState(() => localStorage.getItem('starvl-theme-mode') || 'dark');
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  // Mensagem de boas-vindas após login
+  useEffect(() => {
+    if (!isLoggedIn || !loggedUser) return;
+    const t = setTimeout(() => {
+      const hora = new Date().getHours();
+      const saudacao = hora < 12 ? 'Bom dia' : hora < 18 ? 'Boa tarde' : 'Boa noite';
+      toast(`${saudacao}, ${loggedUser.usuario || 'usuário'}! 👋 Bem-vindo ao STARVL.`, 'success');
+    }, 400);
+    return () => clearTimeout(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoggedIn]);
 
   const handleLogoutRequest = useCallback(() => setShowLogoutConfirm(true), []);
   const handleLogoutConfirm = useCallback(() => {
