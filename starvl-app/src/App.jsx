@@ -2951,11 +2951,6 @@ const HorizTank = ({ pct = 0, color = '#22c55e', liters = 0 }) => {
         LITROS
       </text>
 
-      {/* ── Percentual lateral ── */}
-      <text x={X2+36} y={CY+10} textAnchor="middle"
-        fill={color} fontSize={12} fontFamily="monospace" fontWeight="900">
-        {safe}%
-      </text>
     </svg>
   );
 };
