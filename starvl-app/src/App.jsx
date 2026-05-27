@@ -3627,7 +3627,7 @@ const FuelStationCard = ({ estoques = [], themeMode = 'dark' }) => {
       <div style={{ position: 'relative', zIndex: 10, padding: '14px 20px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <h3 style={{ margin: 0, fontSize: 13, fontWeight: 900, letterSpacing: 2, color: dark ? '#f1f5f9' : '#111827' }}>ESTOQUE DE COMBUSTÍVEL</h3>
         {active && (
-          <span style={{ fontSize: 11, color: dark ? '#475569' : '#8898b8' }}>
+          <span style={{ fontSize: 11, color: dark ? '#e2e8f0' : '#111827' }}>
             Cap: <strong style={{ color: fuelColor, transition: 'color 0.4s' }}>{fmtN(active.capacidadeTotal)} L</strong>
           </span>
         )}
