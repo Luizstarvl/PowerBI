@@ -6,11 +6,12 @@ const path = require('path');
 const pool = require('./db/pool');
 
 const dashboardRoutes = require('./routes/dashboard');
-const lmcRoutes = require('./routes/lmc');
-const estoqueRoutes = require('./routes/estoque');
+const lmcRoutes       = require('./routes/lmc');
+const estoqueRoutes   = require('./routes/estoque');
 const relatoriosRoutes = require('./routes/relatorios');
-const receberRoutes    = require('./routes/receber');
-const pagarRoutes      = require('./routes/pagar');
+const receberRoutes   = require('./routes/receber');
+const pagarRoutes     = require('./routes/pagar');
+const imagensRoutes   = require('./routes/imagens');
 
 const app = express();
 const PORT = process.env.PORT || process.env.API_PORT || 3001;
@@ -92,6 +93,7 @@ app.use('/api/estoque', estoqueRoutes);
 app.use('/api/receber', receberRoutes);
 app.use('/api/pagar',   pagarRoutes);
 app.use('/api/relatorios', relatoriosRoutes);
+app.use('/api/imagens',   imagensRoutes);
 
 if (fs.existsSync(clientBuildPath)) {
   app.use(express.static(clientBuildPath, {

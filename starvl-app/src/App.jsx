@@ -5567,101 +5567,48 @@ function pmBuildDonut(parts) {
   return `conic-gradient(${segs.join(', ')})`;
 }
 
-// ─── IndexedDB: repositório de imagens de produtos ─────────────────────────
-const IMG_DB  = 'starvl-product-images';
-const IMG_STR = 'images';
+// ─── Repositório de imagens — API compartilhada (PostgreSQL via starvl-api) ──
+// Substitui IndexedDB: imagens ficam no servidor e carregam em qualquer máquina.
 
-function _imgDB() {
-  return new Promise((res, rej) => {
-    const req = indexedDB.open(IMG_DB, 1);
-    req.onupgradeneeded = e => e.target.result.createObjectStore(IMG_STR);
-    req.onsuccess = e => res(e.target.result);
-    req.onerror   = e => rej(e.target.error);
-  });
-}
 async function imgSave(id, dataUrl) {
-  const db = await _imgDB();
-  return new Promise((res, rej) => {
-    const tx = db.transaction(IMG_STR, 'readwrite');
-    tx.objectStore(IMG_STR).put(dataUrl, id);
-    tx.oncomplete = () => { db.close(); res(); };
-    tx.onerror    = e => { db.close(); rej(e.target.error); };
+  await fetch(`${API_URL}/api/imagens/produto/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ dados: dataUrl }),
   });
 }
 async function imgDelete(id) {
-  const db = await _imgDB();
-  return new Promise((res, rej) => {
-    const tx = db.transaction(IMG_STR, 'readwrite');
-    tx.objectStore(IMG_STR).delete(id);
-    tx.oncomplete = () => { db.close(); res(); };
-    tx.onerror    = e => { db.close(); rej(e.target.error); };
-  });
+  await fetch(`${API_URL}/api/imagens/produto/${id}`, { method: 'DELETE' });
 }
 async function imgLoadAll() {
-  const db = await _imgDB();
-  return new Promise((res, rej) => {
-    const tx  = db.transaction(IMG_STR, 'readonly');
-    const all = {};
-    const req = tx.objectStore(IMG_STR).openCursor();
-    req.onsuccess = e => {
-      const cur = e.target.result;
-      if (cur) { all[cur.key] = cur.value; cur.continue(); }
-      else { db.close(); res(all); }
-    };
-    req.onerror = e => { db.close(); rej(e.target.error); };
-  });
+  try {
+    const res = await fetch(`${API_URL}/api/imagens/produto`);
+    if (!res.ok) return {};
+    return res.json();
+  } catch { return {}; }
 }
 
-// ── Repositório de imagens de usuário (IndexedDB) ──────────────────────────
-const USER_IMG_DB  = 'starvl-user-images';
-const USER_IMG_STR = 'images';
-function _userImgDB() {
-  return new Promise((res, rej) => {
-    const req = indexedDB.open(USER_IMG_DB, 1);
-    req.onupgradeneeded = e => e.target.result.createObjectStore(USER_IMG_STR);
-    req.onsuccess = e => res(e.target.result);
-    req.onerror   = e => rej(e.target.error);
-  });
-}
+// ── Imagens de usuário ──────────────────────────────────────────────────────
 async function userImgSave(id, dataUrl) {
-  const db = await _userImgDB();
-  return new Promise((res, rej) => {
-    const tx = db.transaction(USER_IMG_STR, 'readwrite');
-    tx.objectStore(USER_IMG_STR).put(dataUrl, String(id));
-    tx.oncomplete = () => { db.close(); res(); };
-    tx.onerror    = e => { db.close(); rej(e.target.error); };
+  await fetch(`${API_URL}/api/imagens/usuario/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ dados: dataUrl }),
   });
 }
 async function userImgDelete(id) {
-  const db = await _userImgDB();
-  return new Promise((res, rej) => {
-    const tx = db.transaction(USER_IMG_STR, 'readwrite');
-    tx.objectStore(USER_IMG_STR).delete(String(id));
-    tx.oncomplete = () => { db.close(); res(); };
-    tx.onerror    = e => { db.close(); rej(e.target.error); };
-  });
+  await fetch(`${API_URL}/api/imagens/usuario/${id}`, { method: 'DELETE' });
 }
 async function userImgLoadAll() {
-  const db = await _userImgDB();
-  return new Promise((res, rej) => {
-    const tx  = db.transaction(USER_IMG_STR, 'readonly');
-    const all = {};
-    const req = tx.objectStore(USER_IMG_STR).openCursor();
-    req.onsuccess = e => {
-      const cur = e.target.result;
-      if (cur) { all[cur.key] = cur.value; cur.continue(); }
-      else { db.close(); res(all); }
-    };
-    req.onerror = e => { db.close(); rej(e.target.error); };
-  });
+  try {
+    const res = await fetch(`${API_URL}/api/imagens/usuario`);
+    if (!res.ok) return {};
+    return res.json();
+  } catch { return {}; }
 }
 async function userImgLoadOne(id) {
-  const db = await _userImgDB();
-  return new Promise((res, rej) => {
-    const req = db.transaction(USER_IMG_STR, 'readonly').objectStore(USER_IMG_STR).get(String(id));
-    req.onsuccess = () => { db.close(); res(req.result || null); };
-    req.onerror   = e => { db.close(); rej(e.target.error); };
-  });
+  const all = await userImgLoadAll();
+  return all[String(id)] || null;
 }
 
 function printProductCard({ prod, editForm, editImg }) {
