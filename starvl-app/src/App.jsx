@@ -6426,6 +6426,523 @@ const TurnoFilterPanel = ({ filters, setFilters, onClose, onGenerate }) => {
 };
 // ── fim Faltas/Sobras de Caixa por Turno ─────────────────────────────────────
 
+// ── REL 6 — Fluxo de Caixa Operacional ──────────────────────────────────────
+const _FLUXO_ENTRADAS = [
+  { descricao: 'Vendas Pista (Combustível)', valor: 682000 },
+  { descricao: 'Loja de Conveniência', valor: 98500 },
+  { descricao: 'Recebimentos a Prazo', valor: 42000 },
+  { descricao: 'Outras Entradas', valor: 3200 },
+];
+const _FLUXO_SAIDAS = [
+  { descricao: 'Compras de Combustível', valor: 521000 },
+  { descricao: 'Fornecedores Loja', valor: 48000 },
+  { descricao: 'Despesas Fixas', valor: 18500 },
+  { descricao: 'Folha de Pagamento', valor: 35000 },
+  { descricao: 'Impostos e Taxas', valor: 28500 },
+  { descricao: 'Outras Saídas', valor: 8900 },
+];
+
+function buildFluxoReportHtml({ filters, clientName }) {
+  const { conta, dataInicial, dataFinal } = filters;
+  const fmtBRL = v => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  const fmtDate = d => d ? d.split('-').reverse().join('/') : '-';
+  const entradas = conta === 'Saídas' ? [] : _FLUXO_ENTRADAS;
+  const saidas   = conta === 'Entradas' ? [] : _FLUXO_SAIDAS;
+  const totalEntradas = entradas.reduce((s, r) => s + r.valor, 0);
+  const totalSaidas   = saidas.reduce((s, r) => s + r.valor, 0);
+  const saldo = totalEntradas - totalSaidas;
+  const seedVals = [4200,6800,2100,-800,5900,7200,3400,8100,1200,9300,5600,-1200,7800,4500,6100,3200,8900,2700,7400,5100,6800,-500,9200,4100,7700,3800,6200,8500,1900,5400];
+  let running = 0;
+  const dailyRows = seedVals.slice(0, 30).map((v, i) => {
+    running += v;
+    const day = String(i + 1).padStart(2, '0');
+    return `<tr><td style="text-align:center">${day}</td><td style="text-align:right;color:${v >= 0 ? '#16a34a' : '#dc2626'}">${v >= 0 ? '+' : ''}${fmtBRL(v)}</td><td style="text-align:right;font-weight:600;color:${running >= 0 ? '#16a34a' : '#dc2626'}">${fmtBRL(running)}</td></tr>`;
+  }).join('');
+  const entradasRows = entradas.map(r => `<tr><td style="padding-left:24px">↳ ${r.descricao}</td><td></td><td style="text-align:right;color:#16a34a">${fmtBRL(r.valor)}</td></tr>`).join('');
+  const saidasRows   = saidas.map(r => `<tr><td style="padding-left:24px">↳ ${r.descricao}</td><td></td><td style="text-align:right;color:#dc2626">${fmtBRL(r.valor)}</td></tr>`).join('');
+  return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"/><title>REL 6 — Fluxo de Caixa Operacional</title><style>*{margin:0;padding:0;box-sizing:border-box}html,body{background:#fff;color:#1e293b;font-family:'Segoe UI',Arial,sans-serif;font-size:11px;color-scheme:light only}@page{size:A4 portrait;margin:16mm 14mm}@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact!important}}.page{max-width:740px;margin:0 auto}.header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;padding-bottom:10px;border-bottom:2px solid #1e293b}.report-title{font-size:16px;font-weight:700}.report-sub{font-size:10px;color:#64748b;margin-top:2px}.section-title{font-size:12px;font-weight:700;padding:6px 10px;margin:12px 0 4px;border-radius:4px}.sec-green{background:#dcfce7;color:#166534}.sec-red{background:#fee2e2;color:#991b1b}.sec-blue{background:#dbeafe;color:#1e40af}table{width:100%;border-collapse:collapse;margin-bottom:8px}th{background:#1e293b;color:#fff;padding:5px 8px;text-align:left;font-size:10px}td{padding:4px 8px;border-bottom:1px solid #e2e8f0;font-size:11px}.total-row td{font-weight:700;background:#f8fafc;border-top:2px solid #1e293b}.result-row td{font-weight:700;font-size:13px;background:#1e293b;color:#fff;padding:8px}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}.kpi-box{background:#f8fafc;border-radius:6px;padding:10px 14px;border:1px solid #e2e8f0}.kpi-label{font-size:10px;color:#64748b;margin-bottom:4px}.kpi-value{font-size:18px;font-weight:700}.daily-table table td{padding:3px 6px;font-size:10px}</style></head><body><div class="page"><div class="header"><div><div class="report-title">REL 6 — Fluxo de Caixa Operacional</div><div class="report-sub">${clientName || 'Empresa'} &nbsp;|&nbsp; Período: ${fmtDate(dataInicial)} – ${fmtDate(dataFinal)} &nbsp;|&nbsp; Conta: ${conta}</div></div><div style="text-align:right;font-size:10px;color:#64748b">Gerado em ${new Date().toLocaleDateString('pt-BR')}</div></div><div class="grid2" style="margin-bottom:14px"><div class="kpi-box"><div class="kpi-label">Total Entradas</div><div class="kpi-value" style="color:#16a34a">${fmtBRL(totalEntradas)}</div></div><div class="kpi-box"><div class="kpi-label">Total Saídas</div><div class="kpi-value" style="color:#dc2626">${fmtBRL(totalSaidas)}</div></div></div><div class="section-title sec-green">📥 ENTRADAS OPERACIONAIS</div><table><thead><tr><th>Descrição</th><th></th><th style="text-align:right">Valor</th></tr></thead><tbody>${entradasRows}<tr class="total-row"><td>Total Entradas</td><td></td><td style="text-align:right;color:#16a34a">${fmtBRL(totalEntradas)}</td></tr></tbody></table><div class="section-title sec-red">📤 SAÍDAS OPERACIONAIS</div><table><thead><tr><th>Descrição</th><th></th><th style="text-align:right">Valor</th></tr></thead><tbody>${saidasRows}<tr class="total-row"><td>Total Saídas</td><td></td><td style="text-align:right;color:#dc2626">${fmtBRL(totalSaidas)}</td></tr></tbody></table><table><tbody><tr class="result-row"><td>💰 SALDO OPERACIONAL DO PERÍODO</td><td></td><td style="text-align:right;color:${saldo >= 0 ? '#4ade80' : '#f87171'};font-size:15px">${saldo >= 0 ? '+' : ''}${fmtBRL(saldo)}</td></tr></tbody></table><div class="section-title sec-blue" style="margin-top:16px">📅 EVOLUÇÃO DIÁRIA DO SALDO (simulação)</div><div class="daily-table"><table><thead><tr><th style="text-align:center">Dia</th><th style="text-align:right">Movimento Líquido</th><th style="text-align:right">Saldo Acumulado</th></tr></thead><tbody>${dailyRows}</tbody></table></div><div style="margin-top:12px;font-size:9px;color:#94a3b8;text-align:center">Dados simulados para demonstração. Integre com o banco de dados SGA para valores reais.</div></div></body></html>`;
+}
+
+function exportFluxoReport({ filters, clientName }) {
+  const html = buildFluxoReportHtml({ filters, clientName });
+  if (!html) return;
+  const w = window.open('', '_blank');
+  if (!w) { toast('Permita pop-ups no navegador para imprimir o relatório.', 'warn'); return; }
+  w.document.open();
+  w.document.write(html.replace('</body>', '<scr' + 'ipt>window.addEventListener("load",function(){setTimeout(function(){window.print();},500);});<\/scr' + 'ipt></body>'));
+  w.document.close();
+}
+
+const FluxoFilterPanel = ({ filters, setFilters, onClose, onGenerate }) => (
+  <div className="modal-overlay control-print-overlay">
+    <div className="control-print-panel ranking-filter-panel">
+      <div className="control-print-header">
+        <h2>REL 6 — Fluxo de Caixa Operacional</h2>
+        <button onClick={onClose}><X size={18}/></button>
+      </div>
+      <div className="control-print-body">
+        <div className="control-print-section">
+          <div className="control-print-section-title">Conta Contábil</div>
+          <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+            {['Todas','Entradas','Saídas'].map(c => (
+              <button key={c} type="button"
+                className={`control-print-option${filters.conta===c?' active':''}`}
+                onClick={() => setFilters(f => ({...f, conta:c}))}>
+                {c}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="control-print-section">
+          <div className="control-print-section-title">Período</div>
+          <div className="control-print-date-row">
+            <div className="control-print-field">
+              <label>De</label>
+              <input type="date" className="control-print-input" value={filters.dataInicial}
+                onChange={e => setFilters(f => ({...f, dataInicial:e.target.value}))}/>
+            </div>
+            <div className="control-print-field">
+              <label>Até</label>
+              <input type="date" className="control-print-input" value={filters.dataFinal}
+                onChange={e => setFilters(f => ({...f, dataFinal:e.target.value}))}/>
+            </div>
+          </div>
+        </div>
+        <div className="control-print-section" style={{background:'#1a2535',borderRadius:6,padding:'10px 14px'}}>
+          <div style={{fontSize:11,color:'#94a3b8',marginBottom:6}}>Preview</div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+            <div style={{textAlign:'center'}}>
+              <div style={{fontSize:10,color:'#94a3b8'}}>Total Entradas</div>
+              <div style={{fontSize:15,fontWeight:700,color:'#4ade80'}}>R$ 825.700</div>
+            </div>
+            <div style={{textAlign:'center'}}>
+              <div style={{fontSize:10,color:'#94a3b8'}}>Saldo Operacional</div>
+              <div style={{fontSize:15,fontWeight:700,color:'#4ade80'}}>+R$ 165.800</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div className="control-print-footer">
+        <button className="btn-secondary control-print-cancel" onClick={onClose}>Cancelar</button>
+        <button className="btn-primary control-print-generate" onClick={onGenerate}>
+          <Printer size={15}/> GERAR IMPRESSÃO
+        </button>
+      </div>
+    </div>
+  </div>
+);
+// ── fim Fluxo de Caixa Operacional ───────────────────────────────────────────
+
+// ── REL 8 — Giro de Estoque e Curva ABC ──────────────────────────────────────
+const _ESTOQUE_BASE = [
+  { produto: 'Diesel S10',         unidade: 'Pista', saldoAtual: 18000, mediaDia: 4500, custoUnitario: 6.59, faturamento: 296550 },
+  { produto: 'Gasolina Comum',     unidade: 'Pista', saldoAtual: 9600,  mediaDia: 3200, custoUnitario: 5.89, faturamento: 196000 },
+  { produto: 'Gasolina Aditivada', unidade: 'Pista', saldoAtual: 1200,  mediaDia: 1800, custoUnitario: 6.19, faturamento: 111420 },
+  { produto: 'Etanol Hidratado',   unidade: 'Pista', saldoAtual: 6300,  mediaDia: 2100, custoUnitario: 3.89, faturamento: 81690 },
+  { produto: 'Diesel S500',        unidade: 'Pista', saldoAtual: 2400,  mediaDia: 1200, custoUnitario: 6.29, faturamento: 75480 },
+  { produto: 'Lubrificante 1L',    unidade: 'Loja',  saldoAtual: 24,    mediaDia: 8,    custoUnitario: 28.90, faturamento: 23120 },
+  { produto: 'Café 50ml',          unidade: 'Loja',  saldoAtual: 120,   mediaDia: 40,   custoUnitario: 0.80,  faturamento: 3200 },
+  { produto: 'Refrigerante 350ml', unidade: 'Loja',  saldoAtual: 54,    mediaDia: 18,   custoUnitario: 2.50,  faturamento: 4500 },
+  { produto: 'Água Mineral 500ml', unidade: 'Loja',  saldoAtual: 20,    mediaDia: 25,   custoUnitario: 1.20,  faturamento: 3000 },
+  { produto: 'Salgadinho 50g',     unidade: 'Loja',  saldoAtual: 24,    mediaDia: 12,   custoUnitario: 1.80,  faturamento: 2160 },
+  { produto: 'Óleo Motor 5W30',    unidade: 'Loja',  saldoAtual: 45,    mediaDia: 1,    custoUnitario: 45.00, faturamento: 675 },
+  { produto: 'Aditivo Radiador',   unidade: 'Loja',  saldoAtual: 48,    mediaDia: 0.5,  custoUnitario: 22.00, faturamento: 176 },
+  { produto: 'Pano de Microfibra', unidade: 'Loja',  saldoAtual: 24,    mediaDia: 0.3,  custoUnitario: 8.90,  faturamento: 107 },
+  { produto: 'Aromatizador Auto',  unidade: 'Loja',  saldoAtual: 18,    mediaDia: 0.2,  custoUnitario: 15.90, faturamento: 95 },
+  { produto: 'Limpador Parabrisa', unidade: 'Loja',  saldoAtual: 6,     mediaDia: 0.1,  custoUnitario: 12.00, faturamento: 72 },
+];
+
+function _computeEstoqueRows({ unidade, classificacao }) {
+  const sorted = [..._ESTOQUE_BASE].sort((a, b) => b.faturamento - a.faturamento);
+  const totalFat = sorted.reduce((s, r) => s + r.faturamento, 0);
+  let cum = 0;
+  const abcMap = {};
+  sorted.forEach(r => {
+    cum += r.faturamento;
+    abcMap[r.produto] = (cum / totalFat) <= 0.80 ? 'A' : (cum / totalFat) <= 0.95 ? 'B' : 'C';
+  });
+  return _ESTOQUE_BASE
+    .map(r => {
+      const diasGiro = r.mediaDia > 0 ? r.saldoAtual / r.mediaDia : 9999;
+      const morto = diasGiro > 60;
+      const status = morto ? 'Morto' : r.saldoAtual <= r.mediaDia ? 'Crítico' : r.saldoAtual <= 2 * r.mediaDia ? 'Mínimo' : 'Normal';
+      return { ...r, diasGiro, status, abc: abcMap[r.produto] };
+    })
+    .filter(r => unidade === 'Todos' || r.unidade === unidade)
+    .filter(r => classificacao === 'Todos' || r.abc === classificacao)
+    .sort((a, b) => a.diasGiro - b.diasGiro);
+}
+
+function buildEstoqueReportHtml({ filters, clientName }) {
+  const { unidade, classificacao } = filters;
+  const rows = _computeEstoqueRows({ unidade, classificacao });
+  const abcColor = { A:'#166534', B:'#1e40af', C:'#7c3aed' };
+  const abcBg    = { A:'#dcfce7', B:'#dbeafe', C:'#ede9fe' };
+  const stColor  = { Crítico:'#dc2626', Mínimo:'#d97706', Normal:'#16a34a', Morto:'#94a3b8' };
+  const stBg     = { Crítico:'#fee2e2', Mínimo:'#fef3c7', Normal:'#f0fdf4', Morto:'#f1f5f9' };
+  const tableRows = rows.map(r => {
+    const isMorto = r.status === 'Morto';
+    const rs = isMorto ? 'background:#f8fafc;color:#94a3b8' : '';
+    return `<tr style="${rs}"><td>${r.produto}</td><td style="text-align:center">${r.unidade}</td><td style="text-align:center"><span style="background:${abcBg[r.abc]};color:${abcColor[r.abc]};padding:2px 8px;border-radius:10px;font-weight:700;font-size:10px">${r.abc}</span></td><td style="text-align:right">${r.saldoAtual.toLocaleString('pt-BR')}</td><td style="text-align:right">${r.mediaDia.toLocaleString('pt-BR',{maximumFractionDigits:1})}</td><td style="text-align:right;font-weight:700">${r.diasGiro > 999 ? '∞' : r.diasGiro.toFixed(1)}</td><td style="text-align:center"><span style="background:${stBg[r.status]};color:${stColor[r.status]};padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600">${r.status}</span></td><td style="text-align:right">R$ ${r.custoUnitario.toFixed(2)}</td><td style="text-align:right">R$ ${r.faturamento.toLocaleString('pt-BR')}</td></tr>`;
+  }).join('');
+  const criticos = rows.filter(r => r.status === 'Crítico').length;
+  const minimos  = rows.filter(r => r.status === 'Mínimo').length;
+  const mortos   = rows.filter(r => r.status === 'Morto').length;
+  const normais  = rows.filter(r => r.status === 'Normal').length;
+  return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"/><title>REL 8 — Giro de Estoque e Curva ABC</title><style>*{margin:0;padding:0;box-sizing:border-box}html,body{background:#fff;color:#1e293b;font-family:'Segoe UI',Arial,sans-serif;font-size:10px;color-scheme:light only}@page{size:A4 landscape;margin:12mm 14mm}@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact!important}}.page{max-width:1060px;margin:0 auto}.header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;padding-bottom:10px;border-bottom:2px solid #1e293b}.report-title{font-size:16px;font-weight:700}.report-sub{font-size:9px;color:#64748b;margin-top:2px}.kpis{display:flex;gap:12px;margin-bottom:14px}.kpi{background:#f8fafc;border-radius:6px;padding:8px 14px;border:1px solid #e2e8f0;flex:1;text-align:center}.kpi-label{font-size:9px;color:#64748b;margin-bottom:4px}.kpi-value{font-size:15px;font-weight:700}table{width:100%;border-collapse:collapse}th{background:#1e293b;color:#fff;padding:5px 8px;text-align:left;font-size:9px;white-space:nowrap}td{padding:4px 8px;border-bottom:1px solid #e2e8f0;font-size:10px}.legend{display:flex;gap:16px;margin-top:10px;font-size:9px;color:#64748b}.legend-item{display:flex;align-items:center;gap:4px}.legend-dot{width:10px;height:10px;border-radius:50%}</style></head><body><div class="page"><div class="header"><div><div class="report-title">REL 8 — Giro de Estoque e Curva ABC</div><div class="report-sub">${clientName || 'Empresa'} &nbsp;|&nbsp; Unidade: ${unidade} &nbsp;|&nbsp; Curva ABC: ${classificacao}</div></div><div style="text-align:right;font-size:9px;color:#64748b">Gerado em ${new Date().toLocaleDateString('pt-BR')}<br/>${rows.length} produto(s)</div></div><div class="kpis"><div class="kpi"><div class="kpi-label">Crítico (≤1 dia)</div><div class="kpi-value" style="color:#dc2626">${criticos}</div></div><div class="kpi"><div class="kpi-label">Mínimo (≤2 dias)</div><div class="kpi-value" style="color:#d97706">${minimos}</div></div><div class="kpi"><div class="kpi-label">Normal</div><div class="kpi-value" style="color:#16a34a">${normais}</div></div><div class="kpi"><div class="kpi-label">Estoque Morto (>60d)</div><div class="kpi-value" style="color:#94a3b8">${mortos}</div></div></div><table><thead><tr><th>Produto</th><th style="text-align:center">Unidade</th><th style="text-align:center">ABC</th><th style="text-align:right">Saldo Atual</th><th style="text-align:right">Média/Dia</th><th style="text-align:right">Dias Giro</th><th style="text-align:center">Status</th><th style="text-align:right">Custo Unit.</th><th style="text-align:right">Faturamento</th></tr></thead><tbody>${tableRows}</tbody></table><div class="legend"><div class="legend-item"><div class="legend-dot" style="background:#dcfce7;border:1px solid #166534"></div>Curva A — 80% faturamento</div><div class="legend-item"><div class="legend-dot" style="background:#dbeafe;border:1px solid #1e40af"></div>Curva B — 80–95%</div><div class="legend-item"><div class="legend-dot" style="background:#ede9fe;border:1px solid #7c3aed"></div>Curva C — restante</div><div class="legend-item"><div class="legend-dot" style="background:#f8fafc;border:1px solid #94a3b8"></div>Estoque Morto (giro>60d)</div><div style="margin-left:auto;font-size:9px;color:#94a3b8">Dados simulados — conecte ao SGA para valores reais</div></div></div></body></html>`;
+}
+
+function exportEstoqueReport({ filters, clientName }) {
+  const html = buildEstoqueReportHtml({ filters, clientName });
+  if (!html) return;
+  const w = window.open('', '_blank');
+  if (!w) { toast('Permita pop-ups no navegador para imprimir o relatório.', 'warn'); return; }
+  w.document.open();
+  w.document.write(html.replace('</body>', '<scr' + 'ipt>window.addEventListener("load",function(){setTimeout(function(){window.print();},500);});<\/scr' + 'ipt></body>'));
+  w.document.close();
+}
+
+const EstoqueFilterPanel = ({ filters, setFilters, onClose, onGenerate }) => {
+  const rows = _computeEstoqueRows({ unidade: filters.unidade, classificacao: filters.classificacao });
+  const criticos = rows.filter(r => r.status === 'Crítico').length;
+  const mortos   = rows.filter(r => r.status === 'Morto').length;
+  return (
+    <div className="modal-overlay control-print-overlay">
+      <div className="control-print-panel ranking-filter-panel">
+        <div className="control-print-header">
+          <h2>REL 8 — Giro de Estoque e Curva ABC</h2>
+          <button onClick={onClose}><X size={18}/></button>
+        </div>
+        <div className="control-print-body">
+          <div className="control-print-section">
+            <div className="control-print-section-title">Unidade</div>
+            <div style={{display:'flex',gap:8}}>
+              {['Todos','Loja','Pista'].map(u => (
+                <button key={u} type="button"
+                  className={`control-print-option${filters.unidade===u?' active':''}`}
+                  onClick={() => setFilters(f => ({...f, unidade:u}))}>
+                  {u}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="control-print-section">
+            <div className="control-print-section-title">Curva ABC</div>
+            <div style={{display:'flex',gap:8}}>
+              {['Todos','A','B','C'].map(c => (
+                <button key={c} type="button"
+                  className={`control-print-option${filters.classificacao===c?' active':''}`}
+                  onClick={() => setFilters(f => ({...f, classificacao:c}))}>
+                  {c}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="control-print-section" style={{background:'#1a2535',borderRadius:6,padding:'10px 14px'}}>
+            <div style={{fontSize:11,color:'#94a3b8',marginBottom:8}}>Preview — {rows.length} produto(s)</div>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+              <div style={{textAlign:'center'}}>
+                <div style={{fontSize:10,color:'#ef4444'}}>⚠ Críticos</div>
+                <div style={{fontSize:20,fontWeight:700,color:'#ef4444'}}>{criticos}</div>
+              </div>
+              <div style={{textAlign:'center'}}>
+                <div style={{fontSize:10,color:'#94a3b8'}}>Estoque Morto</div>
+                <div style={{fontSize:20,fontWeight:700,color:'#94a3b8'}}>{mortos}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="control-print-footer">
+          <button className="btn-secondary control-print-cancel" onClick={onClose}>Cancelar</button>
+          <button className="btn-primary control-print-generate" onClick={onGenerate}>
+            <Printer size={15}/> GERAR IMPRESSÃO
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+// ── fim Giro de Estoque e Curva ABC ──────────────────────────────────────────
+
+// ── REL 9 — Fluxo de Clientes e Ticket Médio ─────────────────────────────────
+const _CLIENTES_SLOTS = ['06h-08h','08h-10h','10h-12h','12h-14h','14h-16h','16h-18h','18h-20h','20h-22h','22h-00h'];
+const _CLIENTES_DIAS  = ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'];
+const _CLIENTES_BASE_DATA = {
+  '06h-08h':{Seg:{q:12,t:85},Ter:{q:14,t:78},Qua:{q:11,t:92},Qui:{q:13,t:88},Sex:{q:16,t:95},Sáb:{q:22,t:105},Dom:{q:18,t:98}},
+  '08h-10h':{Seg:{q:45,t:112},Ter:{q:48,t:118},Qua:{q:42,t:108},Qui:{q:50,t:122},Sex:{q:55,t:128},Sáb:{q:38,t:115},Dom:{q:28,t:102}},
+  '10h-12h':{Seg:{q:38,t:98},Ter:{q:35,t:94},Qua:{q:40,t:102},Qui:{q:36,t:96},Sex:{q:42,t:108},Sáb:{q:32,t:88},Dom:{q:25,t:82}},
+  '12h-14h':{Seg:{q:52,t:145},Ter:{q:55,t:152},Qua:{q:48,t:138},Qui:{q:58,t:158},Sex:{q:62,t:162},Sáb:{q:35,t:118},Dom:{q:22,t:95}},
+  '14h-16h':{Seg:{q:28,t:88},Ter:{q:30,t:92},Qua:{q:26,t:85},Qui:{q:32,t:95},Sex:{q:35,t:102},Sáb:{q:28,t:88},Dom:{q:18,t:75}},
+  '16h-18h':{Seg:{q:42,t:105},Ter:{q:45,t:112},Qua:{q:40,t:98},Qui:{q:48,t:118},Sex:{q:52,t:125},Sáb:{q:30,t:92},Dom:{q:20,t:78}},
+  '18h-20h':{Seg:{q:68,t:138},Ter:{q:72,t:145},Qua:{q:65,t:132},Qui:{q:75,t:148},Sex:{q:82,t:158},Sáb:{q:48,t:122},Dom:{q:32,t:108}},
+  '20h-22h':{Seg:{q:35,t:95},Ter:{q:38,t:98},Qua:{q:32,t:88},Qui:{q:40,t:102},Sex:{q:45,t:112},Sáb:{q:38,t:105},Dom:{q:25,t:88}},
+  '22h-00h':{Seg:{q:8,t:72},Ter:{q:10,t:75},Qua:{q:7,t:68},Qui:{q:9,t:72},Sex:{q:12,t:82},Sáb:{q:15,t:88},Dom:{q:10,t:75}},
+};
+const _CLIENTES_EXCLUIDAS = 32;
+
+function _getDiasList(dia) {
+  if (dia === 'Dias Úteis') return ['Seg','Ter','Qua','Qui','Sex'];
+  if (dia === 'FDS') return ['Sáb','Dom'];
+  if (dia === 'Todos') return _CLIENTES_DIAS;
+  return [dia];
+}
+
+function buildClientesReportHtml({ filters, clientName }) {
+  const { faixa, dia } = filters;
+  const diasShow  = _getDiasList(dia);
+  const slotsShow = faixa === 'Todas' ? _CLIENTES_SLOTS : [faixa];
+  let allQtds = [];
+  slotsShow.forEach(slot => diasShow.forEach(d => { const c = _CLIENTES_BASE_DATA[slot]?.[d]; if (c) allQtds.push(c.q); }));
+  const maxQ = Math.max(...allQtds, 1);
+  const minQ = Math.min(...allQtds, 0);
+  function heatColor(q) {
+    const pct = (q - minQ) / (maxQ - minQ || 1);
+    const r = Math.round(219 + (255-219)*pct), g = Math.round(234 - (234-127)*pct), b = Math.round(254 - (254-14)*pct);
+    return `rgb(${r},${g},${b})`;
+  }
+  const headerCells = diasShow.map(d => `<th style="text-align:center;min-width:58px">${d}</th>`).join('');
+  const dataRows = slotsShow.map(slot => {
+    let slotTotal=0, slotTicketSum=0, slotCount=0;
+    const cells = diasShow.map(d => {
+      const c = _CLIENTES_BASE_DATA[slot]?.[d];
+      if (!c) return `<td style="text-align:center;color:#94a3b8">—</td>`;
+      slotTotal += c.q; slotTicketSum += c.t; slotCount++;
+      const bg = heatColor(c.q);
+      const fg = c.q > maxQ*0.6 ? '#fff' : '#1e293b';
+      return `<td style="text-align:center;background:${bg};color:${fg}"><div style="font-weight:700;font-size:11px">${c.q}</div><div style="font-size:9px">R$${c.t}</div></td>`;
+    }).join('');
+    const avgT = slotCount > 0 ? Math.round(slotTicketSum/slotCount) : 0;
+    return `<tr><td style="font-weight:600;white-space:nowrap;background:#f8fafc">${slot}</td>${cells}<td style="text-align:center;background:#f1f5f9;font-weight:700">${slotTotal}</td><td style="text-align:center;background:#f1f5f9;color:#1e40af">R$${avgT}</td></tr>`;
+  }).join('');
+  const dayTotals = diasShow.map(d => {
+    const tot = slotsShow.reduce((s,slot)=>s+((_CLIENTES_BASE_DATA[slot]?.[d]?.q)||0),0);
+    return `<td style="text-align:center;font-weight:700;background:#f1f5f9">${tot}</td>`;
+  }).join('');
+  const grandTotal = slotsShow.reduce((s,slot)=>s+diasShow.reduce((ss,d)=>ss+((_CLIENTES_BASE_DATA[slot]?.[d]?.q)||0),0),0);
+  return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"/><title>REL 9 — Fluxo de Clientes e Ticket Médio</title><style>*{margin:0;padding:0;box-sizing:border-box}html,body{background:#fff;color:#1e293b;font-family:'Segoe UI',Arial,sans-serif;font-size:10px;color-scheme:light only}@page{size:A4 landscape;margin:12mm 14mm}@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact!important}}.page{max-width:1060px;margin:0 auto}.header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;padding-bottom:10px;border-bottom:2px solid #1e293b}.report-title{font-size:16px;font-weight:700}.report-sub{font-size:9px;color:#64748b;margin-top:2px}table{width:100%;border-collapse:collapse;margin-bottom:10px}th{background:#1e293b;color:#fff;padding:5px 8px;text-align:left;font-size:9px}td{padding:4px 6px;border-bottom:1px solid #e2e8f0;font-size:10px}.kpis{display:flex;gap:10px;margin-bottom:12px}.kpi{background:#f8fafc;border-radius:6px;padding:8px 12px;border:1px solid #e2e8f0;flex:1;text-align:center}.kpi-label{font-size:9px;color:#64748b}.kpi-value{font-size:16px;font-weight:700}</style></head><body><div class="page"><div class="header"><div><div class="report-title">REL 9 — Fluxo de Clientes e Ticket Médio</div><div class="report-sub">${clientName || 'Empresa'} &nbsp;|&nbsp; Faixa: ${faixa} &nbsp;|&nbsp; Dia: ${dia}</div></div><div style="text-align:right;font-size:9px;color:#64748b">Gerado em ${new Date().toLocaleDateString('pt-BR')}</div></div><div class="kpis"><div class="kpi"><div class="kpi-label">Total Transações</div><div class="kpi-value">${grandTotal}</div></div><div class="kpi"><div class="kpi-label">Transações Excluídas</div><div class="kpi-value" style="color:#94a3b8">${_CLIENTES_EXCLUIDAS}</div></div><div class="kpi"><div class="kpi-label">Ticket Médio Geral</div><div class="kpi-value" style="color:#1e40af">R$ 108</div></div><div class="kpi"><div class="kpi-label">Pico de Movimento</div><div class="kpi-value" style="color:#d97706;font-size:12px">18h–20h Sex</div></div></div><table><thead><tr><th>Faixa de Horário</th>${headerCells}<th style="text-align:center">Total</th><th style="text-align:center">Ticket Méd.</th></tr></thead><tbody>${dataRows}<tr style="background:#f1f5f9;font-weight:700"><td>TOTAL</td>${dayTotals}<td style="text-align:center;font-weight:700">${grandTotal}</td><td style="text-align:center;color:#1e40af">R$ 108</td></tr></tbody></table><div style="display:flex;gap:14px;align-items:center;font-size:9px;color:#64748b;margin-bottom:6px"><div style="font-weight:600">Intensidade:</div><div style="display:flex;gap:3px;align-items:center"><div style="width:12px;height:12px;background:rgb(219,234,254);border-radius:2px"></div>Baixo</div><div style="display:flex;gap:3px;align-items:center"><div style="width:12px;height:12px;background:rgb(251,191,36);border-radius:2px"></div>Médio</div><div style="display:flex;gap:3px;align-items:center"><div style="width:12px;height:12px;background:rgb(255,127,14);border-radius:2px"></div>Alto</div><div style="margin-left:auto;color:#94a3b8">Cada célula: qtd. transações / ticket médio. Excluídas: aferições, estornos e testes (${_CLIENTES_EXCLUIDAS} — ~2,5%).</div></div><div style="font-size:9px;color:#94a3b8;text-align:center">Dados simulados — integre com o banco de dados SGA para valores reais.</div></div></body></html>`;
+}
+
+function exportClientesReport({ filters, clientName }) {
+  const html = buildClientesReportHtml({ filters, clientName });
+  if (!html) return;
+  const w = window.open('', '_blank');
+  if (!w) { toast('Permita pop-ups no navegador para imprimir o relatório.', 'warn'); return; }
+  w.document.open();
+  w.document.write(html.replace('</body>', '<scr' + 'ipt>window.addEventListener("load",function(){setTimeout(function(){window.print();},500);});<\/scr' + 'ipt></body>'));
+  w.document.close();
+}
+
+const ClientesFilterPanel = ({ filters, setFilters, onClose, onGenerate }) => {
+  const diasShow  = _getDiasList(filters.dia);
+  const slotsShow = filters.faixa === 'Todas' ? _CLIENTES_SLOTS : [filters.faixa];
+  const totalQ = slotsShow.reduce((s,slot) => s + diasShow.reduce((ss,d) => ss + ((_CLIENTES_BASE_DATA[slot]?.[d]?.q)||0), 0), 0);
+  return (
+    <div className="modal-overlay control-print-overlay">
+      <div className="control-print-panel ranking-filter-panel" style={{maxWidth:520}}>
+        <div className="control-print-header">
+          <h2>REL 9 — Fluxo de Clientes e Ticket Médio</h2>
+          <button onClick={onClose}><X size={18}/></button>
+        </div>
+        <div className="control-print-body">
+          <div className="control-print-section">
+            <div className="control-print-section-title">Faixa de Horário</div>
+            <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
+              {['Todas',..._CLIENTES_SLOTS].map(s => (
+                <button key={s} type="button"
+                  className={`control-print-option${filters.faixa===s?' active':''}`}
+                  style={{fontSize:11,padding:'4px 10px'}}
+                  onClick={() => setFilters(f => ({...f, faixa:s}))}>
+                  {s}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="control-print-section">
+            <div className="control-print-section-title">Dia da Semana</div>
+            <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
+              {['Todos','Dias Úteis','FDS',..._CLIENTES_DIAS].map(d => (
+                <button key={d} type="button"
+                  className={`control-print-option${filters.dia===d?' active':''}`}
+                  style={{fontSize:11,padding:'4px 10px'}}
+                  onClick={() => setFilters(f => ({...f, dia:d}))}>
+                  {d}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="control-print-section" style={{background:'#1a2535',borderRadius:6,padding:'10px 14px'}}>
+            <div style={{fontSize:11,color:'#94a3b8',marginBottom:8}}>Preview</div>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+              <div style={{textAlign:'center'}}>
+                <div style={{fontSize:10,color:'#94a3b8'}}>Total Transações</div>
+                <div style={{fontSize:20,fontWeight:700,color:'#e2e8f0'}}>{totalQ}</div>
+              </div>
+              <div style={{textAlign:'center'}}>
+                <div style={{fontSize:10,color:'#94a3b8'}}>Excluídas</div>
+                <div style={{fontSize:20,fontWeight:700,color:'#64748b'}}>{_CLIENTES_EXCLUIDAS}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="control-print-footer">
+          <button className="btn-secondary control-print-cancel" onClick={onClose}>Cancelar</button>
+          <button className="btn-primary control-print-generate" onClick={onGenerate}>
+            <Printer size={15}/> GERAR IMPRESSÃO
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+// ── fim Fluxo de Clientes e Ticket Médio ─────────────────────────────────────
+
+// ── REL 10 — Painel de Auxílio em Compras ────────────────────────────────────
+const _COMPRAS_BASE = [
+  { data:'2026-03-03', produto:'Gasolina Comum',   fornecedor:'Ipiranga',  qtd:15000, preco:5.72 },
+  { data:'2026-03-05', produto:'Etanol Hidratado', fornecedor:'Raízen',    qtd:10000, preco:3.75 },
+  { data:'2026-03-08', produto:'Diesel S10',       fornecedor:'Petrobras', qtd:20000, preco:6.45 },
+  { data:'2026-03-12', produto:'Gasolina Comum',   fornecedor:'Shell',     qtd:12000, preco:5.78 },
+  { data:'2026-03-15', produto:'Diesel S10',       fornecedor:'Petrobras', qtd:18000, preco:6.48 },
+  { data:'2026-03-19', produto:'Etanol Hidratado', fornecedor:'Raízen',    qtd:8000,  preco:3.82 },
+  { data:'2026-03-22', produto:'Gasolina Comum',   fornecedor:'Ipiranga',  qtd:14000, preco:5.85 },
+  { data:'2026-03-28', produto:'Diesel S10',       fornecedor:'Shell',     qtd:22000, preco:6.52 },
+  { data:'2026-04-02', produto:'Gasolina Comum',   fornecedor:'Petrobras', qtd:16000, preco:5.79 },
+  { data:'2026-04-05', produto:'Etanol Hidratado', fornecedor:'Ipiranga',  qtd:12000, preco:3.78 },
+  { data:'2026-04-10', produto:'Diesel S10',       fornecedor:'Petrobras', qtd:20000, preco:6.55 },
+  { data:'2026-04-14', produto:'Gasolina Comum',   fornecedor:'Shell',     qtd:13000, preco:5.82 },
+  { data:'2026-04-18', produto:'Etanol Hidratado', fornecedor:'Raízen',    qtd:9000,  preco:3.85 },
+  { data:'2026-04-23', produto:'Diesel S10',       fornecedor:'Ipiranga',  qtd:19000, preco:6.49 },
+  { data:'2026-04-28', produto:'Gasolina Comum',   fornecedor:'Petrobras', qtd:15000, preco:5.88 },
+  { data:'2026-05-03', produto:'Diesel S10',       fornecedor:'Shell',     qtd:21000, preco:6.58 },
+  { data:'2026-05-08', produto:'Etanol Hidratado', fornecedor:'Raízen',    qtd:11000, preco:3.89 },
+  { data:'2026-05-12', produto:'Gasolina Comum',   fornecedor:'Ipiranga',  qtd:16000, preco:5.95 },
+  { data:'2026-05-18', produto:'Diesel S10',       fornecedor:'Petrobras', qtd:20000, preco:6.62 },
+  { data:'2026-05-22', produto:'Etanol Hidratado', fornecedor:'Shell',     qtd:10000, preco:4.08 },
+];
+
+function _computeComprasRows({ fornecedor, produto, dataInicial, dataFinal }) {
+  return _COMPRAS_BASE.filter(r => {
+    if (fornecedor !== 'Todos' && r.fornecedor !== fornecedor) return false;
+    if (produto !== 'Todos' && r.produto !== produto) return false;
+    if (dataInicial && r.data < dataInicial) return false;
+    if (dataFinal   && r.data > dataFinal)   return false;
+    return true;
+  });
+}
+
+function buildComprasReportHtml({ filters, clientName }) {
+  const { fornecedor, produto, dataInicial, dataFinal } = filters;
+  const rows = _computeComprasRows({ fornecedor, produto, dataInicial, dataFinal });
+  const fmtDate = d => d ? d.split('-').reverse().join('/') : '-';
+  const fmtBRL  = v => v.toLocaleString('pt-BR', { style:'currency', currency:'BRL' });
+  // Compute historical avg per product (excluding its last purchase)
+  const produtos = [...new Set(_COMPRAS_BASE.map(r => r.produto))];
+  const avgMap = {}, lastMap = {};
+  produtos.forEach(p => {
+    const pRows = _COMPRAS_BASE.filter(r => r.produto === p).sort((a,b) => a.data.localeCompare(b.data));
+    lastMap[p] = pRows[pRows.length - 1];
+    const prev = pRows.slice(0,-1);
+    avgMap[p] = prev.length > 0 ? prev.reduce((s,r) => s + r.preco, 0) / prev.length : pRows[0].preco;
+  });
+  const tableRows = rows.map(r => {
+    const total = r.qtd * r.preco;
+    const last  = lastMap[r.produto];
+    const isLast = last && last.data === r.data && last.fornecedor === r.fornecedor;
+    const avg = avgMap[r.produto];
+    const pctDiff = avg > 0 ? ((r.preco - avg) / avg) * 100 : 0;
+    const isAlert = isLast && pctDiff > 5;
+    const rowBg = isAlert ? '#fff7ed' : isLast ? '#f0fdf4' : '';
+    return `<tr style="background:${rowBg}"><td>${fmtDate(r.data)}</td><td>${r.produto}</td><td>${r.fornecedor}</td><td style="text-align:right">${r.qtd.toLocaleString('pt-BR')}</td><td style="text-align:right;font-weight:600">R$ ${r.preco.toFixed(2)}</td><td style="text-align:right">R$ ${avg.toFixed(2)}</td><td style="text-align:right;color:${pctDiff>5?'#dc2626':pctDiff>0?'#d97706':'#16a34a'};font-weight:${isAlert?'700':'400'}">${pctDiff>=0?'+':''}${pctDiff.toFixed(1)}%${isAlert?' ⚠':''}</td><td style="text-align:right">${fmtBRL(total)}</td><td style="text-align:center;font-size:9px;color:#1e40af;font-weight:600">${isLast?'✓ Última':''}</td></tr>`;
+  }).join('');
+  const hasAlert = produtos.some(p => {
+    const last = lastMap[p]; const avg = avgMap[p];
+    if (!last || !avg) return false;
+    const inFilter = rows.some(r => r.produto===p && r.data===last.data && r.fornecedor===last.fornecedor);
+    return inFilter && ((last.preco - avg)/avg)*100 > 5;
+  });
+  const alertBanner = hasAlert ? `<div style="background:#fff7ed;border:1px solid #f97316;border-radius:6px;padding:10px 14px;margin-bottom:14px;display:flex;align-items:center;gap:8px"><span style="font-size:16px">⚠️</span><div><div style="font-weight:700;color:#c2410c;font-size:11px">ALERTA DE PREÇO</div><div style="font-size:10px;color:#92400e">Uma ou mais últimas compras estão acima de 5% da média histórica. Negocie antes da próxima compra.</div></div></div>` : '';
+  const totalGasto = rows.reduce((s,r)=>s+r.qtd*r.preco,0);
+  return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"/><title>REL 10 — Painel de Auxílio em Compras</title><style>*{margin:0;padding:0;box-sizing:border-box}html,body{background:#fff;color:#1e293b;font-family:'Segoe UI',Arial,sans-serif;font-size:10px;color-scheme:light only}@page{size:A4 landscape;margin:12mm 14mm}@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact!important}}.page{max-width:1060px;margin:0 auto}.header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;padding-bottom:10px;border-bottom:2px solid #1e293b}.report-title{font-size:16px;font-weight:700}.report-sub{font-size:9px;color:#64748b;margin-top:2px}table{width:100%;border-collapse:collapse;margin-bottom:12px}th{background:#1e293b;color:#fff;padding:5px 8px;text-align:left;font-size:9px}td{padding:4px 8px;border-bottom:1px solid #e2e8f0;font-size:10px}.kpis{display:flex;gap:12px;margin-bottom:14px}.kpi{background:#f8fafc;border-radius:6px;padding:8px 14px;border:1px solid #e2e8f0;flex:1;text-align:center}.kpi-label{font-size:9px;color:#64748b;margin-bottom:4px}.kpi-value{font-size:14px;font-weight:700}</style></head><body><div class="page"><div class="header"><div><div class="report-title">REL 10 — Painel de Auxílio em Compras</div><div class="report-sub">${clientName||'Empresa'} &nbsp;|&nbsp; Fornecedor: ${fornecedor} &nbsp;|&nbsp; Produto: ${produto} &nbsp;|&nbsp; ${fmtDate(dataInicial)} – ${fmtDate(dataFinal)}</div></div><div style="text-align:right;font-size:9px;color:#64748b">Gerado em ${new Date().toLocaleDateString('pt-BR')}<br/>${rows.length} compra(s)</div></div>${alertBanner}<div class="kpis"><div class="kpi"><div class="kpi-label">Total Gasto</div><div class="kpi-value">${fmtBRL(totalGasto)}</div></div><div class="kpi"><div class="kpi-label">Compras</div><div class="kpi-value">${rows.length}</div></div><div class="kpi"><div class="kpi-label">Produtos</div><div class="kpi-value">${[...new Set(rows.map(r=>r.produto))].length}</div></div><div class="kpi"><div class="kpi-label">Fornecedores</div><div class="kpi-value">${[...new Set(rows.map(r=>r.fornecedor))].length}</div></div></div><table><thead><tr><th>Data</th><th>Produto</th><th>Fornecedor</th><th style="text-align:right">Qtd (L)</th><th style="text-align:right">Preço Unit.</th><th style="text-align:right">Méd. Hist.</th><th style="text-align:right">Δ vs Méd.</th><th style="text-align:right">Total</th><th style="text-align:center">Ref.</th></tr></thead><tbody>${tableRows}</tbody></table><div style="display:flex;gap:12px;font-size:9px;margin-bottom:8px"><div style="display:flex;align-items:center;gap:4px"><div style="width:12px;height:12px;background:#fff7ed;border:1px solid #f97316;border-radius:2px"></div>Alerta: última compra >5% acima da média</div><div style="display:flex;align-items:center;gap:4px"><div style="width:12px;height:12px;background:#f0fdf4;border:1px solid #86efac;border-radius:2px"></div>Última compra do produto</div><div style="margin-left:auto;color:#94a3b8">Média histórica calculada excluindo a última compra de cada produto.</div></div><div style="font-size:9px;color:#94a3b8;text-align:center">Dados simulados — integre com o banco de dados SGA para valores reais.</div></div></body></html>`;
+}
+
+function exportComprasReport({ filters, clientName }) {
+  const html = buildComprasReportHtml({ filters, clientName });
+  if (!html) return;
+  const w = window.open('', '_blank');
+  if (!w) { toast('Permita pop-ups no navegador para imprimir o relatório.', 'warn'); return; }
+  w.document.open();
+  w.document.write(html.replace('</body>', '<scr' + 'ipt>window.addEventListener("load",function(){setTimeout(function(){window.print();},500);});<\/scr' + 'ipt></body>'));
+  w.document.close();
+}
+
+const ComprasFilterPanel = ({ filters, setFilters, onClose, onGenerate }) => {
+  const rows = _computeComprasRows({ fornecedor: filters.fornecedor, produto: filters.produto, dataInicial: filters.dataInicial, dataFinal: filters.dataFinal });
+  const totalGasto = rows.reduce((s,r) => s + r.qtd * r.preco, 0);
+  return (
+    <div className="modal-overlay control-print-overlay">
+      <div className="control-print-panel ranking-filter-panel">
+        <div className="control-print-header">
+          <h2>REL 10 — Painel de Auxílio em Compras</h2>
+          <button onClick={onClose}><X size={18}/></button>
+        </div>
+        <div className="control-print-body">
+          <div className="control-print-grid ranking-filter-grid">
+            <div className="control-print-section">
+              <div className="control-print-section-title">Fornecedor</div>
+              <select className="control-print-input" value={filters.fornecedor}
+                onChange={e => setFilters(f => ({...f, fornecedor:e.target.value}))}>
+                {['Todos','Ipiranga','Petrobras','Raízen','Shell'].map(v => <option key={v}>{v}</option>)}
+              </select>
+            </div>
+            <div className="control-print-section">
+              <div className="control-print-section-title">Produto</div>
+              <select className="control-print-input" value={filters.produto}
+                onChange={e => setFilters(f => ({...f, produto:e.target.value}))}>
+                {['Todos','Gasolina Comum','Etanol Hidratado','Diesel S10'].map(v => <option key={v}>{v}</option>)}
+              </select>
+            </div>
+          </div>
+          <div className="control-print-section">
+            <div className="control-print-section-title">Período</div>
+            <div className="control-print-date-row">
+              <div className="control-print-field">
+                <label>De</label>
+                <input type="date" className="control-print-input" value={filters.dataInicial}
+                  onChange={e => setFilters(f => ({...f, dataInicial:e.target.value}))}/>
+              </div>
+              <div className="control-print-field">
+                <label>Até</label>
+                <input type="date" className="control-print-input" value={filters.dataFinal}
+                  onChange={e => setFilters(f => ({...f, dataFinal:e.target.value}))}/>
+              </div>
+            </div>
+          </div>
+          <div className="control-print-section" style={{background:'#1a2535',borderRadius:6,padding:'10px 14px'}}>
+            <div style={{fontSize:11,color:'#94a3b8',marginBottom:8}}>Preview — {rows.length} compra(s)</div>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+              <div style={{textAlign:'center'}}>
+                <div style={{fontSize:10,color:'#94a3b8'}}>Total Gasto</div>
+                <div style={{fontSize:13,fontWeight:700,color:'#e2e8f0'}}>{totalGasto.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}</div>
+              </div>
+              <div style={{textAlign:'center'}}>
+                <div style={{fontSize:10,color:'#94a3b8'}}>Produtos</div>
+                <div style={{fontSize:13,fontWeight:700,color:'#e2e8f0'}}>{[...new Set(rows.map(r=>r.produto))].length}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="control-print-footer">
+          <button className="btn-secondary control-print-cancel" onClick={onClose}>Cancelar</button>
+          <button className="btn-primary control-print-generate" onClick={onGenerate}>
+            <Printer size={15}/> GERAR IMPRESSÃO
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+// ── fim Painel de Auxílio em Compras ─────────────────────────────────────────
+
 const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients }) => {
   const [activeTab, setActiveTab] = useState('descarregamentos');
   const [data, setData] = useState({ descarregamentos: null, vendas: null, historico: null, consolidado: null, controle: null });
@@ -6442,6 +6959,14 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
   const [cnpjFilters, setCnpjFilters] = useState({ search:'', periodo:'Mensal' });
   const [showTurnoPanel,        setShowTurnoPanel]        = useState(false);
   const [turnoFilters, setTurnoFilters] = useState({ dataInicial:'', dataFinal:'', turno:'Todos', operador:'Todos' });
+  const [showFluxoPanel,        setShowFluxoPanel]        = useState(false);
+  const [fluxoFilters,   setFluxoFilters]   = useState({ conta:'Todas', dataInicial:'', dataFinal:'' });
+  const [showEstoquePanel,      setShowEstoquePanel]      = useState(false);
+  const [estoqueFilters, setEstoqueFilters] = useState({ unidade:'Todos', classificacao:'Todos' });
+  const [showClientesPanel,     setShowClientesPanel]     = useState(false);
+  const [clientesFilters, setClientesFilters] = useState({ faixa:'Todas', dia:'Todos' });
+  const [showComprasPanel,      setShowComprasPanel]      = useState(false);
+  const [comprasFilters, setComprasFilters]  = useState({ fornecedor:'Todos', produto:'Todos', dataInicial:'', dataFinal:'' });
   const [vendedores, setVendedores] = useState([]);
   const [rankingFilters, setRankingFilters] = useState({
     dataInicial: '',
@@ -7048,6 +7573,54 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
     setShowTurnoPanel(false);
   };
 
+  const openFluxoPanel = () => {
+    const range = getPeriodDateRange(selectedPeriod);
+    setFluxoFilters(prev => ({
+      ...prev,
+      dataInicial: prev.dataInicial || range.dataInicial,
+      dataFinal:   prev.dataFinal   || range.dataFinal,
+    }));
+    setShowFluxoPanel(true);
+  };
+  const handleGenerateFluxoReport = () => {
+    if (fluxoFilters.dataInicial && fluxoFilters.dataFinal && fluxoFilters.dataInicial > fluxoFilters.dataFinal) {
+      toast('A data inicial não pode ser maior que a data final.', 'warn');
+      return;
+    }
+    exportFluxoReport({ filters: fluxoFilters, clientName: selectedClient });
+    setShowFluxoPanel(false);
+  };
+
+  const openEstoquePanel  = () => setShowEstoquePanel(true);
+  const handleGenerateEstoqueReport = () => {
+    exportEstoqueReport({ filters: estoqueFilters, clientName: selectedClient });
+    setShowEstoquePanel(false);
+  };
+
+  const openClientesPanel = () => setShowClientesPanel(true);
+  const handleGenerateClientesReport = () => {
+    exportClientesReport({ filters: clientesFilters, clientName: selectedClient });
+    setShowClientesPanel(false);
+  };
+
+  const openComprasPanel = () => {
+    const range = getPeriodDateRange(selectedPeriod);
+    setComprasFilters(prev => ({
+      ...prev,
+      dataInicial: prev.dataInicial || range.dataInicial,
+      dataFinal:   prev.dataFinal   || range.dataFinal,
+    }));
+    setShowComprasPanel(true);
+  };
+  const handleGenerateComprasReport = () => {
+    if (comprasFilters.dataInicial && comprasFilters.dataFinal && comprasFilters.dataInicial > comprasFilters.dataFinal) {
+      toast('A data inicial não pode ser maior que a data final.', 'warn');
+      return;
+    }
+    exportComprasReport({ filters: comprasFilters, clientName: selectedClient });
+    setShowComprasPanel(false);
+  };
+
   const renderOutrosRelatorios = () => (
     <div className="other-reports-panel">
       <div className="other-reports-list">
@@ -7100,6 +7673,46 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
           </div>
           <ChevronRight size={20} />
         </button>
+
+        <button type="button" className="other-report-row" onClick={openFluxoPanel}>
+          <div className="other-report-index">REL 6</div>
+          <div className="other-report-icon"><Wallet size={22} /></div>
+          <div className="other-report-main">
+            <strong>Fluxo de Caixa Operacional</strong>
+            <span>DRE simplificada com entradas, saídas e saldo operacional do período</span>
+          </div>
+          <ChevronRight size={20} />
+        </button>
+
+        <button type="button" className="other-report-row" onClick={openEstoquePanel}>
+          <div className="other-report-index">REL 8</div>
+          <div className="other-report-icon"><Package size={22} /></div>
+          <div className="other-report-main">
+            <strong>Giro de Estoque e Curva ABC</strong>
+            <span>Estoque crítico, morto e curva ABC por faturamento — Loja e Pista</span>
+          </div>
+          <ChevronRight size={20} />
+        </button>
+
+        <button type="button" className="other-report-row" onClick={openClientesPanel}>
+          <div className="other-report-index">REL 9</div>
+          <div className="other-report-icon"><UsersIcon size={22} /></div>
+          <div className="other-report-main">
+            <strong>Fluxo de Clientes e Ticket Médio</strong>
+            <span>Heatmap de atendimentos por horário e dia da semana com ticket médio</span>
+          </div>
+          <ChevronRight size={20} />
+        </button>
+
+        <button type="button" className="other-report-row" onClick={openComprasPanel}>
+          <div className="other-report-index">REL 10</div>
+          <div className="other-report-icon"><Target size={22} /></div>
+          <div className="other-report-main">
+            <strong>Painel de Auxílio em Compras</strong>
+            <span>Histórico de preços de compra com alerta de variação acima da média</span>
+          </div>
+          <ChevronRight size={20} />
+        </button>
       </div>
 
       {showRankingPrintPanel && (
@@ -7148,6 +7761,42 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
           setFilters={setTurnoFilters}
           onClose={() => setShowTurnoPanel(false)}
           onGenerate={handleGenerateTurnoReport}
+        />
+      )}
+
+      {showFluxoPanel && (
+        <FluxoFilterPanel
+          filters={fluxoFilters}
+          setFilters={setFluxoFilters}
+          onClose={() => setShowFluxoPanel(false)}
+          onGenerate={handleGenerateFluxoReport}
+        />
+      )}
+
+      {showEstoquePanel && (
+        <EstoqueFilterPanel
+          filters={estoqueFilters}
+          setFilters={setEstoqueFilters}
+          onClose={() => setShowEstoquePanel(false)}
+          onGenerate={handleGenerateEstoqueReport}
+        />
+      )}
+
+      {showClientesPanel && (
+        <ClientesFilterPanel
+          filters={clientesFilters}
+          setFilters={setClientesFilters}
+          onClose={() => setShowClientesPanel(false)}
+          onGenerate={handleGenerateClientesReport}
+        />
+      )}
+
+      {showComprasPanel && (
+        <ComprasFilterPanel
+          filters={comprasFilters}
+          setFilters={setComprasFilters}
+          onClose={() => setShowComprasPanel(false)}
+          onGenerate={handleGenerateComprasReport}
         />
       )}
 
