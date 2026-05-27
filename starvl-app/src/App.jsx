@@ -5063,6 +5063,213 @@ function exportRankingSalesReport({ report, filters, clientName, sellerLabel }) 
   printWindow.document.close();
 }
 
+// ── MargemProdutosPanel ──────────────────────────────────────────────────────
+const _MARGEM_BASE = [
+  { cod: '101', desc: 'Gasolina Comum',        cat: 'Bomba', custBase:  5.20, frete: 0.05, st: 0.45, venda:  5.99, volMensal: 45000, unid: 'L'  },
+  { cod: '102', desc: 'Gasolina Aditivada',    cat: 'Bomba', custBase:  5.40, frete: 0.05, st: 0.45, venda:  6.29, volMensal: 12000, unid: 'L'  },
+  { cod: '103', desc: 'Etanol Hidratado',      cat: 'Bomba', custBase:  3.40, frete: 0.04, st: 0.18, venda:  3.99, volMensal: 18000, unid: 'L'  },
+  { cod: '104', desc: 'Diesel S10',            cat: 'Bomba', custBase:  5.82, frete: 0.06, st: 0.55, venda:  6.49, volMensal: 32000, unid: 'L'  },
+  { cod: '105', desc: 'Diesel S500',           cat: 'Bomba', custBase:  5.65, frete: 0.06, st: 0.50, venda:  6.29, volMensal:  8000, unid: 'L'  },
+  { cod: '201', desc: 'Água Mineral 500ml',    cat: 'Loja',  custBase:  0.85, frete: 0.10, st: 0.05, venda:  3.50, volMensal:   420, unid: 'un' },
+  { cod: '202', desc: 'Café Espresso (dose)',  cat: 'Loja',  custBase:  0.45, frete: 0.00, st: 0.00, venda:  3.00, volMensal:   850, unid: 'un' },
+  { cod: '203', desc: 'Lubrificante 5W-30 1L', cat: 'Loja',  custBase: 18.50, frete: 0.50, st: 1.20, venda: 34.90, volMensal:    95, unid: 'un' },
+];
+const _MARGEM_FATOR = { 'Diário': 1/30, 'Semanal': 1/4.3, 'Mensal': 1, 'Anual': 12 };
+
+const MargemProdutosPanel = () => {
+  const [catFiltro,    setCatFiltro]    = useState('Todos');
+  const [periodoFiltro, setPeriodoFiltro] = useState('Mensal');
+  const [sortCol, setSortCol] = useState('margemTotal');
+  const [sortDir, setSortDir] = useState('desc');
+
+  const rows = useMemo(() => {
+    const fator = _MARGEM_FATOR[periodoFiltro] || 1;
+    return _MARGEM_BASE
+      .filter(p => catFiltro === 'Todos' || p.cat === catFiltro)
+      .map(p => {
+        const custTotal  = p.custBase + p.frete + p.st;
+        const margemUnit = p.venda - custTotal;
+        const margemPct  = p.venda > 0 ? (margemUnit / p.venda) * 100 : 0;
+        const volume     = Math.round(p.volMensal * fator);
+        const margemTotal = margemUnit * volume;
+        return { ...p, custTotal, margemUnit, margemPct, volume, margemTotal };
+      })
+      .sort((a, b) => {
+        const va = a[sortCol]; const vb = b[sortCol];
+        const cmp = va < vb ? -1 : va > vb ? 1 : 0;
+        return sortDir === 'asc' ? cmp : -cmp;
+      });
+  }, [catFiltro, periodoFiltro, sortCol, sortDir]);
+
+  const totMargemTotal  = rows.reduce((s, r) => s + r.margemTotal, 0);
+  const totReceita      = rows.reduce((s, r) => s + r.venda * r.volume, 0);
+  const margemPonderada = totReceita > 0 ? (totMargemTotal / totReceita) * 100 : 0;
+
+  const fmt2 = v => v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const fmt0 = v => Math.round(v).toLocaleString('pt-BR');
+  const fmtR = v => 'R$ ' + Math.abs(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  const handleSort = col => {
+    if (sortCol === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortCol(col); setSortDir('desc'); }
+  };
+
+  const SortArrow = ({ col }) => (
+    <span style={{ marginLeft: 3, opacity: sortCol === col ? 1 : 0.35 }}>
+      {sortCol === col ? (sortDir === 'asc' ? '↑' : '↓') : '↕'}
+    </span>
+  );
+
+  const margemCor = pct => pct < 10 ? '#ef4444' : pct < 20 ? '#f59e0b' : '#22c55e';
+
+  const TH = ({ col, children, align = 'right', style: s = {} }) => (
+    <th onClick={() => handleSort(col)} style={{
+      padding: '10px 12px', background: '#E31E24', color: '#fff',
+      fontWeight: 700, fontSize: 11, textAlign: align, whiteSpace: 'nowrap',
+      cursor: 'pointer', userSelect: 'none',
+      borderRight: '1px solid rgba(255,255,255,.12)', position: 'sticky', top: 0, ...s,
+    }}>
+      {children}<SortArrow col={col}/>
+    </th>
+  );
+
+  const tdBase = { padding: '9px 12px', fontSize: 12, color: '#111827', borderBottom: '1px solid #f3f4f6', whiteSpace: 'nowrap' };
+  const catCols = ['Todos', 'Bomba', 'Loja'];
+  const perCols = ['Diário', 'Semanal', 'Mensal', 'Anual'];
+
+  const togStyle = active => ({
+    padding: '5px 13px', border: 'none', borderRadius: 6, fontSize: 11, fontWeight: 700,
+    cursor: 'pointer', transition: 'all .15s',
+    background: active ? '#E31E24' : '#f3f4f6',
+    color: active ? '#fff' : '#6b7280',
+  });
+
+  return (
+    <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: '18px 20px', marginTop: 14, boxShadow: '0 2px 12px rgba(0,0,0,.06)' }}>
+      {/* ── Header ── */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14, flexWrap: 'wrap', gap: 10 }}>
+        <div>
+          <h3 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: '#111827', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ background: '#fff5f5', border: '1px solid #fecaca', borderRadius: 7, padding: '4px 8px', fontSize: 16 }}>📊</span>
+            Margem por Combustível e Produtos
+          </h3>
+          <div style={{ fontSize: 11, color: '#6b7280', marginTop: 4 }}>
+            Custo Total = Preço NF + Frete + ST — nunca use só o preço de nota para calcular margem real
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: 3, background: '#f3f4f6', borderRadius: 7, padding: 3 }}>
+            {catCols.map(c => <button key={c} style={togStyle(catFiltro === c)} onClick={() => setCatFiltro(c)}>{c}</button>)}
+          </div>
+          <div style={{ display: 'flex', gap: 3, background: '#f3f4f6', borderRadius: 7, padding: 3 }}>
+            {perCols.map(p => <button key={p} style={togStyle(periodoFiltro === p)} onClick={() => setPeriodoFiltro(p)}>{p}</button>)}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Table ── */}
+      <div style={{ overflowX: 'auto', borderRadius: 8, border: '1px solid #e5e7eb' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 1020 }}>
+          <thead>
+            <tr>
+              <TH col="cod"       align="left">Código</TH>
+              <TH col="desc"      align="left" style={{ minWidth: 170 }}>Descrição</TH>
+              <TH col="custBase">Custo Base (R$)</TH>
+              <TH col="frete">Frete Unit. (R$)</TH>
+              <TH col="st">ST (R$)</TH>
+              <TH col="custTotal">Custo Total (R$)</TH>
+              <TH col="venda">Venda (R$)</TH>
+              <TH col="margemUnit">Mg. Unit. (R$)</TH>
+              <TH col="margemPct" style={{ minWidth: 140 }}>Mg. Unit. (%)</TH>
+              <TH col="volume">Volume</TH>
+              <TH col="margemTotal">Mg. Total (R$)</TH>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row, i) => {
+              const cor = margemCor(row.margemPct);
+              const barW = Math.min(100, Math.max(0, row.margemPct));
+              return (
+                <tr key={row.cod} style={{ background: i % 2 === 0 ? '#fff' : '#f9fafb' }}>
+                  <td style={{ ...tdBase, textAlign: 'left', fontWeight: 700, color: '#374151', fontFamily: 'monospace', fontSize: 11 }}>
+                    {row.cod}
+                  </td>
+                  <td style={{ ...tdBase, textAlign: 'left' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                      <span style={{ width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
+                        background: row.cat === 'Bomba' ? '#3b82f6' : '#f59e0b' }}/>
+                      <span style={{ fontWeight: 600, color: '#1f2937' }}>{row.desc}</span>
+                    </div>
+                  </td>
+                  <td style={{ ...tdBase, textAlign: 'right' }}>R$ {fmt2(row.custBase)}</td>
+                  <td style={{ ...tdBase, textAlign: 'right' }}>R$ {fmt2(row.frete)}</td>
+                  <td style={{ ...tdBase, textAlign: 'right', color: '#dc2626' }}>R$ {fmt2(row.st)}</td>
+                  <td style={{ ...tdBase, textAlign: 'right', fontWeight: 700, color: '#374151' }}>R$ {fmt2(row.custTotal)}</td>
+                  <td style={{ ...tdBase, textAlign: 'right' }}>R$ {fmt2(row.venda)}</td>
+                  <td style={{ ...tdBase, textAlign: 'right', fontWeight: 700, color: row.margemUnit >= 0 ? '#059669' : '#ef4444' }}>
+                    {row.margemUnit >= 0 ? '+' : ''}R$ {fmt2(row.margemUnit)}
+                  </td>
+                  <td style={{ ...tdBase, textAlign: 'right' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{ flex: 1, height: 8, background: '#f3f4f6', borderRadius: 4, overflow: 'hidden', minWidth: 56 }}>
+                        <div style={{ height: '100%', width: `${barW}%`, background: cor, borderRadius: 4, transition: 'width .5s ease' }}/>
+                      </div>
+                      <span style={{ fontSize: 11, fontWeight: 800, color: cor, minWidth: 40, textAlign: 'right' }}>
+                        {row.margemPct.toFixed(1)}%
+                      </span>
+                    </div>
+                  </td>
+                  <td style={{ ...tdBase, textAlign: 'right' }}>{fmt0(row.volume)} {row.unid}</td>
+                  <td style={{ ...tdBase, textAlign: 'right', fontWeight: 800, fontSize: 13,
+                    color: row.margemTotal >= 0 ? '#059669' : '#ef4444' }}>
+                    {fmtR(row.margemTotal)}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+          <tfoot>
+            <tr style={{ background: '#f3f4f6', borderTop: '2px solid #d1d5db' }}>
+              <td colSpan={8} style={{ ...tdBase, textAlign: 'left', fontWeight: 800, color: '#374151', background: '#f3f4f6' }}>
+                Portfólio — {rows.length} produto{rows.length !== 1 ? 's' : ''} · Margem média ponderada
+              </td>
+              <td style={{ ...tdBase, textAlign: 'right', background: '#f3f4f6' }}>
+                <span style={{ fontSize: 13, fontWeight: 800, color: margemCor(margemPonderada) }}>
+                  {margemPonderada.toFixed(1)}%
+                </span>
+              </td>
+              <td style={{ ...tdBase, background: '#f3f4f6' }}/>
+              <td style={{ ...tdBase, textAlign: 'right', fontWeight: 900, fontSize: 14, background: '#f3f4f6',
+                color: totMargemTotal >= 0 ? '#059669' : '#ef4444' }}>
+                {fmtR(totMargemTotal)}
+              </td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
+      {/* ── Legenda ── */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 10, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 10, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 1 }}>Legenda:</span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#6b7280' }}>
+          <span style={{ width: 9, height: 9, borderRadius: '50%', background: '#3b82f6', display: 'inline-block' }}/> Bomba (Pista)
+        </span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#6b7280' }}>
+          <span style={{ width: 9, height: 9, borderRadius: '50%', background: '#f59e0b', display: 'inline-block' }}/> Loja (Conveniência)
+        </span>
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 12 }}>
+          {[['#ef4444', '< 10%  Crítico'], ['#f59e0b', '10–20%  Atenção'], ['#22c55e', '> 20%  Saudável']].map(([c, l]) => (
+            <span key={l} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: '#6b7280' }}>
+              <span style={{ width: 10, height: 10, borderRadius: 2, background: c, display: 'inline-block' }}/> {l}
+            </span>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+// ── fim MargemProdutosPanel ──────────────────────────────────────────────────
+
 const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients }) => {
   const [activeTab, setActiveTab] = useState('descarregamentos');
   const [data, setData] = useState({ descarregamentos: null, vendas: null, historico: null, consolidado: null, controle: null });
@@ -5071,6 +5278,7 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
   const [descSubTab, setDescSubTab] = useState('comNota');
   const [showControlPrintPanel, setShowControlPrintPanel] = useState(false);
   const [showRankingPrintPanel, setShowRankingPrintPanel] = useState(false);
+  const [showMargemPanel,       setShowMargemPanel]       = useState(false);
   const [vendedores, setVendedores] = useState([]);
   const [rankingFilters, setRankingFilters] = useState({
     dataInicial: '',
@@ -5625,6 +5833,16 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
           </div>
           <ChevronRight size={20} />
         </button>
+
+        <button type="button" className="other-report-row" onClick={() => setShowMargemPanel(v => !v)}>
+          <div className="other-report-index">REL 2</div>
+          <div className="other-report-icon"><TrendingUp size={22} /></div>
+          <div className="other-report-main">
+            <strong>Margem por Combustível e Produtos</strong>
+            <span>Análise de margem bruta unitária e total com ST, frete e custo real</span>
+          </div>
+          <ChevronRight size={20} style={{ transform: showMargemPanel ? 'rotate(90deg)' : 'none', transition: 'transform .2s' }} />
+        </button>
       </div>
 
       {showRankingPrintPanel && (
@@ -5639,6 +5857,8 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
           onGenerate={handleGenerateRankingReport}
         />
       )}
+
+      {showMargemPanel && <MargemProdutosPanel />}
 
     </div>
   );
