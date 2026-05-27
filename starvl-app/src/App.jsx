@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import logoStarvl from './logo-starvl.png';
 import logoStarvlBlack from './logo-starvl-black.png';
 import * as XLSX from 'xlsx';
@@ -4385,7 +4385,9 @@ const ConvenienciaManager = ({ themeMode }) => {
   const [viewProd, setViewProd]     = useState(null);
   const [editProd, setEditProd]     = useState(null);
   const [editForm, setEditForm]     = useState({});
+  const [editImg, setEditImg]       = useState(null);
   const [localEdits, setLocalEdits] = useState({});
+  const imgInputRef = useRef(null);
   const LIMIT = 7;
 
   // Reset page on filter change
@@ -4410,6 +4412,7 @@ const ConvenienciaManager = ({ themeMode }) => {
   const openEdit = useCallback((p) => {
     const merged = { ...p, ...(localEdits[p.id] || {}) };
     setEditProd(merged);
+    setEditImg(merged.editImg || null);
     setEditForm({
       custo:      String(merged.custo),
       preco:      String(merged.preco),
@@ -4437,10 +4440,11 @@ const ConvenienciaManager = ({ themeMode }) => {
         desc:        editForm.desc,
         forn:        editForm.forn,
         controlVenc: editForm.controlVenc,
+        editImg:     editImg,
       },
     }));
     setEditProd(null);
-  }, [editProd, editForm]);
+  }, [editProd, editForm, editImg]);
 
   // KPIs
   const kpis = useMemo(() => {
@@ -4790,15 +4794,34 @@ const ConvenienciaManager = ({ themeMode }) => {
               <div className="pm-edit-col">
                 <div className="pm-edit-panel">
                   <div className="pm-edit-panel-title"><Camera size={12} /> FOTO DO PRODUTO</div>
-                  <div className="pm-edit-img-box" style={{ background: editProd.cor + '22' }}>
-                    {editProd.emoji}
+                  {/* Hidden file input */}
+                  <input
+                    type="file"
+                    ref={imgInputRef}
+                    accept="image/*"
+                    style={{ display: 'none' }}
+                    onChange={e => {
+                      const file = e.target.files[0];
+                      if (file) setEditImg(URL.createObjectURL(file));
+                      e.target.value = '';
+                    }}
+                  />
+                  <div className="pm-edit-img-box" style={{ background: editImg ? 'transparent' : editProd.cor + '22' }}>
+                    {editImg
+                      ? <img src={editImg} alt="produto" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 8 }} />
+                      : editProd.emoji
+                    }
                   </div>
                   <p className="pm-edit-img-hint">Formatos aceitos: JPG, PNG, WEBP<br />Tamanho máximo: 2 MB</p>
                   <div className="pm-edit-img-btns">
-                    <button className="pm-edit-img-btn" style={{ background: '#1a1a1a', border: '1px solid #3a3a3a', color: '#94a3b8' }}>
+                    <button className="pm-edit-img-btn"
+                      style={{ background: '#1a1a1a', border: '1px solid #3a3a3a', color: '#94a3b8' }}
+                      onClick={() => imgInputRef.current?.click()}>
                       <Camera size={11} /> ALTERAR
                     </button>
-                    <button className="pm-edit-img-btn" style={{ background: 'transparent', border: '1px solid #3a3a3a', color: '#ef4444' }}>
+                    <button className="pm-edit-img-btn"
+                      style={{ background: 'transparent', border: '1px solid #3a3a3a', color: '#ef4444' }}
+                      onClick={() => setEditImg(null)}>
                       <Trash2 size={11} /> REMOVER
                     </button>
                   </div>
@@ -4899,7 +4922,7 @@ const ConvenienciaManager = ({ themeMode }) => {
               <div className="pm-edit-col">
                 <div className="pm-edit-panel">
                   <div className="pm-edit-panel-title"><Database size={12} /> DADOS DE ESTOQUE</div>
-                  <div className="pm-edit-fg2">
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                     <div className="pm-edit-field">
                       <label className="pm-edit-label">Estoque Atual</label>
                       <input className="pm-edit-input" type="number" min="0" value={editForm.estoque}
