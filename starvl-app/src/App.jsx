@@ -2794,6 +2794,41 @@ const Financeiro = ({ clients, selectedClient }) => {
   );
 };
 
+// Dados mock dos top produtos de conveniência — id referencia PM_MOCK_PRODUCTS
+const _CONV_DASH_BASE = [
+  { id: 1,  name: 'Refrig. 350ml',   qty: 1842, emoji: '🥤' },
+  { id: 3,  name: 'Água 500ml',      qty: 1725, emoji: '💧' },
+  { id: 32, name: 'Café 3 Corações', qty:  930, emoji: '☕' },
+  { id: 23, name: 'Marlboro',        qty:  760, emoji: '🚬' },
+];
+
+// ─── Tick customizado: imagem circular + nome (eixo X do gráfico conveniência) ──
+const ConvProductTick = ({ x, y, payload, chartData, images }) => {
+  const item   = (chartData || []).find(d => d.name === payload?.value);
+  const imgSrc = item ? images[item.id] : null;
+  const emoji  = item?.emoji || '📦';
+  const label  = String(payload?.value || '');
+  const SIZE   = 42;
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <foreignObject x={-SIZE / 2} y={4} width={SIZE} height={SIZE}>
+        <div xmlns="http://www.w3.org/1999/xhtml" style={{
+          width: SIZE, height: SIZE, borderRadius: '50%',
+          overflow: 'hidden', background: '#1e293b',
+          border: '2px solid #334155',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 20,
+        }}>
+          {imgSrc
+            ? <img src={imgSrc} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            : <span>{emoji}</span>}
+        </div>
+      </foreignObject>
+      <text x={0} y={56} textAnchor="middle" fill="#9ca3af" fontSize={10}>{label}</text>
+    </g>
+  );
+};
+
 // Dashboard Component
 const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcControle, estoques, loading, clients, selectedClient, selectedPeriod, setSelectedPeriod, onRefresh, themeMode }) => {
   const [selectedFuelDonut, setSelectedFuelDonut] = useState(null);
@@ -2802,6 +2837,15 @@ const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcContr
   const [productMatrixUnit, setProductMatrixUnit] = useState('Pista');
   const [productMatrixPeriod, setProductMatrixPeriod] = useState('Mensal');
   const [convProductImages, setConvProductImages] = useState({});
+
+  // Carregar imagens dos produtos de conveniência do IndexedDB
+  useEffect(() => {
+    imgLoadAll().then(all => {
+      const map = {};
+      _CONV_DASH_BASE.forEach(item => { if (all[item.id]) map[item.id] = all[item.id]; });
+      setConvProductImages(map);
+    }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     const media = window.matchMedia('(max-width: 768px)');
@@ -2866,12 +2910,6 @@ const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcContr
 
   // Mock top-4 conveniência mais vendida (demo) — produtos individuais
   const _CONV_DASH_COLORS = ['#3b82f6', '#8b5cf6', '#f59e0b', '#06b6d4'];
-  const _CONV_DASH_BASE   = [
-    { name: 'Refrig. 350ml',   qty: 1842 },
-    { name: 'Água 500ml',      qty: 1725 },
-    { name: 'Café Expresso',   qty:  930 },
-    { name: 'Marlboro',        qty:  760 },
-  ];
   const salesConvChartData = _CONV_DASH_BASE.map((r, i) => ({ ...r, color: _CONV_DASH_COLORS[i] }));
 
   const monthlyChart = vendasDiarias && vendasDiarias.length > 0
@@ -2981,9 +3019,15 @@ const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcContr
           </ResponsiveContainer>
         ) : (
           <ResponsiveContainer width="100%" height={wideChartHeight}>
-            <BarChart data={salesConvChartData} margin={{ top: 28, right: 12, left: 6, bottom: 0 }}>
+            <BarChart data={salesConvChartData} margin={{ top: 28, right: 12, left: 6, bottom: 4 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={DASHBOARD_COLORS.grid} />
-              <XAxis dataKey="name" stroke={DASHBOARD_COLORS.axis} tick={xTickStyle} interval={0} height={isCompactDashboard ? 46 : 30} angle={isCompactDashboard ? -18 : 0} textAnchor={isCompactDashboard ? 'end' : 'middle'} />
+              <XAxis
+                dataKey="name"
+                stroke={DASHBOARD_COLORS.axis}
+                interval={0}
+                height={72}
+                tick={(props) => <ConvProductTick {...props} chartData={salesConvChartData} images={convProductImages} />}
+              />
               <YAxis stroke={DASHBOARD_COLORS.axis} tick={xTickStyle} width={isCompactDashboard ? 46 : 60} />
               <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={{ color: '#fff' }} formatter={(v, _name, props) => [<span style={{ color: props.payload?.color || '#60a5fa', fontWeight: 700 }}>{Number(v).toLocaleString('pt-BR') + ' un.'}</span>, <span style={{ color: props.payload?.color || '#60a5fa' }}>Unidades</span>]} />
               <Bar dataKey="qty" name="Unidades vendidas" radius={[8, 8, 0, 0]}>
