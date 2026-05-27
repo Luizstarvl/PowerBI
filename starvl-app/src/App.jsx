@@ -8524,10 +8524,13 @@ const GoalManager = ({ themeMode = 'dark' }) => {
   const _REPORT_CSS = `
     @page{size:A4 landscape;margin:10mm}
     *{box-sizing:border-box}
+    /* Força tema claro — evita dark mode do SO contaminar a impressão */
+    :root{color-scheme:light only}
+    html{color-scheme:light}
     html,body,.report,.header,.panel,.summary-item,.mark,.bar-track,.bar-fill,table,th,td,tfoot td{
       -webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important}
-    body{margin:0;font-family:Arial,Helvetica,sans-serif;color:#111827;background:#ffffff}
-    .report{min-height:100vh;padding:18px;background:#ffffff}
+    body{margin:0;font-family:Arial,Helvetica,sans-serif;color:#111827;background:#ffffff!important}
+    .report{min-height:100vh;padding:18px;background:#ffffff!important}
     .header{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:16px 18px;border:1px solid #e5e7eb;border-bottom:3px solid #e31e24;border-radius:8px;background:#ffffff;margin-bottom:14px}
     .header-left{display:flex;align-items:center;gap:14px;min-width:0}
     .mark{width:44px;height:44px;border-radius:8px;background:#fff5f5;border:1px solid #fecaca;display:grid;place-items:end center;padding:8px;gap:3px;grid-template-columns:repeat(3,1fr)}
@@ -8597,8 +8600,14 @@ const GoalManager = ({ themeMode = 'dark' }) => {
     }
     @media print{
       .panel,.header,tr{break-inside:avoid;page-break-inside:avoid}
-      body{background:#fff!important}
-      .report{background:#fff!important;box-shadow:none!important}
+      html,body,*:not(th):not(.bar-fill):not(.mark):not(.mark span):not(.badge){
+        background-color:#ffffff!important;
+        color-scheme:light!important;
+      }
+      body{color:#111827!important}
+      .report{box-shadow:none!important}
+      th{background:#e31e24!important;color:#fff!important}
+      tfoot td{background:#f3f4f6!important;color:#111827!important}
     }
   `;
 
@@ -8667,6 +8676,7 @@ const GoalManager = ({ themeMode = 'dark' }) => {
     }).join('');
 
     _openTab(`<!doctype html><html><head><meta charset="utf-8">
+      <meta name="color-scheme" content="light">
       <title>Relatório Gestão de Metas — Visão Geral</title>
       <style>${_REPORT_CSS}</style></head>
       <body><main class="report">
@@ -8775,6 +8785,7 @@ const GoalManager = ({ themeMode = 'dark' }) => {
     }).join('');
 
     _openTab(`<!doctype html><html><head><meta charset="utf-8">
+      <meta name="color-scheme" content="light">
       <title>Relatório Gestão de Metas — Todas as Metas</title>
       <style>${_REPORT_CSS}</style></head>
       <body><main class="report">
