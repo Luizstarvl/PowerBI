@@ -320,24 +320,86 @@ const PAGE_TITLES = {
   params: 'Configurações',
 };
 
-const TopBar = ({ currentPage, setCurrentPage, isConnected, apiError, clients, selectedClient, setSelectedClient, selectedPeriod, setSelectedPeriod, onRefresh, onLogout, loggedUser, themeMode, setThemeMode }) => {
+// Navegação rápida por atalho de página
+const QuickNav = ({ setCurrentPage, themeMode }) => {
+  const [query, setQuery] = useState('');
+  const [open, setOpen]   = useState(false);
+  const ref = useRef(null);
+
+  const NAV_PAGES = [
+    { icon: Home,      label: 'Home',          page: 'dashboard' },
+    { icon: Package,   label: 'Estoque',        page: 'stock'     },
+    { icon: BookOpen,  label: 'Livros',         page: 'control'   },
+    { icon: PiggyBank, label: 'Financeiro',     page: 'receber'   },
+    { icon: FileText,  label: 'Relatórios',     page: 'reports'   },
+    { icon: Settings,  label: 'Configurações',  page: 'params'    },
+  ];
+
+  const filtered = query.trim()
+    ? NAV_PAGES.filter(p => p.label.toLowerCase().includes(query.toLowerCase()))
+    : NAV_PAGES;
+
+  const handleSelect = useCallback((page) => {
+    setCurrentPage(page);
+    setQuery('');
+    setOpen(false);
+  }, [setCurrentPage]);
+
+  useEffect(() => {
+    const onDown = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, []);
+
+  return (
+    <div className="quicknav" ref={ref}>
+      <div className="quicknav-wrap">
+        <Search size={14} className="quicknav-icon" />
+        <input
+          className="quicknav-input"
+          placeholder="Ir para..."
+          value={query}
+          onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
+          onFocus={() => setOpen(true)}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') { setOpen(false); setQuery(''); }
+            if (e.key === 'Enter' && filtered.length > 0) handleSelect(filtered[0].page);
+          }}
+        />
+        {query && (
+          <button className="quicknav-clear" onClick={() => { setQuery(''); setOpen(false); }}>
+            <X size={12} />
+          </button>
+        )}
+      </div>
+      {open && filtered.length > 0 && (
+        <div className={`quicknav-dropdown${themeMode === 'light' ? ' light' : ''}`}>
+          {filtered.map(p => (
+            <button key={p.page} className="quicknav-item" onMouseDown={() => handleSelect(p.page)}>
+              <p.icon size={14} />
+              <span>{p.label}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const TopBar = ({ currentPage, setCurrentPage, isConnected, apiError, clients, selectedClient, setSelectedClient, onLogout, loggedUser, themeMode, setThemeMode }) => {
   const [showAdminMenu, setShowAdminMenu] = useState(false);
-  const now = new Date();
-  const dateStr = now.toLocaleDateString('pt-BR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
   const connectionLabel = isConnected ? 'Conectado' : (apiError ? 'Servidor offline' : 'Desconectado');
 
   return (
     <div className="top-bar">
       <div className="top-bar-left">
         <span className="top-bar-title">{PAGE_TITLES[currentPage] || 'Dashboard'}</span>
-        {currentPage === 'dashboard' && <span className="top-bar-date">{dateStr}</span>}
       </div>
 
       <div className="top-bar-center">
-        <div className={`connection-status ${isConnected ? 'connected' : 'disconnected'}`}>
-          <span className="connection-dot" />
-          <span>{connectionLabel}</span>
-        </div>
+        <QuickNav setCurrentPage={setCurrentPage} themeMode={themeMode} />
 
         <select
           className="topbar-select"
@@ -349,19 +411,10 @@ const TopBar = ({ currentPage, setCurrentPage, isConnected, apiError, clients, s
           ))}
         </select>
 
-        {currentPage === 'dashboard' && (
-          <input
-            className="topbar-select topbar-month"
-            type="month"
-            value={periodToMonthInput(selectedPeriod)}
-            onChange={(e) => setSelectedPeriod(monthInputToPeriod(e.target.value))}
-          />
-        )}
-
-        <button type="button" className="btn-refresh" onClick={onRefresh}>
-          <RefreshCw size={15} />
-          Atualizar
-        </button>
+        <div className={`connection-status ${isConnected ? 'connected' : 'disconnected'}`}>
+          <span className="connection-dot" />
+          <span>{connectionLabel}</span>
+        </div>
       </div>
 
       <div className="top-bar-right">
@@ -1836,7 +1889,7 @@ const ContasReceber = ({ clients, selectedClient }) => {
 // ── fim ContasReceber ─────────────────────────────────────────────────────────
 
 // Dashboard Component
-const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcControle, estoques, loading, clients, selectedClient, selectedPeriod, themeMode }) => {
+const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcControle, estoques, loading, clients, selectedClient, selectedPeriod, setSelectedPeriod, onRefresh, themeMode }) => {
   const [selectedFuelDonut, setSelectedFuelDonut] = useState(null);
   const [isCompactDashboard, setIsCompactDashboard] = useState(false);
   const [salesFuelSection, setSalesFuelSection] = useState('combustivel');
@@ -2229,6 +2282,18 @@ const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcContr
 
   return (
     <div className="page-content">
+      <div className="dashboard-controls">
+        <input
+          className="topbar-select topbar-month"
+          type="month"
+          value={periodToMonthInput(selectedPeriod)}
+          onChange={(e) => setSelectedPeriod(monthInputToPeriod(e.target.value))}
+        />
+        <button type="button" className="btn-refresh" onClick={onRefresh}>
+          <RefreshCw size={15} />
+          Atualizar
+        </button>
+      </div>
       {loading && <LoadingState compact label="Atualizando dashboard..." />}
       {dashboardSections.kpis}
       <div className="dashboard-grid dashboard-static-grid">
@@ -6402,7 +6467,7 @@ export default function App() {
   const renderPage = () => {
     switch (currentPage) {
       case 'dashboard':
-        return <Dashboard kpis={apiData.kpis} combustiveis={apiData.combustiveis} vendasDiarias={apiData.vendasDiarias} vendasHorarias={apiData.vendasHorarias} lmcControle={apiData.dashboardLmcControle} estoques={apiData.estoques} loading={apiData.loading} clients={clients} selectedClient={selectedClient} selectedPeriod={dashboardPeriod} themeMode={themeMode} />;
+        return <Dashboard kpis={apiData.kpis} combustiveis={apiData.combustiveis} vendasDiarias={apiData.vendasDiarias} vendasHorarias={apiData.vendasHorarias} lmcControle={apiData.dashboardLmcControle} estoques={apiData.estoques} loading={apiData.loading} clients={clients} selectedClient={selectedClient} selectedPeriod={dashboardPeriod} setSelectedPeriod={setDashboardPeriod} onRefresh={handleRefresh} themeMode={themeMode} />;
       case 'reports':
         return <Reports selectedClient={selectedClient} selectedPeriod={reportsPeriod} setSelectedPeriod={setReportsPeriod} clients={clients} />;
       case 'control':
@@ -6418,7 +6483,7 @@ export default function App() {
       case 'admin':
         return <Parameters clients={clients} setClients={setClients} isAdmin={isAdmin} />;
       default:
-        return <Dashboard kpis={apiData.kpis} combustiveis={apiData.combustiveis} vendasDiarias={apiData.vendasDiarias} vendasHorarias={apiData.vendasHorarias} lmcControle={apiData.dashboardLmcControle} estoques={apiData.estoques} loading={apiData.loading} clients={clients} selectedClient={selectedClient} selectedPeriod={dashboardPeriod} themeMode={themeMode} />;
+        return <Dashboard kpis={apiData.kpis} combustiveis={apiData.combustiveis} vendasDiarias={apiData.vendasDiarias} vendasHorarias={apiData.vendasHorarias} lmcControle={apiData.dashboardLmcControle} estoques={apiData.estoques} loading={apiData.loading} clients={clients} selectedClient={selectedClient} selectedPeriod={dashboardPeriod} setSelectedPeriod={setDashboardPeriod} onRefresh={handleRefresh} themeMode={themeMode} />;
     }
   };
 
@@ -6445,9 +6510,6 @@ export default function App() {
           clients={clients}
           selectedClient={selectedClient}
           setSelectedClient={setSelectedClient}
-          selectedPeriod={dashboardPeriod}
-          setSelectedPeriod={setDashboardPeriod}
-          onRefresh={handleRefresh}
           onLogout={handleLogoutRequest}
           loggedUser={loggedUser}
           themeMode={themeMode}
