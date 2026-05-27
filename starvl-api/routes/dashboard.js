@@ -299,8 +299,8 @@ router.get('/vendas-pista', async (req, res) => {
          prod.prodcodigo                                     AS codigo_produto,
          prod.prodresumo                                     AS combustivel,
          COALESCE(atde.atdenome, 'Sem Vendedor')             AS vendedor,
-         COALESCE(spro.spronome, prod.prodsecao::text, 'Sem Seção')  AS secao,
-         COALESCE(gpro.gpronome, prod.prodgrupo::text, 'Sem Grupo')  AS grupo,
+         COALESCE(spro.sprodescricao, prod.prodsecao::text, 'Sem Seção')  AS secao,
+         COALESCE(gpro.gprodescricao, prod.prodgrupo::text, 'Sem Grupo')  AS grupo,
          COALESCE(SUM(vdit.vditqtd),   0)                   AS litros,
          COALESCE(SUM(vdit.vdittotal), 0)                   AS faturamento,
          COUNT(DISTINCT vda.vdacodigo)                      AS qtd_vendas
@@ -317,7 +317,7 @@ router.get('/vendas-pista', async (req, res) => {
          AND (vda.vdastatus IS NULL OR vda.vdastatus = 0)
          AND prod.prodtipo = $4
        GROUP BY TO_CHAR(vda.vdamovimento, 'YYYY-MM-DD'), prod.prodcodigo, prod.prodresumo,
-                atde.atdenome, spro.spronome, prod.prodsecao, gpro.gpronome, prod.prodgrupo
+                atde.atdenome, spro.sprodescricao, prod.prodsecao, gpro.gprodescricao, prod.prodgrupo
        ORDER BY dia, combustivel, vendedor`,
       [empresa, dataInicio, dataFim, prodtipo]
     );
@@ -346,22 +346,22 @@ router.get('/prod-categorias', async (req, res) => {
 
   try {
     const sproResult = await query(
-      `SELECT DISTINCT spro.sprocodigo AS codigo, spro.spronome AS nome
+      `SELECT DISTINCT spro.sprocodigo AS codigo, spro.sprodescricao AS nome
        FROM prod
        JOIN spro ON spro.sprocodigo = prod.prodsecao
        WHERE prod.prodtipo = $1
-         AND spro.spronome IS NOT NULL
-       ORDER BY spro.spronome`,
+         AND spro.sprodescricao IS NOT NULL
+       ORDER BY spro.sprodescricao`,
       [prodtipo]
     );
 
     const gproResult = await query(
-      `SELECT DISTINCT gpro.gprocodigo AS codigo, gpro.gpronome AS nome
+      `SELECT DISTINCT gpro.gprocodigo AS codigo, gpro.gprodescricao AS nome
        FROM prod
        JOIN gpro ON gpro.gprocodigo = prod.prodgrupo
        WHERE prod.prodtipo = $1
-         AND gpro.gpronome IS NOT NULL
-       ORDER BY gpro.gpronome`,
+         AND gpro.gprodescricao IS NOT NULL
+       ORDER BY gpro.gprodescricao`,
       [prodtipo]
     );
 

@@ -2801,6 +2801,7 @@ const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcContr
   const [salesFuelSection, setSalesFuelSection] = useState('combustivel');
   const [productMatrixUnit, setProductMatrixUnit] = useState('Pista');
   const [productMatrixPeriod, setProductMatrixPeriod] = useState('Mensal');
+  const [convProductImages, setConvProductImages] = useState({});
 
   useEffect(() => {
     const media = window.matchMedia('(max-width: 768px)');
