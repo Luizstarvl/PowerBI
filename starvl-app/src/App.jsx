@@ -1077,6 +1077,45 @@ const VendasPista = ({ clients, selectedClient, selectedPeriod, themeMode }) => 
 };
 // ── fim VendasPista ────────────────────────────────────────────────────────────
 
+// ── ProjecaoVendas — CSS de animações ───────────────────────────────────────
+const PV_ANIM_CSS = `
+@keyframes pv-fade-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+@keyframes pv-scale-in {
+  from { opacity: 0; transform: scaleX(0); transform-origin: left; }
+  to   { opacity: 1; transform: scaleX(1); transform-origin: left; }
+}
+@keyframes pv-glow-line {
+  0%,100% { opacity: 0.85; }
+  50%      { opacity: 1;    }
+}
+@keyframes pv-today-pulse {
+  0%,100% { opacity: 0.5; }
+  50%      { opacity: 1;   }
+}
+`;
+
+// hook count-up (reutilizável)
+const usePvCount = (target, duration = 1250) => {
+  const [v, setV] = useState(0);
+  const raf = useRef(null);
+  useEffect(() => {
+    const t0 = performance.now();
+    const go = (now) => {
+      const p  = Math.min((now - t0) / duration, 1);
+      const ep = 1 - Math.pow(1 - p, 3);   // ease-out cubic
+      setV(Math.round(ep * target));
+      if (p < 1) raf.current = requestAnimationFrame(go);
+    };
+    cancelAnimationFrame(raf.current);
+    raf.current = requestAnimationFrame(go);
+    return () => cancelAnimationFrame(raf.current);
+  }, [target, duration]);
+  return v;
+};
+
 // ── ProjecaoVendas ──────────────────────────────────────────────────────────
 const PV_TODAY_DIA  = 26;   // dia de hoje em maio/2026
 const PV_TOTAL_DIAS = 31;   // dias em maio/2026
@@ -1124,6 +1163,8 @@ const PvTooltip = ({ active, payload }) => {
 const ProjecaoVendas = () => {
   const [unit,    setUnit]    = useState('Combustível');
   const [dayType, setDayType] = useState('Todos');
+  const [animKey, setAnimKey] = useState(0);   // forçar re-animação do gráfico
+  const [progW,   setProgW]   = useState(0);   // largura animada da barra
 
   const { chartData, totalRealizado, mediaDiaria, projecaoTotal, diasRestantes, lastRealDia } = useMemo(() => {
     const realized = PV_REALIZED[unit] || {};
@@ -1169,10 +1210,29 @@ const ProjecaoVendas = () => {
     return `R$\xa0${v.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}`;
   };
 
+  // ── Count-up para cada KPI ──
+  const cReal = usePvCount(totalRealizado);
+  const cProj = usePvCount(projecaoTotal);
+  const cMed  = usePvCount(mediaDiaria);
+  const cDias = usePvCount(diasRestantes);
+  const cPct  = usePvCount(pct);
+
+  // ── Re-animação ao trocar filtro ──
+  useEffect(() => { setAnimKey(k => k + 1); }, [unit, dayType]);
+
+  // ── Barra de progresso: reset → animar ──
+  useEffect(() => {
+    setProgW(0);
+    const t = setTimeout(() => setProgW(pct), 120);
+    return () => clearTimeout(t);
+  }, [pct]);
+
   return (
     <div className="chart-card pv-card">
+      <style>{PV_ANIM_CSS}</style>
+
       {/* ── Cabeçalho ──────────────────────────────────────────────────── */}
-      <div className="card-header pv-header">
+      <div className="card-header pv-header" style={{ animation: 'pv-fade-up 0.4s ease-out both' }}>
         <div className="pv-title">
           <h3>PROJEÇÃO DE VENDAS — RUN RATE</h3>
           <span>Faturamento realizado + projeção sazonalizada · {unit.toLowerCase()} · mai/2026</span>
@@ -1191,80 +1251,89 @@ const ProjecaoVendas = () => {
         </div>
       </div>
 
-      {/* ── KPIs ────────────────────────────────────────────────────────── */}
+      {/* ── KPIs animados ──────────────────────────────────────────────── */}
       <div className="vp-kpi-row">
-        <div className="vp-kpi">
-          <span className="vp-kpi-label">Realizado até hoje</span>
-          <span className="vp-kpi-value" style={{ color: '#38bdf8' }}>{fmtK(totalRealizado)}</span>
-        </div>
-        <div className="vp-kpi">
-          <span className="vp-kpi-label">Projeção do mês</span>
-          <span className="vp-kpi-value" style={{ color: '#fb923c' }}>{fmtK(projecaoTotal)}</span>
-        </div>
-        <div className="vp-kpi">
-          <span className="vp-kpi-label">Média diária</span>
-          <span className="vp-kpi-value">{fmtK(mediaDiaria)}</span>
-        </div>
-        <div className="vp-kpi">
-          <span className="vp-kpi-label">Dias restantes</span>
-          <span className="vp-kpi-value">{diasRestantes}</span>
-        </div>
-        <div className="vp-kpi pv-kpi-progress">
-          <span className="vp-kpi-label">Andamento do mês — {pct}%</span>
-          <div className="pv-progress-bar">
-            <div className="pv-progress-fill" style={{ width: `${pct}%` }} />
+        {[
+          { label: 'Realizado até hoje', val: fmtK(cReal), color: '#38bdf8' },
+          { label: 'Projeção do mês',    val: fmtK(cProj), color: '#fb923c' },
+          { label: 'Média diária',       val: fmtK(cMed),  color: null      },
+          { label: 'Dias restantes',     val: String(cDias), color: null    },
+        ].map((k, i) => (
+          <div key={k.label} className="vp-kpi"
+            style={{ animation: `pv-fade-up 0.45s ${i * 0.08}s ease-out both` }}>
+            <span className="vp-kpi-label">{k.label}</span>
+            <span className="vp-kpi-value" style={k.color ? { color: k.color } : {}}>{k.val}</span>
           </div>
-          <span className="pv-progress-sub">{fmtK(totalRealizado)} / {fmtK(projecaoTotal)}</span>
+        ))}
+        <div className="vp-kpi pv-kpi-progress"
+          style={{ animation: 'pv-fade-up 0.45s 0.32s ease-out both' }}>
+          <span className="vp-kpi-label">Andamento do mês — {cPct}%</span>
+          <div className="pv-progress-bar">
+            <div className="pv-progress-fill"
+              style={{ width: `${progW}%`, transition: 'width 1.5s cubic-bezier(.4,0,.2,1)' }} />
+          </div>
+          <span className="pv-progress-sub">{fmtK(cReal)} / {fmtK(cProj)}</span>
         </div>
       </div>
 
-      {/* ── Gráfico ─────────────────────────────────────────────────────── */}
-      <ResponsiveContainer width="100%" height={300}>
-        <ComposedChart data={chartData} margin={{ top: 24, right: 36, left: 4, bottom: 4 }}>
-          <defs>
-            <linearGradient id="pvProjGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%"  stopColor="#fb923c" stopOpacity={0.28} />
-              <stop offset="95%" stopColor="#fb923c" stopOpacity={0.03} />
-            </linearGradient>
-          </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="#1e2d3d" vertical={false} />
-          <XAxis
-            dataKey="label"
-            stroke="#475569"
-            tick={{ fill: '#64748b', fontSize: 11 }}
-            interval={dayType === 'Todos' ? 2 : 0}
-          />
-          <YAxis
-            stroke="#475569"
-            tick={{ fill: '#64748b', fontSize: 11 }}
-            tickFormatter={v => `R$${(v / 1000).toFixed(0)}k`}
-            width={60}
-          />
-          <Tooltip content={<PvTooltip />} />
-          {/* Área sombreada sob a projeção */}
-          <Area dataKey="projetado" fill="url(#pvProjGrad)" stroke="none"
-            connectNulls={false} isAnimationActive={false} />
-          {/* Linha realizado — sólida */}
-          <Line type="monotone" dataKey="realizado" name="Realizado"
-            stroke="#38bdf8" strokeWidth={2.5} dot={false}
-            activeDot={{ r: 5, fill: '#38bdf8', stroke: '#0f172a', strokeWidth: 2 }}
-            connectNulls={false} isAnimationActive={false} />
-          {/* Linha projetado — tracejada */}
-          <Line type="monotone" dataKey="projetado" name="Projeção"
-            stroke="#fb923c" strokeWidth={2} strokeDasharray="8 4" dot={false}
-            activeDot={{ r: 5, fill: '#fb923c', stroke: '#0f172a', strokeWidth: 2 }}
-            connectNulls={false} isAnimationActive={false} />
-          {/* Marcador vertical "Hoje" */}
-          <ReferenceLine
-            x={String(lastRealDia)}
-            stroke="#94a3b8" strokeDasharray="4 3" strokeWidth={1.5} strokeOpacity={0.7}
-            label={{ value: 'Hoje', position: 'top', fill: '#94a3b8', fontSize: 11, fontWeight: 700 }}
-          />
-        </ComposedChart>
-      </ResponsiveContainer>
+      {/* ── Gráfico animado ─────────────────────────────────────────────── */}
+      <div style={{ animation: 'pv-fade-up 0.5s 0.2s ease-out both' }}>
+        <ResponsiveContainer key={animKey} width="100%" height={300}>
+          <ComposedChart data={chartData} margin={{ top: 24, right: 36, left: 4, bottom: 4 }}>
+            <defs>
+              <linearGradient id="pvProjGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%"  stopColor="#fb923c" stopOpacity={0.30} />
+                <stop offset="95%" stopColor="#fb923c" stopOpacity={0.03} />
+              </linearGradient>
+              <filter id="pvLineGlow">
+                <feGaussianBlur stdDeviation="2.5" result="blur"/>
+                <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+              </filter>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="#1e2d3d" vertical={false} />
+            <XAxis
+              dataKey="label"
+              stroke="#475569"
+              tick={{ fill: '#64748b', fontSize: 11 }}
+              interval={dayType === 'Todos' ? 2 : 0}
+            />
+            <YAxis
+              stroke="#475569"
+              tick={{ fill: '#64748b', fontSize: 11 }}
+              tickFormatter={v => `R$${(v / 1000).toFixed(0)}k`}
+              width={60}
+            />
+            <Tooltip content={<PvTooltip />} />
+            {/* Área sombreada — anima fade-in */}
+            <Area dataKey="projetado" fill="url(#pvProjGrad)" stroke="none"
+              connectNulls={false}
+              isAnimationActive={true} animationDuration={1600} animationEasing="ease-out" />
+            {/* Linha realizado — desenha da esquerda para direita */}
+            <Line type="monotone" dataKey="realizado" name="Realizado"
+              stroke="#38bdf8" strokeWidth={2.8} dot={false}
+              style={{ filter: 'drop-shadow(0 0 4px #38bdf877)' }}
+              activeDot={{ r: 5, fill: '#38bdf8', stroke: '#0f172a', strokeWidth: 2 }}
+              connectNulls={false}
+              isAnimationActive={true} animationDuration={2200} animationEasing="ease-out" animationBegin={0} />
+            {/* Linha projetado — tracejada, aparece depois */}
+            <Line type="monotone" dataKey="projetado" name="Projeção"
+              stroke="#fb923c" strokeWidth={2.2} strokeDasharray="8 4" dot={false}
+              style={{ filter: 'drop-shadow(0 0 4px #fb923c66)' }}
+              activeDot={{ r: 5, fill: '#fb923c', stroke: '#0f172a', strokeWidth: 2 }}
+              connectNulls={false}
+              isAnimationActive={true} animationDuration={1400} animationEasing="ease-out" animationBegin={400} />
+            {/* Marcador "Hoje" */}
+            <ReferenceLine
+              x={String(lastRealDia)}
+              stroke="#94a3b8" strokeDasharray="4 3" strokeWidth={1.5} strokeOpacity={0.7}
+              label={{ value: 'Hoje', position: 'top', fill: '#94a3b8', fontSize: 11, fontWeight: 700 }}
+            />
+          </ComposedChart>
+        </ResponsiveContainer>
+      </div>
 
       {/* ── Legenda ─────────────────────────────────────────────────────── */}
-      <div className="pv-legend">
+      <div className="pv-legend" style={{ animation: 'pv-fade-up 0.4s 0.5s ease-out both' }}>
         <span className="pv-legend-item">
           <span className="pv-legend-line pv-legend-real" />
           Faturamento realizado
