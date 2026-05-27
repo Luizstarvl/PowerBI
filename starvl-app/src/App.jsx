@@ -3744,14 +3744,30 @@ const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcContr
   const [productMatrixUnit, setProductMatrixUnit] = useState('Pista');
   const [productMatrixPeriod, setProductMatrixPeriod] = useState('Mensal');
   const [productMatrixAnimKey, setProductMatrixAnimKey] = useState(0);
-  const [convProductImages, setConvProductImages] = useState({});
+  // Inicializa imagens do cache localStorage de forma SÍNCRONA (zero flash)
+  // depois atualiza em background caso o cache esteja desatualizado
+  const [convProductImages, setConvProductImages] = useState(() => {
+    try {
+      const cached = JSON.parse(localStorage.getItem(IMG_LS_KEY) || 'null');
+      if (cached) {
+        const map = {};
+        _CONV_DASH_BASE.forEach(item => { if (cached[item.id]) map[item.id] = cached[item.id]; });
+        return map;
+      }
+    } catch {}
+    return {};
+  });
 
-  // Carregar imagens dos produtos de conveniência do IndexedDB
+  // Background: busca da API e atualiza o estado se houver mudanças
   useEffect(() => {
     imgLoadAll().then(all => {
-      const map = {};
-      _CONV_DASH_BASE.forEach(item => { if (all[item.id]) map[item.id] = all[item.id]; });
-      setConvProductImages(map);
+      setConvProductImages(prev => {
+        const next = {};
+        _CONV_DASH_BASE.forEach(item => { if (all[item.id]) next[item.id] = all[item.id]; });
+        // Só re-renderiza se algo mudou
+        const changed = _CONV_DASH_BASE.some(item => prev[item.id] !== next[item.id]);
+        return changed ? next : prev;
+      });
     }).catch(() => {});
   }, []);
 
@@ -6387,6 +6403,48 @@ function compressImage(dataUrl, maxDim = 900, quality = 0.82) {
   });
 }
 
+// ── Cache de imagens de produto ────────────────────────────────────────────
+// Estratégia: memória → localStorage → API (stale-while-revalidate)
+const IMG_LS_KEY = 'starvl:img-v1';
+let _imgMem      = null;   // singleton em memória (mesmo reload não refaz fetch)
+let _imgFetching = null;   // dedup: evita dois fetches simultâneos
+
+function _imgCacheRead() {
+  try { return JSON.parse(localStorage.getItem(IMG_LS_KEY) || 'null'); }
+  catch { return null; }
+}
+function _imgCacheWrite(data) {
+  try { localStorage.setItem(IMG_LS_KEY, JSON.stringify(data)); }
+  catch {} // quota exceeded — ignora silenciosamente
+}
+function _imgCacheSet(data) {
+  _imgMem = data;
+  _imgCacheWrite(data);
+}
+
+// Busca da API e atualiza cache (dedup por promise)
+function _imgApiFetch() {
+  if (_imgFetching) return _imgFetching;
+  _imgFetching = fetch(`${API_URL}/api/imagens/produto`)
+    .then(r => r.ok ? r.json() : {})
+    .catch(() => ({}))
+    .then(data => { _imgCacheSet(data); _imgFetching = null; return data; });
+  return _imgFetching;
+}
+
+// Carrega imagens: memória → localStorage (instantâneo) → API (rede)
+// Quando vem do localStorage, dispara refresh em background para manter atualizado
+async function imgLoadAll() {
+  if (_imgMem !== null) return _imgMem;           // ① in-memory: zero latência
+  const cached = _imgCacheRead();
+  if (cached) {
+    _imgMem = cached;
+    _imgApiFetch();                               // ② background refresh (sem await)
+    return cached;                                //    retorna cache imediatamente
+  }
+  return _imgApiFetch();                          // ③ primeiro acesso: busca da API
+}
+
 async function imgSave(id, dataUrl) {
   const compressed = await compressImage(dataUrl);
   const res = await fetch(`${API_URL}/api/imagens/produto/${id}`, {
@@ -6398,21 +6456,57 @@ async function imgSave(id, dataUrl) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error || `HTTP ${res.status}`);
   }
-  return compressed; // retorna a versão comprimida para atualizar o estado
+  // Atualiza cache local imediatamente sem esperar novo fetch
+  const next = { ...(_imgMem || {}), [String(id)]: compressed };
+  _imgCacheSet(next);
+  return compressed;
 }
 async function imgDelete(id) {
   const res = await fetch(`${API_URL}/api/imagens/produto/${id}`, { method: 'DELETE' });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
-}
-async function imgLoadAll() {
-  try {
-    const res = await fetch(`${API_URL}/api/imagens/produto`);
-    if (!res.ok) return {};
-    return res.json();
-  } catch { return {}; }
+  // Remove do cache local imediatamente
+  if (_imgMem) {
+    const next = { ..._imgMem };
+    delete next[String(id)];
+    _imgCacheSet(next);
+  }
 }
 
 // ── Imagens de usuário ──────────────────────────────────────────────────────
+// ── Cache de imagens de usuário ────────────────────────────────────────────
+const USER_IMG_LS_KEY = 'starvl:uimg-v1';
+let _uImgMem      = null;
+let _uImgFetching = null;
+
+function _uImgCacheRead() {
+  try { return JSON.parse(localStorage.getItem(USER_IMG_LS_KEY) || 'null'); }
+  catch { return null; }
+}
+function _uImgCacheWrite(data) {
+  try { localStorage.setItem(USER_IMG_LS_KEY, JSON.stringify(data)); }
+  catch {}
+}
+function _uImgCacheSet(data) { _uImgMem = data; _uImgCacheWrite(data); }
+
+function _uImgApiFetch() {
+  if (_uImgFetching) return _uImgFetching;
+  _uImgFetching = fetch(`${API_URL}/api/imagens/usuario`)
+    .then(r => r.ok ? r.json() : {})
+    .catch(() => ({}))
+    .then(data => { _uImgCacheSet(data); _uImgFetching = null; return data; });
+  return _uImgFetching;
+}
+
+async function userImgLoadAll() {
+  if (_uImgMem !== null) return _uImgMem;
+  const cached = _uImgCacheRead();
+  if (cached) { _uImgMem = cached; _uImgApiFetch(); return cached; }
+  return _uImgApiFetch();
+}
+async function userImgLoadOne(id) {
+  const all = await userImgLoadAll();
+  return all[String(id)] || null;
+}
 async function userImgSave(id, dataUrl) {
   const compressed = await compressImage(dataUrl);
   const res = await fetch(`${API_URL}/api/imagens/usuario/${id}`, {
@@ -6424,22 +6518,14 @@ async function userImgSave(id, dataUrl) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error || `HTTP ${res.status}`);
   }
+  const next = { ...(_uImgMem || {}), [String(id)]: compressed };
+  _uImgCacheSet(next);
   return compressed;
 }
 async function userImgDelete(id) {
   const res = await fetch(`${API_URL}/api/imagens/usuario/${id}`, { method: 'DELETE' });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
-}
-async function userImgLoadAll() {
-  try {
-    const res = await fetch(`${API_URL}/api/imagens/usuario`);
-    if (!res.ok) return {};
-    return res.json();
-  } catch { return {}; }
-}
-async function userImgLoadOne(id) {
-  const all = await userImgLoadAll();
-  return all[String(id)] || null;
+  if (_uImgMem) { const next = { ..._uImgMem }; delete next[String(id)]; _uImgCacheSet(next); }
 }
 
 function printProductCard({ prod, editForm, editImg }) {
@@ -6591,7 +6677,11 @@ const ConvenienciaManager = ({ themeMode }) => {
   const [editProd, setEditProd]     = useState(null);
   const [editForm, setEditForm]     = useState({});
   const [editImg, setEditImg]         = useState(null);
-  const [productImages, setProductImages] = useState({});
+  // Inicializa do cache localStorage de forma síncrona — sem flash ao abrir
+  const [productImages, setProductImages] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(IMG_LS_KEY) || 'null') || {}; }
+    catch { return {}; }
+  });
   const [localEdits, setLocalEdits]   = useState(() => {
     try {
       const s = localStorage.getItem('pm_localEdits');
@@ -6605,9 +6695,15 @@ const ConvenienciaManager = ({ themeMode }) => {
   const imgInputRef = useRef(null);
   const LIMIT = 7;
 
-  // Load all product images from IndexedDB on mount
+  // Background: sincroniza com API (atualiza se houver mudança desde o cache)
   useEffect(() => {
-    imgLoadAll().then(setProductImages).catch(() => {});
+    imgLoadAll().then(data => {
+      setProductImages(prev => {
+        const keys = new Set([...Object.keys(prev), ...Object.keys(data)]);
+        const changed = [...keys].some(k => prev[k] !== data[k]);
+        return changed ? data : prev;
+      });
+    }).catch(() => {});
   }, []);
 
   // Persist localEdits to localStorage (no images — those live in IndexedDB)
