@@ -5694,6 +5694,383 @@ const ConciliacaoFilterPanel = ({ filters, setFilters, onClose, onGenerate }) =>
 };
 // ── fim Conciliação de Cartões e Taxas ───────────────────────────────────────
 
+// ── Vendas a Prazo e Controle CNPJ ───────────────────────────────────────────
+const _CNPJ_BASE = [
+  {
+    id:'P001', razao:'Transportes ABC Ltda',     cnpj:'12.345.678/0001-90',
+    limiteTotal:50000, limiteUsado:45000, nfs:12, saldoDevedor:38500, fatMensal:15000,
+    aging:{ aVencer:5000,  v1a7:8500,  v8a15:12000, v16a30:8000, v30mais:5000 },
+  },
+  {
+    id:'P002', razao:'Posto Estrela Azul ME',    cnpj:'23.456.789/0001-01',
+    limiteTotal:20000, limiteUsado:8500,  nfs:5,  saldoDevedor:8500,  fatMensal:8500,
+    aging:{ aVencer:8500,  v1a7:0,     v8a15:0,     v16a30:0,    v30mais:0    },
+  },
+  {
+    id:'P003', razao:'Agropecuária Santa Cruz',  cnpj:'34.567.890/0001-12',
+    limiteTotal:80000, limiteUsado:62000, nfs:18, saldoDevedor:55000, fatMensal:22000,
+    aging:{ aVencer:30000, v1a7:12000, v8a15:8000,  v16a30:5000, v30mais:0    },
+  },
+  {
+    id:'P004', razao:'Construtora Horizonte SA', cnpj:'45.678.901/0001-23',
+    limiteTotal:35000, limiteUsado:31500, nfs:8,  saldoDevedor:28000, fatMensal:18000,
+    aging:{ aVencer:8000,  v1a7:5000,  v8a15:8000,  v16a30:4000, v30mais:3000 },
+  },
+  {
+    id:'P005', razao:'Mercado São João Ltda',    cnpj:'56.789.012/0001-34',
+    limiteTotal:15000, limiteUsado:4200,  nfs:3,  saldoDevedor:4200,  fatMensal:4200,
+    aging:{ aVencer:4200,  v1a7:0,     v8a15:0,     v16a30:0,    v30mais:0    },
+  },
+  {
+    id:'P006', razao:'Distribuidora Vitória ME', cnpj:'67.890.123/0001-45',
+    limiteTotal:60000, limiteUsado:48000, nfs:14, saldoDevedor:42000, fatMensal:19500,
+    aging:{ aVencer:15000, v1a7:9000,  v8a15:10000, v16a30:8000, v30mais:0    },
+  },
+];
+
+function _getClientRisk(r) {
+  const pct = r.limiteUsado / r.limiteTotal;
+  if (pct >= 0.85 || r.aging.v30mais > 0) return 'Bloqueio';
+  const anyLate = r.aging.v1a7 + r.aging.v8a15 + r.aging.v16a30 + r.aging.v30mais;
+  if (pct >= 0.70 || anyLate > 0) return 'Atenção';
+  return 'Regular';
+}
+
+function _computeCnpjRows({ search, periodo }) {
+  const q = (search || '').toLowerCase().trim();
+  return _CNPJ_BASE
+    .filter(r => !q || r.razao.toLowerCase().includes(q) || r.cnpj.includes(q))
+    .map(r => {
+      const faturamento  = periodo === 'Trimestral' ? r.fatMensal * 3 : r.fatMensal;
+      const pct          = r.limiteUsado / r.limiteTotal;
+      const status       = _getClientRisk(r);
+      const totalVencido = r.aging.v1a7 + r.aging.v8a15 + r.aging.v16a30 + r.aging.v30mais;
+      return { ...r, faturamento, pct, status, totalVencido };
+    });
+}
+
+function buildCnpjReportHtml({ filters, clientName }) {
+  const rows = _computeCnpjRows(filters);
+  if (!rows.length) {
+    toast('Nenhum cliente encontrado para os filtros selecionados.', 'warn');
+    return null;
+  }
+
+  const e   = escapeHtml;
+  const fmtR = v => 'R$ ' + v.toLocaleString('pt-BR', { minimumFractionDigits:2, maximumFractionDigits:2 });
+  const pctFmt = v => (v * 100).toFixed(1) + '%';
+  const generatedAt = new Date().toLocaleString('pt-BR');
+  const periLabel = filters.periodo === 'Trimestral' ? 'Trimestral' : 'Mensal';
+
+  const totFat     = rows.reduce((s,r) => s + r.faturamento, 0);
+  const totLimite  = rows.reduce((s,r) => s + r.limiteTotal, 0);
+  const totUsado   = rows.reduce((s,r) => s + r.limiteUsado, 0);
+  const totSaldo   = rows.reduce((s,r) => s + r.saldoDevedor, 0);
+  const nBloqueio  = rows.filter(r => r.status === 'Bloqueio').length;
+  const nAtencao   = rows.filter(r => r.status === 'Atenção').length;
+  const nComAtraso = rows.filter(r => r.totalVencido > 0).length;
+
+  const RISK_MAP = {
+    Regular:  { icon:'🟢', color:'#059669', bg:'#d1fae5' },
+    Atenção:  { icon:'🟡', color:'#d97706', bg:'#fef3c7' },
+    Bloqueio: { icon:'🔴', color:'#dc2626', bg:'#fee2e2' },
+  };
+
+  const AGING_CFG = [
+    { key:'aVencer',  label:'A Vencer',       bg:'#d1fae5', color:'#059669' },
+    { key:'v1a7',     label:'Venc. 1–7d',     bg:'#fef9c3', color:'#ca8a04' },
+    { key:'v8a15',    label:'Venc. 8–15d',    bg:'#fef3c7', color:'#d97706' },
+    { key:'v16a30',   label:'Venc. 16–30d',   bg:'#fed7aa', color:'#ea580c' },
+    { key:'v30mais',  label:'Venc. > 30d',    bg:'#fee2e2', color:'#dc2626' },
+  ];
+
+  const kpis = [
+    { label:'CLIENTES',       value:e(rows.length) },
+    { label:'FAT. TOTAL',     value:e(fmtR(totFat)) },
+    { label:'LIMITE TOTAL',   value:e(fmtR(totLimite)) },
+    { label:'LIMITE USADO',   value:e(fmtR(totUsado)) },
+    { label:'SALDO DEVEDOR',  value:e(fmtR(totSaldo)) },
+    { label:'EM ATENÇÃO',     value:e(nAtencao),  alert: nAtencao > 0 },
+    { label:'EM BLOQUEIO',    value:e(nBloqueio), alert: nBloqueio > 0, hard: true },
+    { label:'C/ ATRASO',      value:e(nComAtraso),alert: nComAtraso > 0 },
+  ];
+  const kpiHtml = kpis.map(k => `
+    <div class="summary-item${k.hard ? ' summary-hard' : k.alert ? ' summary-alert' : ''}">
+      <span>${k.label}</span><strong>${k.value}</strong>
+    </div>`).join('');
+
+  const mainRows = rows.map((row, i) => {
+    const rm   = RISK_MAP[row.status] || RISK_MAP.Regular;
+    const pctW = Math.min(100, row.pct * 100).toFixed(0);
+    const pctColor = row.pct >= 0.85 ? '#dc2626' : row.pct >= 0.70 ? '#d97706' : '#059669';
+    const alertBanner = row.totalVencido > 0
+      ? `<tr style="background:#fef2f2"><td colspan="9" style="padding:4px 10px;color:#dc2626;font-weight:800;font-size:9px;border:1px solid #fca5a5">⚠️ CLIENTE COM TÍTULOS VENCIDOS — VERIFICAR ANTES DE ABASTECER</td></tr>`
+      : '';
+    const agingRow = `
+      <tr style="background:#f8fafc">
+        <td colspan="9" style="padding:8px 10px;border:1px solid #e5e7eb">
+          <div style="font-size:8.5px;font-weight:700;color:#374151;margin-bottom:5px">AGING LIST — ${e(row.razao)}</div>
+          <table style="width:100%;border-collapse:collapse;font-size:8.5px">
+            <thead><tr>
+              ${AGING_CFG.map(a => `<th style="padding:4px 7px;background:${a.bg};color:${a.color};border:1px solid rgba(0,0,0,.08);text-align:right;font-weight:800">${a.label}</th>`).join('')}
+              <th style="padding:4px 7px;background:#f1f5f9;color:#374151;border:1px solid rgba(0,0,0,.08);text-align:right;font-weight:800">Total</th>
+            </tr></thead>
+            <tbody><tr>
+              ${AGING_CFG.map(a => `<td style="padding:4px 7px;background:${a.bg}33;color:${row.aging[a.key]>0?a.color:'#9ca3af'};border:1px solid rgba(0,0,0,.06);text-align:right;font-weight:${row.aging[a.key]>0?700:400}">${e(fmtR(row.aging[a.key]))}</td>`).join('')}
+              <td style="padding:4px 7px;background:#f1f5f9;color:#111827;border:1px solid rgba(0,0,0,.08);text-align:right;font-weight:900">${e(fmtR(row.saldoDevedor))}</td>
+            </tr></tbody>
+          </table>
+        </td>
+      </tr>`;
+    return `
+    <tr style="background:${i%2===0?'#fff':'#f9fafb'}">
+      <td style="font-weight:700;color:#1f2937">${e(row.razao)}</td>
+      <td style="font-family:monospace;font-size:9px">${e(row.cnpj)}</td>
+      <td class="num">${e(fmtR(row.faturamento))}</td>
+      <td class="num">${e(fmtR(row.limiteTotal))}</td>
+      <td class="num" style="color:${pctColor};font-weight:700">${e(fmtR(row.limiteUsado))}</td>
+      <td class="num">
+        <div style="display:flex;align-items:center;gap:5px;justify-content:flex-end">
+          <div style="width:48px;height:7px;background:#e5e7eb;border-radius:4px;overflow:hidden;flex-shrink:0">
+            <div style="height:100%;width:${pctW}%;background:${pctColor};border-radius:4px"></div>
+          </div>
+          <span style="font-weight:800;color:${pctColor};min-width:34px;text-align:right">${e(pctFmt(row.pct))}</span>
+        </div>
+      </td>
+      <td class="num">${e(row.nfs)}</td>
+      <td class="num" style="font-weight:700;color:${row.saldoDevedor>0?'#dc2626':'#059669'}">${e(fmtR(row.saldoDevedor))}</td>
+      <td><span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:20px;font-size:9px;font-weight:700;background:${rm.bg};color:${rm.color};white-space:nowrap">${rm.icon} ${e(row.status)}</span></td>
+    </tr>
+    ${alertBanner}
+    ${agingRow}`;
+  }).join('');
+
+  const footRow = `
+    <tr>
+      <td colspan="2" style="font-weight:800">TOTAL — ${e(rows.length)} clientes</td>
+      <td class="num" style="font-weight:800">${e(fmtR(totFat))}</td>
+      <td class="num" style="font-weight:800">${e(fmtR(totLimite))}</td>
+      <td class="num" style="font-weight:800">${e(fmtR(totUsado))}</td>
+      <td class="num">${e(pctFmt(totUsado/totLimite))}</td>
+      <td class="num">${e(rows.reduce((s,r)=>s+r.nfs,0))}</td>
+      <td class="num" style="font-weight:900;color:#dc2626">${e(fmtR(totSaldo))}</td>
+      <td></td>
+    </tr>`;
+
+  return `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <meta name="color-scheme" content="light"/>
+  <title>Relatorio Vendas a Prazo e Controle CNPJ</title>
+  <style>
+    @page { size:A4 landscape; margin:10mm; }
+    * { box-sizing:border-box; }
+    html,body,.report,.header,.panel,.summary-item,table,th,td,tfoot td {
+      -webkit-print-color-adjust:exact!important;
+      print-color-adjust:exact!important;
+      color-adjust:exact!important;
+    }
+    :root { color-scheme:light only; }
+    body { margin:0; font-family:Arial,Helvetica,sans-serif; color:#111827; background:#fff; }
+    .report { min-height:100vh; padding:18px; background:#fff; }
+    .header { display:flex; align-items:center; justify-content:space-between; gap:18px; padding:16px 18px; border:1px solid #e5e7eb; border-bottom:3px solid #e31e24; border-radius:8px; background:#fff; margin-bottom:14px; }
+    .header-left { display:flex; align-items:center; gap:14px; }
+    .mark { width:44px; height:44px; border-radius:8px; background:#fff5f5; border:1px solid #fecaca; display:flex; align-items:center; justify-content:center; font-size:24px; flex-shrink:0; }
+    h1 { margin:0; font-size:19px; line-height:1.15; }
+    .header-meta { color:#667085; font-size:11px; line-height:1.55; text-align:right; }
+    .summary-grid { display:grid; grid-template-columns:repeat(8,1fr); gap:9px; margin-bottom:14px; }
+    .summary-item { border:1px solid #e5e7eb; border-radius:8px; background:#f9fafb; padding:9px 11px; }
+    .summary-item.summary-alert { border-color:#fde68a; background:#fefce8; }
+    .summary-item.summary-hard  { border-color:#fca5a5; background:#fef2f2; }
+    .summary-alert strong { color:#d97706; }
+    .summary-hard  strong { color:#dc2626; }
+    .summary-item span { display:block; color:#667085; font-size:8px; font-weight:800; margin-bottom:4px; }
+    .summary-item strong { display:block; color:#111827; font-size:14px; font-weight:900; line-height:1.1; }
+    .panel { border:1px solid #e5e7eb; border-radius:8px; background:#fff; padding:14px; }
+    .panel-head { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:10px; }
+    .panel-title { margin:0; color:#111827; font-size:13px; font-weight:800; }
+    .pill { border:1px solid #d0d5dd; border-radius:8px; color:#344054; padding:4px 8px; font-size:9px; font-weight:800; white-space:nowrap; background:#f9fafb; }
+    table { width:100%; border-collapse:collapse; font-size:9px; }
+    th,td { border:1px solid #d0d5dd; padding:5px 7px; word-break:break-word; }
+    th { background:#e31e24!important; color:#fff; font-size:8.5px; font-weight:700; text-align:left; }
+    td { color:#111827; background:inherit; }
+    td.num,th.num { text-align:right; }
+    tfoot td { color:#111827; background:#f3f4f6!important; font-weight:900; font-size:9px; }
+    .footer { margin-top:10px; color:#667085; font-size:10px; text-align:right; }
+    @media screen { body { background:#f3f4f6; padding:18px; } .report { max-width:1280px; margin:0 auto; box-shadow:0 18px 50px rgba(15,23,42,.12); } }
+    @media print {
+      body,html,.report,.panel,.header,.summary-item { background:#fff!important; color-scheme:light!important; }
+      th { background:#e31e24!important; color:#fff!important; }
+      tfoot td { background:#f3f4f6!important; }
+      .summary-alert { background:#fefce8!important; }
+      .summary-hard  { background:#fef2f2!important; }
+      tr { break-inside:avoid; }
+    }
+  </style>
+</head>
+<body>
+<main class="report">
+  <section class="header">
+    <div class="header-left">
+      <div class="mark">🏢</div>
+      <div>
+        <h1>VENDAS A PRAZO E CONTROLE CNPJ</h1>
+        <div class="header-meta" style="text-align:left">${e(clientName||'Cliente')} | Período: ${e(periLabel)}</div>
+      </div>
+    </div>
+    <div class="header-meta">
+      <div>Aging List incluso · Status de Risco calculado automaticamente</div>
+      <div>🔴 Bloqueio: utilização ≥ 85% ou títulos > 30 dias</div>
+      <div>Gerado em ${e(generatedAt)}</div>
+    </div>
+  </section>
+
+  <div class="summary-grid">${kpiHtml}</div>
+
+  <section class="panel">
+    <div class="panel-head">
+      <h2 class="panel-title">CONTROLE DE CRÉDITO — CNPJ + AGING LIST</h2>
+      <div class="pill">${e(rows.length)} cliente${rows.length!==1?'s':''} · ${e(periLabel)}</div>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th style="min-width:150px">RAZÃO SOCIAL</th>
+          <th>CNPJ</th>
+          <th class="num">FAT. PERÍODO (R$)</th>
+          <th class="num">LIMITE TOTAL (R$)</th>
+          <th class="num">LIMITE USADO (R$)</th>
+          <th class="num" style="min-width:90px">% USADO</th>
+          <th class="num">NFs</th>
+          <th class="num">SALDO DEVEDOR (R$)</th>
+          <th>STATUS RISCO</th>
+        </tr>
+      </thead>
+      <tbody>${mainRows}</tbody>
+      <tfoot>${footRow}</tfoot>
+    </table>
+  </section>
+
+  <footer class="footer">STARVL | Relatório de Vendas a Prazo e Controle CNPJ</footer>
+</main>
+</body>
+</html>`;
+}
+
+function exportCnpjReport({ filters, clientName }) {
+  const html = buildCnpjReportHtml({ filters, clientName });
+  if (!html) return;
+  const w = window.open('', '_blank');
+  if (!w) { toast('Permita pop-ups no navegador para imprimir o relatório.', 'warn'); return; }
+  w.document.open();
+  w.document.write(html.replace('</body>', `
+    <script>
+      window.addEventListener('load', function () {
+        setTimeout(function () { window.print(); }, 500);
+      });
+    </script>
+  </body>`));
+  w.document.close();
+}
+
+const CnpjFilterPanel = ({ filters, setFilters, onClose, onGenerate }) => {
+  const upd = field => e => setFilters(prev => ({ ...prev, [field]: e.target.value }));
+
+  return (
+    <div className="modal-overlay control-print-overlay" onClick={onClose}>
+      <div className="control-print-panel ranking-filter-panel" onClick={ev => ev.stopPropagation()}>
+        <div className="control-print-header">
+          <div className="control-print-title">
+            <span className="control-print-icon"><Filter size={25} /></span>
+            <h3>FILTROS — VENDAS A PRAZO E CONTROLE CNPJ</h3>
+          </div>
+          <button type="button" className="control-print-close" onClick={onClose} aria-label="Fechar">
+            <X size={28} />
+          </button>
+        </div>
+
+        <div className="control-print-body">
+          <div className="control-print-grid ranking-filter-grid">
+
+            {/* Busca cliente */}
+            <section className="control-print-section">
+              <div className="control-print-section-title">
+                <UsersIcon size={20} /><span>BUSCAR CLIENTE</span>
+              </div>
+              <label className="control-print-field" style={{ marginTop:8 }}>
+                <span>RAZÃO SOCIAL OU CNPJ</span>
+                <div className="control-print-input">
+                  <input
+                    type="text"
+                    placeholder="Ex: Transportes ABC ou 12.345..."
+                    value={filters.search}
+                    onChange={upd('search')}
+                    style={{ flex:1 }}
+                  />
+                </div>
+              </label>
+              {filters.search && (
+                <div style={{ fontSize:11, color:'#94a3b8', marginTop:6 }}>
+                  {_computeCnpjRows(filters).length} cliente(s) encontrado(s)
+                </div>
+              )}
+            </section>
+
+            {/* Período */}
+            <section className="control-print-section">
+              <div className="control-print-section-title">
+                <Calendar size={20} /><span>PERÍODO DE FATURAMENTO</span>
+              </div>
+              <label className={`control-print-option ${filters.periodo === 'Mensal' ? 'selected' : ''}`}>
+                <BarChart2 size={26} />
+                <div><strong>MENSAL</strong><span>Faturamento do mês corrente</span></div>
+                <input type="radio" name="cnpjPeriodo" value="Mensal" checked={filters.periodo === 'Mensal'} onChange={upd('periodo')} />
+              </label>
+              <label className={`control-print-option ${filters.periodo === 'Trimestral' ? 'selected' : ''}`}>
+                <TrendingUp size={26} />
+                <div><strong>TRIMESTRAL</strong><span>Faturamento acumulado 3 meses</span></div>
+                <input type="radio" name="cnpjPeriodo" value="Trimestral" checked={filters.periodo === 'Trimestral'} onChange={upd('periodo')} />
+              </label>
+            </section>
+
+          </div>
+
+          {/* Preview risco */}
+          <section className="control-print-section" style={{ marginTop:16 }}>
+            <div className="control-print-section-title">
+              <AlertTriangle size={20} /><span>PRÉ-VISUALIZAÇÃO DO RISCO</span>
+            </div>
+            <div style={{ display:'flex', gap:10, marginTop:10, flexWrap:'wrap' }}>
+              {['Regular','Atenção','Bloqueio'].map(st => {
+                const n   = _computeCnpjRows(filters).filter(r => r.status === st).length;
+                const cfg = { Regular:{c:'#059669',bg:'rgba(5,150,105,.12)',icon:'🟢'}, Atenção:{c:'#d97706',bg:'rgba(217,119,6,.12)',icon:'🟡'}, Bloqueio:{c:'#dc2626',bg:'rgba(220,38,38,.12)',icon:'🔴'} }[st];
+                return (
+                  <div key={st} style={{ flex:'1 1 100px', background:cfg.bg, border:`1px solid ${cfg.c}44`, borderRadius:10, padding:'12px 16px', textAlign:'center' }}>
+                    <div style={{ fontSize:22 }}>{cfg.icon}</div>
+                    <div style={{ fontSize:24, fontWeight:900, color:cfg.c, lineHeight:1 }}>{n}</div>
+                    <div style={{ fontSize:10, color:cfg.c, fontWeight:700, marginTop:2 }}>{st}</div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        </div>
+
+        <div className="control-print-footer">
+          <button type="button" className="btn-secondary control-print-cancel" onClick={onClose}>
+            <X size={20} /> CANCELAR
+          </button>
+          <button type="button" className="btn-primary control-print-generate" onClick={onGenerate}>
+            <Printer size={20} /> GERAR IMPRESSÃO
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+// ── fim Vendas a Prazo e Controle CNPJ ───────────────────────────────────────
+
 const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients }) => {
   const [activeTab, setActiveTab] = useState('descarregamentos');
   const [data, setData] = useState({ descarregamentos: null, vendas: null, historico: null, consolidado: null, controle: null });
@@ -5706,6 +6083,8 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
   const [margemFilters, setMargemFilters] = useState({ categoria: 'Todos', dataInicial: '', dataFinal: '', ordenacao: 'margemTotal' });
   const [showConciliacaoPanel,  setShowConciliacaoPanel]  = useState(false);
   const [conciliacaoFilters, setConciliacaoFilters] = useState({ adquirente:'Todos', bandeira:'Todos', modalidade:'Todos', dataInicial:'', dataFinal:'' });
+  const [showCnpjPanel,         setShowCnpjPanel]         = useState(false);
+  const [cnpjFilters, setCnpjFilters] = useState({ search:'', periodo:'Mensal' });
   const [vendedores, setVendedores] = useState([]);
   const [rankingFilters, setRankingFilters] = useState({
     dataInicial: '',
@@ -6286,6 +6665,13 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
     setShowConciliacaoPanel(false);
   };
 
+  const openCnpjPanel = () => setShowCnpjPanel(true);
+
+  const handleGenerateCnpjReport = () => {
+    exportCnpjReport({ filters: cnpjFilters, clientName: selectedClient });
+    setShowCnpjPanel(false);
+  };
+
   const renderOutrosRelatorios = () => (
     <div className="other-reports-panel">
       <div className="other-reports-list">
@@ -6315,6 +6701,16 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
           <div className="other-report-main">
             <strong>Conciliação de Cartões e Taxas</strong>
             <span>Cruzamento de vendas × extrato das maquininhas — divergências e depósitos atrasados</span>
+          </div>
+          <ChevronRight size={20} />
+        </button>
+
+        <button type="button" className="other-report-row" onClick={openCnpjPanel}>
+          <div className="other-report-index">REL 4</div>
+          <div className="other-report-icon"><Building2 size={22} /></div>
+          <div className="other-report-main">
+            <strong>Vendas a Prazo e Controle CNPJ</strong>
+            <span>Limite de crédito, saldo devedor e aging list por cliente CNPJ</span>
           </div>
           <ChevronRight size={20} />
         </button>
@@ -6348,6 +6744,15 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
           setFilters={setConciliacaoFilters}
           onClose={() => setShowConciliacaoPanel(false)}
           onGenerate={handleGenerateConciliacaoReport}
+        />
+      )}
+
+      {showCnpjPanel && (
+        <CnpjFilterPanel
+          filters={cnpjFilters}
+          setFilters={setCnpjFilters}
+          onClose={() => setShowCnpjPanel(false)}
+          onGenerate={handleGenerateCnpjReport}
         />
       )}
 
