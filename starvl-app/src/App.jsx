@@ -4526,9 +4526,18 @@ const ConvenienciaManager = ({ themeMode }) => {
   const [editProd, setEditProd]     = useState(null);
   const [editForm, setEditForm]     = useState({});
   const [editImg, setEditImg]       = useState(null);
-  const [localEdits, setLocalEdits] = useState({});
+  const [localEdits, setLocalEdits] = useState(() => {
+    try { const s = localStorage.getItem('pm_localEdits'); return s ? JSON.parse(s) : {}; }
+    catch { return {}; }
+  });
   const imgInputRef = useRef(null);
   const LIMIT = 7;
+
+  // Persist localEdits (includes saved images as base64) whenever it changes
+  useEffect(() => {
+    try { localStorage.setItem('pm_localEdits', JSON.stringify(localEdits)); }
+    catch { /* quota exceeded — ignore */ }
+  }, [localEdits]);
 
   // Reset page on filter change
   useEffect(() => { setPage(1); }, [search, categoria, fornecedor, statusFilt, dataInicio, dataFim]);
@@ -4948,7 +4957,11 @@ const ConvenienciaManager = ({ themeMode }) => {
                     style={{ display: 'none' }}
                     onChange={e => {
                       const file = e.target.files[0];
-                      if (file) setEditImg(URL.createObjectURL(file));
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onload = ev => setEditImg(ev.target.result);
+                        reader.readAsDataURL(file);
+                      }
                       e.target.value = '';
                     }}
                   />
