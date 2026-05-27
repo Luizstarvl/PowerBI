@@ -6071,6 +6071,361 @@ const CnpjFilterPanel = ({ filters, setFilters, onClose, onGenerate }) => {
 };
 // ── fim Vendas a Prazo e Controle CNPJ ───────────────────────────────────────
 
+// ── Faltas/Sobras de Caixa por Turno ─────────────────────────────────────────
+const _TURNO_BASE = [
+  { id:'T001', data:'2026-05-25', turno:'Manhã',  operador:'Carlos Silva',  abert:'06:00', fech:'14:00', sistema:3250.00, fisico:3250.00,  obs:'' },
+  { id:'T002', data:'2026-05-25', turno:'Tarde',  operador:'Maria Santos',  abert:'14:00', fech:'22:00', sistema:4180.00, fisico:4168.50,  obs:'Verificar troco no fechamento do turno' },
+  { id:'T003', data:'2026-05-25', turno:'Noite',  operador:'João Pereira',  abert:'22:00', fech:'06:00', sistema:1920.00, fisico:1922.50,  obs:'' },
+  { id:'T004', data:'2026-05-26', turno:'Manhã',  operador:'Carlos Silva',  abert:'06:00', fech:'14:00', sistema:2980.00, fisico:2980.00,  obs:'' },
+  { id:'T005', data:'2026-05-26', turno:'Tarde',  operador:'Ana Oliveira',  abert:'14:00', fech:'22:00', sistema:5240.00, fisico:5215.00,  obs:'Divergência identificada ao fechar caixa' },
+  { id:'T006', data:'2026-05-26', turno:'Noite',  operador:'João Pereira',  abert:'22:00', fech:'06:00', sistema:2100.00, fisico:2108.00,  obs:'' },
+  { id:'T007', data:'2026-05-27', turno:'Manhã',  operador:'Maria Santos',  abert:'06:00', fech:'14:00', sistema:3650.00, fisico:3650.00,  obs:'' },
+  { id:'T008', data:'2026-05-27', turno:'Tarde',  operador:'Ana Oliveira',  abert:'14:00', fech:'22:00', sistema:4520.00, fisico:4515.00,  obs:'Dentro da tolerância operacional' },
+  { id:'T009', data:'2026-05-27', turno:'Noite',  operador:'Pedro Lima',    abert:'22:00', fech:'06:00', sistema:1750.00, fisico:1750.00,  obs:'' },
+];
+const _TURNO_OPERADORES = [...new Set(_TURNO_BASE.map(r => r.operador))].sort();
+
+function _computeTurnoRows({ dataInicial, dataFinal, turno, operador }) {
+  return _TURNO_BASE
+    .filter(r => {
+      if (dataInicial && r.data < dataInicial) return false;
+      if (dataFinal   && r.data > dataFinal)   return false;
+      if (turno    !== 'Todos' && r.turno    !== turno)    return false;
+      if (operador !== 'Todos' && r.operador !== operador) return false;
+      return true;
+    })
+    .map(r => {
+      const diverg    = parseFloat((r.fisico - r.sistema).toFixed(2));
+      const absDiverg = Math.abs(diverg);
+      const tipo      = absDiverg < 0.01 ? 'OK' : diverg < 0 ? 'Falta' : 'Sobra';
+      const alerta    = absDiverg > 10 ? 'red' : absDiverg >= 0.01 ? 'yellow' : 'none';
+      return { ...r, diverg, tipo, alerta };
+    });
+}
+
+function buildTurnoReportHtml({ filters, clientName }) {
+  const rows = _computeTurnoRows(filters);
+  if (!rows.length) {
+    toast('Nenhum registro encontrado para os filtros selecionados.', 'warn');
+    return null;
+  }
+
+  const e    = escapeHtml;
+  const fmtR = v => 'R$ ' + Math.abs(v).toLocaleString('pt-BR', { minimumFractionDigits:2, maximumFractionDigits:2 });
+  const fmtD = s => { if (!s) return '-'; const [y,m,d] = s.split('-'); return `${d}/${m}/${y}`; };
+  const generatedAt = new Date().toLocaleString('pt-BR');
+
+  const totSistema = rows.reduce((s,r) => s + r.sistema, 0);
+  const totFisico  = rows.reduce((s,r) => s + r.fisico, 0);
+  const faltas     = rows.filter(r => r.tipo === 'Falta');
+  const sobras     = rows.filter(r => r.tipo === 'Sobra');
+  const totFaltas  = faltas.reduce((s,r) => s + r.diverg, 0);    // negative sum
+  const totSobras  = sobras.reduce((s,r) => s + r.diverg, 0);    // positive sum
+  const saldoLiq   = parseFloat((totFaltas + totSobras).toFixed(2));
+  const maiorDiv   = Math.max(...rows.map(r => Math.abs(r.diverg)));
+  const nOK        = rows.filter(r => r.tipo === 'OK').length;
+  const nRed       = rows.filter(r => r.alerta === 'red').length;
+
+  const TIPO_MAP = {
+    OK:    { icon:'🟢', color:'#059669', bg:'#d1fae5' },
+    Falta: { icon:'🔴', color:'#dc2626', bg:'#fee2e2' },
+    Sobra: { icon:'🟡', color:'#d97706', bg:'#fef3c7' },
+  };
+  const TURNO_ICON = { Manhã:'🌅', Tarde:'☀️', Noite:'🌙' };
+
+  const kpis = [
+    { label:'TURNOS',          value:e(rows.length) },
+    { label:'SEM DIVERGÊNCIA', value:e(nOK) },
+    { label:'FALTAS',          value:e(faltas.length), alert: faltas.length > 0 },
+    { label:'SOBRAS',          value:e(sobras.length) },
+    { label:'TOTAL FALTAS',    value:`-${e(fmtR(totFaltas))}`, alert: faltas.length > 0 },
+    { label:'TOTAL SOBRAS',    value:e(fmtR(totSobras)) },
+    { label:'SALDO LÍQUIDO',   value:`${saldoLiq >= 0 ? '+' : '-'}${e(fmtR(saldoLiq))}`, hard: saldoLiq < -10 },
+    { label:'MAIOR DIVERG.',   value:e(fmtR(maiorDiv)), alert: maiorDiv > 10 },
+  ];
+  const kpiHtml = kpis.map(k => `
+    <div class="summary-item${k.hard ? ' summary-hard' : k.alert ? ' summary-alert' : ''}">
+      <span>${k.label}</span><strong>${k.value}</strong>
+    </div>`).join('');
+
+  const tableRows = rows.map((row, i) => {
+    const tm = TIPO_MAP[row.tipo];
+    const rowBg = row.alerta === 'red' ? 'rgba(239,68,68,.08)' : row.alerta === 'yellow' ? 'rgba(245,158,11,.07)' : (i%2===0 ? '#fff' : '#f9fafb');
+    const divColor = row.tipo === 'OK' ? '#059669' : row.tipo === 'Falta' ? '#dc2626' : '#d97706';
+    const divSign  = row.diverg > 0 ? '+' : row.diverg < 0 ? '' : '';
+    return `
+    <tr style="background:${rowBg}">
+      <td>${e(fmtD(row.data))}</td>
+      <td>${e((TURNO_ICON[row.turno]||'')+' '+row.turno)}</td>
+      <td style="font-weight:700">${e(row.operador)}</td>
+      <td class="num">${e(row.abert)}</td>
+      <td class="num">${e(row.fech)}</td>
+      <td class="num">${e(fmtR(row.sistema))}</td>
+      <td class="num" style="font-weight:700">${e(fmtR(row.fisico))}</td>
+      <td class="num" style="font-weight:800;color:${divColor}">${divSign}${row.diverg < 0 ? '-' : ''}${e(fmtR(row.diverg))}</td>
+      <td><span style="display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:9px;font-weight:700;background:${tm.bg};color:${tm.color};white-space:nowrap">${tm.icon} ${e(row.tipo)}</span></td>
+      <td style="font-size:8.5px;color:#6b7280;font-style:${row.obs?'normal':'italic'}">${e(row.obs || '—')}</td>
+    </tr>`;
+  }).join('');
+
+  const saldoColor = saldoLiq < -10 ? '#dc2626' : saldoLiq > 10 ? '#059669' : '#d97706';
+
+  return `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <meta name="color-scheme" content="light"/>
+  <title>Relatorio Faltas e Sobras de Caixa por Turno</title>
+  <style>
+    @page { size:A4 landscape; margin:10mm; }
+    * { box-sizing:border-box; }
+    html,body,.report,.header,.panel,.summary-item,table,th,td,tfoot td {
+      -webkit-print-color-adjust:exact!important;
+      print-color-adjust:exact!important;
+      color-adjust:exact!important;
+    }
+    :root { color-scheme:light only; }
+    body { margin:0; font-family:Arial,Helvetica,sans-serif; color:#111827; background:#fff; }
+    .report { min-height:100vh; padding:18px; background:#fff; }
+    .header { display:flex; align-items:center; justify-content:space-between; gap:18px; padding:16px 18px; border:1px solid #e5e7eb; border-bottom:3px solid #e31e24; border-radius:8px; background:#fff; margin-bottom:14px; }
+    .header-left { display:flex; align-items:center; gap:14px; }
+    .mark { width:44px; height:44px; border-radius:8px; background:#fff5f5; border:1px solid #fecaca; display:flex; align-items:center; justify-content:center; font-size:24px; flex-shrink:0; }
+    h1 { margin:0; font-size:19px; line-height:1.15; }
+    .header-meta { color:#667085; font-size:11px; line-height:1.55; text-align:right; }
+    .summary-grid { display:grid; grid-template-columns:repeat(8,1fr); gap:9px; margin-bottom:14px; }
+    .summary-item { border:1px solid #e5e7eb; border-radius:8px; background:#f9fafb; padding:9px 11px; }
+    .summary-item.summary-alert { border-color:#fde68a; background:#fefce8; }
+    .summary-item.summary-hard  { border-color:#fca5a5; background:#fef2f2; }
+    .summary-alert strong { color:#d97706; }
+    .summary-hard  strong { color:#dc2626; }
+    .summary-item span { display:block; color:#667085; font-size:8px; font-weight:800; margin-bottom:4px; }
+    .summary-item strong { display:block; color:#111827; font-size:13px; font-weight:900; line-height:1.1; }
+    .panel { border:1px solid #e5e7eb; border-radius:8px; background:#fff; padding:14px; }
+    .panel-head { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:10px; }
+    .panel-title { margin:0; color:#111827; font-size:13px; font-weight:800; }
+    .pill { border:1px solid #d0d5dd; border-radius:8px; color:#344054; padding:4px 8px; font-size:9px; font-weight:800; white-space:nowrap; background:#f9fafb; }
+    .saldo-banner { margin-bottom:14px; padding:10px 16px; border-radius:8px; display:flex; align-items:center; gap:12px;
+      background:${saldoLiq < -0.01 ? '#fef2f2' : '#f0fdf4'}; border:1px solid ${saldoLiq < -0.01 ? '#fca5a5' : '#bbf7d0'}; }
+    .saldo-label { font-size:11px; font-weight:700; color:#374151; }
+    .saldo-value { font-size:20px; font-weight:900; color:${saldoColor}; margin-left:auto; }
+    table { width:100%; border-collapse:collapse; font-size:9px; }
+    th,td { border:1px solid #d0d5dd; padding:5px 7px; word-break:break-word; }
+    th { background:#e31e24!important; color:#fff; font-size:8.5px; font-weight:700; text-align:left; }
+    td { color:#111827; background:inherit; }
+    td.num,th.num { text-align:right; }
+    tfoot td { color:#111827; background:#f3f4f6!important; font-weight:900; font-size:9px; }
+    .footer { margin-top:10px; color:#667085; font-size:10px; text-align:right; }
+    @media screen { body { background:#f3f4f6; padding:18px; } .report { max-width:1280px; margin:0 auto; box-shadow:0 18px 50px rgba(15,23,42,.12); } }
+    @media print {
+      body,html,.report,.panel,.header,.summary-item,.saldo-banner { background-color:inherit!important; color-scheme:light!important; }
+      th { background:#e31e24!important; color:#fff!important; }
+      tfoot td { background:#f3f4f6!important; }
+      tr { break-inside:avoid; }
+    }
+  </style>
+</head>
+<body>
+<main class="report">
+  <section class="header">
+    <div class="header-left">
+      <div class="mark">💵</div>
+      <div>
+        <h1>FALTAS / SOBRAS DE CAIXA POR TURNO</h1>
+        <div class="header-meta" style="text-align:left">${e(clientName||'Cliente')} | Turno: ${e(filters.turno)} · Operador: ${e(filters.operador)}</div>
+      </div>
+    </div>
+    <div class="header-meta">
+      <div>Tolerância operacional: até R$ 10,00 (amarelo)</div>
+      <div>Divergências acima de R$ 10,00 destacadas em vermelho</div>
+      <div>Gerado em ${e(generatedAt)}</div>
+    </div>
+  </section>
+
+  <div class="summary-grid">${kpiHtml}</div>
+
+  <div class="saldo-banner">
+    <span class="saldo-label">SALDO LÍQUIDO DO PERÍODO (Faltas − Sobras)</span>
+    <span class="saldo-value">${saldoLiq < 0 ? '▼' : saldoLiq > 0 ? '▲' : '='} ${saldoLiq < 0 ? '-' : '+'}${e(fmtR(saldoLiq))}</span>
+  </div>
+
+  <section class="panel">
+    <div class="panel-head">
+      <h2 class="panel-title">REGISTROS POR TURNO — AUDITORIA DE CAIXA</h2>
+      <div class="pill">${e(rows.length)} turno${rows.length!==1?'s':''} analisado${rows.length!==1?'s':''}</div>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>DATA</th>
+          <th>TURNO</th>
+          <th>OPERADOR / FRENTISTA</th>
+          <th class="num">ABERTURA</th>
+          <th class="num">FECHAMENTO</th>
+          <th class="num">SISTEMA (R$)</th>
+          <th class="num">FÍSICO (R$)</th>
+          <th class="num">DIVERGÊNCIA (R$)</th>
+          <th>TIPO</th>
+          <th>OBSERVAÇÃO</th>
+        </tr>
+      </thead>
+      <tbody>${tableRows}</tbody>
+      <tfoot>
+        <tr>
+          <td colspan="5">TOTAL — ${e(rows.length)} turnos · ${e(faltas.length)} falta${faltas.length!==1?'s':''} · ${e(sobras.length)} sobra${sobras.length!==1?'s':''}</td>
+          <td class="num">${e(fmtR(totSistema))}</td>
+          <td class="num">${e(fmtR(totFisico))}</td>
+          <td class="num" style="color:${saldoColor};font-size:10px">${saldoLiq < 0 ? '-' : saldoLiq > 0 ? '+' : ''}${e(fmtR(saldoLiq))}</td>
+          <td colspan="2">Faltas: ${e(fmtR(totFaltas))} · Sobras: +${e(fmtR(totSobras))}</td>
+        </tr>
+      </tfoot>
+    </table>
+  </section>
+
+  <footer class="footer">STARVL | Relatório de Faltas/Sobras de Caixa por Turno${nRed > 0 ? ` — ⚠️ ${nRed} registro${nRed>1?'s':''} com divergência crítica` : ''}</footer>
+</main>
+</body>
+</html>`;
+}
+
+function exportTurnoReport({ filters, clientName }) {
+  const html = buildTurnoReportHtml({ filters, clientName });
+  if (!html) return;
+  const w = window.open('', '_blank');
+  if (!w) { toast('Permita pop-ups no navegador para imprimir o relatório.', 'warn'); return; }
+  w.document.open();
+  w.document.write(html.replace('</body>', `
+    <script>
+      window.addEventListener('load', function () {
+        setTimeout(function () { window.print(); }, 500);
+      });
+    </script>
+  </body>`));
+  w.document.close();
+}
+
+const TurnoFilterPanel = ({ filters, setFilters, onClose, onGenerate }) => {
+  const upd = field => e => setFilters(prev => ({ ...prev, [field]: e.target.value }));
+  const TURNOS = ['Todos','Manhã','Tarde','Noite'];
+  const TURNO_ICON = { Todos:'🔄', Manhã:'🌅', Tarde:'☀️', Noite:'🌙' };
+
+  const preview = _computeTurnoRows(filters);
+  const nFaltas = preview.filter(r => r.tipo === 'Falta').length;
+  const nSobras = preview.filter(r => r.tipo === 'Sobra').length;
+  const nOK     = preview.filter(r => r.tipo === 'OK').length;
+
+  return (
+    <div className="modal-overlay control-print-overlay" onClick={onClose}>
+      <div className="control-print-panel ranking-filter-panel" onClick={ev => ev.stopPropagation()}>
+        <div className="control-print-header">
+          <div className="control-print-title">
+            <span className="control-print-icon"><Filter size={25} /></span>
+            <h3>FILTROS — FALTAS / SOBRAS DE CAIXA POR TURNO</h3>
+          </div>
+          <button type="button" className="control-print-close" onClick={onClose} aria-label="Fechar">
+            <X size={28} />
+          </button>
+        </div>
+
+        <div className="control-print-body">
+          <div className="control-print-grid ranking-filter-grid">
+
+            {/* Período */}
+            <section className="control-print-section">
+              <div className="control-print-section-title">
+                <Calendar size={20} /><span>PERÍODO</span>
+              </div>
+              <div className="control-print-date-row">
+                <label className="control-print-field">
+                  <span>DATA INICIAL</span>
+                  <div className="control-print-input">
+                    <input type="date" value={filters.dataInicial} onChange={upd('dataInicial')} />
+                    <Calendar size={19} />
+                  </div>
+                </label>
+                <label className="control-print-field">
+                  <span>DATA FINAL</span>
+                  <div className="control-print-input">
+                    <input type="date" value={filters.dataFinal} onChange={upd('dataFinal')} />
+                    <Calendar size={19} />
+                  </div>
+                </label>
+              </div>
+            </section>
+
+            {/* Operador */}
+            <section className="control-print-section">
+              <div className="control-print-section-title">
+                <UsersIcon size={20} /><span>OPERADOR / FRENTISTA</span>
+              </div>
+              <label className="control-print-field" style={{ marginTop:8 }}>
+                <span>SELECIONAR OPERADOR</span>
+                <div className="control-print-input">
+                  <select value={filters.operador} onChange={upd('operador')} style={{ flex:1, background:'transparent', border:'none', color:'inherit', fontSize:13, cursor:'pointer' }}>
+                    <option value="Todos">Todos os operadores</option>
+                    {_TURNO_OPERADORES.map(op => (
+                      <option key={op} value={op}>{op}</option>
+                    ))}
+                  </select>
+                </div>
+              </label>
+            </section>
+
+          </div>
+
+          {/* Turno */}
+          <section className="control-print-section" style={{ marginTop:16 }}>
+            <div className="control-print-section-title">
+              <Clock size={20} /><span>TURNO</span>
+            </div>
+            <div style={{ display:'flex', gap:10, marginTop:10, flexWrap:'wrap' }}>
+              {TURNOS.map(t => (
+                <label key={t} style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 18px',
+                  background: filters.turno === t ? '#E31E24' : 'transparent',
+                  border: `1px solid ${filters.turno === t ? '#E31E24' : '#374151'}`,
+                  borderRadius:10, cursor:'pointer', flex:'1 1 100px', justifyContent:'center',
+                  color: filters.turno === t ? '#fff' : '#d1d5db', fontSize:13, fontWeight:700, transition:'all .15s' }}>
+                  <input type="radio" name="turnoFiltro" value={t} checked={filters.turno === t} onChange={upd('turno')} style={{ display:'none' }} />
+                  <span>{TURNO_ICON[t]}</span> {t}
+                </label>
+              ))}
+            </div>
+          </section>
+
+          {/* Prévia */}
+          <section className="control-print-section" style={{ marginTop:16 }}>
+            <div className="control-print-section-title">
+              <BarChart2 size={20} /><span>PRÉ-VISUALIZAÇÃO</span>
+            </div>
+            <div style={{ display:'flex', gap:10, marginTop:10, flexWrap:'wrap' }}>
+              {[
+                { label:'Turnos',     value:preview.length, c:'#94a3b8', bg:'rgba(148,163,184,.1)' },
+                { label:'🟢 OK',       value:nOK,     c:'#059669', bg:'rgba(5,150,105,.1)' },
+                { label:'🔴 Faltas',   value:nFaltas, c:'#dc2626', bg:'rgba(220,38,38,.1)' },
+                { label:'🟡 Sobras',   value:nSobras, c:'#d97706', bg:'rgba(217,119,6,.1)'  },
+              ].map(({ label, value, c, bg }) => (
+                <div key={label} style={{ flex:'1 1 80px', background:bg, border:`1px solid ${c}44`, borderRadius:10, padding:'10px 14px', textAlign:'center' }}>
+                  <div style={{ fontSize:22, fontWeight:900, color:c, lineHeight:1 }}>{value}</div>
+                  <div style={{ fontSize:10, color:c, fontWeight:700, marginTop:3 }}>{label}</div>
+                </div>
+              ))}
+            </div>
+          </section>
+        </div>
+
+        <div className="control-print-footer">
+          <button type="button" className="btn-secondary control-print-cancel" onClick={onClose}>
+            <X size={20} /> CANCELAR
+          </button>
+          <button type="button" className="btn-primary control-print-generate" onClick={onGenerate}>
+            <Printer size={20} /> GERAR IMPRESSÃO
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+// ── fim Faltas/Sobras de Caixa por Turno ─────────────────────────────────────
+
 const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients }) => {
   const [activeTab, setActiveTab] = useState('descarregamentos');
   const [data, setData] = useState({ descarregamentos: null, vendas: null, historico: null, consolidado: null, controle: null });
@@ -6085,6 +6440,8 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
   const [conciliacaoFilters, setConciliacaoFilters] = useState({ adquirente:'Todos', bandeira:'Todos', modalidade:'Todos', dataInicial:'', dataFinal:'' });
   const [showCnpjPanel,         setShowCnpjPanel]         = useState(false);
   const [cnpjFilters, setCnpjFilters] = useState({ search:'', periodo:'Mensal' });
+  const [showTurnoPanel,        setShowTurnoPanel]        = useState(false);
+  const [turnoFilters, setTurnoFilters] = useState({ dataInicial:'', dataFinal:'', turno:'Todos', operador:'Todos' });
   const [vendedores, setVendedores] = useState([]);
   const [rankingFilters, setRankingFilters] = useState({
     dataInicial: '',
@@ -6672,6 +7029,25 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
     setShowCnpjPanel(false);
   };
 
+  const openTurnoPanel = () => {
+    const range = getPeriodDateRange(selectedPeriod);
+    setTurnoFilters(prev => ({
+      ...prev,
+      dataInicial: prev.dataInicial || range.dataInicial,
+      dataFinal:   prev.dataFinal   || range.dataFinal,
+    }));
+    setShowTurnoPanel(true);
+  };
+
+  const handleGenerateTurnoReport = () => {
+    if (turnoFilters.dataInicial && turnoFilters.dataFinal && turnoFilters.dataInicial > turnoFilters.dataFinal) {
+      toast('A data inicial não pode ser maior que a data final.', 'warn');
+      return;
+    }
+    exportTurnoReport({ filters: turnoFilters, clientName: selectedClient });
+    setShowTurnoPanel(false);
+  };
+
   const renderOutrosRelatorios = () => (
     <div className="other-reports-panel">
       <div className="other-reports-list">
@@ -6714,6 +7090,16 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
           </div>
           <ChevronRight size={20} />
         </button>
+
+        <button type="button" className="other-report-row" onClick={openTurnoPanel}>
+          <div className="other-report-index">REL 5</div>
+          <div className="other-report-icon"><Clock size={22} /></div>
+          <div className="other-report-main">
+            <strong>Faltas / Sobras de Caixa por Turno</strong>
+            <span>Auditoria de fechamento por frentista — divergências e saldo líquido do período</span>
+          </div>
+          <ChevronRight size={20} />
+        </button>
       </div>
 
       {showRankingPrintPanel && (
@@ -6753,6 +7139,15 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
           setFilters={setCnpjFilters}
           onClose={() => setShowCnpjPanel(false)}
           onGenerate={handleGenerateCnpjReport}
+        />
+      )}
+
+      {showTurnoPanel && (
+        <TurnoFilterPanel
+          filters={turnoFilters}
+          setFilters={setTurnoFilters}
+          onClose={() => setShowTurnoPanel(false)}
+          onGenerate={handleGenerateTurnoReport}
         />
       )}
 
