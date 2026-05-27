@@ -42,9 +42,9 @@ router.put('/:tipo/:ref', async (req, res) => {
   const { dados } = req.body;
   if (!dados) return res.status(400).json({ error: 'dados é obrigatório' });
 
-  // Limite ~2 MB (base64)
-  if (dados.length > 2_500_000) {
-    return res.status(413).json({ error: 'Imagem muito grande (máx ~1.8 MB)' });
+  // Limite ~8 MB (base64 — o frontend comprime para << 1 MB, mas mantemos margem)
+  if (dados.length > 8_000_000) {
+    return res.status(413).json({ error: 'Imagem muito grande (máx ~6 MB)' });
   }
 
   try {

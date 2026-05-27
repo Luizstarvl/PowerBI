@@ -5591,17 +5591,49 @@ function pmBuildDonut(parts) {
 }
 
 // ─── Repositório de imagens — API compartilhada (PostgreSQL via starvl-api) ──
-// Substitui IndexedDB: imagens ficam no servidor e carregam em qualquer máquina.
+// Imagens ficam no servidor e carregam em qualquer máquina/navegador.
 
-async function imgSave(id, dataUrl) {
-  await fetch(`${API_URL}/api/imagens/produto/${id}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ dados: dataUrl }),
+/**
+ * Redimensiona e converte para JPEG antes de salvar.
+ * Garante que a imagem fique bem abaixo do limite de 10 MB do servidor.
+ * @param {string} dataUrl  DataURL original (pode ser PNG, JPEG, etc.)
+ * @param {number} maxDim   Dimensão máxima (largura ou altura) em px. Default 900.
+ * @param {number} quality  Qualidade JPEG 0‒1. Default 0.82.
+ * @returns {Promise<string>} DataURL JPEG comprimido.
+ */
+function compressImage(dataUrl, maxDim = 900, quality = 0.82) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const { naturalWidth: w, naturalHeight: h } = img;
+      const scale = Math.min(1, maxDim / Math.max(w, h));
+      const canvas = document.createElement('canvas');
+      canvas.width  = Math.round(w * scale);
+      canvas.height = Math.round(h * scale);
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL('image/jpeg', quality));
+    };
+    img.onerror = () => resolve(dataUrl); // fallback: usa original
+    img.src = dataUrl;
   });
 }
+
+async function imgSave(id, dataUrl) {
+  const compressed = await compressImage(dataUrl);
+  const res = await fetch(`${API_URL}/api/imagens/produto/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ dados: compressed }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || `HTTP ${res.status}`);
+  }
+  return compressed; // retorna a versão comprimida para atualizar o estado
+}
 async function imgDelete(id) {
-  await fetch(`${API_URL}/api/imagens/produto/${id}`, { method: 'DELETE' });
+  const res = await fetch(`${API_URL}/api/imagens/produto/${id}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
 }
 async function imgLoadAll() {
   try {
@@ -5613,14 +5645,21 @@ async function imgLoadAll() {
 
 // ── Imagens de usuário ──────────────────────────────────────────────────────
 async function userImgSave(id, dataUrl) {
-  await fetch(`${API_URL}/api/imagens/usuario/${id}`, {
+  const compressed = await compressImage(dataUrl);
+  const res = await fetch(`${API_URL}/api/imagens/usuario/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ dados: dataUrl }),
+    body: JSON.stringify({ dados: compressed }),
   });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || `HTTP ${res.status}`);
+  }
+  return compressed;
 }
 async function userImgDelete(id) {
-  await fetch(`${API_URL}/api/imagens/usuario/${id}`, { method: 'DELETE' });
+  const res = await fetch(`${API_URL}/api/imagens/usuario/${id}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
 }
 async function userImgLoadAll() {
   try {
@@ -5859,15 +5898,18 @@ const ConvenienciaManager = ({ themeMode }) => {
         // editImg NÃO vai para localStorage — fica no IndexedDB
       },
     }));
-    // Salvar/remover imagem no IndexedDB
+    // Salvar/remover imagem na API (PostgreSQL)
     if (editImg) {
       imgSave(editProd.id, editImg)
-        .then(() => setProductImages(prev => ({ ...prev, [editProd.id]: editImg })))
-        .catch(() => toast('Erro ao salvar imagem.', 'error'));
+        .then(compressed => {
+          setProductImages(prev => ({ ...prev, [editProd.id]: compressed }));
+          toast('Imagem salva!', 'success');
+        })
+        .catch(err => toast(`Erro ao salvar imagem: ${err.message}`, 'error'));
     } else if (productImages[editProd.id]) {
       imgDelete(editProd.id)
         .then(() => setProductImages(prev => { const next = { ...prev }; delete next[editProd.id]; return next; }))
-        .catch(() => {});
+        .catch(err => toast(`Erro ao remover imagem: ${err.message}`, 'error'));
     }
     setEditProd(null);
   }, [editProd, editForm, editImg, productImages]);
@@ -6864,12 +6906,15 @@ const Users = ({ adminUsers, setAdminUsers, isAdmin }) => {
     }
     if (imgData) {
       userImgSave(savedId, imgData)
-        .then(() => setUserImages(prev => ({ ...prev, [String(savedId)]: imgData })))
-        .catch(() => toast('Erro ao salvar foto.', 'error'));
+        .then(compressed => {
+          setUserImages(prev => ({ ...prev, [String(savedId)]: compressed }));
+          toast('Foto salva!', 'success');
+        })
+        .catch(err => toast(`Erro ao salvar foto: ${err.message}`, 'error'));
     } else if (userImages[String(savedId)] && imgData === null) {
       userImgDelete(savedId)
         .then(() => setUserImages(prev => { const n = { ...prev }; delete n[String(savedId)]; return n; }))
-        .catch(() => {});
+        .catch(err => toast(`Erro ao remover foto: ${err.message}`, 'error'));
     }
     setShowModal(false);
   };
