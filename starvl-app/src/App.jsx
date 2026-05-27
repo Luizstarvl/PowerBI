@@ -255,13 +255,13 @@ const Login = ({ onLogin, adminUsers }) => {
 // Sidebar Component
 const Sidebar = ({ currentPage, setCurrentPage, onLogout, themeMode, collapsed, onToggleCollapse }) => {
   const menuItems = [
-    { icon: Home,      label: 'HOME',                 page: 'dashboard' },
-    { icon: Package,   label: 'ESTOQUE',              page: 'stock'     },
-    { icon: BookOpen,  label: 'LIVROS',               page: 'control'   },
-    { icon: PiggyBank, label: 'FINANCEIRO',           page: 'receber'   },
-    { icon: FileText,  label: 'RELATÓRIOS',           page: 'reports'   },
-    { icon: Target,    label: 'METAS',                page: 'goals'     },
-    { icon: Settings,  label: 'CONFIGURAÇÕES',        page: 'params'    },
+    { icon: Home,      label: 'HOME',                        page: 'dashboard' },
+    { icon: Package,   label: 'ESTOQUE',                     page: 'stock'     },
+    { icon: BookOpen,  label: 'LIVROS',                      page: 'control'   },
+    { icon: Target,    label: 'INDICADORES PATRIMONIAIS',    page: 'goals'     },
+    { icon: PiggyBank, label: 'FINANCEIRO',                  page: 'receber'   },
+    { icon: FileText,  label: 'RELATÓRIOS',                  page: 'reports'   },
+    { icon: Settings,  label: 'CONFIGURAÇÕES',               page: 'params'    },
   ];
 
   return (
@@ -318,7 +318,7 @@ const PAGE_TITLES = {
   control: 'Livros',
   stock: 'Estoque',
   receber: 'Financeiro',
-  goals: 'Gestão de Metas',
+  goals: 'Indicadores Patrimoniais',
   users: 'Gerenciamento de Usuários',
   params: 'Configurações',
 };
@@ -330,13 +330,13 @@ const QuickNav = ({ setCurrentPage, themeMode }) => {
   const ref = useRef(null);
 
   const NAV_PAGES = [
-    { icon: Home,      label: 'Home',          page: 'dashboard' },
-    { icon: Package,   label: 'Estoque',        page: 'stock'     },
-    { icon: BookOpen,  label: 'Livros',         page: 'control'   },
-    { icon: PiggyBank, label: 'Financeiro',     page: 'receber'   },
-    { icon: FileText,  label: 'Relatórios',     page: 'reports'   },
-    { icon: Target,    label: 'Metas',          page: 'goals'     },
-    { icon: Settings,  label: 'Configurações',  page: 'params'    },
+    { icon: Home,      label: 'Home',                       page: 'dashboard' },
+    { icon: Package,   label: 'Estoque',                    page: 'stock'     },
+    { icon: BookOpen,  label: 'Livros',                     page: 'control'   },
+    { icon: Target,    label: 'Indicadores Patrimoniais',   page: 'goals'     },
+    { icon: PiggyBank, label: 'Financeiro',                 page: 'receber'   },
+    { icon: FileText,  label: 'Relatórios',                 page: 'reports'   },
+    { icon: Settings,  label: 'Configurações',              page: 'params'    },
   ];
 
   const filtered = query.trim()
@@ -7552,7 +7552,7 @@ const GOAL_MONTHLY_CHART = [
 
 const EMPTY_GOAL_FORM = { nome:'', desc:'', categoria:'Faturamento', periodo:'Mensal', meta:'', alcancado:'', vencimento:'', status:'Em andamento' };
 
-const GoalManager = () => {
+const GoalManager = ({ themeMode = 'dark' }) => {
   const [activeTab, setActiveTab]   = useState('visao');
   const [goals, setGoals]           = useState(INITIAL_GOALS);
   const [search, setSearch]         = useState('');
@@ -7654,35 +7654,36 @@ const GoalManager = () => {
   const upd = k => e => setForm(f => ({ ...f, [k]: e.target.value }));
 
   // ── Styles ──────────────────────────────────────────────────────────────────
+  const dark = themeMode !== 'light';
   const S = {
     page:    { padding:'24px', maxWidth:1200, margin:'0 auto' },
     header:  { display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:20 },
-    title:   { margin:0, fontSize:22, fontWeight:800, color:'#f8fafc', letterSpacing:1 },
-    sub:     { margin:'4px 0 0', fontSize:13, color:'#94a3b8' },
+    title:   { margin:0, fontSize:22, fontWeight:800, color: dark ? '#f8fafc' : '#111827', letterSpacing:1 },
+    sub:     { margin:'4px 0 0', fontSize:13, color: dark ? '#94a3b8' : '#6b7280' },
     btnNew:  { display:'flex', alignItems:'center', gap:6, background:'#E31E24', color:'#fff', border:'none', borderRadius:8, padding:'10px 18px', fontSize:13, fontWeight:700, cursor:'pointer' },
-    tabs:    { display:'flex', gap:0, borderBottom:'2px solid #1e293b', marginBottom:24 },
-    tab:     (active) => ({ background:'none', border:'none', cursor:'pointer', padding:'10px 22px', fontSize:13, fontWeight:600, color: active ? '#E31E24' : '#64748b', borderBottom: active ? '2px solid #E31E24' : '2px solid transparent', marginBottom:-2, transition:'color .15s' }),
+    tabs:    { display:'flex', gap:0, borderBottom:`2px solid ${dark ? '#2c2c2e' : '#e5e7eb'}`, marginBottom:24 },
+    tab:     (active) => ({ background:'none', border:'none', cursor:'pointer', padding:'10px 22px', fontSize:13, fontWeight:600, color: active ? '#E31E24' : (dark ? '#64748b' : '#6b7280'), borderBottom: active ? '2px solid #E31E24' : '2px solid transparent', marginBottom:-2, transition:'color .15s' }),
     kpiRow:  { display:'grid', gridTemplateColumns:'repeat(6,1fr)', gap:12, marginBottom:24 },
-    kpiCard: (accent) => ({ background:'#0f172a', border:`1px solid ${accent}33`, borderRadius:10, padding:'14px 16px', display:'flex', flexDirection:'column', gap:4 }),
-    kpiLbl:  { fontSize:10, fontWeight:700, color:'#64748b', letterSpacing:1, textTransform:'uppercase' },
-    kpiVal:  (accent) => ({ fontSize:20, fontWeight:900, color: accent || '#f8fafc', margin:0 }),
-    kpiSub:  { fontSize:11, color:'#475569' },
+    kpiCard: (accent) => ({ background: dark ? '#1c1c1e' : '#ffffff', border:`1px solid ${accent}44`, borderRadius:10, padding:'14px 16px', display:'flex', flexDirection:'column', gap:4, boxShadow: dark ? 'none' : '0 1px 4px rgba(0,0,0,.07)' }),
+    kpiLbl:  { fontSize:10, fontWeight:700, color: dark ? '#6b7280' : '#9ca3af', letterSpacing:1, textTransform:'uppercase' },
+    kpiVal:  (accent) => ({ fontSize:20, fontWeight:900, color: accent || (dark ? '#f8fafc' : '#111827'), margin:0 }),
+    kpiSub:  { fontSize:11, color: dark ? '#4b5563' : '#9ca3af' },
     grid2:   { display:'grid', gridTemplateColumns:'2fr 1fr', gap:16, marginBottom:24 },
-    card:    { background:'#0f172a', border:'1px solid #1e293b', borderRadius:12, padding:'20px' },
-    cardH:   { margin:'0 0 16px', fontSize:13, fontWeight:700, color:'#94a3b8', letterSpacing:1, textTransform:'uppercase' },
+    card:    { background: dark ? '#1c1c1e' : '#ffffff', border:`1px solid ${dark ? '#2c2c2e' : '#e5e7eb'}`, borderRadius:12, padding:'20px', boxShadow: dark ? 'none' : '0 1px 4px rgba(0,0,0,.06)' },
+    cardH:   { margin:'0 0 16px', fontSize:13, fontWeight:700, color: dark ? '#94a3b8' : '#6b7280', letterSpacing:1, textTransform:'uppercase' },
     tbl:     { width:'100%', borderCollapse:'collapse', fontSize:12 },
-    th:      { color:'#64748b', fontWeight:700, fontSize:10, letterSpacing:1, textTransform:'uppercase', padding:'8px 10px', borderBottom:'1px solid #1e293b', textAlign:'left' },
-    td:      { padding:'10px 10px', borderBottom:'1px solid #0f172a', verticalAlign:'middle', color:'#f1f5f9', fontSize:12 },
-    bar:     (pct, col) => ({ height:6, borderRadius:3, background:`linear-gradient(90deg, ${col} ${pct}%, #1e293b ${pct}%)`, minWidth:80 }),
-    input:   { width:'100%', background:'#1e293b', border:'1px solid #334155', borderRadius:6, padding:'9px 12px', color:'#f8fafc', fontSize:13, outline:'none' },
-    label:   { fontSize:11, fontWeight:700, color:'#94a3b8', letterSpacing:.5, display:'block', marginBottom:5 },
-    select:  { width:'100%', background:'#1e293b', border:'1px solid #334155', borderRadius:6, padding:'9px 10px', color:'#f8fafc', fontSize:13, outline:'none', cursor:'pointer' },
+    th:      { color: dark ? '#6b7280' : '#9ca3af', fontWeight:700, fontSize:10, letterSpacing:1, textTransform:'uppercase', padding:'8px 10px', borderBottom:`1px solid ${dark ? '#2c2c2e' : '#e5e7eb'}`, textAlign:'left' },
+    td:      { padding:'10px 10px', borderBottom:`1px solid ${dark ? '#1c1c1e' : '#f3f4f6'}`, verticalAlign:'middle', color: dark ? '#f1f5f9' : '#111827', fontSize:12 },
+    bar:     (pct, col) => ({ height:6, borderRadius:3, background:`linear-gradient(90deg, ${col} ${pct}%, ${dark ? '#2c2c2e' : '#e5e7eb'} ${pct}%)`, minWidth:80 }),
+    input:   { width:'100%', background: dark ? '#2c2c2e' : '#f9fafb', border:`1px solid ${dark ? '#3f3f46' : '#d1d5db'}`, borderRadius:6, padding:'9px 12px', color: dark ? '#f8fafc' : '#111827', fontSize:13, outline:'none' },
+    label:   { fontSize:11, fontWeight:700, color: dark ? '#94a3b8' : '#6b7280', letterSpacing:.5, display:'block', marginBottom:5 },
+    select:  { width:'100%', background: dark ? '#2c2c2e' : '#f9fafb', border:`1px solid ${dark ? '#3f3f46' : '#d1d5db'}`, borderRadius:6, padding:'9px 10px', color: dark ? '#f8fafc' : '#111827', fontSize:13, outline:'none', cursor:'pointer' },
     btnPrim: { background:'#E31E24', color:'#fff', border:'none', borderRadius:8, padding:'11px 28px', fontSize:13, fontWeight:700, cursor:'pointer' },
-    btnSec:  { background:'#1e293b', color:'#94a3b8', border:'1px solid #334155', borderRadius:8, padding:'11px 20px', fontSize:13, fontWeight:600, cursor:'pointer' },
+    btnSec:  { background: dark ? '#2c2c2e' : '#f3f4f6', color: dark ? '#94a3b8' : '#6b7280', border:`1px solid ${dark ? '#3f3f46' : '#d1d5db'}`, borderRadius:8, padding:'11px 20px', fontSize:13, fontWeight:600, cursor:'pointer' },
     filters: { display:'flex', gap:10, marginBottom:16, flexWrap:'wrap', alignItems:'center' },
-    filterIn:{ background:'#0f172a', border:'1px solid #1e293b', borderRadius:6, padding:'7px 12px', color:'#f8fafc', fontSize:12, outline:'none' },
+    filterIn:{ background: dark ? '#141414' : '#f3f4f6', border:`1px solid ${dark ? '#2c2c2e' : '#e5e7eb'}`, borderRadius:6, padding:'7px 12px', color: dark ? '#f8fafc' : '#111827', fontSize:12, outline:'none' },
     pagination:{ display:'flex', alignItems:'center', justifyContent:'flex-end', gap:6, marginTop:12, fontSize:12 },
-    pgBtn: (active) => ({ background: active ? '#E31E24' : '#1e293b', color: active ? '#fff' : '#94a3b8', border:'1px solid #334155', borderRadius:5, padding:'4px 10px', cursor:'pointer', fontWeight:600 }),
+    pgBtn: (active) => ({ background: active ? '#E31E24' : (dark ? '#2c2c2e' : '#f3f4f6'), color: active ? '#fff' : (dark ? '#94a3b8' : '#6b7280'), border:`1px solid ${dark ? '#3f3f46' : '#d1d5db'}`, borderRadius:5, padding:'4px 10px', cursor:'pointer', fontWeight:600 }),
     dot: (col) => ({ width:10, height:10, borderRadius:'50%', background:col, flexShrink:0 }),
   };
 
@@ -8146,7 +8147,7 @@ export default function App() {
       case 'receber':
         return <Financeiro clients={clients} selectedClient={selectedClient} />;
       case 'goals':
-        return <GoalManager />;
+        return <GoalManager themeMode={themeMode} />;
       case 'users':
         return <Users adminUsers={adminUsers} setAdminUsers={setAdminUsers} isAdmin={isAdmin} />;
       case 'params':
