@@ -3056,14 +3056,14 @@ const ConvCarousel = ({ data, images, themeMode }) => {
       <div style={{
         position:'absolute', inset:0, borderRadius:14, overflow:'hidden', pointerEvents:'none',
         background: dark
-          ? 'radial-gradient(ellipse 80% 60% at 50% 20%, #12203a 0%, #070e1a 100%)'
+          ? 'radial-gradient(ellipse 80% 60% at 50% 20%, #2a0a0a 0%, #0a0000 100%)'
           : 'radial-gradient(ellipse 80% 60% at 50% 20%, #e2e6f0 0%, #c8cdd8 100%)',
       }}>
         {/* Floor */}
         <div style={{
           position:'absolute', bottom:0, left:0, right:0, height:'38%',
           background: dark
-            ? 'linear-gradient(0deg, #04080f 0%, transparent 100%)'
+            ? 'linear-gradient(0deg, #100000 0%, transparent 100%)'
             : 'linear-gradient(0deg, #b8bfcc 0%, transparent 100%)',
         }}/>
         {/* Floor reflection */}
@@ -3145,15 +3145,6 @@ const ConvCarousel = ({ data, images, themeMode }) => {
                 cursor:'pointer', transformStyle:'preserve-3d',
               }}>
 
-              {/* Pulse rings — só no campeão */}
-              {isWinner && [0,1,2].map(r => (
-                <div key={r} style={{
-                  position:'absolute', inset:-4, borderRadius:22,
-                  border:'2px solid #f59e0b',
-                  animation:`cc-pulse-ring 2.2s ${r*0.68}s ease-out infinite`,
-                  pointerEvents:'none',
-                }}/>
-              ))}
 
               {/* Stars ao redor — só no campeão */}
               {isWinner && STAR_POSITIONS.map((pos, si) => (
