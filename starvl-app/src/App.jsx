@@ -2998,14 +2998,50 @@ const CONV_MEDALS  = ['🥇', '🥈', '🥉', '4°'];
 const CONV_RANKS   = ['1º LUGAR', '2º LUGAR', '3º LUGAR', '4º LUGAR'];
 const CONV_GLOW    = ['#f59e0b', '#94a3b8', '#cd7c3a', '#64748b'];
 
-const ConvCarousel = ({ data, images }) => {
-  const [active, setActive]   = useState(0);
-  const [paused, setPaused]   = useState(false);
-  const n = data.length;
+const CONV_CAROUSEL_CSS = `
+@keyframes cc-pulse-ring {
+  0%   { transform: scale(0.85); opacity: 0.9; }
+  100% { transform: scale(2.4);  opacity: 0;   }
+}
+@keyframes cc-star-float {
+  0%,100% { transform: translateY(0px)  rotate(0deg);   opacity: 1;   }
+  50%      { transform: translateY(-10px) rotate(180deg); opacity: 0.6; }
+}
+@keyframes cc-crown-bounce {
+  0%,100% { transform: translateY(0)  scale(1);    }
+  50%      { transform: translateY(-7px) scale(1.15); }
+}
+@keyframes cc-gold-shimmer {
+  0%,100% { box-shadow: 0 0 22px #f59e0b55, 0 18px 52px #f59e0b44, inset 0 0 0 1px #f59e0b55; }
+  50%      { box-shadow: 0 0 48px #f59e0bcc, 0 24px 72px #f59e0b77, inset 0 0 0 1px #f59e0b99; }
+}
+@keyframes cc-confetti {
+  0%   { transform: translateY(-10px) rotate(0deg)   scale(1);    opacity: 1;   }
+  80%  { opacity: 0.8; }
+  100% { transform: translateY(72px)  rotate(520deg) scale(0.7);  opacity: 0;   }
+}
+@keyframes cc-spotlight {
+  0%,100% { opacity: 0.55; }
+  50%      { opacity: 0.85; }
+}
+`;
+
+const CONFETTI_COLORS = ['#f59e0b','#E31E24','#22c55e','#3b82f6','#f59e0b','#ec4899','#a78bfa'];
+const STAR_POSITIONS  = [
+  { top:'14%', left:'8%'  }, { top:'6%',  left:'40%' }, { top:'14%', right:'8%'  },
+  { top:'55%', left:'4%'  }, { top:'55%', right:'4%'  }, { top:'80%', left:'28%' }, { top:'80%', right:'28%' },
+];
+
+const ConvCarousel = ({ data, images, themeMode }) => {
+  const [active, setActive] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const n          = data.length;
+  const dark       = themeMode !== 'light';
+  const isChampion = active === 0;           // 1º lugar em destaque
 
   useEffect(() => {
     if (paused) return;
-    const t = setInterval(() => setActive(p => (p + 1) % n), 3000);
+    const t = setInterval(() => setActive(p => (p + 1) % n), 3200);
     return () => clearInterval(t);
   }, [n, paused]);
 
@@ -3013,87 +3049,174 @@ const ConvCarousel = ({ data, images }) => {
   const next = () => { setPaused(true); setActive(p => (p + 1) % n); };
 
   return (
-    <div style={{ padding: '8px 0 4px', userSelect: 'none' }}>
-      {/* Stage */}
-      <div style={{ position: 'relative', height: 260, display: 'flex', alignItems: 'center', justifyContent: 'center', perspective: '900px' }}>
+    <div style={{ position:'relative', padding:'6px 0 4px', userSelect:'none' }}>
+      <style>{CONV_CAROUSEL_CSS}</style>
+
+      {/* ── Showroom background ── */}
+      <div style={{
+        position:'absolute', inset:0, borderRadius:14, overflow:'hidden', pointerEvents:'none',
+        background: dark
+          ? 'radial-gradient(ellipse 80% 60% at 50% 20%, #12203a 0%, #070e1a 100%)'
+          : 'radial-gradient(ellipse 80% 60% at 50% 20%, #e2e6f0 0%, #c8cdd8 100%)',
+      }}>
+        {/* Floor */}
+        <div style={{
+          position:'absolute', bottom:0, left:0, right:0, height:'38%',
+          background: dark
+            ? 'linear-gradient(0deg, #04080f 0%, transparent 100%)'
+            : 'linear-gradient(0deg, #b8bfcc 0%, transparent 100%)',
+        }}/>
+        {/* Floor reflection */}
+        <div style={{
+          position:'absolute', bottom:'28%', left:'15%', right:'15%', height:1,
+          background: dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.08)',
+        }}/>
+        {/* Spotlight cone */}
+        <div style={{
+          position:'absolute', top:0, left:'50%', transform:'translateX(-50%)',
+          width:0, height:0,
+          borderLeft:'80px solid transparent', borderRight:'80px solid transparent',
+          borderTop: dark ? '260px solid rgba(255,220,80,.04)' : '260px solid rgba(255,200,40,.09)',
+          animation:'cc-spotlight 3s ease-in-out infinite',
+        }}/>
+        {/* Inner spotlight glow */}
+        <div style={{
+          position:'absolute', top:'5%', left:'50%', transform:'translateX(-50%)',
+          width:'44%', height:'65%',
+          background: dark
+            ? 'radial-gradient(ellipse at top, rgba(255,210,60,.07) 0%, transparent 70%)'
+            : 'radial-gradient(ellipse at top, rgba(255,200,30,.18) 0%, transparent 70%)',
+          animation:'cc-spotlight 3s ease-in-out infinite',
+        }}/>
+      </div>
+
+      {/* ── Confetti (só quando campeão em destaque) ── */}
+      {isChampion && (
+        <div style={{ position:'absolute', inset:0, pointerEvents:'none', overflow:'hidden', zIndex:24, borderRadius:14 }}>
+          {CONFETTI_COLORS.map((c, k) => (
+            <div key={k} style={{
+              position:'absolute',
+              top:`${-8 + (k % 3) * 4}px`,
+              left:`${8 + k * 13}%`,
+              width: k % 3 === 0 ? 9 : 6,
+              height: k % 3 === 0 ? 9 : 12,
+              borderRadius: k % 2 === 0 ? '50%' : 3,
+              background: c,
+              animation:`cc-confetti ${1.6 + k * 0.28}s ${k * 0.18}s ease-in infinite`,
+            }}/>
+          ))}
+        </div>
+      )}
+
+      {/* ── Stage ── */}
+      <div style={{ position:'relative', height:265, display:'flex', alignItems:'center', justifyContent:'center', perspective:'900px', zIndex:1 }}>
 
         {/* Arrow left */}
-        <button onClick={prev} style={{ position:'absolute', left:0, zIndex:20, background:'#1e293b', border:'1px solid #334155', borderRadius:'50%', width:32, height:32, cursor:'pointer', color:'#94a3b8', fontSize:16, display:'flex', alignItems:'center', justifyContent:'center' }}>‹</button>
+        <button onClick={prev} style={{ position:'absolute', left:4, zIndex:22, background: dark ? '#1e293b' : '#e2e6f0', border:`1px solid ${dark?'#334155':'#c8cdd8'}`, borderRadius:'50%', width:32, height:32, cursor:'pointer', color: dark ? '#94a3b8' : '#6b7280', fontSize:18, display:'flex', alignItems:'center', justifyContent:'center' }}>‹</button>
 
         {data.map((item, i) => {
-          const raw    = (i - active + n) % n;
-          const offset = raw > n / 2 ? raw - n : raw; // -1, 0, 1, 2 for n=4
+          const raw      = (i - active + n) % n;
+          const offset   = raw > n / 2 ? raw - n : raw;
           const isActive = offset === 0;
           const absOff   = Math.abs(offset);
+          const isWinner = i === 0 && isActive;   // 1º lugar E em destaque
 
-          const tx      = offset * 170;
-          const scale   = isActive ? 1.18 : Math.max(0.62, 1 - absOff * 0.22);
+          const tx      = offset * 172;
+          const scale   = isActive ? 1.2 : Math.max(0.60, 1 - absOff * 0.22);
           const rotY    = offset * -42;
-          const opacity = absOff > 1 ? 0.4 : 1;
+          const opacity = absOff > 1 ? 0.35 : 1;
           const zIdx    = n - absOff;
           const glow    = CONV_GLOW[i] || '#64748b';
 
+          // Card background
+          const cardBg = isWinner
+            ? (dark ? 'linear-gradient(155deg,#1c1a08,#0f0c00)' : 'linear-gradient(155deg,#fffaec,#fff8dc)')
+            : isActive
+              ? (dark ? 'linear-gradient(155deg,#1a2235,#0d1525)' : 'linear-gradient(155deg,#f0f2f8,#e4e8f2)')
+              : (dark ? '#0d1420' : '#dde0ea');
+
           return (
-            <div
-              key={i}
-              onClick={() => { setActive(i); setPaused(true); }}
+            <div key={i} onClick={() => { setActive(i); setPaused(true); }}
               style={{
-                position: 'absolute',
-                transform: `translateX(${tx}px) scale(${scale}) rotateY(${rotY}deg)`,
-                zIndex: zIdx,
-                opacity,
-                transition: 'all 0.55s cubic-bezier(.4,0,.2,1)',
-                cursor: 'pointer',
-                transformStyle: 'preserve-3d',
-              }}
-            >
-              <div style={{
-                width: 155,
-                background: isActive ? 'linear-gradient(155deg,#1e293b,#0f172a)' : '#111827',
-                border: isActive ? `2px solid ${glow}` : '1px solid #1e293b',
-                borderRadius: 18,
-                padding: '18px 14px 14px',
-                textAlign: 'center',
-                boxShadow: isActive ? `0 16px 48px ${glow}55` : '0 4px 16px rgba(0,0,0,.5)',
-                transition: 'box-shadow .55s',
+                position:'absolute',
+                transform:`translateX(${tx}px) scale(${scale}) rotateY(${rotY}deg)`,
+                zIndex: zIdx, opacity,
+                transition:'all 0.55s cubic-bezier(.4,0,.2,1)',
+                cursor:'pointer', transformStyle:'preserve-3d',
               }}>
-                {/* Medal */}
-                <div style={{ fontSize: 30, lineHeight: 1, marginBottom: 8 }}>{CONV_MEDALS[i]}</div>
+
+              {/* Pulse rings — só no campeão */}
+              {isWinner && [0,1,2].map(r => (
+                <div key={r} style={{
+                  position:'absolute', inset:-4, borderRadius:22,
+                  border:'2px solid #f59e0b',
+                  animation:`cc-pulse-ring 2.2s ${r*0.68}s ease-out infinite`,
+                  pointerEvents:'none',
+                }}/>
+              ))}
+
+              {/* Stars ao redor — só no campeão */}
+              {isWinner && STAR_POSITIONS.map((pos, si) => (
+                <div key={si} style={{
+                  position:'absolute', ...pos, fontSize:13, pointerEvents:'none', zIndex:5,
+                  animation:`cc-star-float ${1.4+si*0.25}s ${si*0.15}s ease-in-out infinite`,
+                }}>
+                  {si % 2 === 0 ? '✨' : '⭐'}
+                </div>
+              ))}
+
+              {/* Card */}
+              <div style={{
+                width:158, background: cardBg,
+                border: isWinner ? '2px solid #f59e0b' : isActive ? `2px solid ${glow}` : `1px solid ${dark?'#1a2235':'#c8cdd8'}`,
+                borderRadius:18, padding:'14px 14px 12px', textAlign:'center',
+                animation: isWinner ? 'cc-gold-shimmer 2.2s ease-in-out infinite' : 'none',
+                transition:'background .55s, border .55s',
+                position:'relative', overflow:'visible',
+              }}>
+
+                {/* Crown — só no campeão */}
+                {isWinner
+                  ? <div style={{ fontSize:26, lineHeight:1, marginBottom:4, animation:'cc-crown-bounce 1.6s ease-in-out infinite' }}>👑</div>
+                  : <div style={{ fontSize:26, lineHeight:1, marginBottom:4 }}>{CONV_MEDALS[i]}</div>
+                }
 
                 {/* Photo */}
                 <div style={{
-                  width: 78, height: 78, borderRadius: '50%',
-                  margin: '0 auto 10px', overflow: 'hidden',
-                  border: isActive ? `3px solid ${glow}` : '2px solid #1e293b',
-                  background: '#1e293b',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  boxShadow: isActive ? `0 0 18px ${glow}66` : 'none',
-                  transition: 'box-shadow .55s',
+                  width:80, height:80, borderRadius:'50%', margin:'0 auto 10px',
+                  overflow:'hidden', position:'relative',
+                  border: isWinner ? '3px solid #f59e0b' : isActive ? `3px solid ${glow}` : `2px solid ${dark?'#1a2235':'#c8cdd8'}`,
+                  background: dark ? '#1e293b' : '#dde0ea',
+                  display:'flex', alignItems:'center', justifyContent:'center',
+                  boxShadow: isWinner ? '0 0 28px #f59e0baa' : isActive ? `0 0 18px ${glow}66` : 'none',
+                  transition:'box-shadow .55s',
                 }}>
                   {images[item.id]
                     ? <img src={images[item.id]} alt={item.name} style={{ width:'100%', height:'100%', objectFit:'cover' }}/>
-                    : <span style={{ fontSize: 36 }}>{item.emoji}</span>
+                    : <span style={{ fontSize:36 }}>{item.emoji}</span>
                   }
                 </div>
 
                 {/* Name */}
-                <div style={{ color: '#f1f5f9', fontSize: 12, fontWeight: 700, marginBottom: 5, lineHeight: 1.3 }}>{item.name}</div>
+                <div style={{ color: dark ? '#f1f5f9' : '#1e293b', fontSize:12, fontWeight:700, marginBottom:5, lineHeight:1.3 }}>{item.name}</div>
 
                 {/* Qty */}
-                <div style={{ color: isActive ? glow : '#64748b', fontSize: 17, fontWeight: 900, transition: 'color .3s' }}>
-                  {Number(item.qty).toLocaleString('pt-BR')} <span style={{ fontSize: 11, fontWeight: 600 }}>un.</span>
+                <div style={{
+                  color: isWinner ? '#f59e0b' : isActive ? glow : (dark ? '#64748b' : '#94a3b8'),
+                  fontSize:17, fontWeight:900, transition:'color .3s',
+                  textShadow: isWinner ? '0 0 12px #f59e0b88' : 'none',
+                }}>
+                  {Number(item.qty).toLocaleString('pt-BR')} <span style={{ fontSize:11, fontWeight:600 }}>un.</span>
                 </div>
 
-                {/* Rank badge — só no active */}
-                <div style={{
-                  marginTop: 8, height: 22,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}>
+                {/* Rank badge */}
+                <div style={{ marginTop:8, height:22, display:'flex', alignItems:'center', justifyContent:'center' }}>
                   {isActive && (
                     <span style={{
-                      background: glow, color: '#fff',
-                      borderRadius: 20, padding: '2px 14px',
-                      fontSize: 10, fontWeight: 800, letterSpacing: 1,
+                      background: isWinner ? 'linear-gradient(90deg,#d97706,#f59e0b,#fbbf24)' : glow,
+                      color:'#fff', borderRadius:20, padding:'2px 14px',
+                      fontSize:10, fontWeight:800, letterSpacing:1,
+                      boxShadow: isWinner ? '0 2px 12px #f59e0b88' : 'none',
                     }}>
                       {CONV_RANKS[i]}
                     </span>
@@ -3105,17 +3228,17 @@ const ConvCarousel = ({ data, images }) => {
         })}
 
         {/* Arrow right */}
-        <button onClick={next} style={{ position:'absolute', right:0, zIndex:20, background:'#1e293b', border:'1px solid #334155', borderRadius:'50%', width:32, height:32, cursor:'pointer', color:'#94a3b8', fontSize:16, display:'flex', alignItems:'center', justifyContent:'center' }}>›</button>
+        <button onClick={next} style={{ position:'absolute', right:4, zIndex:22, background: dark ? '#1e293b' : '#e2e6f0', border:`1px solid ${dark?'#334155':'#c8cdd8'}`, borderRadius:'50%', width:32, height:32, cursor:'pointer', color: dark ? '#94a3b8' : '#6b7280', fontSize:18, display:'flex', alignItems:'center', justifyContent:'center' }}>›</button>
       </div>
 
       {/* Dot indicators */}
-      <div style={{ display:'flex', justifyContent:'center', gap:6, marginTop:10 }}>
+      <div style={{ display:'flex', justifyContent:'center', gap:6, marginTop:8, position:'relative', zIndex:2 }}>
         {data.map((_, i) => (
           <button key={i} onClick={() => { setActive(i); setPaused(true); }} style={{
-            width: active === i ? 22 : 7, height: 7, borderRadius: 4,
-            background: active === i ? (CONV_GLOW[active] || '#E31E24') : '#334155',
-            border: 'none', cursor: 'pointer', padding: 0,
-            transition: 'all .35s ease',
+            width: active===i ? 22 : 7, height:7, borderRadius:4,
+            background: active===i ? (CONV_GLOW[active]||'#E31E24') : (dark?'#334155':'#c8cdd8'),
+            border:'none', cursor:'pointer', padding:0,
+            transition:'all .35s ease',
           }}/>
         ))}
       </div>
@@ -3312,7 +3435,7 @@ const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcContr
             </BarChart>
           </ResponsiveContainer>
         ) : (
-          <ConvCarousel data={salesConvChartData} images={convProductImages} />
+          <ConvCarousel data={salesConvChartData} images={convProductImages} themeMode={themeMode} />
         )}
       </div>
     ),
