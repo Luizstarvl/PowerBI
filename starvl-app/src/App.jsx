@@ -1077,6 +1077,190 @@ const VendasPista = ({ clients, selectedClient, selectedPeriod, themeMode }) => 
 };
 // ── fim VendasPista ────────────────────────────────────────────────────────────
 
+// ── MetasRealizadoChart ──────────────────────────────────────────────────────
+const _METAS_DAILY_L = [
+  4500,3600,2200,4100,4400,4000,4200,  // semana 1
+  4600,3800,2400,4000,4300,4100,4400,  // semana 2
+  4700,3900,2300,4100,4400,4200,4500,  // semana 3
+  4600,3700,2100,4200,4500,3900,       // semana 4 parcial (27 dias)
+];
+const _METAS_PRICE = 5.0; // R$/L (mock)
+
+const MR_CSS = `
+@keyframes mr-fade-up { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
+@keyframes mr-count-bar { from{width:0} to{width:var(--tw)} }
+@keyframes mr-pulse { 0%,100%{opacity:1} 50%{opacity:.55} }
+`;
+
+const MetasRealizadoChart = ({ themeMode = 'dark' }) => {
+  const [metrica, setMetrica]   = useState('litros');
+  const [periodo, setPeriodo]   = useState('mensal');
+  const [animKey, setAnimKey]   = useState(0);
+  const dark = themeMode !== 'light';
+
+  useEffect(() => { setAnimKey(k => k + 1); }, [metrica, periodo]);
+
+  const cfg = useMemo(() => {
+    const mensal    = periodo === 'mensal';
+    const totalDias = mensal ? 31 : 7;
+    const raw       = mensal ? _METAS_DAILY_L : _METAS_DAILY_L.slice(-7);
+    const metaL     = mensal ? 150000 : 35000;
+    const meta      = metrica === 'litros' ? metaL : metaL * _METAS_PRICE;
+    const semLabels = ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'];
+
+    let acc = 0;
+    const data = raw.map((l, i) => {
+      const v = metrica === 'litros' ? l : Math.round(l * _METAS_PRICE);
+      acc += v;
+      return {
+        label   : mensal ? String(i + 1) : semLabels[i],
+        realizado: Math.round(acc),
+        ritmo   : Math.round(meta * (i + 1) / totalDias),
+      };
+    });
+
+    const realizado   = Math.round(acc);
+    const pct         = Math.min(100, (realizado / meta) * 100);
+    const faltante    = Math.max(0, meta - realizado);
+    const diasRest    = totalDias - raw.length;
+    const cor         = pct >= 90 ? '#22c55e' : pct >= 70 ? '#f59e0b' : '#ef4444';
+    const corBg       = pct >= 90 ? (dark ? '#14532d' : '#dcfce7') : pct >= 70 ? (dark ? '#78350f' : '#fef3c7') : (dark ? '#7f1d1d' : '#fee2e2');
+    const corText     = pct >= 90 ? '#22c55e' : pct >= 70 ? '#f59e0b' : '#ef4444';
+    const status      = pct >= 90 ? 'No alvo ✓' : pct >= 70 ? 'Atenção' : 'Abaixo da meta';
+    return { data, meta, realizado, pct, faltante, diasRest, totalDias, cor, corBg, corText, status };
+  }, [metrica, periodo, dark]);
+
+  const fmtV = v => metrica === 'litros'
+    ? v.toLocaleString('pt-BR', { maximumFractionDigits: 0 }) + ' L'
+    : v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
+
+  const c = {
+    card  : { background: dark ? '#1c1c1e' : '#ffffff', border: `1px solid ${dark ? '#2c2c2e' : '#e5e7eb'}`, borderRadius: 14, padding: '20px 22px', boxShadow: dark ? 'none' : '0 2px 8px rgba(0,0,0,.06)' },
+    title : { margin: 0, fontSize: 12, fontWeight: 700, color: dark ? '#94a3b8' : '#6b7280', letterSpacing: 1, textTransform: 'uppercase' },
+    sub   : { fontSize: 11, color: dark ? '#475569' : '#9ca3af', marginTop: 2 },
+    tog   : (active) => ({ background: active ? '#E31E24' : (dark ? '#2c2c2e' : '#f3f4f6'), color: active ? '#fff' : (dark ? '#64748b' : '#6b7280'), border: 'none', borderRadius: 6, padding: '5px 13px', fontSize: 11, fontWeight: 700, cursor: 'pointer', transition: 'all .15s' }),
+    kpiBox: (accent) => ({ flex: 1, background: dark ? '#141414' : '#f9fafb', border: `1px solid ${accent}33`, borderRadius: 10, padding: '14px 16px' }),
+    kpiL  : { fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: dark ? '#6b7280' : '#9ca3af', marginBottom: 4 },
+    kpiV  : (col) => ({ fontSize: 22, fontWeight: 900, color: col || (dark ? '#f1f5f9' : '#111827'), lineHeight: 1.1 }),
+    axis  : { fill: dark ? '#64748b' : '#9ca3af', fontSize: 10 },
+    grid  : dark ? '#1e293b' : '#f1f5f9',
+  };
+
+  const gradId = `mr-grad-${animKey}`;
+
+  return (
+    <div style={c.card} key={animKey}>
+      <style>{MR_CSS}</style>
+
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 18, flexWrap: 'wrap', gap: 10 }}>
+        <div style={{ animation: 'mr-fade-up .35s ease-out both' }}>
+          <h3 style={c.title}>Acompanhamento de Metas vs. Realizado</h3>
+          <div style={c.sub}>Maio 2026 · Acumulado diário</div>
+        </div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', animation: 'mr-fade-up .35s .05s ease-out both' }}>
+          <div style={{ display: 'flex', gap: 3, background: dark ? '#141414' : '#f3f4f6', borderRadius: 7, padding: 3 }}>
+            <button style={c.tog(metrica === 'litros')}  onClick={() => setMetrica('litros')}>Volume (L)</button>
+            <button style={c.tog(metrica === 'reais')}   onClick={() => setMetrica('reais')}>Faturamento (R$)</button>
+          </div>
+          <div style={{ display: 'flex', gap: 3, background: dark ? '#141414' : '#f3f4f6', borderRadius: 7, padding: 3 }}>
+            <button style={c.tog(periodo === 'mensal')}  onClick={() => setPeriodo('mensal')}>Mensal</button>
+            <button style={c.tog(periodo === 'semanal')} onClick={() => setPeriodo('semanal')}>Semanal</button>
+          </div>
+        </div>
+      </div>
+
+      {/* Big % indicator + KPIs */}
+      <div style={{ display: 'flex', gap: 12, marginBottom: 18, flexWrap: 'wrap', animation: 'mr-fade-up .4s .08s ease-out both' }}>
+        {/* % Badge */}
+        <div style={{ background: cfg.corBg, borderRadius: 12, padding: '16px 24px', minWidth: 160, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
+          <div style={{ fontSize: 44, fontWeight: 900, color: cfg.corText, lineHeight: 1, animation: cfg.pct < 70 ? 'mr-pulse 2s infinite' : 'none' }}>
+            {cfg.pct.toFixed(1)}%
+          </div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: cfg.corText, marginTop: 4, opacity: .85 }}>{cfg.status}</div>
+          <div style={{ fontSize: 10, color: cfg.corText, opacity: .65, marginTop: 2 }}>da meta atingida</div>
+        </div>
+
+        {/* Progress bar visual */}
+        <div style={{ flex: 1, background: dark ? '#141414' : '#f9fafb', borderRadius: 12, padding: '16px 20px', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 8, minWidth: 220 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, fontWeight: 700, color: dark ? '#94a3b8' : '#6b7280' }}>
+            <span style={{ color: cfg.cor }}>Realizado: {fmtV(cfg.realizado)}</span>
+            <span>Meta: {fmtV(cfg.meta)}</span>
+          </div>
+          <div style={{ height: 20, background: dark ? '#2c2c2e' : '#e5e7eb', borderRadius: 10, overflow: 'hidden', position: 'relative' }}>
+            <div style={{ position: 'absolute', inset: 0, width: `${cfg.pct}%`, background: `linear-gradient(90deg, ${cfg.cor}cc, ${cfg.cor})`, borderRadius: 10, transition: 'width 1.2s cubic-bezier(.4,0,.2,1)' }}/>
+            {cfg.pct < 100 && (
+              <div style={{ position: 'absolute', top: '50%', transform: 'translateY(-50%)', left: `${cfg.pct + 1}%`, fontSize: 9, color: dark ? '#64748b' : '#9ca3af', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                falta {fmtV(cfg.faltante)}
+              </div>
+            )}
+          </div>
+          <div style={{ fontSize: 10, color: dark ? '#475569' : '#9ca3af' }}>
+            Pace ideal hoje: {fmtV(cfg.data[cfg.data.length - 1]?.ritmo || 0)} · {cfg.diasRest > 0 ? `${cfg.diasRest} dias restantes` : 'Período encerrado'}
+          </div>
+        </div>
+
+        {/* KPI cards */}
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          {[
+            { l: 'Realizado', v: fmtV(cfg.realizado), col: cfg.cor },
+            { l: 'Meta',      v: fmtV(cfg.meta),      col: dark ? '#94a3b8' : '#6b7280' },
+            { l: 'Faltante',  v: fmtV(cfg.faltante),  col: cfg.faltante > 0 ? '#ef4444' : '#22c55e' },
+            { l: 'Dias Rest.',v: cfg.diasRest > 0 ? `${cfg.diasRest} dias` : '—', col: dark ? '#94a3b8' : '#6b7280' },
+          ].map(({ l, v, col }, i) => (
+            <div key={l} style={{ ...c.kpiBox(col), animation: `mr-fade-up .4s ${.12 + i * .06}s ease-out both` }}>
+              <div style={c.kpiL}>{l}</div>
+              <div style={c.kpiV(col)}>{v}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Chart */}
+      <div style={{ animation: 'mr-fade-up .5s .2s ease-out both' }}>
+        <div style={{ display: 'flex', gap: 16, marginBottom: 8, alignItems: 'center' }}>
+          {[['Realizado', cfg.cor, 'solid'], ['Ritmo ideal', dark ? '#64748b' : '#94a3b8', 'dashed'], ['Meta', '#ef4444', 'dashed']].map(([l, c2, d]) => (
+            <span key={l} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: dark ? '#64748b' : '#9ca3af' }}>
+              <span style={{ width: 18, borderTop: `2px ${d} ${c2}`, display: 'inline-block' }}/>
+              {l}
+            </span>
+          ))}
+        </div>
+        <ResponsiveContainer key={`mr-${animKey}`} width="100%" height={220}>
+          <ComposedChart data={cfg.data} margin={{ top: 16, right: 16, left: 0, bottom: 0 }}>
+            <defs>
+              <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%"  stopColor={cfg.cor} stopOpacity={0.35}/>
+                <stop offset="95%" stopColor={cfg.cor} stopOpacity={0.02}/>
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke={c.grid} vertical={false}/>
+            <XAxis dataKey="label" tick={c.axis} stroke="none" interval={periodo === 'mensal' ? 4 : 0}/>
+            <YAxis tick={c.axis} stroke="none" width={52}
+              tickFormatter={v => metrica === 'litros'
+                ? v >= 1000 ? (v/1000).toFixed(0)+'k' : v
+                : v >= 1000 ? 'R$'+(v/1000).toFixed(0)+'k' : 'R$'+v}/>
+            <Tooltip
+              contentStyle={{ background: dark ? '#0f172a' : '#fff', border: `1px solid ${dark ? '#334155' : '#e5e7eb'}`, borderRadius: 8, fontSize: 11 }}
+              labelStyle={{ color: dark ? '#f8fafc' : '#111827', fontWeight: 700 }}
+              formatter={(v, name) => [fmtV(v), name === 'realizado' ? 'Realizado' : name === 'ritmo' ? 'Ritmo ideal' : name]}
+            />
+            <ReferenceLine y={cfg.meta} stroke="#ef4444" strokeDasharray="6 3" strokeWidth={1.5}
+              label={{ value: 'META', position: 'insideTopRight', fill: '#ef4444', fontSize: 10, fontWeight: 700 }}/>
+            <Area dataKey="realizado" name="realizado" type="monotone"
+              stroke={cfg.cor} strokeWidth={2.5} fill={`url(#${gradId})`}
+              isAnimationActive animationDuration={1400} animationEasing="ease-out" dot={false} activeDot={{ r: 4, fill: cfg.cor }}/>
+            <Line dataKey="ritmo" name="ritmo" type="monotone"
+              stroke={dark ? '#64748b' : '#94a3b8'} strokeWidth={1.5} strokeDasharray="5 3"
+              dot={false} isAnimationActive animationDuration={1000} animationBegin={200}/>
+          </ComposedChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+};
+// ── fim MetasRealizadoChart ──────────────────────────────────────────────────
+
 // ── ProjecaoVendas — CSS de animações ───────────────────────────────────────
 const PV_ANIM_CSS = `
 @keyframes pv-fade-up {
@@ -4156,6 +4340,9 @@ const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcContr
         </div>
         <div className="dashboard-static-full">
           <VendasPista clients={clients} selectedClient={selectedClient} selectedPeriod={selectedPeriod} themeMode={themeMode} />
+        </div>
+        <div className="dashboard-static-full">
+          <MetasRealizadoChart themeMode={themeMode} />
         </div>
         <div className="dashboard-static-full">{dashboardSections.productMatrix}</div>
       </div>
