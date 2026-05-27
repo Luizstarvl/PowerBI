@@ -4339,10 +4339,10 @@ const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcContr
           <ProjecaoVendas />
         </div>
         <div className="dashboard-static-full">
-          <VendasPista clients={clients} selectedClient={selectedClient} selectedPeriod={selectedPeriod} themeMode={themeMode} />
+          <MetasRealizadoChart themeMode={themeMode} />
         </div>
         <div className="dashboard-static-full">
-          <MetasRealizadoChart themeMode={themeMode} />
+          <VendasPista clients={clients} selectedClient={selectedClient} selectedPeriod={selectedPeriod} themeMode={themeMode} />
         </div>
         <div className="dashboard-static-full">{dashboardSections.productMatrix}</div>
       </div>
