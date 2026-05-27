@@ -5225,7 +5225,7 @@ const Control = ({ lmcRegistros, lmcDiario, lmcControle, selectedPeriod, setSele
   return (
     <div className="page-content">
       <div className="page-header">
-        <h2>LIVRO DE MOVIMENTAÇÃO</h2>
+        <h2>MOVIMENTAÇÃO DE COMBUSTÍVEIS</h2>
         <div className="header-actions">
           <div className="control-filter-group">
             <label className="control-filter-label">ANO</label>
@@ -5514,6 +5514,47 @@ const ControlPrintPanel = ({ fuels, filters, setFilters, onClose, onGenerate }) 
           </button>
         </div>
       </div>
+    </div>
+  );
+};
+
+// ─── LivrosManager — seções dentro da aba Livros ────────────────────────────
+const LivrosManager = ({ lmcRegistros, lmcDiario, lmcControle, selectedPeriod, setSelectedPeriod, selectedClient, clients }) => {
+  const [section, setSection] = useState('movimentacao');
+
+  const sections = [
+    { id: 'movimentacao', label: '⛽ Movimentação de Combustíveis' },
+  ];
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
+      {/* Barra de seções */}
+      <div className="estoque-tab-bar">
+        <div className="vp-toggle-group">
+          {sections.map(s => (
+            <button
+              key={s.id}
+              type="button"
+              className={`vp-period-btn vp-secao-btn${section === s.id ? ' active' : ''}`}
+              onClick={() => setSection(s.id)}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {section === 'movimentacao' && (
+        <Control
+          lmcRegistros={lmcRegistros}
+          lmcDiario={lmcDiario}
+          lmcControle={lmcControle}
+          selectedPeriod={selectedPeriod}
+          setSelectedPeriod={setSelectedPeriod}
+          selectedClient={selectedClient}
+          clients={clients}
+        />
+      )}
     </div>
   );
 };
@@ -8141,7 +8182,7 @@ export default function App() {
       case 'reports':
         return <Reports selectedClient={selectedClient} selectedPeriod={reportsPeriod} setSelectedPeriod={setReportsPeriod} clients={clients} />;
       case 'control':
-        return <Control lmcRegistros={apiData.lmcRegistros} lmcDiario={apiData.lmcDiario} lmcControle={apiData.lmcControle} selectedPeriod={controlPeriod} setSelectedPeriod={setControlPeriod} selectedClient={selectedClient} clients={clients} />;
+        return <LivrosManager lmcRegistros={apiData.lmcRegistros} lmcDiario={apiData.lmcDiario} lmcControle={apiData.lmcControle} selectedPeriod={controlPeriod} setSelectedPeriod={setControlPeriod} selectedClient={selectedClient} clients={clients} />;
       case 'stock':
         return <EstoqueManager estoques={apiData.estoques} projecao={apiData.projecao} loading={apiData.loading} selectedClient={selectedClient} clients={clients} themeMode={themeMode} />;
       case 'receber':
