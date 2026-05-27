@@ -6,6 +6,7 @@ import { LineChart, Line, BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tool
 import { Home, FileText, Users as UsersIcon, BookOpen, Package, LogOut, Eye, Search, Plus, Edit2, Trash2, X, Calendar, TrendingUp, Droplet, DollarSign, Calculator, Bell, ChevronDown, Activity, Settings, Building2, Phone, Mail, MapPin, Hash, Clock, BarChart2, Layers, CircleDollarSign, UserCheck, UserPlus, AlertCircle, Globe, Camera, Building, Tag, RefreshCw, Database, ChevronRight, ChevronLeft, Filter, Printer, Moon, Sun, Trophy, Lock, Unlock, Wallet, Download, CreditCard, AlertTriangle, Save, PiggyBank } from 'lucide-react';
 import './App.css';
 import './cr-styles.css';
+import './cp-styles.css';
 import './pm-styles.css';
 
 // Mock data
@@ -1505,6 +1506,135 @@ function crMockAnaliticos(contas) {
 const CR_STATUS_LABEL = { a_vencer:'A Vencer', vence_hoje:'Vence Hoje', atrasado:'Atrasado', recebido:'Recebido' };
 const CR_STATUS_CLS   = { a_vencer:'cr-badge-vencer', vence_hoje:'cr-badge-hoje', atrasado:'cr-badge-atraso', recebido:'cr-badge-recebido' };
 
+// ── ContasPagar mock data ──────────────────────────────────────────────────────
+const CP_FORNECEDORES = [
+  { codigo:  1, nome:'Distribuidora ABC Combustíveis', cnpj:'11.222.333/0001-44' },
+  { codigo:  2, nome:'Raízen Combustíveis S.A.',        cnpj:'22.333.444/0001-55' },
+  { codigo:  3, nome:'Ipiranga Produtos de Petróleo',   cnpj:'33.444.555/0001-66' },
+  { codigo:  4, nome:'Shell Brasil LTDA',               cnpj:'44.555.666/0001-77' },
+  { codigo:  5, nome:'Vibra Energia S.A.',              cnpj:'55.666.777/0001-88' },
+  { codigo:  6, nome:'Ale Combustíveis S.A.',           cnpj:'66.777.888/0001-99' },
+  { codigo:  7, nome:'Eletrobras Comercializadora',     cnpj:'77.888.999/0001-00' },
+  { codigo:  8, nome:'Comgas Distribuidora',            cnpj:'88.999.000/0001-11' },
+  { codigo:  9, nome:'White Martins Gases',             cnpj:'99.000.111/0001-22' },
+  { codigo: 10, nome:'Lubricantes Brasil LTDA',         cnpj:'00.111.222/0001-33' },
+  { codigo: 11, nome:'Petrobras Distribuidora',         cnpj:'11.222.333/0002-25' },
+  { codigo: 12, nome:'Ultrapar Participações',          cnpj:'22.333.444/0002-36' },
+  { codigo: 13, nome:'Copersucar S.A.',                 cnpj:'33.444.555/0002-47' },
+  { codigo: 14, nome:'Supergasbras Energia',            cnpj:'44.555.666/0002-58' },
+  { codigo: 15, nome:'Tegma Gestão Logística',          cnpj:'55.666.777/0002-69' },
+];
+
+function cpMockContas() {
+  const ref = new Date(2026, 4, 27);
+  const contas = [];
+  const dist = [
+    ...Array(18).fill('atrasado'),
+    ...Array( 6).fill('vence_hoje'),
+    ...Array(48).fill('a_vencer'),
+    ...Array(48).fill('pago'),
+  ];
+  for (let i = 0; i < 120; i++) {
+    const forn = CP_FORNECEDORES[i % CP_FORNECEDORES.length];
+    const st   = dist[i % dist.length];
+    const seed = (i * 11 + 7) % 100;
+
+    let vencDays;
+    if (st === 'atrasado')   vencDays = -(1 + (seed % 60));
+    else if (st === 'vence_hoje') vencDays = 0;
+    else if (st === 'a_vencer')   vencDays = 1 + (seed % 90);
+    else                          vencDays = -(1 + (seed % 45));
+
+    const venc = new Date(ref);
+    venc.setDate(venc.getDate() + vencDays);
+    const vencStr = venc.toISOString().split('T')[0];
+
+    const valor    = 8000 + (seed * 1237 % 120000);
+    const juros    = st === 'atrasado' ? Math.round(valor * 0.025 * (Math.abs(vencDays) / 30) * 100) / 100 : 0;
+    const desconto = st === 'pago' && seed > 65 ? Math.round(valor * 0.02 * 100) / 100 : 0;
+
+    contas.push({
+      id:            2000 + i + 1,
+      fornecedor:    forn.nome,
+      cnpj:          forn.cnpj,
+      documento:     `NF ${String(5000 + i + 1).padStart(6, '0')}`,
+      vencimento:    vencStr,
+      valor,
+      juros,
+      desconto,
+      valorAPagar:   valor + juros - desconto,
+      status:        st,
+      diasAtraso:    st === 'atrasado' ? Math.abs(vencDays) : 0,
+      dataPagamento: st === 'pago' ? vencStr : null,
+    });
+  }
+  return contas.sort((a, b) => {
+    const ord = { atrasado:0, vence_hoje:1, a_vencer:2, pago:3 };
+    return (ord[a.status] - ord[b.status]) || a.vencimento.localeCompare(b.vencimento);
+  });
+}
+
+const CP_ALL_MOCK = cpMockContas();
+
+function cpMockResumo(contas) {
+  const today = '2026-05-27';
+  let totalAPagar = 0, aPagarHoje = 0, emAtraso = 0, pagosMes = 0;
+  contas.forEach(c => {
+    if (c.status !== 'pago') {
+      totalAPagar += c.valorAPagar;
+      if (c.status === 'vence_hoje') aPagarHoje += c.valorAPagar;
+      if (c.status === 'atrasado')   emAtraso   += c.valorAPagar;
+    } else {
+      if (c.vencimento >= '2026-05-01' && c.vencimento <= today) pagosMes += c.valor;
+    }
+  });
+  return {
+    totalAPagar, aPagarHoje, emAtraso,
+    pagosMes,
+    pctAtraso: totalAPagar > 0 ? (emAtraso / totalAPagar) * 100 : 0,
+  };
+}
+
+function cpMockAnaliticos(contas) {
+  let aVencer = 0, venceHoje = 0, atrasado = 0, pago = 0;
+  let f1 = 0, f2 = 0, f3 = 0, f4 = 0;
+  const divPorForn = {};
+  contas.forEach(c => {
+    if (c.status === 'a_vencer')   aVencer   += c.valorAPagar;
+    if (c.status === 'vence_hoje') venceHoje += c.valorAPagar;
+    if (c.status === 'atrasado')   atrasado  += c.valorAPagar;
+    if (c.status === 'pago')       pago      += c.valor;
+    if (c.status === 'atrasado') {
+      const d = c.diasAtraso;
+      if (d <= 15)      f1 += c.valor;
+      else if (d <= 30) f2 += c.valor;
+      else if (d <= 60) f3 += c.valor;
+      else              f4 += c.valor;
+    }
+    if (c.status !== 'pago') {
+      divPorForn[c.fornecedor] = (divPorForn[c.fornecedor] || 0) + c.valorAPagar;
+    }
+  });
+  const totalAberto = aVencer + venceHoje + atrasado;
+  const top5 = Object.entries(divPorForn).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([fornecedor,divida])=>({fornecedor,divida}));
+  const abertos = contas.filter(c => c.status !== 'pago');
+  const ticketMedio = abertos.length ? abertos.reduce((s,c)=>s+c.valor,0)/abertos.length : 0;
+  return {
+    porStatus: { aVencer, venceHoje, atrasado, pago },
+    faixaAtraso: { f1, f2, f3, f4, total: f1+f2+f3+f4 },
+    top5,
+    indices: {
+      ticketMedio,
+      prazoMedio: 28,
+      pctAtraso: totalAberto > 0 ? (atrasado / totalAberto) * 100 : 0,
+      pagoAntecip: 3.2,
+    },
+  };
+}
+
+const CP_STATUS_LABEL = { a_vencer:'A Vencer', vence_hoje:'Vence Hoje', atrasado:'Atrasado', pago:'Pago' };
+const CP_STATUS_CLS   = { a_vencer:'cp-badge-vencer', vence_hoje:'cp-badge-hoje', atrasado:'cp-badge-atraso', pago:'cp-badge-pago' };
+
 const ContasReceber = ({ clients, selectedClient }) => {
   const [resumo,      setResumo]     = useState(null);
   const [contas,      setContas]     = useState([]);
@@ -1897,6 +2027,420 @@ const ContasReceber = ({ clients, selectedClient }) => {
   );
 };
 // ── fim ContasReceber ─────────────────────────────────────────────────────────
+
+// ── ContasPagar ───────────────────────────────────────────────────────────────
+const ContasPagar = ({ clients, selectedClient }) => {
+  const [resumo,       setResumo]      = useState(null);
+  const [contas,       setContas]      = useState([]);
+  const [pagination,   setPagination]  = useState({ page:1, totalPages:1, total:0, limit:10 });
+  const [analiticos,   setAnaliticos]  = useState(null);
+  const [search,       setSearch]      = useState('');
+  const [statusFiltro, setStatusFiltro]= useState('todos');
+  const [dataInicio,   setDataInicio]  = useState('');
+  const [dataFim,      setDataFim]     = useState('');
+  const [page,         setPage]        = useState(1);
+  const [loading,      setLoading]     = useState(false);
+  const [usingMock,    setUsingMock]   = useState(false);
+  const [viewConta,    setViewConta]   = useState(null);
+
+  const empresa = useMemo(() => {
+    const c = (clients||[]).find(cl=>cl.nome===selectedClient)||(clients||[])[0];
+    return c?.codigoEmpresa||null;
+  }, [clients, selectedClient]);
+
+  // Busca resumo + analíticos
+  useEffect(() => {
+    if (!empresa) {
+      const mock = CP_ALL_MOCK;
+      setResumo(cpMockResumo(mock));
+      setAnaliticos(cpMockAnaliticos(mock));
+      setUsingMock(true);
+      return;
+    }
+    Promise.all([
+      fetch(`${API_URL}/api/pagar/resumo?empresa=${empresa}`).then(r=>r.json()),
+      fetch(`${API_URL}/api/pagar/analiticos?empresa=${empresa}`).then(r=>r.json()),
+    ]).then(([res, ana]) => {
+      if (res.error) throw new Error(res.error);
+      setResumo(res);
+      setAnaliticos(ana);
+      setUsingMock(false);
+    }).catch(() => {
+      const mock = CP_ALL_MOCK;
+      setResumo(cpMockResumo(mock));
+      setAnaliticos(cpMockAnaliticos(mock));
+      setUsingMock(true);
+    });
+  }, [empresa]);
+
+  // Busca tabela paginada
+  useEffect(() => {
+    if (usingMock || !empresa) {
+      let filtered = CP_ALL_MOCK;
+      if (search)       filtered = filtered.filter(c => c.fornecedor.toLowerCase().includes(search.toLowerCase()) || c.documento.toLowerCase().includes(search.toLowerCase()) || c.cnpj.includes(search));
+      if (statusFiltro !== 'todos') filtered = filtered.filter(c => c.status === statusFiltro);
+      if (dataInicio)   filtered = filtered.filter(c => c.vencimento >= dataInicio);
+      if (dataFim)      filtered = filtered.filter(c => c.vencimento <= dataFim);
+      const limit = 10;
+      const total = filtered.length;
+      const totalPages = Math.max(1, Math.ceil(total / limit));
+      const slice = filtered.slice((page-1)*limit, page*limit);
+      setContas(slice);
+      setPagination({ page, totalPages, total, limit });
+      return;
+    }
+    setLoading(true);
+    const qs = new URLSearchParams({ empresa, page, limit:10, search, status:statusFiltro, ...(dataInicio&&{dataInicio}), ...(dataFim&&{dataFim}) });
+    fetch(`${API_URL}/api/pagar/contas?${qs}`)
+      .then(r=>r.json())
+      .then(data => { setContas(data.data||[]); setPagination(data.pagination||{page,totalPages:1,total:0,limit:10}); })
+      .catch(() => setUsingMock(true))
+      .finally(() => setLoading(false));
+  }, [empresa, usingMock, page, search, statusFiltro, dataInicio, dataFim]);
+
+  const fmtPct = v => `${Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}%`;
+
+  const totaisTabela = useMemo(() => {
+    const t = { valor:0, juros:0, desconto:0, valorAPagar:0 };
+    contas.forEach(c => { t.valor+=c.valor; t.juros+=c.juros; t.desconto+=c.desconto; t.valorAPagar+=c.valorAPagar; });
+    return t;
+  }, [contas]);
+
+  const renderPagination = () => {
+    const { page:pg, totalPages:tp, total } = pagination;
+    const pages = [];
+    if (tp <= 7) { for(let i=1;i<=tp;i++) pages.push(i); }
+    else {
+      pages.push(1);
+      if (pg > 3) pages.push('...');
+      for(let i=Math.max(2,pg-1); i<=Math.min(tp-1,pg+1); i++) pages.push(i);
+      if (pg < tp - 2) pages.push('...');
+      pages.push(tp);
+    }
+    return (
+      <div className="cp-pagination">
+        <span className="cp-pag-info">Mostrando {(pg-1)*pagination.limit+1} a {Math.min(pg*pagination.limit,total)} de {total} contas</span>
+        <div className="cp-pag-btns">
+          <button className="cp-pag-btn" disabled={pg<=1} onClick={()=>setPage(1)}>«</button>
+          <button className="cp-pag-btn" disabled={pg<=1} onClick={()=>setPage(pg-1)}><ChevronLeft size={14}/></button>
+          {pages.map((p,i) => p==='...'
+            ? <span key={`e${i}`} className="cp-pag-ellipsis">...</span>
+            : <button key={p} className={`cp-pag-btn${pg===p?' active':''}`} onClick={()=>setPage(p)}>{p}</button>
+          )}
+          <button className="cp-pag-btn" disabled={pg>=tp} onClick={()=>setPage(pg+1)}><ChevronRight size={14}/></button>
+          <button className="cp-pag-btn" disabled={pg>=tp} onClick={()=>setPage(tp)}>»</button>
+        </div>
+      </div>
+    );
+  };
+
+  // Gráfico pizza por status
+  const pizzaData = analiticos ? [
+    { name:'A Vencer',   value: analiticos.porStatus.aVencer,   color:'#3b82f6' },
+    { name:'Vence Hoje', value: analiticos.porStatus.venceHoje, color:'#f59e0b' },
+    { name:'Atrasado',   value: analiticos.porStatus.atrasado,  color:'#ef4444' },
+    { name:'Pago',       value: analiticos.porStatus.pago,      color:'#22c55e' },
+  ].filter(d=>d.value>0) : [];
+  const pizzaTotal = pizzaData.reduce((s,d)=>s+d.value,0);
+
+  const handleExport = () => {
+    const rows = contas.map(c => ({
+      Fornecedor: c.fornecedor, CNPJ: c.cnpj, Documento: c.documento,
+      Vencimento: fmtDate(c.vencimento), 'Dias Atraso': c.diasAtraso,
+      Valor: c.valor, Juros: c.juros, Desconto: c.desconto,
+      'Valor a Pagar': c.valorAPagar, Status: CP_STATUS_LABEL[c.status],
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Contas a Pagar');
+    XLSX.writeFile(wb, 'contas-a-pagar.xlsx');
+  };
+
+  return (
+    <div className="cp-page">
+      {/* ── Topo ─────────────────────────────────────────────────────────── */}
+      <div className="cp-header">
+        <div className="cp-header-title">
+          <Wallet size={28} color="#E31E24" />
+          <h2>GERENCIAMENTO DE CONTAS A PAGAR</h2>
+          {usingMock && <span className="cp-demo-badge">demonstração</span>}
+        </div>
+        <div className="cp-header-actions">
+          <button className="cp-btn-export" onClick={handleExport}>
+            <Download size={15}/> Exportar Excel
+          </button>
+        </div>
+      </div>
+
+      {/* ── KPI Cards ────────────────────────────────────────────────────── */}
+      <div className="cp-kpi-row">
+        {[
+          { label:'Total a Pagar',   value: fmtBRL(resumo?.totalAPagar),  icon: DollarSign,    color:'#ef4444', bg:'rgba(239,68,68,0.12)' },
+          { label:'Vence Hoje',      value: fmtBRL(resumo?.aPagarHoje),   icon: Calendar,      color:'#f59e0b', bg:'rgba(245,158,11,0.12)' },
+          { label:'Em Atraso',       value: fmtBRL(resumo?.emAtraso),     icon: AlertTriangle, color:'#e11d48', bg:'rgba(225,29,72,0.12)' },
+          { label:'Pagos (mês)',     value: fmtBRL(resumo?.pagosMes),     icon: TrendingUp,    color:'#22c55e', bg:'rgba(34,197,94,0.12)' },
+          { label:'% em Atraso',     value: fmtPct(resumo?.pctAtraso),    icon: BarChart2,     color:'#a855f7', bg:'rgba(168,85,247,0.12)', pct: true },
+        ].map(kpi => (
+          <div key={kpi.label} className="cp-kpi">
+            <div className="cp-kpi-icon" style={{ background: kpi.bg }}>
+              <kpi.icon size={22} color={kpi.color} />
+            </div>
+            <div className="cp-kpi-body">
+              <span className="cp-kpi-label">{kpi.label}</span>
+              <span className="cp-kpi-value" style={{ color: kpi.color }}>{resumo ? kpi.value : '...'}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Filtros ───────────────────────────────────────────────────────── */}
+      <div className="cp-filters">
+        <div className="cp-search-wrap">
+          <Search size={15} className="cp-search-icon"/>
+          <input className="cp-search" placeholder="Buscar fornecedor, NF, CNPJ..."
+            value={search} onChange={e=>{ setSearch(e.target.value); setPage(1); }} />
+        </div>
+        <select className="cp-select" value={statusFiltro} onChange={e=>{ setStatusFiltro(e.target.value); setPage(1); }}>
+          <option value="todos">Todos os Status</option>
+          <option value="a_vencer">A Vencer</option>
+          <option value="vence_hoje">Vence Hoje</option>
+          <option value="atrasado">Atrasado</option>
+          <option value="pago">Pago</option>
+        </select>
+        <div className="cp-date-range">
+          <span className="cp-date-label">Vencimento de</span>
+          <input type="date" className="cp-date-input" value={dataInicio} onChange={e=>{ setDataInicio(e.target.value); setPage(1); }} />
+          <span className="cp-date-label">até</span>
+          <input type="date" className="cp-date-input" value={dataFim}    onChange={e=>{ setDataFim(e.target.value);    setPage(1); }} />
+          {(dataInicio||dataFim) && <button className="cp-clear-btn" onClick={()=>{ setDataInicio(''); setDataFim(''); setPage(1); }}><X size={13}/></button>}
+        </div>
+      </div>
+
+      {/* ── Tabela ────────────────────────────────────────────────────────── */}
+      <div className="cp-table-wrap">
+        {loading && <div className="cp-loading">Carregando...</div>}
+        <table className="cp-table">
+          <thead>
+            <tr>
+              <th>FORNECEDOR</th>
+              <th>CNPJ</th>
+              <th>DOCUMENTO</th>
+              <th>VENCIMENTO</th>
+              <th>DIAS ATRASO</th>
+              <th>VALOR</th>
+              <th>JUROS</th>
+              <th>DESCONTO</th>
+              <th>VALOR A PAGAR</th>
+              <th>STATUS</th>
+              <th>AÇÕES</th>
+            </tr>
+          </thead>
+          <tbody>
+            {contas.map(c => (
+              <tr key={c.id} className="cp-row">
+                <td>
+                  <div className="cp-forn-cell">
+                    <span className="cp-forn-nome">{c.fornecedor}</span>
+                    <span className="cp-forn-doc">{c.documento}</span>
+                  </div>
+                </td>
+                <td className="cp-mono">{c.cnpj}</td>
+                <td className="cp-mono">{c.documento}</td>
+                <td className="cp-mono">{fmtDate(c.vencimento)}</td>
+                <td className={`cp-mono cp-right ${c.diasAtraso > 0 ? 'cp-red' : c.status === 'vence_hoje' ? 'cp-amber' : ''}`}>
+                  {c.status === 'pago' ? '-' : c.diasAtraso > 0 ? c.diasAtraso : c.status === 'vence_hoje' ? '0' : `-${Math.ceil((new Date(c.vencimento)-new Date('2026-05-27'))/(86400000))}`}
+                </td>
+                <td className="cp-mono cp-right">{fmtBRL(c.valor)}</td>
+                <td className="cp-mono cp-right cp-red">{fmtBRL(c.juros)}</td>
+                <td className="cp-mono cp-right cp-green">{fmtBRL(c.desconto)}</td>
+                <td className="cp-mono cp-right cp-bold">{fmtBRL(c.valorAPagar)}</td>
+                <td><span className={`cp-badge ${CP_STATUS_CLS[c.status]}`}>{CP_STATUS_LABEL[c.status]}</span></td>
+                <td>
+                  <div className="cp-actions">
+                    <button className="cp-action-btn" title="Visualizar" onClick={()=>setViewConta(c)}><Eye size={15}/></button>
+                    <button className="cp-action-btn" title="Exportar"><FileText size={15}/></button>
+                    <button className="cp-action-btn cp-action-pay" title="Registrar Pagamento"><Save size={15}/></button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+          {contas.length > 0 && (
+            <tfoot>
+              <tr className="cp-totals">
+                <td colSpan={2}><strong>TOTAIS</strong></td>
+                <td>-</td>
+                <td>-</td>
+                <td>-</td>
+                <td className="cp-mono cp-right"><strong>{fmtBRL(totaisTabela.valor)}</strong></td>
+                <td className="cp-mono cp-right cp-red"><strong>{fmtBRL(totaisTabela.juros)}</strong></td>
+                <td className="cp-mono cp-right cp-green"><strong>{fmtBRL(totaisTabela.desconto)}</strong></td>
+                <td className="cp-mono cp-right cp-bold"><strong>{fmtBRL(totaisTabela.valorAPagar)}</strong></td>
+                <td colSpan={2}></td>
+              </tr>
+            </tfoot>
+          )}
+        </table>
+        {contas.length === 0 && !loading && (
+          <div className="cp-empty">Nenhuma conta encontrada para os filtros aplicados.</div>
+        )}
+      </div>
+
+      {renderPagination()}
+
+      {/* ── Painéis Analíticos ─────────────────────────────────────────── */}
+      {analiticos && (
+        <div className="cp-analytics">
+
+          {/* Pizza por status */}
+          <div className="cp-panel">
+            <h4 className="cp-panel-title">RESUMO POR STATUS</h4>
+            <div className="cp-pizza-wrap">
+              <div className="cp-pizza-chart">
+                <div className="cp-donut" style={{
+                  background: pizzaTotal > 0
+                    ? `conic-gradient(${pizzaData.map((seg, i) => {
+                        const prev = pizzaData.slice(0, i).reduce((s, d) => s + d.value, 0) / pizzaTotal * 360;
+                        const cur  = seg.value / pizzaTotal * 360;
+                        return `${seg.color} ${prev.toFixed(1)}deg ${(prev+cur).toFixed(1)}deg`;
+                      }).join(', ')})`
+                    : '#334155',
+                }}><span className="cp-donut-center">{fmtPct(resumo?.pctAtraso)}<small>% Atraso</small></span></div>
+              </div>
+              <div className="cp-pizza-legend">
+                {[
+                  { label:'A Vencer',   v: analiticos.porStatus.aVencer,   color:'#3b82f6' },
+                  { label:'Vence Hoje', v: analiticos.porStatus.venceHoje, color:'#f59e0b' },
+                  { label:'Atrasado',   v: analiticos.porStatus.atrasado,  color:'#ef4444' },
+                  { label:'Pago',       v: analiticos.porStatus.pago,      color:'#22c55e' },
+                ].map(l => (
+                  <div key={l.label} className="cp-legend-item">
+                    <span className="cp-legend-dot" style={{background:l.color}}></span>
+                    <span className="cp-legend-label">{l.label}</span>
+                    <span className="cp-legend-val">{fmtBRL(l.v)}</span>
+                    <span className="cp-legend-pct">{pizzaTotal>0?fmtPct(l.v/pizzaTotal*100):'0,00%'}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Faixa de atraso */}
+          <div className="cp-panel">
+            <h4 className="cp-panel-title">FAIXA DE ATRASO</h4>
+            {[
+              { label:'1 a 15 dias',  v: analiticos.faixaAtraso.f1 },
+              { label:'16 a 30 dias', v: analiticos.faixaAtraso.f2 },
+              { label:'31 a 60 dias', v: analiticos.faixaAtraso.f3 },
+              { label:'+ 60 dias',    v: analiticos.faixaAtraso.f4 },
+            ].map(f => {
+              const tot = analiticos.faixaAtraso.total;
+              const pct = tot > 0 ? f.v / tot * 100 : 0;
+              return (
+                <div key={f.label} className="cp-faixa-row">
+                  <span className="cp-faixa-label">{f.label}</span>
+                  <div className="cp-faixa-bar-wrap">
+                    <div className="cp-faixa-bar" style={{width:`${Math.min(pct,100).toFixed(1)}%`}}></div>
+                  </div>
+                  <span className="cp-faixa-val">{fmtBRL(f.v)}</span>
+                  <span className="cp-faixa-pct">{fmtPct(pct)}</span>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Top 5 fornecedores */}
+          <div className="cp-panel">
+            <h4 className="cp-panel-title">TOP 5 FORNECEDORES (MAIOR DÉBITO)</h4>
+            {analiticos.top5.map((t, i) => (
+              <div key={t.fornecedor} className="cp-top-row">
+                <span className="cp-top-rank">{i+1}.</span>
+                <span className="cp-top-nome">{t.fornecedor}</span>
+                <span className="cp-top-val">{fmtBRL(t.divida)}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Índices financeiros */}
+          <div className="cp-panel">
+            <h4 className="cp-panel-title">ÍNDICES FINANCEIROS</h4>
+            {[
+              { label:'Ticket Médio',          value: fmtBRL(analiticos.indices.ticketMedio) },
+              { label:'Prazo Médio (dias)',     value: analiticos.indices.prazoMedio },
+              { label:'% em Atraso',           value: fmtPct(analiticos.indices.pctAtraso), red: true },
+              { label:'Pago Antecipado',       value: fmtPct(analiticos.indices.pagoAntecip) },
+            ].map(idx => (
+              <div key={idx.label} className="cp-idx-row">
+                <span className="cp-idx-label">{idx.label}</span>
+                <span className={`cp-idx-val ${idx.red ? 'cp-red' : ''}`}>{idx.value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal de Visualização ─────────────────────────────────────────── */}
+      {viewConta && (
+        <div className="cp-modal-overlay" onClick={()=>setViewConta(null)}>
+          <div className="cp-modal" onClick={e=>e.stopPropagation()}>
+            <div className="cp-modal-header">
+              <h3>Detalhes da Conta a Pagar</h3>
+              <button className="cp-modal-close" onClick={()=>setViewConta(null)}><X size={18}/></button>
+            </div>
+            <div className="cp-modal-body">
+              {[
+                ['Fornecedor',     viewConta.fornecedor],
+                ['CNPJ',           viewConta.cnpj],
+                ['Documento',      viewConta.documento],
+                ['Vencimento',     fmtDate(viewConta.vencimento)],
+                ['Status',         CP_STATUS_LABEL[viewConta.status]],
+                ['Dias de Atraso', viewConta.diasAtraso > 0 ? `${viewConta.diasAtraso} dias` : '-'],
+                ['Valor',          fmtBRL(viewConta.valor)],
+                ['Juros',          fmtBRL(viewConta.juros)],
+                ['Desconto',       fmtBRL(viewConta.desconto)],
+                ['Valor a Pagar',  fmtBRL(viewConta.valorAPagar)],
+                ...(viewConta.dataPagamento ? [['Data Pagamento', fmtDate(viewConta.dataPagamento)]] : []),
+              ].map(([k,v]) => (
+                <div key={k} className="cp-modal-row">
+                  <span className="cp-modal-key">{k}</span>
+                  <span className="cp-modal-val">{v}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+// ── fim ContasPagar ───────────────────────────────────────────────────────────
+
+// ── Financeiro (wrapper com abas Receber / Pagar) ────────────────────────────
+const Financeiro = ({ clients, selectedClient }) => {
+  const [tab, setTab] = useState('receber');
+  return (
+    <div>
+      <div className="fin-tab-bar">
+        <button
+          className={`vp-period-btn vp-secao-btn${tab === 'receber' ? ' active' : ''}`}
+          onClick={() => setTab('receber')}
+        >
+          💰 Contas a Receber
+        </button>
+        <button
+          className={`vp-period-btn vp-secao-btn${tab === 'pagar' ? ' active' : ''}`}
+          onClick={() => setTab('pagar')}
+        >
+          📤 Contas a Pagar
+        </button>
+      </div>
+      {tab === 'receber'
+        ? <ContasReceber clients={clients} selectedClient={selectedClient} />
+        : <ContasPagar   clients={clients} selectedClient={selectedClient} />
+      }
+    </div>
+  );
+};
 
 // Dashboard Component
 const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcControle, estoques, loading, clients, selectedClient, selectedPeriod, setSelectedPeriod, onRefresh, themeMode }) => {
@@ -6608,7 +7152,7 @@ export default function App() {
       case 'stock':
         return <EstoqueManager estoques={apiData.estoques} projecao={apiData.projecao} loading={apiData.loading} selectedClient={selectedClient} clients={clients} themeMode={themeMode} />;
       case 'receber':
-        return <ContasReceber clients={clients} selectedClient={selectedClient} />;
+        return <Financeiro clients={clients} selectedClient={selectedClient} />;
       case 'users':
         return <Users adminUsers={adminUsers} setAdminUsers={setAdminUsers} isAdmin={isAdmin} />;
       case 'params':
