@@ -2406,7 +2406,14 @@ body.theme-light-body {
 /* STOCK POSITION */
 .stock-grid {
   display: grid;
-  grid-template-columns: 1fr 1.5fr 1fr;
+  grid-template-columns: minmax(260px, 1fr) 2.5fr;
+  gap: 20px;
+  align-items: start;
+}
+
+.stock-left-col {
+  display: flex;
+  flex-direction: column;
   gap: 20px;
 }
 
@@ -2417,6 +2424,20 @@ body.theme-light-body {
   border: 1px solid #2a2a2a;
   border-radius: 12px;
   padding: 24px;
+}
+
+.stock-values-card .value-items {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.stock-values-card .value-item {
+  padding: 10px 12px;
+}
+
+.stock-values-card .value-amount {
+  font-size: 1.1rem;
 }
 
 .fuel-select-large {
@@ -3567,6 +3588,9 @@ body.theme-light-body {
 
   .stock-grid {
     grid-template-columns: 1fr;
+  }
+  .stock-left-col {
+    flex-direction: column;
   }
 
   .stats-grid {

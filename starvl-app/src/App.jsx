@@ -5337,6 +5337,7 @@ const StockPosition = ({ estoques, projecao, loading, selectedClient, clients })
       )}
 
       <div className="stock-grid">
+        <div className="stock-left-col">
         <div className="stock-tank-card">
           <div className="card-header">
             <h3>COMBUSTÍVEL SELECIONADO</h3>
@@ -5375,6 +5376,45 @@ const StockPosition = ({ estoques, projecao, loading, selectedClient, clients })
             <strong>{activeFuel ? fmt2(activeFuel.capacidadeTotal) + ' L' : '—'}</strong>
           </div>
         </div>
+
+        <div className="stock-values-card">
+          <div className="card-header">
+            <h3>VALORES ESTOQUE</h3>
+          </div>
+          <div className="value-items">
+            <div className="value-item">
+              <div className="value-icon"><Droplet size={22} /></div>
+              <div className="value-content">
+                <div className="value-label">PREÇO DE VENDA / L</div>
+                <div className="value-amount">{fmtR(activeFuel?.precoVenda)}</div>
+              </div>
+            </div>
+            <div className="value-item highlight">
+              <div className="value-icon"><Layers size={22} /></div>
+              <div className="value-content">
+                <div className="value-label">VALOR TOTAL ESTOQUE</div>
+                <div className="value-amount">{fmtR(activeFuel?.valorEstoque)}</div>
+              </div>
+            </div>
+            <div className="value-item">
+              <div className="value-icon"><CircleDollarSign size={22} /></div>
+              <div className="value-content">
+                <div className="value-label">CUSTO MÉDIO / L</div>
+                <div className="value-amount">{fmtR(activeFuel?.custoMedio)}</div>
+              </div>
+            </div>
+            <div className="value-item">
+              <div className="value-icon"><Calculator size={22} /></div>
+              <div className="value-content">
+                <div className="value-label">MARGEM ESTIMADA</div>
+                <div className="value-amount" style={{ color: (activeFuel?.margem || 0) > 0 ? '#22c55e' : '#f87171' }}>
+                  {(activeFuel?.margem || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}%
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        </div>{/* end stock-left-col */}
 
         <div className="stock-projection-card">
           <div className="card-header">
@@ -5477,43 +5517,6 @@ const StockPosition = ({ estoques, projecao, loading, selectedClient, clients })
           </div>
         </div>
 
-        <div className="stock-values-card">
-          <div className="card-header">
-            <h3>VALORES ESTOQUE</h3>
-          </div>
-          <div className="value-items">
-            <div className="value-item">
-              <div className="value-icon"><Droplet size={24} /></div>
-              <div className="value-content">
-                <div className="value-label">PREÇO DE VENDA / L</div>
-                <div className="value-amount">{fmtR(activeFuel?.precoVenda)}</div>
-              </div>
-            </div>
-            <div className="value-item highlight">
-              <div className="value-icon"><Layers size={24} /></div>
-              <div className="value-content">
-                <div className="value-label">VALOR TOTAL ESTOQUE</div>
-                <div className="value-amount">{fmtR(activeFuel?.valorEstoque)}</div>
-              </div>
-            </div>
-            <div className="value-item">
-              <div className="value-icon"><CircleDollarSign size={24} /></div>
-              <div className="value-content">
-                <div className="value-label">CUSTO MÉDIO / L</div>
-                <div className="value-amount">{fmtR(activeFuel?.custoMedio)}</div>
-              </div>
-            </div>
-            <div className="value-item">
-              <div className="value-icon"><Calculator size={24} /></div>
-              <div className="value-content">
-                <div className="value-label">MARGEM ESTIMADA</div>
-                <div className="value-amount" style={{ color: (activeFuel?.margem || 0) > 0 ? '#22c55e' : '#f87171' }}>
-                  {(activeFuel?.margem || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}%
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );
