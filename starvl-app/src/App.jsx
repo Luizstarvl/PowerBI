@@ -1635,6 +1635,234 @@ function cpMockAnaliticos(contas) {
 const CP_STATUS_LABEL = { a_vencer:'A Vencer', vence_hoje:'Vence Hoje', atrasado:'Atrasado', pago:'Pago' };
 const CP_STATUS_CLS   = { a_vencer:'cp-badge-vencer', vence_hoje:'cp-badge-hoje', atrasado:'cp-badge-atraso', pago:'cp-badge-pago' };
 
+// ── Impressão de Boleto ───────────────────────────────────────────────────────
+function imprimirBoleto(conta, tipo) {
+  const isCR       = tipo === 'receber';
+  const benefNome  = isCR ? 'STARVL COMBUSTÍVEIS LTDA'      : conta.fornecedor;
+  const benefCNPJ  = isCR ? '00.000.000/0001-00'             : conta.cnpj;
+  const sacadoNome = isCR ? conta.cliente                    : 'STARVL COMBUSTÍVEIS LTDA';
+  const sacadoCNPJ = isCR ? conta.cnpj                       : '00.000.000/0001-00';
+  const valor      = isCR ? (conta.valorAReceber||conta.valor): (conta.valorAPagar||conta.valor);
+  const juros      = conta.juros   || 0;
+  const desconto   = conta.desconto|| 0;
+  const doc        = conta.documento || String(conta.id);
+  const venc       = conta.vencimento || '';
+  const fmtD       = (s) => s ? s.substring(8,10)+'/'+s.substring(5,7)+'/'+s.substring(0,4) : '-';
+  const fmtV       = (n) => 'R$ '+Number(n||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const today      = new Date().toISOString().split('T')[0];
+
+  // Linha digitável simulada
+  const vencCode   = venc.replace(/-/g,'');
+  const valorPad   = Math.round(valor*100).toString().padStart(10,'0');
+  const seq        = String(conta.id).padStart(5,'0');
+  const linha      = `${seq}1.23456 78901.234567 89012.345678 9 ${vencCode.substring(0,8)}${valorPad}`;
+
+  // Barras do código de barras (simuladas)
+  const barSeed = conta.id * 17 + 3;
+  let bars = '';
+  const widths = [1,1,2,1,2,1,1,2,1,1,1,2,1,2,2,1,1,1,2,1,1,2,1,2,1,1,2,1,2,1,1,1,2,1,2,1,2,1,1,2,1,1,2,2,1,1,1,2,1,2,1,1,2,1,2,2,1,1,2,1,1,1,2,1,2,1,1,2,1,2];
+  widths.forEach((w, i) => {
+    const color = i % 2 === 0 ? '#000' : '#fff';
+    bars += `<div style="display:inline-block;width:${w*2}px;height:60px;background:${color};"></div>`;
+  });
+
+  const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<title>Boleto — ${doc}</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#111;background:#fff;padding:20px;}
+  .page{max-width:800px;margin:0 auto;}
+  /* ── Cabeçalho banco ── */
+  .bank-header{display:flex;align-items:center;border-bottom:3px solid #111;padding-bottom:8px;margin-bottom:0;}
+  .bank-logo{font-size:22px;font-weight:900;letter-spacing:-1px;color:#E31E24;margin-right:16px;padding-right:16px;border-right:3px solid #111;}
+  .bank-code{font-size:18px;font-weight:900;margin-right:auto;}
+  .linha-dig{font-size:13px;font-weight:700;letter-spacing:1px;text-align:right;}
+  /* ── Canhoto ── */
+  .canhoto{border:1px solid #777;border-top:none;padding:8px 10px;display:flex;justify-content:space-between;align-items:flex-start;gap:16px;background:#fafafa;}
+  .canhoto-main{flex:1;}
+  .canhoto-venc{min-width:120px;text-align:right;}
+  .label{font-size:9px;color:#555;margin-bottom:2px;text-transform:uppercase;font-weight:700;}
+  .value{font-size:12px;font-weight:700;}
+  .value-lg{font-size:16px;font-weight:900;}
+  .cut{border-top:1px dashed #aaa;text-align:center;color:#aaa;font-size:10px;padding:5px 0;margin:10px 0;}
+  /* ── Corpo principal ── */
+  .body-wrap{border:1px solid #777;border-top:none;}
+  .row{display:flex;border-bottom:1px solid #ccc;}
+  .row:last-child{border-bottom:none;}
+  .cell{padding:5px 8px;border-right:1px solid #ccc;flex:1;}
+  .cell:last-child{border-right:none;}
+  .cell-fixed{padding:5px 8px;border-right:1px solid #ccc;}
+  .cell-wide{flex:2;}
+  /* ── Status badge ── */
+  .status-badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;
+    background:${conta.status==='pago'||conta.status==='recebido'?'#dcfce7':'#fee2e2'};
+    color:${conta.status==='pago'||conta.status==='recebido'?'#15803d':'#b91c1c'};}
+  /* ── Barcode ── */
+  .barcode-wrap{padding:16px 0 8px;text-align:center;}
+  .barcode-bars{display:inline-flex;align-items:center;height:60px;}
+  /* ── Instruções ── */
+  .instrucoes{border:1px solid #ccc;border-top:none;padding:10px;font-size:10px;color:#444;line-height:1.6;}
+  .instrucoes h4{font-size:10px;font-weight:700;margin-bottom:4px;text-transform:uppercase;}
+  /* ── Rodapé ── */
+  .footer{margin-top:16px;font-size:9px;color:#aaa;text-align:center;}
+  @media print {
+    body{padding:0;}
+    .no-print{display:none!important;}
+    .page{max-width:100%;}
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- Botão imprimir -->
+  <div class="no-print" style="text-align:right;margin-bottom:12px;">
+    <button onclick="window.print()" style="background:#E31E24;color:#fff;border:none;padding:8px 20px;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer;">🖨️ Imprimir / Salvar PDF</button>
+    <button onclick="window.close()" style="background:#eee;color:#333;border:none;padding:8px 16px;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer;margin-left:8px;">Fechar</button>
+  </div>
+
+  <!-- ── CANHOTO ─────────────────────────────────────── -->
+  <div class="bank-header">
+    <div class="bank-logo">STARVL</div>
+    <div class="bank-code">341-7</div>
+    <div class="linha-dig">${linha}</div>
+  </div>
+
+  <div class="canhoto">
+    <div class="canhoto-main">
+      <div class="label">Beneficiário</div>
+      <div class="value">${benefNome}</div>
+      <div style="color:#555;font-size:10px;">CNPJ: ${benefCNPJ}</div>
+      <div style="margin-top:8px;">
+        <div class="label">Sacado</div>
+        <div class="value">${sacadoNome}</div>
+        <div style="color:#555;font-size:10px;">CNPJ/CPF: ${sacadoCNPJ}</div>
+      </div>
+    </div>
+    <div class="canhoto-venc">
+      <div class="label">Vencimento</div>
+      <div class="value-lg">${fmtD(venc)}</div>
+      <div style="margin-top:10px;">
+        <div class="label">Valor do Documento</div>
+        <div class="value-lg" style="color:#c00;">${fmtV(valor)}</div>
+      </div>
+      <div style="margin-top:10px;">
+        <span class="status-badge">${conta.status==='pago'?'PAGO':conta.status==='recebido'?'RECEBIDO':'EM ABERTO'}</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="cut">✂ ─────────────────────── Recibo do Pagador ───────────────────────</div>
+
+  <!-- ── CORPO PRINCIPAL ─────────────────────────────── -->
+  <div class="bank-header">
+    <div class="bank-logo">STARVL</div>
+    <div class="bank-code">341-7</div>
+    <div class="linha-dig">${linha}</div>
+  </div>
+
+  <div class="body-wrap">
+    <div class="row">
+      <div class="cell cell-wide">
+        <div class="label">Beneficiário</div>
+        <div class="value">${benefNome} — CNPJ: ${benefCNPJ}</div>
+      </div>
+      <div class="cell-fixed" style="min-width:160px;">
+        <div class="label">Agência / Código do Beneficiário</div>
+        <div class="value">0001 / ${seq}</div>
+      </div>
+    </div>
+    <div class="row">
+      <div class="cell">
+        <div class="label">Nosso Número</div>
+        <div class="value">${seq}-${(conta.id%9)+1}</div>
+      </div>
+      <div class="cell">
+        <div class="label">Número do Documento</div>
+        <div class="value">${doc}</div>
+      </div>
+      <div class="cell">
+        <div class="label">Espécie</div>
+        <div class="value">R$</div>
+      </div>
+      <div class="cell">
+        <div class="label">Aceite</div>
+        <div class="value">N</div>
+      </div>
+      <div class="cell">
+        <div class="label">Data Emissão</div>
+        <div class="value">${fmtD(today)}</div>
+      </div>
+    </div>
+    <div class="row">
+      <div class="cell cell-wide">
+        <div class="label">Instruções (Texto de Responsabilidade do Beneficiário)</div>
+        <div style="font-size:10px;color:#444;line-height:1.5;margin-top:2px;">
+          Não receber após o vencimento.<br>
+          ${juros>0?`Cobrar juros de mora de ${fmtV(juros)} após o vencimento.<br>`:''}
+          ${desconto>0?`Desconto de ${fmtV(desconto)} até a data do vencimento.<br>`:''}
+          Em caso de dúvidas, contate o emitente.
+        </div>
+      </div>
+      <div class="cell-fixed" style="min-width:160px;">
+        <div class="label">Vencimento</div>
+        <div class="value-lg">${fmtD(venc)}</div>
+      </div>
+    </div>
+    <div class="row">
+      <div class="cell cell-wide" style="flex:3;">
+        <div class="label">(-) Desconto / Abatimentos</div>
+        <div class="value">${fmtV(desconto)}</div>
+      </div>
+      <div class="cell-fixed" style="min-width:160px;">
+        <div class="label">Valor do Documento</div>
+        <div class="value-lg" style="color:#c00;">${fmtV(valor)}</div>
+      </div>
+    </div>
+    <div class="row">
+      <div class="cell" style="flex:2;">
+        <div class="label">(+) Mora / Multa / Juros</div>
+        <div class="value">${fmtV(juros)}</div>
+      </div>
+      <div class="cell" style="flex:2;">
+        <div class="label">(=) Valor Cobrado</div>
+        <div class="value-lg">${fmtV(valor+juros-desconto)}</div>
+      </div>
+    </div>
+    <div class="row">
+      <div class="cell" style="flex:1;">
+        <div class="label">Sacado</div>
+        <div class="value">${sacadoNome}</div>
+        <div style="font-size:10px;color:#555;">CNPJ/CPF: ${sacadoCNPJ}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Código de barras -->
+  <div class="barcode-wrap">
+    <div class="barcode-bars">${bars}</div>
+    <div style="font-size:10px;color:#555;margin-top:4px;letter-spacing:2px;">${linha}</div>
+  </div>
+
+  <div class="footer">
+    Documento gerado em ${fmtD(today)} às ${new Date().toLocaleTimeString('pt-BR')} — STARVL Sistema de Gestão
+  </div>
+
+</div>
+<script>setTimeout(()=>window.print(),400);</script>
+</body>
+</html>`;
+
+  const win = window.open('', '_blank', 'width=900,height=750,scrollbars=yes');
+  if (!win) { alert('Permita popups para imprimir o boleto.'); return; }
+  win.document.open();
+  win.document.write(html);
+  win.document.close();
+}
+
 const ContasReceber = ({ clients, selectedClient }) => {
   const [resumo,      setResumo]     = useState(null);
   const [contas,      setContas]     = useState([]);
@@ -1657,18 +1885,7 @@ const ContasReceber = ({ clients, selectedClient }) => {
     return c?.codigoEmpresa||null;
   }, [clients, selectedClient]);
 
-  const handleExportRow = (c) => {
-    const rows = [{
-      Cliente: c.cliente, CNPJ: c.cnpj, Documento: c.documento,
-      Vencimento: fmtDate(c.vencimento), 'Dias Atraso': c.diasAtraso,
-      Valor: c.valor, Juros: c.juros, Desconto: c.desconto,
-      'Valor a Receber': c.valorAReceber, Status: CR_STATUS_LABEL[c.status],
-    }];
-    const ws = XLSX.utils.json_to_sheet(rows);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Conta');
-    XLSX.writeFile(wb, `conta-receber-${c.id}.xlsx`);
-  };
+  const handleExportRow = (c) => imprimirBoleto(c, 'receber');
 
   const openRegModal = (c) => {
     if (c.status === 'recebido') { toast('Esta conta já foi recebida.', 'info'); return; }
@@ -2128,18 +2345,7 @@ const ContasPagar = ({ clients, selectedClient }) => {
     return c?.codigoEmpresa||null;
   }, [clients, selectedClient]);
 
-  const handleExportRow = (c) => {
-    const rows = [{
-      Fornecedor: c.fornecedor, CNPJ: c.cnpj, Documento: c.documento,
-      Vencimento: fmtDate(c.vencimento), 'Dias Atraso': c.diasAtraso,
-      Valor: c.valor, Juros: c.juros, Desconto: c.desconto,
-      'Valor a Pagar': c.valorAPagar, Status: CP_STATUS_LABEL[c.status],
-    }];
-    const ws = XLSX.utils.json_to_sheet(rows);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Conta');
-    XLSX.writeFile(wb, `conta-pagar-${c.id}.xlsx`);
-  };
+  const handleExportRow = (c) => imprimirBoleto(c, 'pagar');
 
   const openRegModal = (c) => {
     if (c.status === 'pago') { toast('Esta conta já foi paga.', 'info'); return; }
