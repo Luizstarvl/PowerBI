@@ -5063,7 +5063,7 @@ function exportRankingSalesReport({ report, filters, clientName, sellerLabel }) 
   printWindow.document.close();
 }
 
-// ── MargemProdutosPanel ──────────────────────────────────────────────────────
+// ── Margem por Combustível e Produtos — dados + print ───────────────────────
 const _MARGEM_BASE = [
   { cod: '101', desc: 'Gasolina Comum',        cat: 'Bomba', custBase:  5.20, frete: 0.05, st: 0.45, venda:  5.99, volMensal: 45000, unid: 'L'  },
   { cod: '102', desc: 'Gasolina Aditivada',    cat: 'Bomba', custBase:  5.40, frete: 0.05, st: 0.45, venda:  6.29, volMensal: 12000, unid: 'L'  },
@@ -5074,201 +5074,293 @@ const _MARGEM_BASE = [
   { cod: '202', desc: 'Café Espresso (dose)',  cat: 'Loja',  custBase:  0.45, frete: 0.00, st: 0.00, venda:  3.00, volMensal:   850, unid: 'un' },
   { cod: '203', desc: 'Lubrificante 5W-30 1L', cat: 'Loja',  custBase: 18.50, frete: 0.50, st: 1.20, venda: 34.90, volMensal:    95, unid: 'un' },
 ];
-const _MARGEM_FATOR = { 'Diário': 1/30, 'Semanal': 1/4.3, 'Mensal': 1, 'Anual': 12 };
 
-const MargemProdutosPanel = () => {
-  const [catFiltro,    setCatFiltro]    = useState('Todos');
-  const [periodoFiltro, setPeriodoFiltro] = useState('Mensal');
-  const [sortCol, setSortCol] = useState('margemTotal');
-  const [sortDir, setSortDir] = useState('desc');
+function _computeMargemRows({ categoria, dataInicial, dataFinal, ordenacao }) {
+  // Calcula fator de volume a partir do intervalo de datas
+  let fator = 1;
+  if (dataInicial && dataFinal) {
+    const dias = Math.max(1, (new Date(dataFinal) - new Date(dataInicial)) / 86400000 + 1);
+    fator = dias / 30;
+  }
+  const rows = _MARGEM_BASE
+    .filter(p => categoria === 'Todos' || p.cat === categoria)
+    .map(p => {
+      const custTotal   = p.custBase + p.frete + p.st;
+      const margemUnit  = p.venda - custTotal;
+      const margemPct   = p.venda > 0 ? (margemUnit / p.venda) * 100 : 0;
+      const volume      = Math.round(p.volMensal * fator);
+      const margemTotal = margemUnit * volume;
+      return { ...p, custTotal, margemUnit, margemPct, volume, margemTotal };
+    });
+  const sortKey = ordenacao === 'margemPct' ? 'margemPct' : ordenacao === 'volume' ? 'volume' : 'margemTotal';
+  rows.sort((a, b) => b[sortKey] - a[sortKey]);
+  return rows;
+}
 
-  const rows = useMemo(() => {
-    const fator = _MARGEM_FATOR[periodoFiltro] || 1;
-    return _MARGEM_BASE
-      .filter(p => catFiltro === 'Todos' || p.cat === catFiltro)
-      .map(p => {
-        const custTotal  = p.custBase + p.frete + p.st;
-        const margemUnit = p.venda - custTotal;
-        const margemPct  = p.venda > 0 ? (margemUnit / p.venda) * 100 : 0;
-        const volume     = Math.round(p.volMensal * fator);
-        const margemTotal = margemUnit * volume;
-        return { ...p, custTotal, margemUnit, margemPct, volume, margemTotal };
-      })
-      .sort((a, b) => {
-        const va = a[sortCol]; const vb = b[sortCol];
-        const cmp = va < vb ? -1 : va > vb ? 1 : 0;
-        return sortDir === 'asc' ? cmp : -cmp;
-      });
-  }, [catFiltro, periodoFiltro, sortCol, sortDir]);
+function buildMargemReportHtml({ filters, clientName }) {
+  const rows = _computeMargemRows(filters);
+  if (!rows.length) {
+    toast('Nenhum produto encontrado para os filtros selecionados.', 'warn');
+    return null;
+  }
+
+  const e = escapeHtml;
+  const fmt2 = v => v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const fmt0 = v => Math.round(v).toLocaleString('pt-BR');
+  const fmtR = v => 'R$ ' + Math.abs(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const margemCor = pct => pct < 10 ? '#ef4444' : pct < 20 ? '#f59e0b' : '#22c55e';
 
   const totMargemTotal  = rows.reduce((s, r) => s + r.margemTotal, 0);
   const totReceita      = rows.reduce((s, r) => s + r.venda * r.volume, 0);
   const margemPonderada = totReceita > 0 ? (totMargemTotal / totReceita) * 100 : 0;
+  const catLabel        = filters.categoria === 'Todos' ? 'Todos os produtos' : `${filters.categoria} (${filters.categoria === 'Bomba' ? 'Pista' : 'Conveniência'})`;
+  const periodLabel     = filters.dataInicial && filters.dataFinal
+    ? `${formatFullDateBR(filters.dataInicial)} a ${formatFullDateBR(filters.dataFinal)}`
+    : 'Período completo';
+  const generatedAt = new Date().toLocaleString('pt-BR');
 
-  const fmt2 = v => v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const fmt0 = v => Math.round(v).toLocaleString('pt-BR');
-  const fmtR = v => 'R$ ' + Math.abs(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  // KPI cards
+  const kpis = [
+    { label: 'PRODUTOS',            value: e(rows.length) },
+    { label: 'MARGEM MÉDIA POND.',  value: e(margemPonderada.toFixed(1) + '%') },
+    { label: 'MARGEM TOTAL',        value: e(fmtR(totMargemTotal)) },
+    { label: 'RECEITA TOTAL',       value: e(fmtR(totReceita)) },
+  ];
+  const kpiHtml = kpis.map(k => `
+    <div class="summary-item"><span>${k.label}</span><strong>${k.value}</strong></div>
+  `).join('');
 
-  const handleSort = col => {
-    if (sortCol === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
-    else { setSortCol(col); setSortDir('desc'); }
-  };
+  const tableRows = rows.map((row, i) => {
+    const cor = margemCor(row.margemPct);
+    const barW = Math.min(100, Math.max(0, row.margemPct));
+    return `
+    <tr style="background:${i % 2 === 0 ? '#fff' : '#f9fafb'}">
+      <td style="font-family:monospace;font-weight:700;font-size:10px">${e(row.cod)}</td>
+      <td>${e(row.cat === 'Bomba' ? '🔵' : '🟡')} ${e(row.desc)}</td>
+      <td class="num">R$ ${e(fmt2(row.custBase))}</td>
+      <td class="num">R$ ${e(fmt2(row.frete))}</td>
+      <td class="num" style="color:#dc2626">R$ ${e(fmt2(row.st))}</td>
+      <td class="num" style="font-weight:700">R$ ${e(fmt2(row.custTotal))}</td>
+      <td class="num">R$ ${e(fmt2(row.venda))}</td>
+      <td class="num" style="font-weight:700;color:${row.margemUnit >= 0 ? '#059669' : '#ef4444'}">${row.margemUnit >= 0 ? '+' : ''}R$ ${e(fmt2(row.margemUnit))}</td>
+      <td class="num">
+        <div style="display:flex;align-items:center;gap:6px;justify-content:flex-end">
+          <div style="width:52px;height:7px;background:#e5e7eb;border-radius:4px;overflow:hidden;flex-shrink:0">
+            <div style="height:100%;width:${barW}%;background:${cor};border-radius:4px"></div>
+          </div>
+          <span style="font-weight:800;color:${cor};min-width:36px;text-align:right">${e(row.margemPct.toFixed(1))}%</span>
+        </div>
+      </td>
+      <td class="num">${e(fmt0(row.volume))} ${e(row.unid)}</td>
+      <td class="num" style="font-weight:900;color:${row.margemTotal >= 0 ? '#059669' : '#ef4444'}">${e(fmtR(row.margemTotal))}</td>
+    </tr>`;
+  }).join('');
 
-  const SortArrow = ({ col }) => (
-    <span style={{ marginLeft: 3, opacity: sortCol === col ? 1 : 0.35 }}>
-      {sortCol === col ? (sortDir === 'asc' ? '↑' : '↓') : '↕'}
-    </span>
-  );
+  return `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <meta name="color-scheme" content="light"/>
+  <title>Relatorio Margem por Combustivel e Produtos</title>
+  <style>
+    @page { size: A4 landscape; margin: 10mm; }
+    * { box-sizing: border-box; }
+    html, body, .report, .header, .panel, .summary-item, table, th, td, tfoot td {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+      color-adjust: exact !important;
+    }
+    :root { color-scheme: light only; }
+    body { margin: 0; font-family: Arial, Helvetica, sans-serif; color: #111827; background: #ffffff; }
+    .report { min-height: 100vh; padding: 18px; background: #ffffff; }
+    .header { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 16px 18px; border: 1px solid #e5e7eb; border-bottom: 3px solid #e31e24; border-radius: 8px; background: #ffffff; margin-bottom: 14px; }
+    .header-left { display: flex; align-items: center; gap: 14px; }
+    .mark { width: 44px; height: 44px; border-radius: 8px; background: #fff5f5; border: 1px solid #fecaca; display: flex; align-items: center; justify-content: center; font-size: 26px; flex-shrink: 0; }
+    h1 { margin: 0; font-size: 20px; line-height: 1.15; }
+    .header-meta { color: #667085; font-size: 11px; line-height: 1.55; text-align: right; }
+    .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 14px; }
+    .summary-item { border: 1px solid #e5e7eb; border-radius: 8px; background: #f9fafb; padding: 14px; }
+    .summary-item span { display: block; color: #667085; font-size: 9px; font-weight: 800; margin-bottom: 6px; }
+    .summary-item strong { display: block; color: #111827; font-size: 18px; line-height: 1.15; }
+    .panel { border: 1px solid #e5e7eb; border-radius: 8px; background: #ffffff; padding: 16px; }
+    .panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+    .panel-title { margin: 0; color: #111827; font-size: 14px; font-weight: 800; }
+    .pill { border: 1px solid #d0d5dd; border-radius: 8px; color: #344054; padding: 6px 10px; font-size: 10px; font-weight: 800; white-space: nowrap; background: #f9fafb; }
+    table { width: 100%; border-collapse: collapse; font-size: 9.5px; }
+    th, td { border: 1px solid #d0d5dd; padding: 6px 8px; word-break: break-word; }
+    th { background: #e31e24 !important; color: #ffffff; font-size: 9px; font-weight: 700; text-align: left; }
+    td { color: #111827; background: inherit; }
+    td.num, th.num { text-align: right; }
+    tfoot td { color: #111827; background: #f3f4f6 !important; font-weight: 900; }
+    .footer { margin-top: 10px; color: #667085; font-size: 10px; text-align: right; }
+    @media screen { body { background: #f3f4f6; padding: 18px; } .report { max-width: 1200px; margin: 0 auto; box-shadow: 0 18px 50px rgba(15,23,42,.12); } }
+    @media print {
+      body, html, .report, .panel, .header, .summary-item { background: #ffffff !important; color-scheme: light !important; }
+      th { background: #e31e24 !important; color: #ffffff !important; }
+      tfoot td { background: #f3f4f6 !important; }
+    }
+  </style>
+</head>
+<body>
+<main class="report">
+  <section class="header">
+    <div class="header-left">
+      <div class="mark">📊</div>
+      <div>
+        <h1>MARGEM POR COMBUSTIVEL E PRODUTOS</h1>
+        <div class="header-meta" style="text-align:left">${e(clientName || 'Cliente')} | ${e(periodLabel)}</div>
+      </div>
+    </div>
+    <div class="header-meta">
+      <div>Categoria: ${e(catLabel)}</div>
+      <div>Fórmula: Custo Total = NF + Frete + ST</div>
+      <div>Gerado em ${e(generatedAt)}</div>
+    </div>
+  </section>
 
-  const margemCor = pct => pct < 10 ? '#ef4444' : pct < 20 ? '#f59e0b' : '#22c55e';
+  <div class="summary-grid">${kpiHtml}</div>
 
-  const TH = ({ col, children, align = 'right', style: s = {} }) => (
-    <th onClick={() => handleSort(col)} style={{
-      padding: '10px 12px', background: '#E31E24', color: '#fff',
-      fontWeight: 700, fontSize: 11, textAlign: align, whiteSpace: 'nowrap',
-      cursor: 'pointer', userSelect: 'none',
-      borderRight: '1px solid rgba(255,255,255,.12)', position: 'sticky', top: 0, ...s,
-    }}>
-      {children}<SortArrow col={col}/>
-    </th>
-  );
+  <section class="panel">
+    <div class="panel-head">
+      <h2 class="panel-title">DETALHAMENTO — MARGENS POR PRODUTO</h2>
+      <div class="pill">${e(catLabel.toUpperCase())} · ${e(periodLabel)}</div>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th style="width:46px">COD.</th>
+          <th style="min-width:140px">DESCRIÇÃO</th>
+          <th class="num">CUSTO BASE (R$)</th>
+          <th class="num">FRETE UNIT. (R$)</th>
+          <th class="num">ST (R$)</th>
+          <th class="num">CUSTO TOTAL (R$)</th>
+          <th class="num">VENDA (R$)</th>
+          <th class="num">MG. UNIT. (R$)</th>
+          <th class="num" style="min-width:100px">MG. UNIT. (%)</th>
+          <th class="num">VOLUME</th>
+          <th class="num">MG. TOTAL (R$)</th>
+        </tr>
+      </thead>
+      <tbody>${tableRows}</tbody>
+      <tfoot>
+        <tr>
+          <td colspan="8">PORTFÓLIO — ${e(rows.length)} produto${rows.length !== 1 ? 's' : ''} · Margem média ponderada</td>
+          <td class="num" style="font-weight:900;color:${margemCor(margemPonderada)}">${e(margemPonderada.toFixed(1))}%</td>
+          <td></td>
+          <td class="num" style="font-weight:900;color:${totMargemTotal >= 0 ? '#059669' : '#ef4444'}">${e(fmtR(totMargemTotal))}</td>
+        </tr>
+      </tfoot>
+    </table>
+  </section>
 
-  const tdBase = { padding: '9px 12px', fontSize: 12, color: '#111827', borderBottom: '1px solid #f3f4f6', whiteSpace: 'nowrap' };
-  const catCols = ['Todos', 'Bomba', 'Loja'];
-  const perCols = ['Diário', 'Semanal', 'Mensal', 'Anual'];
+  <footer class="footer">STARVL | Relatório de Margem por Combustível e Produtos</footer>
+</main>
+</body>
+</html>`;
+}
 
-  const togStyle = active => ({
-    padding: '5px 13px', border: 'none', borderRadius: 6, fontSize: 11, fontWeight: 700,
-    cursor: 'pointer', transition: 'all .15s',
-    background: active ? '#E31E24' : '#f3f4f6',
-    color: active ? '#fff' : '#6b7280',
-  });
+function exportMargemReport({ filters, clientName }) {
+  const html = buildMargemReportHtml({ filters, clientName });
+  if (!html) return;
+  const w = window.open('', '_blank');
+  if (!w) { toast('Permita pop-ups no navegador para imprimir o relatório.', 'warn'); return; }
+  w.document.open();
+  w.document.write(html.replace('</body>', `
+    <script>
+      window.addEventListener('load', function () {
+        setTimeout(function () { window.print(); }, 500);
+      });
+    </script>
+  </body>`));
+  w.document.close();
+}
 
+const MargemFilterPanel = ({ filters, setFilters, onClose, onGenerate }) => {
+  const upd = field => e => setFilters(prev => ({ ...prev, [field]: e.target.value }));
   return (
-    <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: '18px 20px', marginTop: 14, boxShadow: '0 2px 12px rgba(0,0,0,.06)' }}>
-      {/* ── Header ── */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14, flexWrap: 'wrap', gap: 10 }}>
-        <div>
-          <h3 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: '#111827', display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ background: '#fff5f5', border: '1px solid #fecaca', borderRadius: 7, padding: '4px 8px', fontSize: 16 }}>📊</span>
-            Margem por Combustível e Produtos
-          </h3>
-          <div style={{ fontSize: 11, color: '#6b7280', marginTop: 4 }}>
-            Custo Total = Preço NF + Frete + ST — nunca use só o preço de nota para calcular margem real
+    <div className="modal-overlay control-print-overlay" onClick={onClose}>
+      <div className="control-print-panel ranking-filter-panel" onClick={ev => ev.stopPropagation()}>
+        <div className="control-print-header">
+          <div className="control-print-title">
+            <span className="control-print-icon"><Filter size={25} /></span>
+            <h3>FILTROS — MARGEM POR COMBUSTÍVEL E PRODUTOS</h3>
           </div>
+          <button type="button" className="control-print-close" onClick={onClose} aria-label="Fechar">
+            <X size={28} />
+          </button>
         </div>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-          <div style={{ display: 'flex', gap: 3, background: '#f3f4f6', borderRadius: 7, padding: 3 }}>
-            {catCols.map(c => <button key={c} style={togStyle(catFiltro === c)} onClick={() => setCatFiltro(c)}>{c}</button>)}
+
+        <div className="control-print-body">
+          <div className="control-print-grid ranking-filter-grid">
+
+            {/* Período */}
+            <section className="control-print-section">
+              <div className="control-print-section-title">
+                <Calendar size={20} /><span>PERÍODO</span>
+              </div>
+              <div className="control-print-date-row">
+                <label className="control-print-field">
+                  <span>DATA INICIAL</span>
+                  <div className="control-print-input">
+                    <input type="date" value={filters.dataInicial} onChange={upd('dataInicial')} />
+                    <Calendar size={19} />
+                  </div>
+                </label>
+                <label className="control-print-field">
+                  <span>DATA FINAL</span>
+                  <div className="control-print-input">
+                    <input type="date" value={filters.dataFinal} onChange={upd('dataFinal')} />
+                    <Calendar size={19} />
+                  </div>
+                </label>
+              </div>
+            </section>
+
+            {/* Categoria */}
+            <section className="control-print-section">
+              <div className="control-print-section-title">
+                <Package size={20} /><span>CATEGORIA</span>
+              </div>
+              {[['Todos','Combustíveis + Conveniência','Todos os produtos'], ['Bomba','Apenas combustíveis (pista)','Gasolina, Diesel, Etanol'], ['Loja','Apenas conveniência','Alimentos, lubrificantes']].map(([val, strong, sub]) => (
+                <label key={val} className={`control-print-option ${filters.categoria === val ? 'selected' : ''}`}>
+                  <TrendingUp size={26} />
+                  <div><strong>{strong}</strong><span>{sub}</span></div>
+                  <input type="radio" name="margemCat" value={val} checked={filters.categoria === val} onChange={upd('categoria')} />
+                </label>
+              ))}
+            </section>
+
           </div>
-          <div style={{ display: 'flex', gap: 3, background: '#f3f4f6', borderRadius: 7, padding: 3 }}>
-            {perCols.map(p => <button key={p} style={togStyle(periodoFiltro === p)} onClick={() => setPeriodoFiltro(p)}>{p}</button>)}
-          </div>
+
+          {/* Ordenação */}
+          <section className="control-print-section">
+            <div className="control-print-section-title">
+              <BarChart2 size={20} /><span>ORDENAÇÃO DA TABELA</span>
+            </div>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 8 }}>
+              {[['margemTotal','Margem Total (R$)'],['margemPct','Margem % (decrescente)'],['volume','Volume vendido']].map(([val, label]) => (
+                <label key={val} className={`control-print-option ${filters.ordenacao === val ? 'selected' : ''}`} style={{ flex: '1 1 180px' }}>
+                  <div><strong>{label}</strong></div>
+                  <input type="radio" name="margemOrd" value={val} checked={filters.ordenacao === val} onChange={upd('ordenacao')} />
+                </label>
+              ))}
+            </div>
+          </section>
         </div>
-      </div>
 
-      {/* ── Table ── */}
-      <div style={{ overflowX: 'auto', borderRadius: 8, border: '1px solid #e5e7eb' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 1020 }}>
-          <thead>
-            <tr>
-              <TH col="cod"       align="left">Código</TH>
-              <TH col="desc"      align="left" style={{ minWidth: 170 }}>Descrição</TH>
-              <TH col="custBase">Custo Base (R$)</TH>
-              <TH col="frete">Frete Unit. (R$)</TH>
-              <TH col="st">ST (R$)</TH>
-              <TH col="custTotal">Custo Total (R$)</TH>
-              <TH col="venda">Venda (R$)</TH>
-              <TH col="margemUnit">Mg. Unit. (R$)</TH>
-              <TH col="margemPct" style={{ minWidth: 140 }}>Mg. Unit. (%)</TH>
-              <TH col="volume">Volume</TH>
-              <TH col="margemTotal">Mg. Total (R$)</TH>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row, i) => {
-              const cor = margemCor(row.margemPct);
-              const barW = Math.min(100, Math.max(0, row.margemPct));
-              return (
-                <tr key={row.cod} style={{ background: i % 2 === 0 ? '#fff' : '#f9fafb' }}>
-                  <td style={{ ...tdBase, textAlign: 'left', fontWeight: 700, color: '#374151', fontFamily: 'monospace', fontSize: 11 }}>
-                    {row.cod}
-                  </td>
-                  <td style={{ ...tdBase, textAlign: 'left' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                      <span style={{ width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
-                        background: row.cat === 'Bomba' ? '#3b82f6' : '#f59e0b' }}/>
-                      <span style={{ fontWeight: 600, color: '#1f2937' }}>{row.desc}</span>
-                    </div>
-                  </td>
-                  <td style={{ ...tdBase, textAlign: 'right' }}>R$ {fmt2(row.custBase)}</td>
-                  <td style={{ ...tdBase, textAlign: 'right' }}>R$ {fmt2(row.frete)}</td>
-                  <td style={{ ...tdBase, textAlign: 'right', color: '#dc2626' }}>R$ {fmt2(row.st)}</td>
-                  <td style={{ ...tdBase, textAlign: 'right', fontWeight: 700, color: '#374151' }}>R$ {fmt2(row.custTotal)}</td>
-                  <td style={{ ...tdBase, textAlign: 'right' }}>R$ {fmt2(row.venda)}</td>
-                  <td style={{ ...tdBase, textAlign: 'right', fontWeight: 700, color: row.margemUnit >= 0 ? '#059669' : '#ef4444' }}>
-                    {row.margemUnit >= 0 ? '+' : ''}R$ {fmt2(row.margemUnit)}
-                  </td>
-                  <td style={{ ...tdBase, textAlign: 'right' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <div style={{ flex: 1, height: 8, background: '#f3f4f6', borderRadius: 4, overflow: 'hidden', minWidth: 56 }}>
-                        <div style={{ height: '100%', width: `${barW}%`, background: cor, borderRadius: 4, transition: 'width .5s ease' }}/>
-                      </div>
-                      <span style={{ fontSize: 11, fontWeight: 800, color: cor, minWidth: 40, textAlign: 'right' }}>
-                        {row.margemPct.toFixed(1)}%
-                      </span>
-                    </div>
-                  </td>
-                  <td style={{ ...tdBase, textAlign: 'right' }}>{fmt0(row.volume)} {row.unid}</td>
-                  <td style={{ ...tdBase, textAlign: 'right', fontWeight: 800, fontSize: 13,
-                    color: row.margemTotal >= 0 ? '#059669' : '#ef4444' }}>
-                    {fmtR(row.margemTotal)}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-          <tfoot>
-            <tr style={{ background: '#f3f4f6', borderTop: '2px solid #d1d5db' }}>
-              <td colSpan={8} style={{ ...tdBase, textAlign: 'left', fontWeight: 800, color: '#374151', background: '#f3f4f6' }}>
-                Portfólio — {rows.length} produto{rows.length !== 1 ? 's' : ''} · Margem média ponderada
-              </td>
-              <td style={{ ...tdBase, textAlign: 'right', background: '#f3f4f6' }}>
-                <span style={{ fontSize: 13, fontWeight: 800, color: margemCor(margemPonderada) }}>
-                  {margemPonderada.toFixed(1)}%
-                </span>
-              </td>
-              <td style={{ ...tdBase, background: '#f3f4f6' }}/>
-              <td style={{ ...tdBase, textAlign: 'right', fontWeight: 900, fontSize: 14, background: '#f3f4f6',
-                color: totMargemTotal >= 0 ? '#059669' : '#ef4444' }}>
-                {fmtR(totMargemTotal)}
-              </td>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
-
-      {/* ── Legenda ── */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 10, flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 10, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 1 }}>Legenda:</span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#6b7280' }}>
-          <span style={{ width: 9, height: 9, borderRadius: '50%', background: '#3b82f6', display: 'inline-block' }}/> Bomba (Pista)
-        </span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#6b7280' }}>
-          <span style={{ width: 9, height: 9, borderRadius: '50%', background: '#f59e0b', display: 'inline-block' }}/> Loja (Conveniência)
-        </span>
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 12 }}>
-          {[['#ef4444', '< 10%  Crítico'], ['#f59e0b', '10–20%  Atenção'], ['#22c55e', '> 20%  Saudável']].map(([c, l]) => (
-            <span key={l} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: '#6b7280' }}>
-              <span style={{ width: 10, height: 10, borderRadius: 2, background: c, display: 'inline-block' }}/> {l}
-            </span>
-          ))}
+        <div className="control-print-footer">
+          <button type="button" className="btn-secondary control-print-cancel" onClick={onClose}>
+            <X size={20} /> CANCELAR
+          </button>
+          <button type="button" className="btn-primary control-print-generate" onClick={onGenerate}>
+            <Printer size={20} /> GERAR IMPRESSÃO
+          </button>
         </div>
       </div>
     </div>
   );
 };
-// ── fim MargemProdutosPanel ──────────────────────────────────────────────────
+// ── fim Margem por Combustível e Produtos ────────────────────────────────────
 
 const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients }) => {
   const [activeTab, setActiveTab] = useState('descarregamentos');
@@ -5279,6 +5371,7 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
   const [showControlPrintPanel, setShowControlPrintPanel] = useState(false);
   const [showRankingPrintPanel, setShowRankingPrintPanel] = useState(false);
   const [showMargemPanel,       setShowMargemPanel]       = useState(false);
+  const [margemFilters, setMargemFilters] = useState({ categoria: 'Todos', dataInicial: '', dataFinal: '', ordenacao: 'margemTotal' });
   const [vendedores, setVendedores] = useState([]);
   const [rankingFilters, setRankingFilters] = useState({
     dataInicial: '',
@@ -5821,6 +5914,25 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
     }
   };
 
+  const openMargemPanel = () => {
+    const range = getPeriodDateRange(selectedPeriod);
+    setMargemFilters(prev => ({
+      ...prev,
+      dataInicial: prev.dataInicial || range.dataInicial,
+      dataFinal:   prev.dataFinal   || range.dataFinal,
+    }));
+    setShowMargemPanel(true);
+  };
+
+  const handleGenerateMargemReport = () => {
+    if (margemFilters.dataInicial && margemFilters.dataFinal && margemFilters.dataInicial > margemFilters.dataFinal) {
+      toast('A data inicial não pode ser maior que a data final.', 'warn');
+      return;
+    }
+    exportMargemReport({ filters: margemFilters, clientName: selectedClient });
+    setShowMargemPanel(false);
+  };
+
   const renderOutrosRelatorios = () => (
     <div className="other-reports-panel">
       <div className="other-reports-list">
@@ -5834,14 +5946,14 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
           <ChevronRight size={20} />
         </button>
 
-        <button type="button" className="other-report-row" onClick={() => setShowMargemPanel(v => !v)}>
+        <button type="button" className="other-report-row" onClick={openMargemPanel}>
           <div className="other-report-index">REL 2</div>
           <div className="other-report-icon"><TrendingUp size={22} /></div>
           <div className="other-report-main">
             <strong>Margem por Combustível e Produtos</strong>
             <span>Análise de margem bruta unitária e total com ST, frete e custo real</span>
           </div>
-          <ChevronRight size={20} style={{ transform: showMargemPanel ? 'rotate(90deg)' : 'none', transition: 'transform .2s' }} />
+          <ChevronRight size={20} />
         </button>
       </div>
 
@@ -5858,7 +5970,14 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
         />
       )}
 
-      {showMargemPanel && <MargemProdutosPanel />}
+      {showMargemPanel && (
+        <MargemFilterPanel
+          filters={margemFilters}
+          setFilters={setMargemFilters}
+          onClose={() => setShowMargemPanel(false)}
+          onGenerate={handleGenerateMargemReport}
+        />
+      )}
 
     </div>
   );
