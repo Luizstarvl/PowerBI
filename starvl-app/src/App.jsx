@@ -3146,15 +3146,6 @@ const ConvCarousel = ({ data, images, themeMode }) => {
               }}>
 
 
-              {/* Stars ao redor — só no campeão */}
-              {isWinner && STAR_POSITIONS.map((pos, si) => (
-                <div key={si} style={{
-                  position:'absolute', ...pos, fontSize:13, pointerEvents:'none', zIndex:5,
-                  animation:`cc-star-float ${1.4+si*0.25}s ${si*0.15}s ease-in-out infinite`,
-                }}>
-                  {si % 2 === 0 ? '✨' : '⭐'}
-                </div>
-              ))}
 
               {/* Card */}
               <div style={{
@@ -3628,8 +3619,8 @@ const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcContr
       {loading && <LoadingState compact label="Atualizando dashboard..." />}
       {dashboardSections.kpis}
       <div className="dashboard-grid dashboard-static-grid">
-        <div className="dashboard-static-wide">{dashboardSections.salesFuel}</div>
-        <div>{dashboardSections.stock}</div>
+        <div className="dashboard-static-full">{dashboardSections.salesFuel}</div>
+        <div className="dashboard-static-full">{dashboardSections.stock}</div>
         <div className="dashboard-static-full">
           <VendasPista clients={clients} selectedClient={selectedClient} selectedPeriod={selectedPeriod} themeMode={themeMode} />
         </div>
