@@ -4403,6 +4403,51 @@ function pmBuildDonut(parts) {
   return `conic-gradient(${segs.join(', ')})`;
 }
 
+// ─── IndexedDB: repositório de imagens de produtos ─────────────────────────
+const IMG_DB  = 'starvl-product-images';
+const IMG_STR = 'images';
+
+function _imgDB() {
+  return new Promise((res, rej) => {
+    const req = indexedDB.open(IMG_DB, 1);
+    req.onupgradeneeded = e => e.target.result.createObjectStore(IMG_STR);
+    req.onsuccess = e => res(e.target.result);
+    req.onerror   = e => rej(e.target.error);
+  });
+}
+async function imgSave(id, dataUrl) {
+  const db = await _imgDB();
+  return new Promise((res, rej) => {
+    const tx = db.transaction(IMG_STR, 'readwrite');
+    tx.objectStore(IMG_STR).put(dataUrl, id);
+    tx.oncomplete = () => { db.close(); res(); };
+    tx.onerror    = e => { db.close(); rej(e.target.error); };
+  });
+}
+async function imgDelete(id) {
+  const db = await _imgDB();
+  return new Promise((res, rej) => {
+    const tx = db.transaction(IMG_STR, 'readwrite');
+    tx.objectStore(IMG_STR).delete(id);
+    tx.oncomplete = () => { db.close(); res(); };
+    tx.onerror    = e => { db.close(); rej(e.target.error); };
+  });
+}
+async function imgLoadAll() {
+  const db = await _imgDB();
+  return new Promise((res, rej) => {
+    const tx  = db.transaction(IMG_STR, 'readonly');
+    const all = {};
+    const req = tx.objectStore(IMG_STR).openCursor();
+    req.onsuccess = e => {
+      const cur = e.target.result;
+      if (cur) { all[cur.key] = cur.value; cur.continue(); }
+      else { db.close(); res(all); }
+    };
+    req.onerror = e => { db.close(); rej(e.target.error); };
+  });
+}
+
 function printProductCard({ prod, editForm, editImg }) {
   const custo  = parseFloat(editForm.custo)  || prod.custo;
   const preco  = parseFloat(editForm.preco)  || prod.preco;
@@ -4551,15 +4596,27 @@ const ConvenienciaManager = ({ themeMode }) => {
   const [viewProd, setViewProd]     = useState(null);
   const [editProd, setEditProd]     = useState(null);
   const [editForm, setEditForm]     = useState({});
-  const [editImg, setEditImg]       = useState(null);
-  const [localEdits, setLocalEdits] = useState(() => {
-    try { const s = localStorage.getItem('pm_localEdits'); return s ? JSON.parse(s) : {}; }
-    catch { return {}; }
+  const [editImg, setEditImg]         = useState(null);
+  const [productImages, setProductImages] = useState({});
+  const [localEdits, setLocalEdits]   = useState(() => {
+    try {
+      const s = localStorage.getItem('pm_localEdits');
+      if (!s) return {};
+      // strip any legacy editImg blob/base64 stored in localStorage
+      const parsed = JSON.parse(s);
+      Object.values(parsed).forEach(v => { delete v.editImg; });
+      return parsed;
+    } catch { return {}; }
   });
   const imgInputRef = useRef(null);
   const LIMIT = 7;
 
-  // Persist localEdits (includes saved images as base64) whenever it changes
+  // Load all product images from IndexedDB on mount
+  useEffect(() => {
+    imgLoadAll().then(setProductImages).catch(() => {});
+  }, []);
+
+  // Persist localEdits to localStorage (no images — those live in IndexedDB)
   useEffect(() => {
     try { localStorage.setItem('pm_localEdits', JSON.stringify(localEdits)); }
     catch { /* quota exceeded — ignore */ }
@@ -4568,7 +4625,7 @@ const ConvenienciaManager = ({ themeMode }) => {
   // Reset page on filter change
   useEffect(() => { setPage(1); }, [search, categoria, fornecedor, statusFilt, dataInicio, dataFim]);
 
-  // Compute status for all products (merge localEdits)
+  // Compute status for all products (merge localEdits + images from IndexedDB)
   const allProds = useMemo(() => {
     const today = new Date(); today.setHours(0,0,0,0);
     return PM_MOCK_PRODUCTS.map(p => {
@@ -4577,14 +4634,14 @@ const ConvenienciaManager = ({ themeMode }) => {
       const vencDate = new Date(merged.venc + 'T00:00:00');
       const dias = Math.round((vencDate - today) / 86400000);
       const status = dias < 0 ? 'vencido' : dias === 0 ? 'vencendo_hoje' : dias <= 7 ? 'prox_vencer' : 'ok';
-      return { ...merged, dias, status, valorEstoque: merged.custo * merged.estoque };
+      return { ...merged, dias, status, valorEstoque: merged.custo * merged.estoque, editImg: productImages[p.id] || null };
     });
-  }, [localEdits]);
+  }, [localEdits, productImages]);
 
   const openEdit = useCallback((p) => {
     const merged = { ...p, ...(localEdits[p.id] || {}) };
     setEditProd(merged);
-    setEditImg(merged.editImg || null);
+    setEditImg(productImages[p.id] || null);
     setEditForm({
       custo:      String(merged.custo),
       preco:      String(merged.preco),
@@ -4596,10 +4653,11 @@ const ConvenienciaManager = ({ themeMode }) => {
       forn:       merged.forn,
       controlVenc: merged.controlVenc !== undefined ? merged.controlVenc : true,
     });
-  }, [localEdits]);
+  }, [localEdits, productImages]);
 
   const saveEdit = useCallback(() => {
     if (!editProd) return;
+    // Salvar edições de texto/números no localStorage
     setLocalEdits(prev => ({
       ...prev,
       [editProd.id]: {
@@ -4612,11 +4670,21 @@ const ConvenienciaManager = ({ themeMode }) => {
         desc:        editForm.desc,
         forn:        editForm.forn,
         controlVenc: editForm.controlVenc,
-        editImg:     editImg,
+        // editImg NÃO vai para localStorage — fica no IndexedDB
       },
     }));
+    // Salvar/remover imagem no IndexedDB
+    if (editImg) {
+      imgSave(editProd.id, editImg)
+        .then(() => setProductImages(prev => ({ ...prev, [editProd.id]: editImg })))
+        .catch(() => toast('Erro ao salvar imagem.', 'error'));
+    } else if (productImages[editProd.id]) {
+      imgDelete(editProd.id)
+        .then(() => setProductImages(prev => { const next = { ...prev }; delete next[editProd.id]; return next; }))
+        .catch(() => {});
+    }
     setEditProd(null);
-  }, [editProd, editForm, editImg]);
+  }, [editProd, editForm, editImg, productImages]);
 
   // KPIs
   const kpis = useMemo(() => {
@@ -6200,9 +6268,11 @@ export default function App() {
   const handleLogoutRequest = useCallback(() => setShowLogoutConfirm(true), []);
   const handleLogoutConfirm = useCallback(() => {
     setShowLogoutConfirm(false);
-    // Tenta fechar a guia; se o browser bloquear, faz logout mesmo assim
-    const closed = (() => { try { window.close(); return true; } catch { return false; } })();
-    if (!closed) { setIsLoggedIn(false); setLoggedUser(null); setCurrentPage('dashboard'); }
+    setIsLoggedIn(false);
+    setLoggedUser(null);
+    setCurrentPage('dashboard');
+    // Tenta fechar a guia como bônus (bloqueado pelo browser se não foi aberta por script)
+    try { window.close(); } catch { /* ignorar */ }
   }, []);
   const handleLogoutCancel = useCallback(() => setShowLogoutConfirm(false), []);
 
