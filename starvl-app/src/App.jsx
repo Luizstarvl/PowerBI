@@ -8729,19 +8729,19 @@ const GoalManager = ({ themeMode = 'dark' }) => {
         </section>
 
         <section class="panel details">
-          <div class="panel-head"><h2 class="panel-title">DETALHAMENTO — TODAS AS METAS</h2></div>
+          <div class="panel-head"><h2 class="panel-title">DETALHAMENTO — METAS ABERTAS (${ativas.length + atrasadas.length})</h2></div>
           <table>
             <thead><tr>
               <th style="width:22%">Meta</th><th style="width:13%">Categoria</th><th style="width:8%">Período</th>
               <th class="num" style="width:11%">Meta (R$)</th><th class="num" style="width:11%">Alcançado</th>
               <th style="width:13%">Progresso</th><th style="width:10%">Status</th><th style="width:12%">Vencimento</th>
             </tr></thead>
-            <tbody>${goals.map(_goalTR).join('')}</tbody>
+            <tbody>${[...ativas, ...atrasadas].map(_goalTR).join('')}</tbody>
             <tfoot><tr>
               <td colspan="3">TOTAL</td>
-              <td class="num">${fmtBRL(totalMeta)}</td>
-              <td class="num">${fmtBRL(totalAlc)}</td>
-              <td colspan="3">${kpis.ativas} ativas · ${kpis.concl} concluídas · ${kpis.atrasadas} em atraso</td>
+              <td class="num">${fmtBRL([...ativas,...atrasadas].reduce((s,g)=>s+g.meta,0))}</td>
+              <td class="num">${fmtBRL([...ativas,...atrasadas].reduce((s,g)=>s+g.alcancado,0))}</td>
+              <td colspan="3">${ativas.length} em andamento · ${atrasadas.length} em atraso</td>
             </tr></tfoot>
           </table>
         </section>
@@ -8763,26 +8763,6 @@ const GoalManager = ({ themeMode = 'dark' }) => {
       search                   ? `Busca: "${search}"`        : null,
       `Ordenar por: ${orderBy === 'vencimento' ? 'Vencimento' : orderBy === 'meta' ? 'Meta' : 'Progresso'}`,
     ].filter(Boolean);
-    // Top 5 para o painel ranking
-    const top5 = [...filtered].sort((a,b) => b.alcancado - a.alcancado).slice(0,5);
-    const maxAlc = top5[0]?.alcancado || 1;
-    const initials = n => n.split(' ').slice(0,2).map(w=>w[0]||'').join('').toUpperCase();
-    const rankRows = top5.map((g,i) => {
-      const w = Math.max(4, (g.alcancado/maxAlc)*100);
-      const col = GOAL_CAT_COLORS[g.categoria] || '#6b7280';
-      return `<div class="rank-row">
-        <div class="rank-pos">${i+1}°</div>
-        <div class="rank-person">
-          <div class="avatar" style="background:${col}">${initials(g.nome)}</div>
-          <div class="person-text">
-            <strong>${g.nome}</strong>
-            <span>${g.categoria} · ${g.periodo}</span>
-          </div>
-        </div>
-        <div class="bar-track"><div class="bar-fill" style="width:${w}%;background:${col}"></div></div>
-        <div class="bar-value">${fmtBRL(g.alcancado)}</div>
-      </div>`;
-    }).join('');
 
     _openTab(`<!doctype html><html><head><meta charset="utf-8">
       <meta name="color-scheme" content="light">
@@ -8805,26 +8785,8 @@ const GoalManager = ({ themeMode = 'dark' }) => {
           </div>
         </section>
 
-        <section class="dashboard">
-          <div class="panel">
-            <div class="panel-head">
-              <h2 class="panel-title">TOP 5 — MAIOR ATINGIMENTO</h2>
-              <div class="pill">R$ ALCANÇADO</div>
-            </div>
-            <div class="rank-list">${rankRows || '<p style="color:#9ca3af;font-size:12px">Nenhuma meta encontrada.</p>'}</div>
-          </div>
-          <aside class="panel">
-            <div class="panel-head"><h2 class="panel-title">RESUMO</h2></div>
-            <div class="summary-grid">
-              <div class="summary-item"><span>Metas no Filtro</span><strong>${filtered.length}</strong></div>
-              <div class="summary-item"><span>Meta Total (R$)</span><strong>${fmtBRL(totalMeta)}</strong></div>
-              <div class="summary-item"><span>Total Alcançado</span><strong>${fmtBRL(totalAlc)}</strong></div>
-            </div>
-          </aside>
-        </section>
-
         <section class="panel details">
-          <div class="panel-head"><h2 class="panel-title">DETALHAMENTO</h2></div>
+          <div class="panel-head"><h2 class="panel-title">DETALHAMENTO (${filtered.length} metas)</h2></div>
           <table>
             <thead><tr>
               <th style="width:22%">Meta</th><th style="width:13%">Categoria</th><th style="width:8%">Período</th>
