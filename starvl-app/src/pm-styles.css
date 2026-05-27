@@ -170,7 +170,6 @@
 .theme-light .pm-search, .theme-light .pm-select, .theme-light .pm-date-input { background: #f1f5f9; border-color: #cbd5e1; color: #111827; }
 .theme-light .pm-clear-btn { border-color: #e2e8f0; color: #6b7280; }
 .theme-light .pm-table-wrap { background: #fff; border-color: #e2e8f0; }
-.theme-light .pm-table thead tr { background: #E31E24 !important; }
 .theme-light .pm-table thead th { background: #E31E24 !important; color: #fff !important; border-bottom-color: #c91b20 !important; }
 .theme-light .pm-row td { color: #374151; }
 .theme-light .pm-row { border-bottom-color: #f1f5f9; }

@@ -125,7 +125,6 @@
 .cr-modal-val { color: #f8fafc; font-weight: 600; text-align: right; }
 
 /* Light theme */
-.theme-light .cr-table thead tr { background: #E31E24 !important; }
 .theme-light .cr-table thead th { background: #E31E24 !important; color: #fff !important; border-bottom-color: #c91b20 !important; }
 .theme-light .cr-header-title h2 { color: #111827; }
 .theme-light .cr-kpi { background: #fff; border-color: #e2e8f0; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }

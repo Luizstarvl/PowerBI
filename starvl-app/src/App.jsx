@@ -3,7 +3,7 @@ import logoStarvl from './logo-starvl.png';
 import logoStarvlBlack from './logo-starvl-black.png';
 import * as XLSX from 'xlsx';
 import { LineChart, Line, BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Area, AreaChart, LabelList, ComposedChart, ReferenceLine } from 'recharts';
-import { Home, FileText, Users as UsersIcon, Truck, Package, LogOut, Eye, Search, Plus, Edit2, Trash2, X, Calendar, TrendingUp, Droplet, DollarSign, Calculator, Bell, ChevronDown, Activity, Settings, Building2, Phone, Mail, MapPin, Hash, Clock, BarChart2, Layers, CircleDollarSign, UserCheck, UserPlus, AlertCircle, Globe, Camera, Building, Tag, RefreshCw, Database, ChevronRight, ChevronLeft, Filter, Printer, Moon, Sun, Trophy, Lock, Unlock, Wallet, Download, CreditCard, CheckCircle2, AlertTriangle, Save } from 'lucide-react';
+import { Home, FileText, Users as UsersIcon, Truck, Package, LogOut, Eye, Search, Plus, Edit2, Trash2, X, Calendar, TrendingUp, Droplet, DollarSign, Calculator, Bell, ChevronDown, Activity, Settings, Building2, Phone, Mail, MapPin, Hash, Clock, BarChart2, Layers, CircleDollarSign, UserCheck, UserPlus, AlertCircle, Globe, Camera, Building, Tag, RefreshCw, Database, ChevronRight, ChevronLeft, Filter, Printer, Moon, Sun, Trophy, Lock, Unlock, Wallet, Download, CreditCard, AlertTriangle, Save } from 'lucide-react';
 import './App.css';
 import './cr-styles.css';
 import './pm-styles.css';
@@ -40,6 +40,12 @@ const API_URL = process.env.REACT_APP_API_URL
 function periodToApi(period) {
   return period.replace('/', ''); // "05/2026" → "052026"
 }
+
+// ─── Global formatters ─────────────────────────────────────────────────────
+const fmtBRL  = v => 'R$ ' + Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmtDate = s => { if (!s) return '—'; const [y, m, d] = String(s).substring(0, 10).split('-'); return `${d}/${m}/${y}`; };
+const fmtNum  = (v, dec = 0) => Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+const fmt2    = n => fmtNum(n, 2);
 
 const initialClients = [
   { id: 7432, nome: 'POSTO LD', banco: 'ret_meavenida', codigoEmpresa: 7432 },
@@ -95,6 +101,34 @@ const MONTH_OPTIONS = [
   { value: '11', label: 'NOVEMBRO' },
   { value: '12', label: 'DEZEMBRO' },
 ];
+
+// ─── Toast system ──────────────────────────────────────────────────────────
+let _toastEmit = null;
+function toast(msg, type = 'info') {
+  if (_toastEmit) _toastEmit(msg, type);
+}
+const ToastContainer = () => {
+  const [toasts, setToasts] = useState([]);
+  useEffect(() => {
+    _toastEmit = (msg, type) => {
+      const id = Date.now() + Math.random();
+      setToasts(prev => [...prev, { id, msg, type }]);
+      setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3800);
+    };
+    return () => { _toastEmit = null; };
+  }, []);
+  if (!toasts.length) return null;
+  const colors = { error: '#ef4444', success: '#22c55e', warn: '#f59e0b', info: '#60a5fa' };
+  return (
+    <div style={{ position: 'fixed', bottom: 24, right: 24, zIndex: 99999, display: 'flex', flexDirection: 'column', gap: 8, pointerEvents: 'none' }}>
+      {toasts.map(t => (
+        <div key={t.id} style={{ background: '#1a1a1a', color: '#f8fafc', padding: '12px 16px', borderRadius: 10, fontSize: 13, fontWeight: 600, maxWidth: 380, boxShadow: '0 8px 24px rgba(0,0,0,0.5)', borderLeft: `4px solid ${colors[t.type] || colors.info}`, lineHeight: 1.4 }}>
+          {t.msg}
+        </div>
+      ))}
+    </div>
+  );
+};
 
 // Login Component
 const Login = ({ onLogin, adminUsers }) => {
@@ -448,6 +482,11 @@ const getFuelColor = (name, fallback = DASHBOARD_COLORS.sale) => {
   if (fuelName.includes('GAS NATURAL') || fuelName.includes('GNV') || fuelName.includes('VEICULAR')) return FUEL_COLORS.gnv;
   return fallback;
 };
+
+// ─── Shared chart styles (constant — defined once, reused everywhere) ──────
+const TOOLTIP_STYLE = { background: DASHBOARD_COLORS.tooltipBg, border: `1px solid ${DASHBOARD_COLORS.sale}`, borderRadius: 8, color: DASHBOARD_COLORS.label };
+const TOOLTIP_STYLE_PURCHASE = { ...TOOLTIP_STYLE, border: `1px solid ${DASHBOARD_COLORS.purchase110}` };
+const CHART_LABEL_STYLE = { fill: DASHBOARD_COLORS.label, fontWeight: 700 };
 
 // ── VendasPista ──────────────────────────────────────────────────────────────
 const VP_PERIODS = [
@@ -991,12 +1030,12 @@ const PvTooltip = ({ active, payload }) => {
   const pt   = payload[0]?.payload;
   const real = payload.find(p => p.dataKey === 'realizado');
   const proj = payload.find(p => p.dataKey === 'projetado');
-  const fmtBRL = n => Number(n || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
+  const fmtBRLInt = n => Number(n || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
   return (
     <div className="pv-tooltip">
       <strong>Dia {pt?.dia}/mai</strong>
-      {real?.value != null && <span style={{ color: '#38bdf8' }}>Realizado: {fmtBRL(real.value)}</span>}
-      {proj?.value != null && pt?.isProjection && <span style={{ color: '#fb923c' }}>Projetado: {fmtBRL(proj.value)}</span>}
+      {real?.value != null && <span style={{ color: '#38bdf8' }}>Realizado: {fmtBRLInt(real.value)}</span>}
+      {proj?.value != null && pt?.isProjection && <span style={{ color: '#fb923c' }}>Projetado: {fmtBRLInt(proj.value)}</span>}
     </div>
   );
 };
@@ -1459,9 +1498,7 @@ const ContasReceber = ({ clients, selectedClient }) => {
       .finally(() => setLoading(false));
   }, [empresa, usingMock, page, search, statusFiltro, dataInicio, dataFim]);
 
-  const fmtBRL = v => `R$ ${Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}`;
   const fmtPct = v => `${Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}%`;
-  const fmtDate = s => s ? String(s).substring(0,10).split('-').reverse().join('/') : '-';
 
   const totaisTabela = useMemo(() => {
     const t = { valor:0, juros:0, desconto:0, valorAReceber:0 };
@@ -1886,9 +1923,6 @@ const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcContr
   const monthlyTotal = monthlyChart.reduce((sum, row) => sum + Number(row.value || 0), 0);
   const purchasesChartData = comprasChart.length > 0 ? comprasChart : comprasFallback;
   const salesFuelChartData = vendasCombustivelChart.length > 0 ? vendasCombustivelChart : vendasCombustivelFallback;
-  const tooltipStyle = { background: DASHBOARD_COLORS.tooltipBg, border: `1px solid ${DASHBOARD_COLORS.sale}`, borderRadius: 8, color: DASHBOARD_COLORS.label };
-  const purchaseTooltipStyle = { ...tooltipStyle, border: `1px solid ${DASHBOARD_COLORS.purchase110}` };
-  const labelStyle = { fill: DASHBOARD_COLORS.label, fontWeight: 700 };
   const wideChartHeight = isCompactDashboard ? 240 : 300;
   const productMatrixHeight = isCompactDashboard ? 360 : 430;
   const purchaseChartHeight = isCompactDashboard ? 260 : 280;
@@ -1962,12 +1996,12 @@ const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcContr
               <CartesianGrid strokeDasharray="3 3" stroke={DASHBOARD_COLORS.grid} />
               <XAxis dataKey="name" stroke={DASHBOARD_COLORS.axis} tick={xTickStyle} interval={0} height={isCompactDashboard ? 46 : 30} angle={isCompactDashboard ? -18 : 0} textAnchor={isCompactDashboard ? 'end' : 'middle'} />
               <YAxis stroke={DASHBOARD_COLORS.axis} tick={xTickStyle} width={isCompactDashboard ? 46 : 60} />
-              <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: '#fff' }} formatter={(v) => [fmtLitersLabel(v), 'Litros']} />
+              <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={{ color: '#fff' }} formatter={(v) => [fmtLitersLabel(v), 'Litros']} />
               <Bar dataKey="litros" name="Litros vendidos" fill={DASHBOARD_COLORS.sale} radius={[8, 8, 0, 0]}>
                 {salesFuelChartData.map((entry, index) => (
                   <Cell key={`sales-fuel-${entry.name}-${index}`} fill={entry.color || DASHBOARD_COLORS.sale} />
                 ))}
-                <LabelList dataKey="litros" position="top" formatter={(v) => Number(v) > 0 ? fmtLitersLabel(v) : ''} {...labelStyle} fontSize={isCompactDashboard ? 10 : 12} />
+                <LabelList dataKey="litros" position="top" formatter={(v) => Number(v) > 0 ? fmtLitersLabel(v) : ''} {...CHART_LABEL_STYLE} fontSize={isCompactDashboard ? 10 : 12} />
               </Bar>
             </BarChart>
           </ResponsiveContainer>
@@ -1977,12 +2011,12 @@ const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcContr
               <CartesianGrid strokeDasharray="3 3" stroke={DASHBOARD_COLORS.grid} />
               <XAxis dataKey="name" stroke={DASHBOARD_COLORS.axis} tick={xTickStyle} interval={0} height={isCompactDashboard ? 46 : 30} angle={isCompactDashboard ? -18 : 0} textAnchor={isCompactDashboard ? 'end' : 'middle'} />
               <YAxis stroke={DASHBOARD_COLORS.axis} tick={xTickStyle} width={isCompactDashboard ? 46 : 60} />
-              <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: '#fff' }} formatter={(v, _name, props) => [<span style={{ color: props.payload?.color || '#60a5fa', fontWeight: 700 }}>{Number(v).toLocaleString('pt-BR') + ' un.'}</span>, <span style={{ color: props.payload?.color || '#60a5fa' }}>Unidades</span>]} />
+              <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={{ color: '#fff' }} formatter={(v, _name, props) => [<span style={{ color: props.payload?.color || '#60a5fa', fontWeight: 700 }}>{Number(v).toLocaleString('pt-BR') + ' un.'}</span>, <span style={{ color: props.payload?.color || '#60a5fa' }}>Unidades</span>]} />
               <Bar dataKey="qty" name="Unidades vendidas" radius={[8, 8, 0, 0]}>
                 {salesConvChartData.map((entry, index) => (
                   <Cell key={`sales-conv-${entry.name}-${index}`} fill={entry.color} />
                 ))}
-                <LabelList dataKey="qty" position="top" formatter={(v) => Number(v) > 0 ? Number(v).toLocaleString('pt-BR') + ' un.' : ''} {...labelStyle} fontSize={isCompactDashboard ? 10 : 12} />
+                <LabelList dataKey="qty" position="top" formatter={(v) => Number(v) > 0 ? Number(v).toLocaleString('pt-BR') + ' un.' : ''} {...CHART_LABEL_STYLE} fontSize={isCompactDashboard ? 10 : 12} />
               </Bar>
             </BarChart>
           </ResponsiveContainer>
@@ -2033,16 +2067,16 @@ const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcContr
             <YAxis stroke={DASHBOARD_COLORS.axis} tick={xTickStyle} width={isCompactDashboard ? 46 : 60} />
             <Tooltip
               cursor={false}
-              contentStyle={purchaseTooltipStyle}
+              contentStyle={TOOLTIP_STYLE_PURCHASE}
               labelStyle={{ color: '#fff' }}
               formatter={(v) => [fmt(v) + ' L', 'Litros']}
             />
             <Legend />
             <Bar dataKey="compra110" name="Compra 110" fill={DASHBOARD_COLORS.purchase110} radius={[8, 8, 0, 0]}>
-              <LabelList dataKey="compra110" position="top" formatter={(v) => Number(v) > 0 ? fmtCompactLiters(v) : ''} {...labelStyle} fontSize={isCompactDashboard ? 9 : 11} />
+              <LabelList dataKey="compra110" position="top" formatter={(v) => Number(v) > 0 ? fmtCompactLiters(v) : ''} {...CHART_LABEL_STYLE} fontSize={isCompactDashboard ? 9 : 11} />
             </Bar>
             <Bar dataKey="compra220" name="Compra 220" fill={DASHBOARD_COLORS.purchase220} radius={[8, 8, 0, 0]}>
-              <LabelList dataKey="compra220" position="top" formatter={(v) => Number(v) > 0 ? fmtCompactLiters(v) : ''} {...labelStyle} fontSize={isCompactDashboard ? 9 : 11} />
+              <LabelList dataKey="compra220" position="top" formatter={(v) => Number(v) > 0 ? fmtCompactLiters(v) : ''} {...CHART_LABEL_STYLE} fontSize={isCompactDashboard ? 9 : 11} />
             </Bar>
           </BarChart>
         </ResponsiveContainer>
@@ -2139,8 +2173,8 @@ const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcContr
             <CartesianGrid strokeDasharray="3 3" stroke={DASHBOARD_COLORS.grid} vertical={false} />
             <XAxis dataKey="hour" stroke={DASHBOARD_COLORS.axis} tick={xTickStyle} interval={isCompactDashboard ? 5 : 3} />
             <YAxis hide />
-            <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: '#fff' }} formatter={(v) => [fmtCompactCurrency(v), 'Valor']} />
-            <Bar dataKey="value" fill={DASHBOARD_COLORS.sale} radius={[6, 6, 0, 0]}>{showDenseValueLabels && <LabelList dataKey="value" position="top" formatter={(v) => Number(v) > 0 ? fmtCompactCurrency(v) : ''} {...labelStyle} fontSize={9} />}</Bar>
+            <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={{ color: '#fff' }} formatter={(v) => [fmtCompactCurrency(v), 'Valor']} />
+            <Bar dataKey="value" fill={DASHBOARD_COLORS.sale} radius={[6, 6, 0, 0]}>{showDenseValueLabels && <LabelList dataKey="value" position="top" formatter={(v) => Number(v) > 0 ? fmtCompactCurrency(v) : ''} {...CHART_LABEL_STYLE} fontSize={9} />}</Bar>
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -2155,8 +2189,8 @@ const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcContr
             <CartesianGrid strokeDasharray="3 3" stroke={DASHBOARD_COLORS.grid} vertical={false} />
             <XAxis dataKey="name" stroke={DASHBOARD_COLORS.axis} tick={xTickStyle} />
             <YAxis hide />
-            <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: '#fff' }} formatter={(v) => [fmtCompactCurrency(v), 'Valor']} />
-            <Area type="monotone" dataKey="value" stroke={DASHBOARD_COLORS.sale} fillOpacity={1} fill="url(#colorWeekly)"><LabelList dataKey="value" position="top" formatter={(v) => Number(v) > 0 ? fmtCompactCurrency(v) : ''} {...labelStyle} fontSize={isCompactDashboard ? 9 : 10} /></Area>
+            <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={{ color: '#fff' }} formatter={(v) => [fmtCompactCurrency(v), 'Valor']} />
+            <Area type="monotone" dataKey="value" stroke={DASHBOARD_COLORS.sale} fillOpacity={1} fill="url(#colorWeekly)"><LabelList dataKey="value" position="top" formatter={(v) => Number(v) > 0 ? fmtCompactCurrency(v) : ''} {...CHART_LABEL_STYLE} fontSize={isCompactDashboard ? 9 : 10} /></Area>
           </AreaChart>
         </ResponsiveContainer>
       </div>
@@ -2170,9 +2204,9 @@ const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcContr
             <defs><linearGradient id="colorMonthly" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={DASHBOARD_COLORS.sale} stopOpacity={0.8}/><stop offset="95%" stopColor={DASHBOARD_COLORS.sale} stopOpacity={0}/></linearGradient></defs>
             <CartesianGrid strokeDasharray="3 3" stroke={DASHBOARD_COLORS.grid} vertical={false} />
             <YAxis hide />
-            <Area type="monotone" dataKey="value" stroke={DASHBOARD_COLORS.sale} fillOpacity={1} fill="url(#colorMonthly)">{showDenseValueLabels && <LabelList dataKey="value" position="top" formatter={(v) => Number(v) > 0 ? fmtCompactCurrency(v) : ''} {...labelStyle} fontSize={9} />}</Area>
+            <Area type="monotone" dataKey="value" stroke={DASHBOARD_COLORS.sale} fillOpacity={1} fill="url(#colorMonthly)">{showDenseValueLabels && <LabelList dataKey="value" position="top" formatter={(v) => Number(v) > 0 ? fmtCompactCurrency(v) : ''} {...CHART_LABEL_STYLE} fontSize={9} />}</Area>
             <XAxis dataKey="day" stroke={DASHBOARD_COLORS.axis} tick={xTickStyle} interval={isCompactDashboard ? 6 : 4} />
-            <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: '#fff' }} formatter={(v) => [fmtCompactCurrency(v), 'Valor']} />
+            <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={{ color: '#fff' }} formatter={(v) => [fmtCompactCurrency(v), 'Valor']} />
           </AreaChart>
         </ResponsiveContainer>
       </div>
@@ -2198,9 +2232,6 @@ const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcContr
   );
 };
 // Reports Component
-const fmtNum = (v, dec = 0) => Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: dec, maximumFractionDigits: dec });
-const fmtBRL = (v) => Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-const fmtDate = (d) => d ? new Date(d).toLocaleDateString('pt-BR') : '—';
 
 function getUTCDateKey(ts) {
   const d = new Date(ts);
@@ -2555,7 +2586,7 @@ function buildControlExportPayload({ rows, filters, productName, clientName }) {
 
 function exportControlReport({ rows, filters, productName, clientName }) {
   if (!rows.length) {
-    window.alert('Nenhum registro encontrado para os filtros selecionados.');
+    toast('Nenhum registro encontrado para os filtros selecionados.', 'warn');
     return;
   }
 
@@ -2677,7 +2708,7 @@ function exportControlReport({ rows, filters, productName, clientName }) {
 </html>`;
   const printWindow = window.open('', '_blank');
   if (!printWindow) {
-    window.alert('Permita pop-ups para gerar o PDF do relatorio.');
+    toast('Permita pop-ups no navegador para gerar o PDF.', 'warn');
     return;
   }
   printWindow.document.open();
@@ -2708,7 +2739,7 @@ function getRankingBarColor(index) {
 function buildRankingSalesReportHtml({ report, filters, clientName, sellerLabel }) {
   const rows = Array.isArray(report?.ranking) ? report.ranking : [];
   if (!rows.length) {
-    window.alert('Nenhuma venda encontrada para os filtros selecionados.');
+    toast('Nenhuma venda encontrada para os filtros selecionados.', 'warn');
     return null;
   }
 
@@ -2899,7 +2930,7 @@ function exportRankingSalesReport({ report, filters, clientName, sellerLabel }) 
 
   const printWindow = window.open('', '_blank');
   if (!printWindow) {
-    window.alert('Permita pop-ups para gerar a impressao do relatorio.');
+    toast('Permita pop-ups no navegador para imprimir o relatório.', 'warn');
     return;
   }
 
@@ -3359,7 +3390,7 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
       dataFinal: controlPrintFilters.dataFinal || range.dataFinal,
     };
     if (filters.dataInicial > filters.dataFinal) {
-      window.alert('A data inicial nao pode ser maior que a data final.');
+      toast('A data inicial não pode ser maior que a data final.', 'warn');
       return;
     }
     setLoading(prev => ({ ...prev, controleExport: true }));
@@ -3386,7 +3417,7 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
     });
     setShowControlPrintPanel(false);
     } catch (err) {
-      window.alert(`Erro ao gerar relatorio: ${getFriendlyApiError(err)}`);
+      toast(`Erro ao gerar relatório: ${getFriendlyApiError(err)}`, 'error');
     } finally {
       setLoading(prev => ({ ...prev, controleExport: false }));
     }
@@ -3425,12 +3456,12 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
     };
 
     if (filters.dataInicial > filters.dataFinal) {
-      window.alert('A data inicial nao pode ser maior que a data final.');
+      toast('A data inicial não pode ser maior que a data final.', 'warn');
       return;
     }
 
     if (vendedores.length && !filters.vendedores.length) {
-      window.alert('Selecione pelo menos um vendedor.');
+      toast('Selecione pelo menos um vendedor.', 'warn');
       return;
     }
 
@@ -3458,7 +3489,7 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
       });
       setShowRankingPrintPanel(false);
     } catch (err) {
-      window.alert(`Erro ao gerar relatorio: ${getFriendlyApiError(err)}`);
+      toast(`Erro ao gerar relatório: ${getFriendlyApiError(err)}`, 'error');
     } finally {
       setLoading(prev => ({ ...prev, rankingExport: false }));
     }
@@ -3858,8 +3889,6 @@ const Control = ({ lmcRegistros, lmcDiario, lmcControle, selectedPeriod, setSele
   const [selectedRowKey, setSelectedRowKey] = useState(null);
   const [savedEditKey, setSavedEditKey] = useState(null);
 
-  const fmt2 = (n) => (n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
   const fuels = [];
   const seenFuels = new Set();
   (lmcControle || []).forEach(r => {
@@ -3915,7 +3944,7 @@ const Control = ({ lmcRegistros, lmcDiario, lmcControle, selectedPeriod, setSele
       dataFinal: printFilters.dataFinal || range.dataFinal,
     };
     if (filters.dataInicial > filters.dataFinal) {
-      window.alert('A data inicial nao pode ser maior que a data final.');
+      toast('A data inicial não pode ser maior que a data final.', 'warn');
       return;
     }
     try {
@@ -3944,7 +3973,7 @@ const Control = ({ lmcRegistros, lmcDiario, lmcControle, selectedPeriod, setSele
       });
       setShowPrintPanel(false);
     } catch (err) {
-      window.alert(`Erro ao gerar relatorio: ${getFriendlyApiError(err)}`);
+      toast(`Erro ao gerar relatório: ${getFriendlyApiError(err)}`, 'error');
     }
   }
 
@@ -4375,9 +4404,6 @@ function pmBuildDonut(parts) {
 }
 
 function printProductCard({ prod, editForm, editImg }) {
-  const fmtBRL = v => 'R$ ' + Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const fmtDate = s => { if (!s) return '—'; const [y, m, d] = s.split('-'); return `${d}/${m}/${y}`; };
-
   const custo  = parseFloat(editForm.custo)  || prod.custo;
   const preco  = parseFloat(editForm.preco)  || prod.preco;
   const estq   = parseInt(editForm.estoque)  || prod.estoque;
@@ -4508,7 +4534,7 @@ function printProductCard({ prod, editForm, editImg }) {
 </html>`;
 
   const pw = window.open('', '_blank');
-  if (!pw) { window.alert('Permita pop-ups para imprimir o produto.'); return; }
+  if (!pw) { toast('Permita pop-ups no navegador para imprimir o produto.', 'warn'); return; }
   pw.document.open();
   pw.document.write(html);
   pw.document.close();
@@ -4541,9 +4567,6 @@ const ConvenienciaManager = ({ themeMode }) => {
 
   // Reset page on filter change
   useEffect(() => { setPage(1); }, [search, categoria, fornecedor, statusFilt, dataInicio, dataFim]);
-
-  const fmtBRL  = v => 'R$ ' + Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const fmtDate = s => { if (!s) return '—'; const [y,m,d] = s.split('-'); return `${d}/${m}/${y}`; };
 
   // Compute status for all products (merge localEdits)
   const allProds = useMemo(() => {
@@ -5245,8 +5268,7 @@ const StockPosition = ({ estoques, projecao, loading, selectedClient, clients })
   const projectionRows = projectionData.projecoes || projecao || [];
   const activeProjecao = projectionRows.find(p => p.produtoCodigo === activeFuel?.produtoCodigo) || null;
 
-  const fmt2 = (n) => (n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const fmtR = (n) => 'R$ ' + fmt2(n);
+  const fmtR = fmtBRL;
 
   const tankPct = activeFuel ? Math.min(Math.max(activeFuel.percentualOcupacao, 0), 100) : 0;
   const stockFuelColor = activeFuel ? getFuelColor(activeFuel.produtoNome, DASHBOARD_COLORS.stock) : DASHBOARD_COLORS.stock;
@@ -5563,7 +5585,7 @@ const Users = ({ adminUsers, setAdminUsers, isAdmin }) => {
   };
 
   const handleView = (user) => {
-    window.alert(`${user.name}\n${user.email}\nPerfil: ${user.role}\nStatus: ${user.status}`);
+    toast(`${user.name} — ${user.role} — ${user.status}`, 'info');
   };
 
   const handleDelete = (userId) => {
@@ -5895,7 +5917,7 @@ const Parameters = ({ clients, setClients, isAdmin }) => {
 
   const handleSave = (e) => {
     e.preventDefault();
-    window.alert('Empresa salva com sucesso!');
+    toast('Empresa salva com sucesso!', 'success');
   };
 
   const update = (field) => (e) => setForm({ ...form, [field]: e.target.value });
@@ -6380,6 +6402,7 @@ export default function App() {
           </div>
         </div>
       )}
+      <ToastContainer />
     </div>
   );
 }
