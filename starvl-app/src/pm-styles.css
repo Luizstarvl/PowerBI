@@ -200,6 +200,33 @@
 .theme-light .pm-modal-row { border-bottom-color: #f1f5f9; }
 .theme-light .pm-btn-outline { border-color: #e2e8f0; color: #6b7280; }
 
+/* ── Light theme: Edit overlay ────────────────────────────────────────── */
+.theme-light .pm-edit-modal { background: #f8fafc; border-color: #e2e8f0; }
+.theme-light .pm-edit-topbar { background: #fff; border-bottom-color: #e2e8f0; }
+.theme-light .pm-edit-topbar-title { color: #111827; }
+.theme-light .pm-edit-back { color: #9ca3af; }
+.theme-light .pm-edit-back:hover { color: #E31E24; }
+.theme-light .pm-edit-panel { background: #fff; border-color: #e2e8f0; }
+.theme-light .pm-edit-panel-title { color: #9ca3af; }
+.theme-light .pm-edit-label { color: #6b7280; }
+.theme-light .pm-edit-hint { color: #9ca3af; }
+.theme-light .pm-edit-input,
+.theme-light .pm-edit-select,
+.theme-light .pm-edit-textarea { background: #f1f5f9; border-color: #cbd5e1; color: #111827; }
+.theme-light .pm-edit-input:focus,
+.theme-light .pm-edit-select:focus,
+.theme-light .pm-edit-textarea:focus { border-color: #E31E24; }
+.theme-light .pm-edit-input[readOnly],
+.theme-light .pm-edit-select[disabled] { background: #e8edf2; color: #9ca3af; border-color: #e2e8f0; cursor: default; }
+.theme-light .pm-edit-stat { border-bottom-color: #f1f5f9; }
+.theme-light .pm-edit-stat-lbl { color: #9ca3af; }
+.theme-light .pm-edit-stat-val { color: #111827; }
+.theme-light .pm-edit-img-box { background: #f1f5f9; border-color: #cbd5e1; }
+.theme-light .pm-edit-img-hint { color: #9ca3af; }
+.theme-light .pm-toggle-lbl { color: #374151; }
+.theme-light .pm-toggle-slider { background: #cbd5e1; }
+.theme-light .pm-edit-addl { background: #fff; border-color: #e2e8f0; }
+
 /* ── Edit Product Overlay ─────────────────────────────────────────────── */
 .pm-edit-overlay {
   position: fixed; inset: 0;

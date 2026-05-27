@@ -4374,6 +4374,146 @@ function pmBuildDonut(parts) {
   return `conic-gradient(${segs.join(', ')})`;
 }
 
+function printProductCard({ prod, editForm, editImg }) {
+  const fmtBRL = v => 'R$ ' + Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const fmtDate = s => { if (!s) return '—'; const [y, m, d] = s.split('-'); return `${d}/${m}/${y}`; };
+
+  const custo  = parseFloat(editForm.custo)  || prod.custo;
+  const preco  = parseFloat(editForm.preco)  || prod.preco;
+  const estq   = parseInt(editForm.estoque)  || prod.estoque;
+  const estMin = parseInt(editForm.estMin)   || 5;
+  const margem = preco > 0 ? ((preco - custo) / preco * 100) : 0;
+  const qtdMes = 20 + (prod.id % 60);
+  const mColor = margem >= 20 ? '#16a34a' : margem >= 10 ? '#d97706' : '#dc2626';
+  const statusLabel = { ok:'OK – Válido', prox_vencer:'Próx. do Vencimento', vencendo_hoje:'Vencendo Hoje', vencido:'VENCIDO' }[prod.status] || '';
+  const statusColor = { ok:'#16a34a', prox_vencer:'#d97706', vencendo_hoje:'#ea580c', vencido:'#dc2626' }[prod.status] || '#111';
+  const imgTag = editImg
+    ? `<img src="${editImg}" style="width:100%;height:100%;object-fit:cover;border-radius:8px;" />`
+    : `<div style="font-size:72px;line-height:1;text-align:center;">${prod.emoji}</div>`;
+
+  const html = `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Ficha do Produto — ${prod.nome}</title>
+  <style>
+    @page { size: A4 portrait; margin: 12mm; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: Arial, Helvetica, sans-serif; color: #111; background: #fff; }
+    @media screen { body { background: #f3f4f6; padding: 20px; } .card { max-width: 800px; margin: 0 auto; background: #fff; padding: 28px; box-shadow: 0 10px 30px rgba(0,0,0,.12); border-radius: 12px; } }
+    .card {}
+    .header { display: flex; align-items: center; justify-content: space-between; border-bottom: 3px solid #E31E24; padding-bottom: 10px; margin-bottom: 18px; }
+    .header h1 { margin: 0; font-size: 15px; letter-spacing: .04em; text-transform: uppercase; color: #111; }
+    .header .sub { font-size: 11px; color: #777; margin-top: 3px; }
+    .logo { width: 110px; height: auto; }
+    .body { display: grid; grid-template-columns: 180px 1fr; gap: 20px; }
+    .img-box { width: 180px; height: 180px; border-radius: 10px; background: ${prod.cor}22; border: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0; }
+    .section-title { font-size: 9px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; color: #9ca3af; margin: 0 0 8px; }
+    .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; margin-bottom: 14px; }
+    .field { display: flex; flex-direction: column; gap: 2px; }
+    .label { font-size: 9px; color: #9ca3af; text-transform: uppercase; letter-spacing: .05em; }
+    .value { font-size: 12px; color: #111; font-weight: 600; }
+    .price-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+    .price-card { border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 10px; text-align: center; }
+    .price-big { font-size: 16px; font-weight: 800; color: #111; }
+    .price-lbl { font-size: 9px; color: #9ca3af; text-transform: uppercase; letter-spacing: .05em; margin-top: 2px; }
+    .margin-val { font-size: 16px; font-weight: 800; color: ${mColor}; }
+    .bar { height: 8px; border-radius: 4px; overflow: hidden; display: flex; margin: 4px 0 14px; }
+    .bar-c { background: #16a34a; height: 100%; }
+    .bar-l { background: #E31E24; flex: 1; height: 100%; }
+    .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+    .stat { border: 1px solid #e2e8f0; border-radius: 8px; padding: 7px 10px; }
+    .stat .label { font-size: 9px; }
+    .stat .value { font-size: 12px; }
+    .status-badge { display: inline-block; padding: 4px 14px; border-radius: 20px; font-size: 11px; font-weight: 800; color: #fff; background: ${statusColor}; letter-spacing: .04em; }
+    .footer { margin-top: 16px; border-top: 1px solid #e2e8f0; padding-top: 8px; display: flex; justify-content: space-between; font-size: 9px; color: #aaa; }
+    .full { grid-column: 1 / -1; }
+  </style>
+</head>
+<body>
+<div class="card">
+  <div class="header">
+    <div>
+      <h1>Ficha do Produto — Conveniência</h1>
+      <div class="sub">Gerado em ${new Date().toLocaleString('pt-BR')}</div>
+    </div>
+    <img class="logo" src="/logo-starvl.png" alt="STARVL" />
+  </div>
+
+  <div class="body">
+    <div class="img-box">${imgTag}</div>
+    <div>
+      <div class="section-title">Identificação</div>
+      <div class="info-grid">
+        <div class="field full"><span class="label">Nome do Produto</span><span class="value" style="font-size:14px;">${prod.nome}</span></div>
+        <div class="field"><span class="label">Código de Barras</span><span class="value" style="font-family:monospace;">${prod.codigo}</span></div>
+        <div class="field"><span class="label">Categoria</span><span class="value">${prod.cat}</span></div>
+        <div class="field"><span class="label">Unidade</span><span class="value">${prod.uni}</span></div>
+        <div class="field"><span class="label">Marca</span><span class="value">${editForm.marca || prod.sub || '—'}</span></div>
+        <div class="field"><span class="label">Fornecedor</span><span class="value">${editForm.forn || prod.forn}</span></div>
+      </div>
+
+      <div class="section-title">Preços e Margem</div>
+      <div class="price-row">
+        <div class="price-card"><div class="price-lbl">Custo Médio</div><div class="price-big">${fmtBRL(custo)}</div></div>
+        <div class="price-card"><div class="price-lbl">Preço de Venda</div><div class="price-big">${fmtBRL(preco)}</div></div>
+        <div class="price-card"><div class="price-lbl">Margem</div><div class="margin-val">${margem.toFixed(1)}%</div></div>
+      </div>
+      <div class="bar">
+        <div class="bar-c" style="width:${Math.min(custo/preco*100,100).toFixed(1)}%"></div>
+        <div class="bar-l"></div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-top:4px;">
+    <div>
+      <div class="section-title">Estoque</div>
+      <div class="stats">
+        <div class="stat"><div class="label">Estoque Atual</div><div class="value">${estq} un.</div></div>
+        <div class="stat"><div class="label">Estoque Mínimo</div><div class="value">${estMin} un.</div></div>
+        <div class="stat full"><div class="label">Localização</div><div class="value">${editForm.local || '—'}</div></div>
+      </div>
+    </div>
+    <div>
+      <div class="section-title">Vendas do Mês</div>
+      <div class="stats">
+        <div class="stat"><div class="label">Total Vendido</div><div class="value">${fmtBRL(qtdMes * preco)}</div></div>
+        <div class="stat"><div class="label">Qtd. Vendida</div><div class="value">${qtdMes} un.</div></div>
+      </div>
+    </div>
+    <div>
+      <div class="section-title">Vencimento</div>
+      <div class="stats">
+        <div class="stat full"><div class="label">Data de Vencimento</div><div class="value">${fmtDate(prod.venc)}</div></div>
+        <div class="stat full" style="border-color:${statusColor}22;background:${statusColor}0d;">
+          <div class="label">Status</div>
+          <div style="margin-top:4px;"><span class="status-badge">${statusLabel}</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <span>STARVL — Gerenciamento de Conveniência</span>
+    <span>Situação: ATIVO | Controle de Vencimento: ${editForm.controlVenc ? 'Ativo' : 'Inativo'}</span>
+  </div>
+</div>
+<script>
+  window.addEventListener('load', function () {
+    setTimeout(function () { window.print(); }, 400);
+  });
+</script>
+</body>
+</html>`;
+
+  const pw = window.open('', '_blank');
+  if (!pw) { window.alert('Permita pop-ups para imprimir o produto.'); return; }
+  pw.document.open();
+  pw.document.write(html);
+  pw.document.close();
+}
+
 const ConvenienciaManager = ({ themeMode }) => {
   const [page, setPage]           = useState(1);
   const [search, setSearch]       = useState('');
@@ -4766,7 +4906,7 @@ const ConvenienciaManager = ({ themeMode }) => {
 
       {/* ─── EDIT OVERLAY ─── */}
       {editProd && (
-        <div className="pm-edit-overlay" onClick={() => setEditProd(null)}>
+        <div className={`pm-edit-overlay${themeMode === 'light' ? ' theme-light' : ''}`} onClick={() => setEditProd(null)}>
           <div className="pm-edit-modal" onClick={e => e.stopPropagation()}>
           {/* Top bar */}
           <div className="pm-edit-topbar">
@@ -4785,7 +4925,7 @@ const ConvenienciaManager = ({ themeMode }) => {
               <button className="pm-btn-primary" onClick={saveEdit}>
                 <Save size={13} /> SALVAR ALTERAÇÕES
               </button>
-              <button className="pm-btn-outline" onClick={() => window.print()}>
+              <button className="pm-btn-outline" onClick={() => printProductCard({ prod: editProd, editForm, editImg })}>
                 <Printer size={13} /> IMPRIMIR PRODUTO
               </button>
             </div>
