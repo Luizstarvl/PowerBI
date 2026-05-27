@@ -2797,96 +2797,113 @@ const Financeiro = ({ clients, selectedClient }) => {
 // ─── Tanque Horizontal — SVG inspirado no tanque cilíndrico real ──────────────
 const HorizTank = ({ pct = 0, color = '#22c55e', liters = 0 }) => {
   const safe = Math.max(0, Math.min(100, pct));
-  const W = 380, H = 160;
+  const W = 380, H = 165;
   const X1 = 50, X2 = 330, CY = 82, RX = 46, RY = 72;
   const BW = X2 - X1;
-  const fillH  = RY * 2 * safe / 100;
-  const fillY  = CY + RY - fillH;
-  const fmtN   = n => Number(n || 0).toLocaleString('pt-BR', { maximumFractionDigits: 0 });
-  const uid    = 'ht';                    // único por render
+  const fillH = RY * 2 * safe / 100;
+  const fillY = CY + RY - fillH;
+  const fmtN  = n => Number(n || 0).toLocaleString('pt-BR', { maximumFractionDigits: 0 });
+  const uid   = 'ht';
 
   return (
     <svg viewBox={`0 0 ${W} ${H}`} width="100%" style={{ display: 'block', maxWidth: 380, margin: '0 auto' }}>
       <defs>
         <clipPath id={`${uid}-body`}>
-          <rect  x={X1}   y={CY - RY} width={BW}    height={RY * 2}/>
-          <ellipse cx={X1} cy={CY}     rx={RX}        ry={RY}/>
-          <ellipse cx={X2} cy={CY}     rx={RX}        ry={RY}/>
+          <rect    x={X1}  y={CY-RY} width={BW}   height={RY*2}/>
+          <ellipse cx={X1} cy={CY}   rx={RX}       ry={RY}/>
+          <ellipse cx={X2} cy={CY}   rx={RX}       ry={RY}/>
         </clipPath>
         <clipPath id={`${uid}-cap`}>
-          <ellipse cx={X2} cy={CY}     rx={RX}        ry={RY}/>
+          <ellipse cx={X2} cy={CY}   rx={RX}       ry={RY}/>
         </clipPath>
+
+        {/* Fundo cinza claro (área vazia) */}
         <linearGradient id={`${uid}-bg`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%"   stopColor="#1a2740"/>
-          <stop offset="100%" stopColor="#0b1220"/>
+          <stop offset="0%"   stopColor="#dce3ea"/>
+          <stop offset="100%" stopColor="#c4cdd6"/>
         </linearGradient>
+        {/* Líquido */}
         <linearGradient id={`${uid}-liq`} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%"   stopColor={color} stopOpacity="1"/>
-          <stop offset="100%" stopColor={color} stopOpacity="0.65"/>
+          <stop offset="100%" stopColor={color} stopOpacity="0.7"/>
         </linearGradient>
+        {/* Brilho tampa frontal */}
         <linearGradient id={`${uid}-capShine`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%"   stopColor="rgba(255,255,255,0.12)"/>
-          <stop offset="50%"  stopColor="rgba(255,255,255,0.03)"/>
-          <stop offset="100%" stopColor="rgba(0,0,0,0.18)"/>
+          <stop offset="0%"   stopColor="rgba(255,255,255,0.35)"/>
+          <stop offset="50%"  stopColor="rgba(255,255,255,0.08)"/>
+          <stop offset="100%" stopColor="rgba(0,0,0,0.10)"/>
         </linearGradient>
       </defs>
 
       {/* ── Pés de suporte ── */}
       {[[X1+28, X1+18], [X2-35, X2-45]].map(([px, bx], i) => (
         <g key={i}>
-          <rect x={px} y={CY+RY} width={7} height={28} fill="#2d3f5a" rx={2}/>
-          <rect x={bx} y={CY+RY+21} width={24} height={7} fill="#374151" rx={2}/>
+          <rect x={px} y={CY+RY}    width={7}  height={28} fill="#8fa3b1" rx={2}/>
+          <rect x={bx} y={CY+RY+21} width={24} height={7}  fill="#a0b0bc" rx={2}/>
         </g>
       ))}
 
-      {/* ── Tampa traseira (esquerda) ── */}
-      <ellipse cx={X1} cy={CY} rx={RX} ry={RY} fill="#111c2e" stroke="#243347" strokeWidth={2}/>
+      {/* ── Tampa traseira (esquerda) — cinza mais escuro para perspectiva ── */}
+      <ellipse cx={X1} cy={CY} rx={RX} ry={RY} fill="#b8c5cf" stroke="#94a3b1" strokeWidth={2}/>
 
-      {/* ── Corpo: background + líquido ── */}
+      {/* ── Corpo: background cinza + líquido ── */}
       <g clipPath={`url(#${uid}-body)`}>
         <rect x={0} y={0} width={W} height={H} fill={`url(#${uid}-bg)`}/>
+
+        {/* Líquido */}
         {safe > 0 && (
           <rect x={0} y={fillY} width={W} height={fillH} fill={`url(#${uid}-liq)`}/>
         )}
-        {/* Superfície do líquido */}
+
+        {/* Superfície animada do líquido — onda 1 */}
         {safe > 2 && safe < 98 && (
-          <ellipse cx={W/2} cy={fillY} rx={BW * 0.52} ry={5}
-            fill={color} opacity={0.45}/>
+          <ellipse cx={W/2} cy={fillY} rx={BW * 0.52} ry={6} fill={color} opacity={0.5}>
+            <animate attributeName="cx"
+              values={`${W/2 - 18};${W/2 + 18};${W/2 - 18}`}
+              dur="3.2s" repeatCount="indefinite"/>
+          </ellipse>
         )}
-        {/* Reflexo topo */}
-        <ellipse cx={X1+BW*0.5} cy={CY - RY*0.55} rx={BW*0.26} ry={RY*0.13}
-          fill="rgba(255,255,255,0.05)"/>
-        {/* Juntas verticais (costuras) */}
+        {/* Onda 2 (desfasada) */}
+        {safe > 2 && safe < 98 && (
+          <ellipse cx={W/2} cy={fillY - 2} rx={BW * 0.38} ry={4} fill="rgba(255,255,255,0.25)">
+            <animate attributeName="cx"
+              values={`${W/2 + 22};${W/2 - 22};${W/2 + 22}`}
+              dur="2.5s" repeatCount="indefinite"/>
+          </ellipse>
+        )}
+
+        {/* Reflexo topo (brilho metálico da área vazia) */}
+        <ellipse cx={X1+BW*0.5} cy={CY - RY*0.55} rx={BW*0.26} ry={RY*0.12}
+          fill="rgba(255,255,255,0.30)"/>
+        {/* Costuras verticais */}
         {[0.33, 0.66].map((f, i) => (
           <line key={i} x1={X1+BW*f} y1={CY-RY} x2={X1+BW*f} y2={CY+RY}
-            stroke="rgba(255,255,255,0.04)" strokeWidth={1}/>
+            stroke="rgba(0,0,0,0.07)" strokeWidth={1}/>
         ))}
       </g>
 
-      {/* ── Contorno do corpo (linhas superior e inferior) ── */}
-      <line x1={X1} y1={CY-RY} x2={X2} y2={CY-RY} stroke="#243347" strokeWidth={2}/>
-      <line x1={X1} y1={CY+RY} x2={X2} y2={CY+RY} stroke="#243347" strokeWidth={2}/>
+      {/* ── Contorno do corpo ── */}
+      <line x1={X1} y1={CY-RY} x2={X2} y2={CY-RY} stroke="#94a3b1" strokeWidth={2}/>
+      <line x1={X1} y1={CY+RY} x2={X2} y2={CY+RY} stroke="#94a3b1" strokeWidth={2}/>
 
       {/* ── Tubulação topo esquerdo (tubos vermelhos) ── */}
-      {/* Tubo vertical (respiro) */}
-      <rect x={X1+40} y={CY-RY-28} width={9} height={28} fill="#7c2d12" rx={2}/>
-      <rect x={X1+34} y={CY-RY-30} width={21} height={7} fill="#991b1b" rx={2}/>
-      {/* Tubo horizontal + 2 válvulas */}
-      <rect x={X1+8}  y={CY-RY-15} width={36} height={9} fill="#7c2d12" rx={2}/>
+      <rect x={X1+40} y={CY-RY-28} width={9}  height={28} fill="#7c2d12" rx={2}/>
+      <rect x={X1+34} y={CY-RY-30} width={21} height={7}  fill="#991b1b" rx={2}/>
+      <rect x={X1+8}  y={CY-RY-15} width={36} height={9}  fill="#7c2d12" rx={2}/>
       <rect x={X1+5}  y={CY-RY-20} width={10} height={18} fill="#6b1e1e" rx={2}/>
       <rect x={X1+20} y={CY-RY-20} width={10} height={18} fill="#6b1e1e" rx={2}/>
       {/* Manômetro */}
-      <rect x={X1+62} y={CY-RY-5} width={3} height={5} fill="#374151"/>
-      <circle cx={X1+64} cy={CY-RY-13} r={10} fill="#1e293b" stroke="#4b5563" strokeWidth={2}/>
-      <circle cx={X1+64} cy={CY-RY-13} r={7}  fill="#111827"/>
-      <line   x1={X1+64} y1={CY-RY-13} x2={X1+69} y2={CY-RY-17}
+      <rect   x={X1+62}   y={CY-RY-5}  width={3}  height={5}   fill="#64748b"/>
+      <circle cx={X1+64}  cy={CY-RY-13} r={10} fill="#1e293b" stroke="#4b5563" strokeWidth={2}/>
+      <circle cx={X1+64}  cy={CY-RY-13} r={7}  fill="#111827"/>
+      <line   x1={X1+64}  y1={CY-RY-13} x2={X1+69} y2={CY-RY-17}
         stroke="#f59e0b" strokeWidth={1.5} strokeLinecap="round"/>
-      <circle cx={X1+64} cy={CY-RY-13} r={2} fill="#6b7280"/>
+      <circle cx={X1+64}  cy={CY-RY-13} r={2}  fill="#6b7280"/>
 
       {/* ── Boca de visita (topo centro) ── */}
-      <ellipse cx={W/2+8} cy={CY-RY}  rx={22} ry={7} fill="#1e293b" stroke="#4b5563" strokeWidth={2}/>
-      <ellipse cx={W/2+8} cy={CY-RY}  rx={18} ry={5} fill="#374151" stroke="#6b7280" strokeWidth={1.5}/>
-      <ellipse cx={W/2+8} cy={CY-RY}  rx={6}  ry={2.5} fill="#4b5563"/>
+      <ellipse cx={W/2+8} cy={CY-RY} rx={22} ry={7}   fill="#374151" stroke="#4b5563" strokeWidth={2}/>
+      <ellipse cx={W/2+8} cy={CY-RY} rx={18} ry={5}   fill="#4b5563" stroke="#6b7280" strokeWidth={1.5}/>
+      <ellipse cx={W/2+8} cy={CY-RY} rx={6}  ry={2.5} fill="#64748b"/>
       {[0,45,90,135,180,225,270,315].map((a, i) => (
         <circle key={i}
           cx={(W/2+8) + Math.cos(a*Math.PI/180)*19}
@@ -2894,41 +2911,47 @@ const HorizTank = ({ pct = 0, color = '#22c55e', liters = 0 }) => {
           r={2.2} fill="#6b7280"/>
       ))}
 
-      {/* ── Tampa frontal (direita) — líquido + brilho ── */}
+      {/* ── Tampa frontal (direita) ── */}
       <g clipPath={`url(#${uid}-cap)`}>
+        <rect x={X2-RX-4} y={0}     width={RX*2+8} height={H}     fill={`url(#${uid}-bg)`}/>
         {safe > 0 && (
-          <rect x={X2-RX-4} y={fillY} width={RX*2+8} height={fillH}
-            fill={`url(#${uid}-liq)`} opacity={0.75}/>
+          <rect x={X2-RX-4} y={fillY} width={RX*2+8} height={fillH} fill={`url(#${uid}-liq)`} opacity={0.8}/>
+        )}
+        {safe > 2 && safe < 98 && (
+          <ellipse cx={X2} cy={fillY} rx={RX*0.9} ry={5} fill={color} opacity={0.4}>
+            <animate attributeName="cx"
+              values={`${X2-14};${X2+14};${X2-14}`}
+              dur="3.2s" repeatCount="indefinite"/>
+          </ellipse>
         )}
       </g>
       <ellipse cx={X2} cy={CY} rx={RX} ry={RY}
-        fill={`url(#${uid}-capShine)`} stroke="#2d4060" strokeWidth={2.5}/>
+        fill={`url(#${uid}-capShine)`} stroke="#94a3b1" strokeWidth={2.5}/>
 
       {/* ── Sensor vermelho (lateral direita) ── */}
       <rect x={X2+26} y={CY-14} width={20} height={17} fill="#991b1b" rx={2.5}/>
       <rect x={X2+28} y={CY-12} width={16} height={13} fill="#7c2d12" rx={1.5}/>
       <rect x={X2+18} y={CY-7}  width={10} height={5}  fill="#7c2d12" rx={1}/>
-      {/* Tubo inferior direito */}
       <rect x={X2+12} y={CY+22} width={16} height={7}  fill="#7c2d12" rx={2}/>
       <rect x={X2+8}  y={CY+18} width={9}  height={15} fill="#6b1e1e" rx={2}/>
 
-      {/* ── Etiqueta de nível centralizada ── */}
-      <rect x={W/2-52} y={CY-24} width={104} height={48} rx={5}
-        fill="rgba(0,0,0,0.7)" stroke={`${color}55`} strokeWidth={1.5}/>
-      <text x={W/2} y={CY-9} textAnchor="middle"
-        fill="#94a3b8" fontSize={9} fontFamily="monospace" fontWeight="700" letterSpacing="1">
+      {/* ── Etiqueta de nível — maior ── */}
+      <rect x={W/2-62} y={CY-30} width={124} height={60} rx={6}
+        fill="rgba(0,0,0,0.72)" stroke={`${color}66`} strokeWidth={1.5}/>
+      <text x={W/2} y={CY-13} textAnchor="middle"
+        fill="#94a3b8" fontSize={10} fontFamily="monospace" fontWeight="700" letterSpacing="1">
         QTD COMBUSTÍVEL
       </text>
-      <text x={W/2} y={CY+10} textAnchor="middle"
-        fill={color} fontSize={17} fontFamily="monospace" fontWeight="900">
+      <text x={W/2} y={CY+12} textAnchor="middle"
+        fill={color} fontSize={20} fontFamily="monospace" fontWeight="900">
         {fmtN(liters)}
       </text>
-      <text x={W/2} y={CY+22} textAnchor="middle"
-        fill="#64748b" fontSize={9} fontFamily="monospace" fontWeight="600" letterSpacing="1">
+      <text x={W/2} y={CY+26} textAnchor="middle"
+        fill="#64748b" fontSize={10} fontFamily="monospace" fontWeight="600" letterSpacing="1">
         LITROS
       </text>
 
-      {/* ── Percentual (fora do tanque, canto direito) ── */}
+      {/* ── Percentual lateral ── */}
       <text x={X2+36} y={CY+10} textAnchor="middle"
         fill={color} fontSize={12} fontFamily="monospace" fontWeight="900">
         {safe}%
@@ -6581,39 +6604,12 @@ const StockPosition = ({ estoques, projecao, loading, selectedClient, clients })
             {estoquesList.length === 0 && <option value="">Carregando...</option>}
           </select>
 
-          <div className="tank-visual">
-            <div className="fuel-tank-wrap">
-              {/* Tampa superior + tubo de ventilação */}
-              <div className="tank-top-assembly">
-                <div className="tank-vent-pipe" />
-                <div className="tank-top-cap" />
-              </div>
-              {/* Corpo principal do tanque */}
-              <div className="tank">
-                <div className="tank-fill" style={{ height: `${tankPct}%`, background: stockFuelColor }}>
-                  <div className="liquid-wave" />
-                </div>
-                <div className="tank-label">
-                  <div className="tank-title">QTD COMBUSTÍVEL</div>
-                  <div className="tank-value">{activeFuel ? fmt2(activeFuel.estoqueTotal) : '—'}</div>
-                  <div className="tank-unit">LITROS</div>
-                </div>
-                {/* Marcadores de nível */}
-                <div className="tank-scale">
-                  {[75, 50, 25].map(pct => (
-                    <div key={pct} className="tank-scale-mark" style={{ bottom: `${pct}%` }}>
-                      <span className="tank-scale-label">{pct}%</span>
-                    </div>
-                  ))}
-                </div>
-                <div className="tank-gloss" />
-              </div>
-              {/* Suportes/pés do tanque */}
-              <div className="tank-legs">
-                <div className="tank-leg" />
-                <div className="tank-leg" />
-              </div>
-            </div>
+          <div style={{ padding: '12px 4px 4px', filter: `drop-shadow(0 0 20px ${stockFuelColor}55)` }}>
+            <HorizTank
+              pct={tankPct}
+              color={stockFuelColor}
+              liters={activeFuel?.estoqueTotal || 0}
+            />
           </div>
 
           <div className="update-time">
