@@ -67,7 +67,8 @@
 .cr-actions { display: flex; gap: 6px; }
 .cr-action-btn { background: transparent; border: 1px solid #383838; border-radius: 6px; color: #64748b; cursor: pointer; padding: 5px 7px; display: flex; align-items: center; transition: all 0.15s; }
 .cr-action-btn:hover { border-color: #38bdf8; color: #38bdf8; }
-.cr-action-down:hover { border-color: #22c55e; color: #22c55e; }
+.cr-action-down:not(:disabled):hover { border-color: #22c55e; color: #22c55e; }
+.cr-action-btn:disabled { opacity: 0.3; cursor: not-allowed; }
 
 .cr-pagination { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
 .cr-pag-info { font-size: 12px; color: #64748b; }

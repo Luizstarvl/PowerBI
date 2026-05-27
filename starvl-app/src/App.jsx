@@ -1648,11 +1648,45 @@ const ContasReceber = ({ clients, selectedClient }) => {
   const [loading,     setLoading]    = useState(false);
   const [usingMock,   setUsingMock]  = useState(false);
   const [viewConta,   setViewConta]  = useState(null);
+  const [regModal,    setRegModal]   = useState(null);
+  const [regDate,     setRegDate]    = useState('');
+  const [regValor,    setRegValor]   = useState('');
 
   const empresa = useMemo(() => {
     const c = (clients||[]).find(cl=>cl.nome===selectedClient)||(clients||[])[0];
     return c?.codigoEmpresa||null;
   }, [clients, selectedClient]);
+
+  const handleExportRow = (c) => {
+    const rows = [{
+      Cliente: c.cliente, CNPJ: c.cnpj, Documento: c.documento,
+      Vencimento: fmtDate(c.vencimento), 'Dias Atraso': c.diasAtraso,
+      Valor: c.valor, Juros: c.juros, Desconto: c.desconto,
+      'Valor a Receber': c.valorAReceber, Status: CR_STATUS_LABEL[c.status],
+    }];
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Conta');
+    XLSX.writeFile(wb, `conta-receber-${c.id}.xlsx`);
+  };
+
+  const openRegModal = (c) => {
+    if (c.status === 'recebido') { toast('Esta conta já foi recebida.', 'info'); return; }
+    setRegDate(new Date().toISOString().split('T')[0]);
+    setRegValor(String((c.valorAReceber || c.valor).toFixed(2)));
+    setRegModal(c);
+  };
+
+  const handleRegistrarRecebimento = () => {
+    if (!regDate) { toast('Informe a data de recebimento.', 'error'); return; }
+    setContas(prev => prev.map(c =>
+      c.id === regModal.id
+        ? { ...c, status: 'recebido', dataRecebimento: regDate, diasAtraso: 0 }
+        : c
+    ));
+    toast(`✅ Recebimento de ${fmtBRL(parseFloat(regValor) || regModal.valorAReceber)} registrado com sucesso!`, 'success');
+    setRegModal(null);
+  };
 
   // Busca resumo + analíticos
   useEffect(() => {
@@ -1866,8 +1900,8 @@ const ContasReceber = ({ clients, selectedClient }) => {
                 <td>
                   <div className="cr-actions">
                     <button className="cr-action-btn" title="Visualizar" onClick={()=>setViewConta(c)}><Eye size={15}/></button>
-                    <button className="cr-action-btn" title="Exportar"><FileText size={15}/></button>
-                    <button className="cr-action-btn cr-action-down" title="Registrar Recebimento"><Download size={15}/></button>
+                    <button className="cr-action-btn" title="Exportar linha" onClick={()=>handleExportRow(c)}><FileText size={15}/></button>
+                    <button className="cr-action-btn cr-action-down" title="Registrar Recebimento" onClick={()=>openRegModal(c)} disabled={c.status==='recebido'}><Download size={15}/></button>
                   </div>
                 </td>
               </tr>
@@ -2023,6 +2057,49 @@ const ContasReceber = ({ clients, selectedClient }) => {
           </div>
         </div>
       )}
+
+      {/* ── Modal Registrar Recebimento ───────────────────────────────────── */}
+      {regModal && (
+        <div className="cr-modal-overlay" onClick={()=>setRegModal(null)}>
+          <div className="cr-modal" style={{ maxWidth: 400 }} onClick={e=>e.stopPropagation()}>
+            <div className="cr-modal-header">
+              <h3>Registrar Recebimento</h3>
+              <button className="cr-modal-close" onClick={()=>setRegModal(null)}><X size={18}/></button>
+            </div>
+            <div className="cr-modal-body">
+              <div className="cr-modal-row">
+                <span className="cr-modal-key">Cliente</span>
+                <span className="cr-modal-val">{regModal.cliente}</span>
+              </div>
+              <div className="cr-modal-row">
+                <span className="cr-modal-key">Documento</span>
+                <span className="cr-modal-val">{regModal.documento}</span>
+              </div>
+              <div className="cr-modal-row">
+                <span className="cr-modal-key">Valor a Receber</span>
+                <span className="cr-modal-val" style={{color:'#22c55e'}}>{fmtBRL(regModal.valorAReceber)}</span>
+              </div>
+              <div className="cr-modal-row" style={{flexDirection:'column',gap:6,alignItems:'flex-start'}}>
+                <span className="cr-modal-key">Data do Recebimento</span>
+                <input type="date" className="cr-date-input" style={{width:'100%',boxSizing:'border-box'}}
+                  value={regDate} onChange={e=>setRegDate(e.target.value)} />
+              </div>
+              <div className="cr-modal-row" style={{flexDirection:'column',gap:6,alignItems:'flex-start'}}>
+                <span className="cr-modal-key">Valor Recebido (R$)</span>
+                <input type="number" className="cr-date-input" style={{width:'100%',boxSizing:'border-box'}}
+                  step="0.01" value={regValor} onChange={e=>setRegValor(e.target.value)} />
+              </div>
+              <div style={{display:'flex',gap:8,marginTop:8}}>
+                <button className="cr-btn-export" style={{flex:1,justifyContent:'center'}} onClick={()=>setRegModal(null)}>Cancelar</button>
+                <button onClick={handleRegistrarRecebimento}
+                  style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:6,padding:'8px 16px',background:'#22c55e',border:'none',borderRadius:8,color:'#fff',fontWeight:700,fontSize:13,cursor:'pointer'}}>
+                  <Download size={15}/> Confirmar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -2042,11 +2119,45 @@ const ContasPagar = ({ clients, selectedClient }) => {
   const [loading,      setLoading]     = useState(false);
   const [usingMock,    setUsingMock]   = useState(false);
   const [viewConta,    setViewConta]   = useState(null);
+  const [regModal,     setRegModal]    = useState(null);
+  const [regDate,      setRegDate]     = useState('');
+  const [regValor,     setRegValor]    = useState('');
 
   const empresa = useMemo(() => {
     const c = (clients||[]).find(cl=>cl.nome===selectedClient)||(clients||[])[0];
     return c?.codigoEmpresa||null;
   }, [clients, selectedClient]);
+
+  const handleExportRow = (c) => {
+    const rows = [{
+      Fornecedor: c.fornecedor, CNPJ: c.cnpj, Documento: c.documento,
+      Vencimento: fmtDate(c.vencimento), 'Dias Atraso': c.diasAtraso,
+      Valor: c.valor, Juros: c.juros, Desconto: c.desconto,
+      'Valor a Pagar': c.valorAPagar, Status: CP_STATUS_LABEL[c.status],
+    }];
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Conta');
+    XLSX.writeFile(wb, `conta-pagar-${c.id}.xlsx`);
+  };
+
+  const openRegModal = (c) => {
+    if (c.status === 'pago') { toast('Esta conta já foi paga.', 'info'); return; }
+    setRegDate(new Date().toISOString().split('T')[0]);
+    setRegValor(String((c.valorAPagar || c.valor).toFixed(2)));
+    setRegModal(c);
+  };
+
+  const handleRegistrarPagamento = () => {
+    if (!regDate) { toast('Informe a data de pagamento.', 'error'); return; }
+    setContas(prev => prev.map(c =>
+      c.id === regModal.id
+        ? { ...c, status: 'pago', dataPagamento: regDate, diasAtraso: 0 }
+        : c
+    ));
+    toast(`✅ Pagamento de ${fmtBRL(parseFloat(regValor) || regModal.valorAPagar)} registrado com sucesso!`, 'success');
+    setRegModal(null);
+  };
 
   // Busca resumo + analíticos
   useEffect(() => {
@@ -2258,8 +2369,8 @@ const ContasPagar = ({ clients, selectedClient }) => {
                 <td>
                   <div className="cp-actions">
                     <button className="cp-action-btn" title="Visualizar" onClick={()=>setViewConta(c)}><Eye size={15}/></button>
-                    <button className="cp-action-btn" title="Exportar"><FileText size={15}/></button>
-                    <button className="cp-action-btn cp-action-pay" title="Registrar Pagamento"><Save size={15}/></button>
+                    <button className="cp-action-btn" title="Exportar linha" onClick={()=>handleExportRow(c)}><FileText size={15}/></button>
+                    <button className="cp-action-btn cp-action-pay" title="Registrar Pagamento" onClick={()=>openRegModal(c)} disabled={c.status==='pago'}><Save size={15}/></button>
                   </div>
                 </td>
               </tr>
@@ -2406,6 +2517,49 @@ const ContasPagar = ({ clients, selectedClient }) => {
                   <span className="cp-modal-val">{v}</span>
                 </div>
               ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal Registrar Pagamento ─────────────────────────────────────── */}
+      {regModal && (
+        <div className="cp-modal-overlay" onClick={()=>setRegModal(null)}>
+          <div className="cp-modal" style={{ maxWidth: 400 }} onClick={e=>e.stopPropagation()}>
+            <div className="cp-modal-header">
+              <h3>Registrar Pagamento</h3>
+              <button className="cp-modal-close" onClick={()=>setRegModal(null)}><X size={18}/></button>
+            </div>
+            <div className="cp-modal-body">
+              <div className="cp-modal-row">
+                <span className="cp-modal-key">Fornecedor</span>
+                <span className="cp-modal-val">{regModal.fornecedor}</span>
+              </div>
+              <div className="cp-modal-row">
+                <span className="cp-modal-key">Documento</span>
+                <span className="cp-modal-val">{regModal.documento}</span>
+              </div>
+              <div className="cp-modal-row">
+                <span className="cp-modal-key">Valor a Pagar</span>
+                <span className="cp-modal-val" style={{color:'#f87171'}}>{fmtBRL(regModal.valorAPagar)}</span>
+              </div>
+              <div className="cp-modal-row" style={{flexDirection:'column',gap:6,alignItems:'flex-start'}}>
+                <span className="cp-modal-key">Data do Pagamento</span>
+                <input type="date" className="cp-date-input" style={{width:'100%',boxSizing:'border-box'}}
+                  value={regDate} onChange={e=>setRegDate(e.target.value)} />
+              </div>
+              <div className="cp-modal-row" style={{flexDirection:'column',gap:6,alignItems:'flex-start'}}>
+                <span className="cp-modal-key">Valor Pago (R$)</span>
+                <input type="number" className="cp-date-input" style={{width:'100%',boxSizing:'border-box'}}
+                  step="0.01" value={regValor} onChange={e=>setRegValor(e.target.value)} />
+              </div>
+              <div style={{display:'flex',gap:8,marginTop:8}}>
+                <button className="cp-btn-export" style={{flex:1,justifyContent:'center'}} onClick={()=>setRegModal(null)}>Cancelar</button>
+                <button onClick={handleRegistrarPagamento}
+                  style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:6,padding:'8px 16px',background:'#22c55e',border:'none',borderRadius:8,color:'#fff',fontWeight:700,fontSize:13,cursor:'pointer'}}>
+                  <Save size={15}/> Confirmar
+                </button>
+              </div>
             </div>
           </div>
         </div>
