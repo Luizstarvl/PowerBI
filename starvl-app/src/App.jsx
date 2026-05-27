@@ -2,8 +2,8 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import logoStarvl from './logo-starvl.png';
 import logoStarvlBlack from './logo-starvl-black.png';
 import * as XLSX from 'xlsx';
-import { LineChart, Line, BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Area, AreaChart, LabelList, ComposedChart, ReferenceLine } from 'recharts';
-import { Home, FileText, Users as UsersIcon, BookOpen, Package, LogOut, Eye, Search, Plus, Edit2, Trash2, X, Calendar, TrendingUp, Droplet, DollarSign, Calculator, Bell, ChevronDown, Activity, Settings, Building2, Phone, Mail, MapPin, Hash, Clock, BarChart2, Layers, CircleDollarSign, UserCheck, UserPlus, AlertCircle, Globe, Camera, Building, Tag, RefreshCw, Database, ChevronRight, ChevronLeft, Filter, Printer, Moon, Sun, Trophy, Lock, Unlock, Wallet, Download, CreditCard, AlertTriangle, Save, PiggyBank } from 'lucide-react';
+import { LineChart, Line, BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Area, AreaChart, LabelList, ComposedChart, ReferenceLine, PieChart, Pie } from 'recharts';
+import { Home, FileText, Users as UsersIcon, BookOpen, Package, LogOut, Eye, Search, Plus, Edit2, Trash2, X, Calendar, TrendingUp, Droplet, DollarSign, Calculator, Bell, ChevronDown, Activity, Settings, Building2, Phone, Mail, MapPin, Hash, Clock, BarChart2, Layers, CircleDollarSign, UserCheck, UserPlus, AlertCircle, Globe, Camera, Building, Tag, RefreshCw, Database, ChevronRight, ChevronLeft, Filter, Printer, Moon, Sun, Trophy, Lock, Unlock, Wallet, Download, CreditCard, AlertTriangle, Save, PiggyBank, Target, CheckCircle, TrendingDown, Flag } from 'lucide-react';
 import './App.css';
 import './cr-styles.css';
 import './cp-styles.css';
@@ -260,6 +260,7 @@ const Sidebar = ({ currentPage, setCurrentPage, onLogout, themeMode, collapsed, 
     { icon: BookOpen,  label: 'LIVROS',               page: 'control'   },
     { icon: PiggyBank, label: 'FINANCEIRO',           page: 'receber'   },
     { icon: FileText,  label: 'RELATÓRIOS',           page: 'reports'   },
+    { icon: Target,    label: 'METAS',                page: 'goals'     },
     { icon: Settings,  label: 'CONFIGURAÇÕES',        page: 'params'    },
   ];
 
@@ -317,6 +318,7 @@ const PAGE_TITLES = {
   control: 'Livros',
   stock: 'Estoque',
   receber: 'Financeiro',
+  goals: 'Gestão de Metas',
   users: 'Gerenciamento de Usuários',
   params: 'Configurações',
 };
@@ -333,6 +335,7 @@ const QuickNav = ({ setCurrentPage, themeMode }) => {
     { icon: BookOpen,  label: 'Livros',         page: 'control'   },
     { icon: PiggyBank, label: 'Financeiro',     page: 'receber'   },
     { icon: FileText,  label: 'Relatórios',     page: 'reports'   },
+    { icon: Target,    label: 'Metas',          page: 'goals'     },
     { icon: Settings,  label: 'Configurações',  page: 'params'    },
   ];
 
@@ -7508,6 +7511,481 @@ const AdminPanel = ({ clients, setClients }) => {
   );
 };
 
+// ─── GoalManager — Gestão de Metas ──────────────────────────────────────────
+
+const GOAL_CAT_COLORS = {
+  'Faturamento':      '#22c55e',
+  'Redução de Custos':'#3b82f6',
+  'Lucro Líquido':    '#8b5cf6',
+  'Contas a Receber': '#f59e0b',
+  'Outros':           '#ef4444',
+};
+
+const INITIAL_GOALS = [
+  { id:1,  nome:'Faturamento Mensal',           desc:'Aumentar o faturamento mensal da empresa',       categoria:'Faturamento',       periodo:'Mensal',      meta:600000,  alcancado:428750, status:'Em andamento', vencimento:'2026-04-30' },
+  { id:2,  nome:'Redução de Custos Operacionais',desc:'Reduzir custos operacionais em 15%',            categoria:'Redução de Custos', periodo:'Trimestral',  meta:300000,  alcancado:186400, status:'Em andamento', vencimento:'2026-06-30' },
+  { id:3,  nome:'Lucro Líquido Trimestral',      desc:'Alcançar lucro líquido de 12%',                 categoria:'Lucro Líquido',     periodo:'Trimestral',  meta:280000,  alcancado:198350, status:'Em andamento', vencimento:'2026-06-30' },
+  { id:4,  nome:'Recebimento de Clientes',       desc:'Reduzir inadimplência para menos de 5%',        categoria:'Contas a Receber',  periodo:'Mensal',      meta:200000,  alcancado:156800, status:'Em andamento', vencimento:'2026-04-30' },
+  { id:5,  nome:'Expansão de Mercado',           desc:'Aumentar base de clientes em 20%',              categoria:'Outros',            periodo:'Semestral',   meta:150000,  alcancado:45180,  status:'Em andamento', vencimento:'2026-08-31' },
+  { id:6,  nome:'Meta Vendas Q2',                desc:'Superar meta de vendas do segundo trimestre',   categoria:'Faturamento',       periodo:'Trimestral',  meta:900000,  alcancado:0,      status:'Em andamento', vencimento:'2026-09-30' },
+  { id:7,  nome:'Margem Líquida',                desc:'Atingir margem de 15%',                         categoria:'Lucro Líquido',     periodo:'Trimestral',  meta:620000,  alcancado:182000, status:'Em atraso',    vencimento:'2026-03-31' },
+  { id:8,  nome:'Estoque Mínimo',                desc:'Manter estoque de segurança por período',       categoria:'Outros',            periodo:'Mensal',      meta:100000,  alcancado:35000,  status:'Em atraso',    vencimento:'2026-03-31' },
+  { id:9,  nome:'Eficiência Operacional',        desc:'Melhorar margem bruta em 8%',                   categoria:'Redução de Custos', periodo:'Anual',       meta:900000,  alcancado:900000, status:'Concluída',    vencimento:'2025-12-31' },
+  { id:10, nome:'Volume de Combustíveis',        desc:'Aumentar volume de venda em 25%',               categoria:'Faturamento',       periodo:'Anual',       meta:1200000, alcancado:1200000,status:'Concluída',    vencimento:'2025-12-31' },
+  { id:11, nome:'Captação Novos Clientes',       desc:'Fechar 50 novos contratos no ano',              categoria:'Outros',            periodo:'Anual',       meta:120000,  alcancado:120000, status:'Concluída',    vencimento:'2025-12-31' },
+];
+
+const GOAL_MONTHLY_CHART = [
+  { mes:'Jan', meta:400000, alcancado:285000, previsto:310000 },
+  { mes:'Fev', meta:600000, alcancado:421000, previsto:490000 },
+  { mes:'Mar', mes_full:'Mar', meta:750000, alcancado:612000, previsto:670000 },
+  { mes:'Abr', meta:950000, alcancado:793750, previsto:860000 },
+  { mes:'Mai', meta:1100000, alcancado:0,     previsto:1000000 },
+  { mes:'Jun', meta:1250000, alcancado:0,     previsto:1140000 },
+  { mes:'Jul', meta:1380000, alcancado:0,     previsto:1260000 },
+  { mes:'Ago', meta:1500000, alcancado:0,     previsto:1390000 },
+  { mes:'Set', meta:1640000, alcancado:0,     previsto:1520000 },
+  { mes:'Out', meta:1760000, alcancado:0,     previsto:1640000 },
+  { mes:'Nov', meta:1890000, alcancado:0,     previsto:1760000 },
+  { mes:'Dez', meta:2020000, alcancado:0,     previsto:1900000 },
+];
+
+const EMPTY_GOAL_FORM = { nome:'', desc:'', categoria:'Faturamento', periodo:'Mensal', meta:'', alcancado:'', vencimento:'', status:'Em andamento' };
+
+const GoalManager = () => {
+  const [activeTab, setActiveTab]   = useState('visao');
+  const [goals, setGoals]           = useState(INITIAL_GOALS);
+  const [search, setSearch]         = useState('');
+  const [catFilter, setCatFilter]   = useState('Todas');
+  const [statusFilter, setStatus]   = useState('Todos');
+  const [orderBy, setOrderBy]       = useState('vencimento');
+  const [page, setPage]             = useState(1);
+  const [editGoal, setEditGoal]     = useState(null);
+  const [form, setForm]             = useState(EMPTY_GOAL_FORM);
+  const [nextId, setNextId]         = useState(12);
+  const PAGE_SIZE = 5;
+
+  const fmtBRL = v => Number(v || 0).toLocaleString('pt-BR', { style:'currency', currency:'BRL', maximumFractionDigits:0 });
+  const fmtPct = v => Number(v || 0).toFixed(1) + '%';
+  const fmtK   = v => {
+    const n = Number(v || 0);
+    if (n >= 1_000_000) return (n / 1_000_000).toFixed(2).replace('.',',') + 'M';
+    if (n >= 1_000)     return (n / 1_000).toFixed(0) + 'k';
+    return n.toLocaleString('pt-BR');
+  };
+  const today = new Date().toISOString().split('T')[0];
+
+  const kpis = useMemo(() => {
+    const ativas   = goals.filter(g => g.status === 'Em andamento');
+    const concl    = goals.filter(g => g.status === 'Concluída').length;
+    const atrasadas= goals.filter(g => g.status === 'Em atraso').length;
+    const progMed  = ativas.length ? ativas.reduce((s,g) => s + Math.min(100, g.meta > 0 ? g.alcancado/g.meta*100 : 0), 0) / ativas.length : 0;
+    const totalAlc = goals.reduce((s,g) => s + g.alcancado, 0);
+    const venceHoje= goals.filter(g => g.vencimento === today).length;
+    return { ativas: ativas.length, concl, atrasadas, progMed, totalAlc, venceHoje };
+  }, [goals, today]);
+
+  const catDist = useMemo(() => {
+    const map = {};
+    goals.forEach(g => { map[g.categoria] = (map[g.categoria] || 0) + g.meta; });
+    const total = Object.values(map).reduce((s,v) => s+v, 0);
+    return Object.entries(map).map(([cat, val]) => ({
+      name: cat, value: val, pct: total > 0 ? (val/total*100).toFixed(1) : '0',
+      color: GOAL_CAT_COLORS[cat] || '#6b7280',
+    }));
+  }, [goals]);
+
+  // Filtered + ordered list
+  const filtered = useMemo(() => {
+    let list = goals;
+    if (search)              list = list.filter(g => g.nome.toLowerCase().includes(search.toLowerCase()) || g.desc.toLowerCase().includes(search.toLowerCase()));
+    if (catFilter !== 'Todas')  list = list.filter(g => g.categoria === catFilter);
+    if (statusFilter !== 'Todos') list = list.filter(g => g.status === statusFilter);
+    list = [...list].sort((a,b) => {
+      if (orderBy === 'vencimento') return a.vencimento.localeCompare(b.vencimento);
+      if (orderBy === 'meta')       return b.meta - a.meta;
+      if (orderBy === 'progresso')  return (b.meta>0 ? b.alcancado/b.meta : 0) - (a.meta>0 ? a.alcancado/a.meta : 0);
+      return 0;
+    });
+    return list;
+  }, [goals, search, catFilter, statusFilter, orderBy]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paginated  = filtered.slice((page-1)*PAGE_SIZE, page*PAGE_SIZE);
+
+  const statusBadge = (s) => {
+    const map = { 'Em andamento': ['#1d4ed8','#dbeafe'], 'Concluída': ['#15803d','#dcfce7'], 'Em atraso': ['#b91c1c','#fee2e2'] };
+    const [bg, fg] = map[s] || ['#374151','#f3f4f6'];
+    return <span style={{ background:bg, color:fg, padding:'2px 10px', borderRadius:12, fontSize:11, fontWeight:700 }}>{s}</span>;
+  };
+
+  const diasRestantes = (venc) => {
+    const diff = Math.round((new Date(venc+'T00:00:00') - new Date(today+'T00:00:00')) / 86400000);
+    if (diff < 0) return <span style={{ color:'#ef4444', fontSize:11 }}>{Math.abs(diff)} dias em atraso</span>;
+    if (diff === 0) return <span style={{ color:'#f59e0b', fontSize:11, fontWeight:700 }}>Vence hoje</span>;
+    return <span style={{ color: diff <= 7 ? '#f59e0b' : '#94a3b8', fontSize:11 }}>{diff} dias restantes</span>;
+  };
+
+  const handleDelete = (id) => {
+    if (window.confirm('Remover esta meta?')) setGoals(prev => prev.filter(g => g.id !== id));
+  };
+
+  const openEdit = (g) => {
+    setEditGoal(g);
+    setForm({ nome:g.nome, desc:g.desc, categoria:g.categoria, periodo:g.periodo,
+              meta:String(g.meta), alcancado:String(g.alcancado), vencimento:g.vencimento, status:g.status });
+    setActiveTab('criar');
+  };
+
+  const handleSave = (e) => {
+    e.preventDefault();
+    const parsed = { ...form, meta: parseFloat(form.meta)||0, alcancado: parseFloat(form.alcancado)||0 };
+    if (editGoal) {
+      setGoals(prev => prev.map(g => g.id === editGoal.id ? { ...g, ...parsed } : g));
+      setEditGoal(null);
+    } else {
+      setGoals(prev => [...prev, { ...parsed, id: nextId }]);
+      setNextId(n => n+1);
+    }
+    setForm(EMPTY_GOAL_FORM);
+    setActiveTab('todas');
+  };
+
+  const upd = k => e => setForm(f => ({ ...f, [k]: e.target.value }));
+
+  // ── Styles ──────────────────────────────────────────────────────────────────
+  const S = {
+    page:    { padding:'24px', maxWidth:1200, margin:'0 auto' },
+    header:  { display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:20 },
+    title:   { margin:0, fontSize:22, fontWeight:800, color:'#f8fafc', letterSpacing:1 },
+    sub:     { margin:'4px 0 0', fontSize:13, color:'#94a3b8' },
+    btnNew:  { display:'flex', alignItems:'center', gap:6, background:'#E31E24', color:'#fff', border:'none', borderRadius:8, padding:'10px 18px', fontSize:13, fontWeight:700, cursor:'pointer' },
+    tabs:    { display:'flex', gap:0, borderBottom:'2px solid #1e293b', marginBottom:24 },
+    tab:     (active) => ({ background:'none', border:'none', cursor:'pointer', padding:'10px 22px', fontSize:13, fontWeight:600, color: active ? '#E31E24' : '#64748b', borderBottom: active ? '2px solid #E31E24' : '2px solid transparent', marginBottom:-2, transition:'color .15s' }),
+    kpiRow:  { display:'grid', gridTemplateColumns:'repeat(6,1fr)', gap:12, marginBottom:24 },
+    kpiCard: (accent) => ({ background:'#0f172a', border:`1px solid ${accent}33`, borderRadius:10, padding:'14px 16px', display:'flex', flexDirection:'column', gap:4 }),
+    kpiLbl:  { fontSize:10, fontWeight:700, color:'#64748b', letterSpacing:1, textTransform:'uppercase' },
+    kpiVal:  (accent) => ({ fontSize:20, fontWeight:900, color: accent || '#f8fafc', margin:0 }),
+    kpiSub:  { fontSize:11, color:'#475569' },
+    grid2:   { display:'grid', gridTemplateColumns:'2fr 1fr', gap:16, marginBottom:24 },
+    card:    { background:'#0f172a', border:'1px solid #1e293b', borderRadius:12, padding:'20px' },
+    cardH:   { margin:'0 0 16px', fontSize:13, fontWeight:700, color:'#94a3b8', letterSpacing:1, textTransform:'uppercase' },
+    tbl:     { width:'100%', borderCollapse:'collapse', fontSize:12 },
+    th:      { color:'#64748b', fontWeight:700, fontSize:10, letterSpacing:1, textTransform:'uppercase', padding:'8px 10px', borderBottom:'1px solid #1e293b', textAlign:'left' },
+    td:      { padding:'10px 10px', borderBottom:'1px solid #0f172a', verticalAlign:'middle', color:'#f1f5f9', fontSize:12 },
+    bar:     (pct, col) => ({ height:6, borderRadius:3, background:`linear-gradient(90deg, ${col} ${pct}%, #1e293b ${pct}%)`, minWidth:80 }),
+    input:   { width:'100%', background:'#1e293b', border:'1px solid #334155', borderRadius:6, padding:'9px 12px', color:'#f8fafc', fontSize:13, outline:'none' },
+    label:   { fontSize:11, fontWeight:700, color:'#94a3b8', letterSpacing:.5, display:'block', marginBottom:5 },
+    select:  { width:'100%', background:'#1e293b', border:'1px solid #334155', borderRadius:6, padding:'9px 10px', color:'#f8fafc', fontSize:13, outline:'none', cursor:'pointer' },
+    btnPrim: { background:'#E31E24', color:'#fff', border:'none', borderRadius:8, padding:'11px 28px', fontSize:13, fontWeight:700, cursor:'pointer' },
+    btnSec:  { background:'#1e293b', color:'#94a3b8', border:'1px solid #334155', borderRadius:8, padding:'11px 20px', fontSize:13, fontWeight:600, cursor:'pointer' },
+    filters: { display:'flex', gap:10, marginBottom:16, flexWrap:'wrap', alignItems:'center' },
+    filterIn:{ background:'#0f172a', border:'1px solid #1e293b', borderRadius:6, padding:'7px 12px', color:'#f8fafc', fontSize:12, outline:'none' },
+    pagination:{ display:'flex', alignItems:'center', justifyContent:'flex-end', gap:6, marginTop:12, fontSize:12 },
+    pgBtn: (active) => ({ background: active ? '#E31E24' : '#1e293b', color: active ? '#fff' : '#94a3b8', border:'1px solid #334155', borderRadius:5, padding:'4px 10px', cursor:'pointer', fontWeight:600 }),
+    dot: (col) => ({ width:10, height:10, borderRadius:'50%', background:col, flexShrink:0 }),
+  };
+
+
+  // ── Render ───────────────────────────────────────────────────────────────────
+  return (
+    <div style={S.page}>
+      {/* Header */}
+      <div style={S.header}>
+        <div>
+          <h2 style={S.title}>🎯 GESTÃO DE METAS</h2>
+          <p style={S.sub}>Crie, acompanhe e gerencie as metas financeiras da sua empresa.</p>
+        </div>
+        <button style={S.btnNew} onClick={() => { setEditGoal(null); setForm(EMPTY_GOAL_FORM); setActiveTab('criar'); }}>
+          <Plus size={15}/> Nova Meta
+        </button>
+      </div>
+
+      {/* Tabs */}
+      <div style={S.tabs}>
+        {[['visao','Visão Geral'],['todas','Todas as Metas'],['criar', editGoal ? 'Editar Meta' : 'Criar Meta']].map(([id,label]) => (
+          <button key={id} style={S.tab(activeTab===id)} onClick={() => { if(id!=='criar'){ setEditGoal(null); setForm(EMPTY_GOAL_FORM); } setActiveTab(id); }}>{label}</button>
+        ))}
+      </div>
+
+      {/* ═══ VISÃO GERAL ═══ */}
+      {activeTab === 'visao' && (<>
+        {/* KPIs */}
+        <div style={S.kpiRow}>
+          <div style={S.kpiCard('#6366f1')}>
+            <span style={S.kpiLbl}>Metas Ativas</span>
+            <span style={S.kpiVal('#6366f1')}>{kpis.ativas}</span>
+            <span style={S.kpiSub}>Em andamento</span>
+          </div>
+          <div style={S.kpiCard('#22c55e')}>
+            <span style={S.kpiLbl}>Concluídas</span>
+            <span style={S.kpiVal('#22c55e')}>{kpis.concl}</span>
+            <span style={S.kpiSub}>Este ano</span>
+          </div>
+          <div style={S.kpiCard('#3b82f6')}>
+            <span style={S.kpiLbl}>Progresso Médio</span>
+            <span style={S.kpiVal('#3b82f6')}>{fmtPct(kpis.progMed)}</span>
+            <span style={S.kpiSub}>Das metas ativas</span>
+          </div>
+          <div style={S.kpiCard('#f59e0b')}>
+            <span style={S.kpiLbl}>Atingimento Total</span>
+            <span style={{ ...S.kpiVal('#f59e0b'), fontSize:14 }}>{fmtBRL(kpis.totalAlc)}</span>
+            <span style={S.kpiSub}>Valor acumulado</span>
+          </div>
+          <div style={S.kpiCard('#f59e0b')}>
+            <span style={S.kpiLbl}>A Vencer Hoje</span>
+            <span style={S.kpiVal('#f59e0b')}>{kpis.venceHoje}</span>
+            <span style={S.kpiSub}>Meta{kpis.venceHoje !== 1 ? 's' : ''} próxima{kpis.venceHoje !== 1 ? 's' : ''} do vencimento</span>
+          </div>
+          <div style={S.kpiCard('#ef4444')}>
+            <span style={S.kpiLbl}>Em Atraso</span>
+            <span style={S.kpiVal('#ef4444')}>{kpis.atrasadas}</span>
+            <span style={S.kpiSub}>Fora do prazo</span>
+          </div>
+        </div>
+
+        {/* Charts row */}
+        <div style={S.grid2}>
+          <div style={S.card}>
+            <h4 style={S.cardH}>Progresso das Metas</h4>
+            <div style={{ display:'flex', gap:16, marginBottom:10 }}>
+              {[['Meta','#94a3b8','dashed'],['Alcançado','#22c55e','solid'],['Previsto','#3b82f6','solid']].map(([l,c,d])=>(
+                <span key={l} style={{ display:'flex', alignItems:'center', gap:5, fontSize:11, color:'#94a3b8' }}>
+                  <span style={{ width:18, height:3, background:d==='dashed'?'none':'', borderTop:`2px ${d} ${c}`, display:'inline-block' }}/>
+                  {l}
+                </span>
+              ))}
+            </div>
+            <ResponsiveContainer width="100%" height={230}>
+              <ComposedChart data={GOAL_MONTHLY_CHART} margin={{ top:4, right:8, left:8, bottom:0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b"/>
+                <XAxis dataKey="mes" tick={{ fill:'#64748b', fontSize:11 }} stroke="#1e293b"/>
+                <YAxis tickFormatter={fmtK} tick={{ fill:'#64748b', fontSize:11 }} stroke="#1e293b" width={48}/>
+                <Tooltip formatter={(v,n)=>[fmtBRL(v), n]} contentStyle={{ background:'#0f172a', border:'1px solid #334155', borderRadius:8, fontSize:12 }} labelStyle={{ color:'#f8fafc' }}/>
+                <Bar dataKey="alcancado" name="Alcançado" fill="#22c55e" radius={[3,3,0,0]} maxBarSize={24}/>
+                <Bar dataKey="previsto"  name="Previsto"  fill="#3b82f6" radius={[3,3,0,0]} maxBarSize={24}/>
+                <Line dataKey="meta" name="Meta" stroke="#94a3b8" strokeWidth={1.5} strokeDasharray="5 3" dot={false}/>
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div style={S.card}>
+            <h4 style={S.cardH}>Distribuição por Categoria</h4>
+            <div style={{ position:'relative' }}>
+              <ResponsiveContainer width="100%" height={180}>
+                <PieChart>
+                  <Pie data={catDist} cx="50%" cy="50%" innerRadius={55} outerRadius={80} dataKey="value" paddingAngle={2}>
+                    {catDist.map((entry,i) => <Cell key={i} fill={entry.color}/>)}
+                  </Pie>
+                </PieChart>
+              </ResponsiveContainer>
+              <div style={{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%)', textAlign:'center', pointerEvents:'none' }}>
+                <div style={{ fontSize:26, fontWeight:900, color:'#f8fafc', lineHeight:1 }}>{goals.length}</div>
+                <div style={{ fontSize:11, color:'#64748b', fontWeight:600 }}>Metas</div>
+              </div>
+            </div>
+            <div style={{ display:'flex', flexDirection:'column', gap:6, marginTop:4 }}>
+              {catDist.map(c => (
+                <div key={c.name} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', fontSize:11 }}>
+                  <span style={{ display:'flex', alignItems:'center', gap:6 }}>
+                    <span style={S.dot(c.color)}/><span style={{ color:'#cbd5e1' }}>{c.name}</span>
+                  </span>
+                  <span style={{ color:'#94a3b8' }}>{fmtBRL(c.value)} ({c.pct}%)</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Metas em andamento */}
+        <div style={S.card}>
+          <h4 style={S.cardH}>Metas em Andamento</h4>
+          <table style={S.tbl}>
+            <thead>
+              <tr>{['Meta','Categoria','Período','Meta (R$)','Alcançado','Progresso','Status','Vencimento','Ações'].map(h=>(
+                <th key={h} style={S.th}>{h}</th>
+              ))}</tr>
+            </thead>
+            <tbody>
+              {goals.filter(g=>g.status==='Em andamento').slice(0,5).map(g => {
+                const pct = g.meta > 0 ? Math.min(100, g.alcancado/g.meta*100) : 0;
+                const col = GOAL_CAT_COLORS[g.categoria] || '#6b7280';
+                return (
+                  <tr key={g.id}>
+                    <td style={S.td}>
+                      <div style={{ fontWeight:700, color:'#f8fafc', fontSize:12 }}>{g.nome}</div>
+                      <div style={{ color:'#475569', fontSize:11 }}>{g.desc}</div>
+                    </td>
+                    <td style={S.td}><span style={{ color:col, fontWeight:600 }}>{g.categoria}</span></td>
+                    <td style={S.td}>{g.periodo}</td>
+                    <td style={S.td}>{fmtBRL(g.meta)}</td>
+                    <td style={S.td}>{fmtBRL(g.alcancado)}</td>
+                    <td style={{ ...S.td, minWidth:100 }}>
+                      <div style={{ marginBottom:3, fontSize:11, color:col, fontWeight:700 }}>{fmtPct(pct)}</div>
+                      <div style={S.bar(pct, col)}/>
+                    </td>
+                    <td style={S.td}>{statusBadge(g.status)}</td>
+                    <td style={S.td}>
+                      <div style={{ color:'#cbd5e1' }}>{g.vencimento}</div>
+                      {diasRestantes(g.vencimento)}
+                    </td>
+                    <td style={S.td}>
+                      <div style={{ display:'flex', gap:6 }}>
+                        <button onClick={()=>openEdit(g)} style={{ background:'#1e293b', border:'none', borderRadius:5, padding:'5px 8px', cursor:'pointer', color:'#94a3b8' }}><Edit2 size={13}/></button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </>)}
+
+      {/* ═══ TODAS AS METAS ═══ */}
+      {activeTab === 'todas' && (
+        <div style={S.card}>
+          <div style={S.filters}>
+            <div style={{ position:'relative', flex:1, minWidth:200 }}>
+              <Search size={14} style={{ position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', color:'#64748b' }}/>
+              <input style={{ ...S.filterIn, paddingLeft:30, width:'100%' }} placeholder="Buscar metas..." value={search} onChange={e=>{setSearch(e.target.value);setPage(1);}}/>
+            </div>
+            <select style={S.filterIn} value={catFilter} onChange={e=>{setCatFilter(e.target.value);setPage(1);}}>
+              <option value="Todas">Todas as categorias</option>
+              {Object.keys(GOAL_CAT_COLORS).map(c=><option key={c}>{c}</option>)}
+            </select>
+            <select style={S.filterIn} value={statusFilter} onChange={e=>{setStatus(e.target.value);setPage(1);}}>
+              <option value="Todos">Todos os status</option>
+              {['Em andamento','Concluída','Em atraso'].map(s=><option key={s}>{s}</option>)}
+            </select>
+            <select style={S.filterIn} value={orderBy} onChange={e=>setOrderBy(e.target.value)}>
+              <option value="vencimento">Ordenar por: Vencimento</option>
+              <option value="meta">Ordenar por: Meta</option>
+              <option value="progresso">Ordenar por: Progresso</option>
+            </select>
+          </div>
+          <table style={S.tbl}>
+            <thead>
+              <tr>{['Meta','Categoria','Período','Meta (R$)','Alcançado','Progresso','Status','Vencimento','Ações'].map(h=>(
+                <th key={h} style={S.th}>{h}</th>
+              ))}</tr>
+            </thead>
+            <tbody>
+              {paginated.map(g => {
+                const pct = g.meta > 0 ? Math.min(100, g.alcancado/g.meta*100) : 0;
+                const col = GOAL_CAT_COLORS[g.categoria] || '#6b7280';
+                return (
+                  <tr key={g.id}>
+                    <td style={S.td}>
+                      <div style={{ fontWeight:700, color:'#f8fafc' }}>{g.nome}</div>
+                      <div style={{ color:'#475569', fontSize:11 }}>{g.desc}</div>
+                    </td>
+                    <td style={S.td}><span style={{ color:col, fontWeight:600 }}>{g.categoria}</span></td>
+                    <td style={S.td}>{g.periodo}</td>
+                    <td style={S.td}>{fmtBRL(g.meta)}</td>
+                    <td style={S.td}>{fmtBRL(g.alcancado)}</td>
+                    <td style={{ ...S.td, minWidth:100 }}>
+                      <div style={{ marginBottom:3, fontSize:11, color:col, fontWeight:700 }}>{fmtPct(pct)}</div>
+                      <div style={S.bar(pct, col)}/>
+                    </td>
+                    <td style={S.td}>{statusBadge(g.status)}</td>
+                    <td style={S.td}>
+                      <div style={{ color:'#cbd5e1' }}>{g.vencimento}</div>
+                      {diasRestantes(g.vencimento)}
+                    </td>
+                    <td style={S.td}>
+                      <div style={{ display:'flex', gap:5 }}>
+                        <button onClick={()=>openEdit(g)} style={{ background:'#1e293b', border:'none', borderRadius:5, padding:'5px 8px', cursor:'pointer', color:'#94a3b8' }} title="Editar"><Edit2 size={13}/></button>
+                        <button onClick={()=>handleDelete(g.id)} style={{ background:'#1e293b', border:'none', borderRadius:5, padding:'5px 8px', cursor:'pointer', color:'#ef4444' }} title="Excluir"><Trash2 size={13}/></button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+              {paginated.length === 0 && (
+                <tr><td colSpan={9} style={{ ...S.td, textAlign:'center', color:'#475569', padding:'30px' }}>Nenhuma meta encontrada.</td></tr>
+              )}
+            </tbody>
+          </table>
+          <div style={S.pagination}>
+            <span style={{ color:'#64748b' }}>Mostrando {Math.min((page-1)*PAGE_SIZE+1, filtered.length)}–{Math.min(page*PAGE_SIZE, filtered.length)} de {filtered.length}</span>
+            <button style={S.pgBtn(false)} disabled={page===1} onClick={()=>setPage(p=>p-1)}>‹</button>
+            {Array.from({length:totalPages},(_,i)=>i+1).map(p=>(
+              <button key={p} style={S.pgBtn(p===page)} onClick={()=>setPage(p)}>{p}</button>
+            ))}
+            <button style={S.pgBtn(false)} disabled={page===totalPages} onClick={()=>setPage(p=>p+1)}>›</button>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ CRIAR / EDITAR META ═══ */}
+      {activeTab === 'criar' && (
+        <div style={{ ...S.card, maxWidth:640 }}>
+          <h4 style={{ ...S.cardH, marginBottom:20 }}>{editGoal ? '✏️ Editar Meta' : '➕ Nova Meta'}</h4>
+          <form onSubmit={handleSave}>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginBottom:16 }}>
+              <div style={{ gridColumn:'1/-1' }}>
+                <label style={S.label}>Nome da Meta *</label>
+                <input style={S.input} required value={form.nome} onChange={upd('nome')} placeholder="Ex: Faturamento Mensal"/>
+              </div>
+              <div style={{ gridColumn:'1/-1' }}>
+                <label style={S.label}>Descrição</label>
+                <input style={S.input} value={form.desc} onChange={upd('desc')} placeholder="Descreva o objetivo desta meta"/>
+              </div>
+              <div>
+                <label style={S.label}>Categoria</label>
+                <select style={S.select} value={form.categoria} onChange={upd('categoria')}>
+                  {Object.keys(GOAL_CAT_COLORS).map(c=><option key={c}>{c}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={S.label}>Período</label>
+                <select style={S.select} value={form.periodo} onChange={upd('periodo')}>
+                  {['Mensal','Trimestral','Semestral','Anual'].map(p=><option key={p}>{p}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={S.label}>Valor da Meta (R$) *</label>
+                <input style={S.input} type="number" required min="0" step="0.01" value={form.meta} onChange={upd('meta')} placeholder="0,00"/>
+              </div>
+              <div>
+                <label style={S.label}>Valor Alcançado (R$)</label>
+                <input style={S.input} type="number" min="0" step="0.01" value={form.alcancado} onChange={upd('alcancado')} placeholder="0,00"/>
+              </div>
+              <div>
+                <label style={S.label}>Vencimento *</label>
+                <input style={S.input} type="date" required value={form.vencimento} onChange={upd('vencimento')}/>
+              </div>
+              <div>
+                <label style={S.label}>Status</label>
+                <select style={S.select} value={form.status} onChange={upd('status')}>
+                  {['Em andamento','Concluída','Em atraso'].map(s=><option key={s}>{s}</option>)}
+                </select>
+              </div>
+            </div>
+            {/* Preview progresso */}
+            {form.meta > 0 && (
+              <div style={{ background:'#1e293b', borderRadius:8, padding:'12px 14px', marginBottom:16 }}>
+                <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6 }}>
+                  <span style={{ fontSize:11, color:'#94a3b8' }}>Progresso atual</span>
+                  <span style={{ fontSize:13, fontWeight:700, color: GOAL_CAT_COLORS[form.categoria]||'#22c55e' }}>
+                    {fmtPct(Math.min(100, (parseFloat(form.alcancado)||0)/(parseFloat(form.meta)||1)*100))}
+                  </span>
+                </div>
+                <div style={S.bar(Math.min(100,(parseFloat(form.alcancado)||0)/(parseFloat(form.meta)||1)*100), GOAL_CAT_COLORS[form.categoria]||'#22c55e')}/>
+              </div>
+            )}
+            <div style={{ display:'flex', gap:10, justifyContent:'flex-end' }}>
+              <button type="button" style={S.btnSec} onClick={()=>{ setEditGoal(null); setForm(EMPTY_GOAL_FORM); setActiveTab('todas'); }}>Cancelar</button>
+              <button type="submit" style={S.btnPrim}>{editGoal ? 'Salvar Alterações' : 'Criar Meta'}</button>
+            </div>
+          </form>
+        </div>
+      )}
+    </div>
+  );
+};
+
 // Main App
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -7667,6 +8145,8 @@ export default function App() {
         return <EstoqueManager estoques={apiData.estoques} projecao={apiData.projecao} loading={apiData.loading} selectedClient={selectedClient} clients={clients} themeMode={themeMode} />;
       case 'receber':
         return <Financeiro clients={clients} selectedClient={selectedClient} />;
+      case 'goals':
+        return <GoalManager />;
       case 'users':
         return <Users adminUsers={adminUsers} setAdminUsers={setAdminUsers} isAdmin={isAdmin} />;
       case 'params':
