@@ -133,25 +133,31 @@ router.get('/controle', async (req, res) => {
            )
            FROM entcpi t
            LEFT JOIN entcpa r ON t.entcpicompra = r.entcpacodigo
-           WHERE t.entcpiproduto = p.prodcodigo
+                             AND r.entcpaempresa = $1
+           WHERE t.entcpiempresa = $1
+             AND t.entcpiproduto = p.prodcodigo
              AND CAST(r.entcpachegada AS date) = CAST(v.vdadata AS date)
          ), 0) AS compra_110,
          COALESCE((
            SELECT SUM(e.pediqtd)
            FROM pede d
            LEFT JOIN pedi e ON d.pedecodigo = e.pedicodigopede
-           WHERE e.pediproduto = p.prodcodigo
+                           AND e.pediempresa = $1
+           WHERE d.pedeempresa = $1
+             AND e.pediproduto  = p.prodcodigo
              AND CAST(d.pededatarecebimento AS date) = CAST(v.vdadata AS date)
          ), 0) AS compra_220,
          COALESCE((
            SELECT SUM(a.aferqtd)
            FROM afer a
-           WHERE a.aferproduto = p.prodcodigo
+           WHERE a.aferempresa  = $1
+             AND a.aferproduto  = p.prodcodigo
              AND CAST(a.afermovimento AS date) = CAST(v.vdadata AS date)
          ), 0) AS afericao,
          SUM(i.vditqtd) AS venda_110e220
        FROM vda v
-       LEFT JOIN vdit i ON v.vdacodigo = i.vditcodigovda
+       LEFT JOIN vdit i ON v.vdacodigo    = i.vditcodigovda
+                       AND i.vditempresa  = $1
        LEFT JOIN prod p  ON i.vditproduto = p.prodcodigo
        WHERE v.vdaempresa = $1
          AND p.prodtipo   = 1
