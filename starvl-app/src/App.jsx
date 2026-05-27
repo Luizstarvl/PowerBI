@@ -3458,7 +3458,7 @@ const FuelCarouselSelector = ({ estoques, selected, onSelect, dark }) => {
     <div style={{ position: 'relative', padding: '4px 0 4px', userSelect: 'none' }}>
       <div style={{ position: 'relative', height: 110, display: 'flex', alignItems: 'center', justifyContent: 'center', perspective: '700px', zIndex: 1, overflow: 'hidden' }}>
         {/* Arrow left */}
-        <button onClick={prev} style={{ position:'absolute', left:6, zIndex:22, background: dark ? '#1e293b' : '#e2e6f0', border:`1px solid ${dark?'#334155':'#c4ccd8'}`, borderRadius:'50%', width:28, height:28, cursor:'pointer', color: dark ? '#94a3b8' : '#6b7280', fontSize:16, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>‹</button>
+        <button onClick={prev} style={{ position:'absolute', left:6, zIndex:22, background: dark ? '#1e293b' : '#e2e6f0', border:`1px solid ${dark?'#334155':'#c4ccd8'}`, borderRadius:'50%', width:28, height:28, cursor:'pointer', color: dark ? '#ffffff' : '#111827', fontSize:16, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>‹</button>
 
         {estoques.map((e, i) => {
           const raw    = (i - active + n) % n;
@@ -3511,7 +3511,7 @@ const FuelCarouselSelector = ({ estoques, selected, onSelect, dark }) => {
         })}
 
         {/* Arrow right */}
-        <button onClick={next} style={{ position:'absolute', right:6, zIndex:22, background: dark ? '#1e293b' : '#e2e6f0', border:`1px solid ${dark?'#334155':'#c4ccd8'}`, borderRadius:'50%', width:28, height:28, cursor:'pointer', color: dark ? '#94a3b8' : '#6b7280', fontSize:16, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>›</button>
+        <button onClick={next} style={{ position:'absolute', right:6, zIndex:22, background: dark ? '#1e293b' : '#e2e6f0', border:`1px solid ${dark?'#334155':'#c4ccd8'}`, borderRadius:'50%', width:28, height:28, cursor:'pointer', color: dark ? '#ffffff' : '#111827', fontSize:16, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>›</button>
       </div>
 
       {/* Dot indicators */}
@@ -3625,7 +3625,7 @@ const FuelStationCard = ({ estoques = [], themeMode = 'dark' }) => {
 
       {/* ── Header ── */}
       <div style={{ position: 'relative', zIndex: 10, padding: '14px 20px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <h3 style={{ margin: 0, fontSize: 13, fontWeight: 900, letterSpacing: 2, color: '#E31E24' }}>⛽ ESTOQUE COMB</h3>
+        <h3 style={{ margin: 0, fontSize: 13, fontWeight: 900, letterSpacing: 2, color: dark ? '#f1f5f9' : '#111827' }}>ESTOQUE DE COMBUSTÍVEL</h3>
         {active && (
           <span style={{ fontSize: 11, color: dark ? '#475569' : '#8898b8' }}>
             Cap: <strong style={{ color: fuelColor, transition: 'color 0.4s' }}>{fmtN(active.capacidadeTotal)} L</strong>
