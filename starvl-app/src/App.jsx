@@ -1728,7 +1728,6 @@ function imprimirBoleto(conta, tipo) {
   <div class="bank-header">
     <div class="bank-logo">STARVL</div>
     <div class="bank-code">341-7</div>
-    <div class="linha-dig">${linha}</div>
   </div>
 
   <div class="canhoto">
@@ -1761,7 +1760,6 @@ function imprimirBoleto(conta, tipo) {
   <div class="bank-header">
     <div class="bank-logo">STARVL</div>
     <div class="bank-code">341-7</div>
-    <div class="linha-dig">${linha}</div>
   </div>
 
   <div class="body-wrap">
@@ -1839,12 +1837,6 @@ function imprimirBoleto(conta, tipo) {
         <div style="font-size:10px;color:#555;">CNPJ/CPF: ${sacadoCNPJ}</div>
       </div>
     </div>
-  </div>
-
-  <!-- Código de barras -->
-  <div class="barcode-wrap">
-    <div class="barcode-bars">${bars}</div>
-    <div style="font-size:10px;color:#555;margin-top:4px;letter-spacing:2px;">${linha}</div>
   </div>
 
   <div class="footer">
