@@ -2993,11 +2993,141 @@ const ConvProductTick = ({ x, y, payload, chartData, images }) => {
   );
 };
 
+// ─── Carrossel 3D de Conveniência ────────────────────────────────────────────
+const CONV_MEDALS  = ['🥇', '🥈', '🥉', '4°'];
+const CONV_RANKS   = ['1º LUGAR', '2º LUGAR', '3º LUGAR', '4º LUGAR'];
+const CONV_GLOW    = ['#f59e0b', '#94a3b8', '#cd7c3a', '#64748b'];
+
+const ConvCarousel = ({ data, images }) => {
+  const [active, setActive]   = useState(0);
+  const [paused, setPaused]   = useState(false);
+  const n = data.length;
+
+  useEffect(() => {
+    if (paused) return;
+    const t = setInterval(() => setActive(p => (p + 1) % n), 3000);
+    return () => clearInterval(t);
+  }, [n, paused]);
+
+  const prev = () => { setPaused(true); setActive(p => (p - 1 + n) % n); };
+  const next = () => { setPaused(true); setActive(p => (p + 1) % n); };
+
+  return (
+    <div style={{ padding: '8px 0 4px', userSelect: 'none' }}>
+      {/* Stage */}
+      <div style={{ position: 'relative', height: 260, display: 'flex', alignItems: 'center', justifyContent: 'center', perspective: '900px' }}>
+
+        {/* Arrow left */}
+        <button onClick={prev} style={{ position:'absolute', left:0, zIndex:20, background:'#1e293b', border:'1px solid #334155', borderRadius:'50%', width:32, height:32, cursor:'pointer', color:'#94a3b8', fontSize:16, display:'flex', alignItems:'center', justifyContent:'center' }}>‹</button>
+
+        {data.map((item, i) => {
+          const raw    = (i - active + n) % n;
+          const offset = raw > n / 2 ? raw - n : raw; // -1, 0, 1, 2 for n=4
+          const isActive = offset === 0;
+          const absOff   = Math.abs(offset);
+
+          const tx      = offset * 170;
+          const scale   = isActive ? 1.18 : Math.max(0.62, 1 - absOff * 0.22);
+          const rotY    = offset * -42;
+          const opacity = absOff > 1 ? 0.4 : 1;
+          const zIdx    = n - absOff;
+          const glow    = CONV_GLOW[i] || '#64748b';
+
+          return (
+            <div
+              key={i}
+              onClick={() => { setActive(i); setPaused(true); }}
+              style={{
+                position: 'absolute',
+                transform: `translateX(${tx}px) scale(${scale}) rotateY(${rotY}deg)`,
+                zIndex: zIdx,
+                opacity,
+                transition: 'all 0.55s cubic-bezier(.4,0,.2,1)',
+                cursor: 'pointer',
+                transformStyle: 'preserve-3d',
+              }}
+            >
+              <div style={{
+                width: 155,
+                background: isActive ? 'linear-gradient(155deg,#1e293b,#0f172a)' : '#111827',
+                border: isActive ? `2px solid ${glow}` : '1px solid #1e293b',
+                borderRadius: 18,
+                padding: '18px 14px 14px',
+                textAlign: 'center',
+                boxShadow: isActive ? `0 16px 48px ${glow}55` : '0 4px 16px rgba(0,0,0,.5)',
+                transition: 'box-shadow .55s',
+              }}>
+                {/* Medal */}
+                <div style={{ fontSize: 30, lineHeight: 1, marginBottom: 8 }}>{CONV_MEDALS[i]}</div>
+
+                {/* Photo */}
+                <div style={{
+                  width: 78, height: 78, borderRadius: '50%',
+                  margin: '0 auto 10px', overflow: 'hidden',
+                  border: isActive ? `3px solid ${glow}` : '2px solid #1e293b',
+                  background: '#1e293b',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  boxShadow: isActive ? `0 0 18px ${glow}66` : 'none',
+                  transition: 'box-shadow .55s',
+                }}>
+                  {images[item.id]
+                    ? <img src={images[item.id]} alt={item.name} style={{ width:'100%', height:'100%', objectFit:'cover' }}/>
+                    : <span style={{ fontSize: 36 }}>{item.emoji}</span>
+                  }
+                </div>
+
+                {/* Name */}
+                <div style={{ color: '#f1f5f9', fontSize: 12, fontWeight: 700, marginBottom: 5, lineHeight: 1.3 }}>{item.name}</div>
+
+                {/* Qty */}
+                <div style={{ color: isActive ? glow : '#64748b', fontSize: 17, fontWeight: 900, transition: 'color .3s' }}>
+                  {Number(item.qty).toLocaleString('pt-BR')} <span style={{ fontSize: 11, fontWeight: 600 }}>un.</span>
+                </div>
+
+                {/* Rank badge — só no active */}
+                <div style={{
+                  marginTop: 8, height: 22,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  {isActive && (
+                    <span style={{
+                      background: glow, color: '#fff',
+                      borderRadius: 20, padding: '2px 14px',
+                      fontSize: 10, fontWeight: 800, letterSpacing: 1,
+                    }}>
+                      {CONV_RANKS[i]}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+
+        {/* Arrow right */}
+        <button onClick={next} style={{ position:'absolute', right:0, zIndex:20, background:'#1e293b', border:'1px solid #334155', borderRadius:'50%', width:32, height:32, cursor:'pointer', color:'#94a3b8', fontSize:16, display:'flex', alignItems:'center', justifyContent:'center' }}>›</button>
+      </div>
+
+      {/* Dot indicators */}
+      <div style={{ display:'flex', justifyContent:'center', gap:6, marginTop:10 }}>
+        {data.map((_, i) => (
+          <button key={i} onClick={() => { setActive(i); setPaused(true); }} style={{
+            width: active === i ? 22 : 7, height: 7, borderRadius: 4,
+            background: active === i ? (CONV_GLOW[active] || '#E31E24') : '#334155',
+            border: 'none', cursor: 'pointer', padding: 0,
+            transition: 'all .35s ease',
+          }}/>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 // Dashboard Component
 const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcControle, estoques, loading, clients, selectedClient, selectedPeriod, setSelectedPeriod, onRefresh, themeMode }) => {
   const [selectedFuelDonut, setSelectedFuelDonut] = useState(null);
   const [isCompactDashboard, setIsCompactDashboard] = useState(false);
-  const [salesFuelSection, setSalesFuelSection] = useState('combustivel');
+  const [salesFuelSection, setSalesFuelSection] = useState('conveniencia');
   const [productMatrixUnit, setProductMatrixUnit] = useState('Pista');
   const [productMatrixPeriod, setProductMatrixPeriod] = useState('Mensal');
   const [convProductImages, setConvProductImages] = useState({});
@@ -3182,26 +3312,7 @@ const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcContr
             </BarChart>
           </ResponsiveContainer>
         ) : (
-          <ResponsiveContainer width="100%" height={wideChartHeight}>
-            <BarChart data={salesConvChartData} margin={{ top: 28, right: 12, left: 6, bottom: 4 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke={DASHBOARD_COLORS.grid} />
-              <XAxis
-                dataKey="name"
-                stroke={DASHBOARD_COLORS.axis}
-                interval={0}
-                height={72}
-                tick={(props) => <ConvProductTick {...props} chartData={salesConvChartData} images={convProductImages} />}
-              />
-              <YAxis stroke={DASHBOARD_COLORS.axis} tick={xTickStyle} width={isCompactDashboard ? 46 : 60} />
-              <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={{ color: '#fff' }} formatter={(v, _name, props) => [<span style={{ color: props.payload?.color || '#60a5fa', fontWeight: 700 }}>{Number(v).toLocaleString('pt-BR') + ' un.'}</span>, <span style={{ color: props.payload?.color || '#60a5fa' }}>Unidades</span>]} />
-              <Bar dataKey="qty" name="Unidades vendidas" radius={[8, 8, 0, 0]}>
-                {salesConvChartData.map((entry, index) => (
-                  <Cell key={`sales-conv-${entry.name}-${index}`} fill={entry.color} />
-                ))}
-                <LabelList dataKey="qty" position="top" formatter={(v) => Number(v) > 0 ? Number(v).toLocaleString('pt-BR') + ' un.' : ''} {...CHART_LABEL_STYLE} fontSize={isCompactDashboard ? 10 : 12} />
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
+          <ConvCarousel data={salesConvChartData} images={convProductImages} />
         )}
       </div>
     ),
