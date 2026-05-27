@@ -1856,8 +1856,8 @@ function imprimirBoleto(conta, tipo) {
 </body>
 </html>`;
 
-  const win = window.open('', '_blank', 'width=900,height=750,scrollbars=yes');
-  if (!win) { alert('Permita popups para imprimir o boleto.'); return; }
+  const win = window.open('', '_blank');
+  if (!win) { alert('Permita popups para abrir o boleto.'); return; }
   win.document.open();
   win.document.write(html);
   win.document.close();
