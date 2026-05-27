@@ -27,7 +27,7 @@ router.get('/resumo', async (req, res) => {
          COALESCE(SUM(rece.recevalor + COALESCE(rece.recejuros,0) - COALESCE(rece.recedesconto,0)), 0) AS total_aberto,
          COUNT(*)::int AS qtd_aberto
        FROM rece
-       LEFT JOIN recj ON recj.recjcodigorece = rece.rececodigo AND recj.recjempresa = rece.receempresa
+       LEFT JOIN recj ON recj.recjrece = rece.rececodigo AND recj.recjempresa = rece.receempresa
        WHERE rece.receempresa = $1
          AND recj.recjcodigo IS NULL`,
       [empresa, d]
@@ -39,8 +39,8 @@ router.get('/resumo', async (req, res) => {
          COUNT(*)::int AS qtd_recebidos
        FROM recj
        WHERE recj.recjempresa = $1
-         AND DATE(recj.recjdata) >= $2
-         AND DATE(recj.recjdata) <= $3`,
+         AND DATE(recj.recjpagamento) >= $2
+         AND DATE(recj.recjpagamento) <= $3`,
       [empresa, mesInicio, d]
     );
 
@@ -86,7 +86,7 @@ router.get('/contas', async (req, res) => {
 
     if (search) {
       conditions.push(
-        `(cli.clinome ILIKE $${pidx} OR CAST(rece.recedocumento AS TEXT) ILIKE $${pidx} OR COALESCE(cli.clicnpj, cli.clicpf, '') ILIKE $${pidx})`
+        `(part.partrazao ILIKE $${pidx} OR CAST(rece.recedocumento AS TEXT) ILIKE $${pidx} OR COALESCE(part.partcnpjcpf, '') ILIKE $${pidx})`
       );
       params.push(`%${search}%`);
       pidx++;
@@ -105,21 +105,20 @@ router.get('/contas', async (req, res) => {
 
     const baseFrom = `
       FROM rece
-      LEFT JOIN cli ON cli.clicodigo = rece.rececliente AND cli.cliempresa = rece.receempresa
-      LEFT JOIN recj ON recj.recjcodigorece = rece.rececodigo AND recj.recjempresa = rece.receempresa
+      LEFT JOIN part ON part.partcodigo = rece.rececliente
+      LEFT JOIN recj ON recj.recjrece   = rece.rececodigo AND recj.recjempresa = rece.receempresa
       WHERE ${where} ${statusSQL}`;
 
-    // Total por cliente (para coluna "Total por Cliente")
     const dataSQL = `
       SELECT
         rece.rececodigo,
-        COALESCE(cli.clinome, 'Cliente') AS cliente,
-        COALESCE(cli.clicnpj, cli.clicpf, '') AS cnpj,
-        CAST(rece.recedocumento AS TEXT) AS documento,
-        rece.recevencimento AS vencimento,
-        COALESCE(rece.recevalor, 0)       AS valor,
-        COALESCE(rece.recejuros, 0)       AS juros,
-        COALESCE(rece.recedesconto, 0)    AS desconto,
+        COALESCE(part.partrazao, 'Cliente') AS cliente,
+        COALESCE(part.partcnpjcpf, '')      AS cnpj,
+        CAST(rece.recedocumento AS TEXT)     AS documento,
+        rece.recevencimento                  AS vencimento,
+        COALESCE(rece.recevalor,    0)       AS valor,
+        COALESCE(rece.recejuros,    0)       AS juros,
+        COALESCE(rece.recedesconto, 0)       AS desconto,
         COALESCE(rece.recevalor,0) + COALESCE(rece.recejuros,0) - COALESCE(rece.recedesconto,0) AS valor_a_receber,
         CASE
           WHEN recj.recjcodigo IS NOT NULL THEN 'recebido'
@@ -132,7 +131,7 @@ router.get('/contas', async (req, res) => {
           WHEN rece.recevencimento < '${d}' THEN EXTRACT(DAY FROM ('${d}'::date - DATE(rece.recevencimento)))::int
           ELSE 0
         END AS dias_atraso,
-        recj.recjdata AS data_recebimento
+        recj.recjpagamento AS data_recebimento
       ${baseFrom}
       ORDER BY
         CASE WHEN recj.recjcodigo IS NULL AND rece.recevencimento < '${d}' THEN 0 ELSE 1 END,
@@ -182,21 +181,19 @@ router.get('/analiticos', async (req, res) => {
   const d = today();
 
   try {
-    // Resumo por status
     const statusRes = await query(
       `SELECT
-         COALESCE(SUM(CASE WHEN recj.recjcodigo IS NOT NULL THEN rece.recevalor END), 0)                          AS recebido,
+         COALESCE(SUM(CASE WHEN recj.recjcodigo IS NOT NULL THEN rece.recevalor END), 0)                           AS recebido,
          COALESCE(SUM(CASE WHEN recj.recjcodigo IS NULL AND DATE(rece.recevencimento) = $2::date THEN rece.recevalor END), 0) AS vence_hoje,
-         COALESCE(SUM(CASE WHEN recj.recjcodigo IS NULL AND rece.recevencimento < $2 THEN rece.recevalor END), 0) AS atrasado,
-         COALESCE(SUM(CASE WHEN recj.recjcodigo IS NULL AND rece.recevencimento > $2 THEN rece.recevalor END), 0) AS a_vencer,
+         COALESCE(SUM(CASE WHEN recj.recjcodigo IS NULL AND rece.recevencimento < $2 THEN rece.recevalor END), 0)  AS atrasado,
+         COALESCE(SUM(CASE WHEN recj.recjcodigo IS NULL AND rece.recevencimento > $2 THEN rece.recevalor END), 0)  AS a_vencer,
          COUNT(*) AS total
        FROM rece
-       LEFT JOIN recj ON recj.recjcodigorece = rece.rececodigo AND recj.recjempresa = rece.receempresa
+       LEFT JOIN recj ON recj.recjrece = rece.rececodigo AND recj.recjempresa = rece.receempresa
        WHERE rece.receempresa = $1`,
       [empresa, d]
     );
 
-    // Faixa de atraso (títulos vencidos sem baixa)
     const faixaRes = await query(
       `SELECT
          COALESCE(SUM(CASE WHEN (CURRENT_DATE - DATE(rece.recevencimento)) BETWEEN 1 AND 15   THEN rece.recevalor END),0) AS f1,
@@ -205,38 +202,36 @@ router.get('/analiticos', async (req, res) => {
          COALESCE(SUM(CASE WHEN (CURRENT_DATE - DATE(rece.recevencimento)) > 60               THEN rece.recevalor END),0) AS f4,
          COALESCE(SUM(rece.recevalor), 0) AS total_atraso
        FROM rece
-       LEFT JOIN recj ON recj.recjcodigorece = rece.rececodigo AND recj.recjempresa = rece.receempresa
+       LEFT JOIN recj ON recj.recjrece = rece.rececodigo AND recj.recjempresa = rece.receempresa
        WHERE rece.receempresa = $1
          AND recj.recjcodigo IS NULL
          AND rece.recevencimento < $2`,
       [empresa, d]
     );
 
-    // Top 5 clientes com maior dívida
     const topRes = await query(
       `SELECT
-         COALESCE(cli.clinome, 'Cliente') AS cliente,
+         COALESCE(part.partrazao, 'Cliente') AS cliente,
          COALESCE(SUM(rece.recevalor + COALESCE(rece.recejuros,0) - COALESCE(rece.recedesconto,0)), 0) AS divida
        FROM rece
-       LEFT JOIN cli ON cli.clicodigo = rece.rececliente AND cli.cliempresa = rece.receempresa
-       LEFT JOIN recj ON recj.recjcodigorece = rece.rececodigo AND recj.recjempresa = rece.receempresa
+       LEFT JOIN part ON part.partcodigo = rece.rececliente
+       LEFT JOIN recj ON recj.recjrece   = rece.rececodigo AND recj.recjempresa = rece.receempresa
        WHERE rece.receempresa = $1
          AND recj.recjcodigo IS NULL
-       GROUP BY cli.clinome
+       GROUP BY part.partrazao
        ORDER BY divida DESC
        LIMIT 5`,
       [empresa]
     );
 
-    // Índices financeiros
     const indicesRes = await query(
       `SELECT
          COALESCE(AVG(rece.recevalor), 0) AS ticket_medio,
-         COALESCE(AVG(EXTRACT(DAY FROM (DATE(recj.recjdata) - DATE(rece.recevencimento)))), 0) AS prazo_medio,
-         COUNT(CASE WHEN recj.recjdata < rece.recevencimento THEN 1 END)::float /
+         COALESCE(AVG(EXTRACT(DAY FROM (DATE(recj.recjpagamento) - DATE(rece.recevencimento)))), 0) AS prazo_medio,
+         COUNT(CASE WHEN recj.recjpagamento < rece.recevencimento THEN 1 END)::float /
            NULLIF(COUNT(recj.recjcodigo), 0) * 100 AS pct_antecipado
        FROM rece
-       LEFT JOIN recj ON recj.recjcodigorece = rece.rececodigo AND recj.recjempresa = rece.receempresa
+       LEFT JOIN recj ON recj.recjrece = rece.rececodigo AND recj.recjempresa = rece.receempresa
        WHERE rece.receempresa = $1`,
       [empresa]
     );

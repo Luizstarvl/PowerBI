@@ -21,13 +21,13 @@ router.get('/resumo', async (req, res) => {
   try {
     const abertoResult = await query(
       `SELECT
-         COALESCE(SUM(CASE WHEN paga.pagavencimento > $2  THEN paga.pagavalor + COALESCE(paga.pagajuros,0) - COALESCE(paga.pagadesconto,0) END), 0) AS a_vencer,
-         COALESCE(SUM(CASE WHEN DATE(paga.pagavencimento) = $2::date THEN paga.pagavalor + COALESCE(paga.pagajuros,0) - COALESCE(paga.pagadesconto,0) END), 0) AS vence_hoje,
-         COALESCE(SUM(CASE WHEN paga.pagavencimento < $2  THEN paga.pagavalor + COALESCE(paga.pagajuros,0) - COALESCE(paga.pagadesconto,0) END), 0) AS em_atraso,
-         COALESCE(SUM(paga.pagavalor + COALESCE(paga.pagajuros,0) - COALESCE(paga.pagadesconto,0)), 0) AS total_aberto,
+         COALESCE(SUM(CASE WHEN paga.pagavencimento > $2  THEN paga.pagavalor + COALESCE(paga.pagajuro,0) - COALESCE(paga.pagadesconto,0) END), 0) AS a_vencer,
+         COALESCE(SUM(CASE WHEN DATE(paga.pagavencimento) = $2::date THEN paga.pagavalor + COALESCE(paga.pagajuro,0) - COALESCE(paga.pagadesconto,0) END), 0) AS vence_hoje,
+         COALESCE(SUM(CASE WHEN paga.pagavencimento < $2  THEN paga.pagavalor + COALESCE(paga.pagajuro,0) - COALESCE(paga.pagadesconto,0) END), 0) AS em_atraso,
+         COALESCE(SUM(paga.pagavalor + COALESCE(paga.pagajuro,0) - COALESCE(paga.pagadesconto,0)), 0) AS total_aberto,
          COUNT(*)::int AS qtd_aberto
        FROM paga
-       LEFT JOIN pagj ON pagj.pagjcodigopaga = paga.pagacodigo AND pagj.pagjempresa = paga.pagaempresa
+       LEFT JOIN pagj ON pagj.pagjpaga = paga.pagacodigo AND pagj.pagjempresa = paga.pagaempresa
        WHERE paga.pagaempresa = $1
          AND pagj.pagjcodigo IS NULL`,
       [empresa, d]
@@ -35,12 +35,12 @@ router.get('/resumo', async (req, res) => {
 
     const pagosResult = await query(
       `SELECT
-         COALESCE(SUM(pagj.pagjvalor), 0) AS pagos_mes,
+         COALESCE(SUM(pagj.pagjpago), 0) AS pagos_mes,
          COUNT(*)::int AS qtd_pagos
        FROM pagj
        WHERE pagj.pagjempresa = $1
-         AND DATE(pagj.pagjdata) >= $2
-         AND DATE(pagj.pagjdata) <= $3`,
+         AND DATE(pagj.pagjpagamento) >= $2
+         AND DATE(pagj.pagjpagamento) <= $3`,
       [empresa, mesInicio, d]
     );
 
@@ -86,7 +86,7 @@ router.get('/contas', async (req, res) => {
 
     if (search) {
       conditions.push(
-        `(terc.tercnome ILIKE $${pidx} OR CAST(paga.pagadocumento AS TEXT) ILIKE $${pidx} OR COALESCE(terc.terccnpj, terc.terccpf, '') ILIKE $${pidx})`
+        `(part.partrazao ILIKE $${pidx} OR CAST(paga.pagadocumento AS TEXT) ILIKE $${pidx} OR COALESCE(part.partcnpjcpf, '') ILIKE $${pidx})`
       );
       params.push(`%${search}%`);
       pidx++;
@@ -105,21 +105,21 @@ router.get('/contas', async (req, res) => {
 
     const baseFrom = `
       FROM paga
-      LEFT JOIN terc ON terc.terccodigo = paga.pagaterc AND terc.tercempresa = paga.pagaempresa
-      LEFT JOIN pagj ON pagj.pagjcodigopaga = paga.pagacodigo AND pagj.pagjempresa = paga.pagaempresa
+      LEFT JOIN part ON part.partcodigo = paga.pagafornecedor
+      LEFT JOIN pagj ON pagj.pagjpaga   = paga.pagacodigo AND pagj.pagjempresa = paga.pagaempresa
       WHERE ${where} ${statusSQL}`;
 
     const dataSQL = `
       SELECT
         paga.pagacodigo,
-        COALESCE(terc.tercnome, 'Fornecedor') AS fornecedor,
-        COALESCE(terc.terccnpj, terc.terccpf, '') AS cnpj,
-        CAST(paga.pagadocumento AS TEXT) AS documento,
-        paga.pagavencimento AS vencimento,
-        COALESCE(paga.pagavalor, 0)    AS valor,
-        COALESCE(paga.pagajuros, 0)    AS juros,
-        COALESCE(paga.pagadesconto, 0) AS desconto,
-        COALESCE(paga.pagavalor,0) + COALESCE(paga.pagajuros,0) - COALESCE(paga.pagadesconto,0) AS valor_a_pagar,
+        COALESCE(part.partrazao,   'Fornecedor') AS fornecedor,
+        COALESCE(part.partcnpjcpf, '')           AS cnpj,
+        CAST(paga.pagadocumento AS TEXT)          AS documento,
+        paga.pagavencimento                       AS vencimento,
+        COALESCE(paga.pagavalor,    0)            AS valor,
+        COALESCE(paga.pagajuro,     0)            AS juros,
+        COALESCE(paga.pagadesconto, 0)            AS desconto,
+        COALESCE(paga.pagavalor,0) + COALESCE(paga.pagajuro,0) - COALESCE(paga.pagadesconto,0) AS valor_a_pagar,
         CASE
           WHEN pagj.pagjcodigo IS NOT NULL THEN 'pago'
           WHEN DATE(paga.pagavencimento) = '${d}'::date THEN 'vence_hoje'
@@ -131,7 +131,7 @@ router.get('/contas', async (req, res) => {
           WHEN paga.pagavencimento < '${d}' THEN EXTRACT(DAY FROM ('${d}'::date - DATE(paga.pagavencimento)))::int
           ELSE 0
         END AS dias_atraso,
-        pagj.pagjdata AS data_pagamento
+        pagj.pagjpagamento AS data_pagamento
       ${baseFrom}
       ORDER BY
         CASE WHEN pagj.pagjcodigo IS NULL AND paga.pagavencimento < '${d}' THEN 0 ELSE 1 END,
@@ -188,7 +188,7 @@ router.get('/analiticos', async (req, res) => {
          COALESCE(SUM(CASE WHEN pagj.pagjcodigo IS NULL AND paga.pagavencimento > $2 THEN paga.pagavalor END), 0)  AS a_vencer,
          COUNT(*) AS total
        FROM paga
-       LEFT JOIN pagj ON pagj.pagjcodigopaga = paga.pagacodigo AND pagj.pagjempresa = paga.pagaempresa
+       LEFT JOIN pagj ON pagj.pagjpaga = paga.pagacodigo AND pagj.pagjempresa = paga.pagaempresa
        WHERE paga.pagaempresa = $1`,
       [empresa, d]
     );
@@ -201,7 +201,7 @@ router.get('/analiticos', async (req, res) => {
          COALESCE(SUM(CASE WHEN (CURRENT_DATE - DATE(paga.pagavencimento)) > 60              THEN paga.pagavalor END),0) AS f4,
          COALESCE(SUM(paga.pagavalor), 0) AS total_atraso
        FROM paga
-       LEFT JOIN pagj ON pagj.pagjcodigopaga = paga.pagacodigo AND pagj.pagjempresa = paga.pagaempresa
+       LEFT JOIN pagj ON pagj.pagjpaga = paga.pagacodigo AND pagj.pagjempresa = paga.pagaempresa
        WHERE paga.pagaempresa = $1
          AND pagj.pagjcodigo IS NULL
          AND paga.pagavencimento < $2`,
@@ -210,14 +210,14 @@ router.get('/analiticos', async (req, res) => {
 
     const topRes = await query(
       `SELECT
-         COALESCE(terc.tercnome, 'Fornecedor') AS fornecedor,
-         COALESCE(SUM(paga.pagavalor + COALESCE(paga.pagajuros,0) - COALESCE(paga.pagadesconto,0)), 0) AS divida
+         COALESCE(part.partrazao, 'Fornecedor') AS fornecedor,
+         COALESCE(SUM(paga.pagavalor + COALESCE(paga.pagajuro,0) - COALESCE(paga.pagadesconto,0)), 0) AS divida
        FROM paga
-       LEFT JOIN terc ON terc.terccodigo = paga.pagaterc AND terc.tercempresa = paga.pagaempresa
-       LEFT JOIN pagj ON pagj.pagjcodigopaga = paga.pagacodigo AND pagj.pagjempresa = paga.pagaempresa
+       LEFT JOIN part ON part.partcodigo = paga.pagafornecedor
+       LEFT JOIN pagj ON pagj.pagjpaga   = paga.pagacodigo AND pagj.pagjempresa = paga.pagaempresa
        WHERE paga.pagaempresa = $1
          AND pagj.pagjcodigo IS NULL
-       GROUP BY terc.tercnome
+       GROUP BY part.partrazao
        ORDER BY divida DESC
        LIMIT 5`,
       [empresa]
@@ -226,11 +226,11 @@ router.get('/analiticos', async (req, res) => {
     const indicesRes = await query(
       `SELECT
          COALESCE(AVG(paga.pagavalor), 0) AS ticket_medio,
-         COALESCE(AVG(EXTRACT(DAY FROM (DATE(pagj.pagjdata) - DATE(paga.pagavencimento)))), 0) AS prazo_medio,
-         COUNT(CASE WHEN pagj.pagjdata < paga.pagavencimento THEN 1 END)::float /
+         COALESCE(AVG(EXTRACT(DAY FROM (DATE(pagj.pagjpagamento) - DATE(paga.pagavencimento)))), 0) AS prazo_medio,
+         COUNT(CASE WHEN pagj.pagjpagamento < paga.pagavencimento THEN 1 END)::float /
            NULLIF(COUNT(pagj.pagjcodigo), 0) * 100 AS pct_antecipado
        FROM paga
-       LEFT JOIN pagj ON pagj.pagjcodigopaga = paga.pagacodigo AND pagj.pagjempresa = paga.pagaempresa
+       LEFT JOIN pagj ON pagj.pagjpaga = paga.pagacodigo AND pagj.pagjempresa = paga.pagaempresa
        WHERE paga.pagaempresa = $1`,
       [empresa]
     );
