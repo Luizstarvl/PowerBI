@@ -2797,11 +2797,11 @@ const Financeiro = ({ clients, selectedClient }) => {
   );
 };
 
-// ─── Tanque Horizontal — SVG inspirado no tanque cilíndrico real ──────────────
+// ─── Tanque Horizontal 3D — tanque cilíndrico com efeito volumétrico ──────────
 const HorizTank = ({ pct = 0, color = '#22c55e', liters = 0 }) => {
   const safe = Math.max(0, Math.min(100, pct));
-  const W = 380, H = 165;
-  const X1 = 50, X2 = 330, CY = 82, RX = 46, RY = 72;
+  const W = 430, H = 200;
+  const X1 = 62, X2 = 368, CY = 104, RX = 54, RY = 82;
   const BW = X2 - X1;
   const fillH = RY * 2 * safe / 100;
   const fillY = CY + RY - fillH;
@@ -2809,170 +2809,244 @@ const HorizTank = ({ pct = 0, color = '#22c55e', liters = 0 }) => {
   const uid   = 'ht';
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} width="100%" style={{ display: 'block', maxWidth: 380, margin: '0 auto' }}>
+    <svg viewBox={`0 0 ${W} ${H}`} width="100%" style={{ display: 'block', maxWidth: 430, margin: '0 auto' }}>
       <defs>
+        {/* Corpo clip */}
         <clipPath id={`${uid}-body`}>
-          <rect    x={X1}  y={CY-RY} width={BW}   height={RY*2}/>
-          <ellipse cx={X1} cy={CY}   rx={RX}       ry={RY}/>
-          <ellipse cx={X2} cy={CY}   rx={RX}       ry={RY}/>
+          <rect x={X1} y={CY-RY} width={BW} height={RY*2}/>
+          <ellipse cx={X1} cy={CY} rx={RX} ry={RY}/>
+          <ellipse cx={X2} cy={CY} rx={RX} ry={RY}/>
         </clipPath>
         <clipPath id={`${uid}-cap`}>
-          <ellipse cx={X2} cy={CY}   rx={RX}       ry={RY}/>
+          <ellipse cx={X2} cy={CY} rx={RX} ry={RY}/>
         </clipPath>
 
-        {/* Fundo cinza claro (área vazia) */}
+        {/* Fundo do corpo (área vazia) */}
         <linearGradient id={`${uid}-bg`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%"   stopColor="#dce3ea"/>
-          <stop offset="100%" stopColor="#c4cdd6"/>
+          <stop offset="0%"   stopColor="#f2f6f9"/>
+          <stop offset="18%"  stopColor="#e4ecf2"/>
+          <stop offset="82%"  stopColor="#ccd6de"/>
+          <stop offset="100%" stopColor="#a8b8c4"/>
         </linearGradient>
         {/* Líquido */}
         <linearGradient id={`${uid}-liq`} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%"   stopColor={color} stopOpacity="1"/>
-          <stop offset="100%" stopColor={color} stopOpacity="0.7"/>
+          <stop offset="100%" stopColor={color} stopOpacity="0.72"/>
         </linearGradient>
-        {/* Brilho tampa frontal */}
-        <linearGradient id={`${uid}-capShine`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%"   stopColor="rgba(255,255,255,0.35)"/>
-          <stop offset="50%"  stopColor="rgba(255,255,255,0.08)"/>
-          <stop offset="100%" stopColor="rgba(0,0,0,0.10)"/>
+        {/* Highlight superior cilíndrico (topo brilhante = 3D) */}
+        <linearGradient id={`${uid}-hl`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%"   stopColor="rgba(255,255,255,0.62)"/>
+          <stop offset="32%"  stopColor="rgba(255,255,255,0.14)"/>
+          <stop offset="100%" stopColor="rgba(255,255,255,0)"/>
+        </linearGradient>
+        {/* Sombra inferior cilíndrica */}
+        <linearGradient id={`${uid}-sh`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%"   stopColor="rgba(0,0,0,0)"/>
+          <stop offset="65%"  stopColor="rgba(0,0,0,0.10)"/>
+          <stop offset="100%" stopColor="rgba(0,0,0,0.30)"/>
+        </linearGradient>
+        {/* Tampa frontal — gradiente radial para efeito esférico */}
+        <radialGradient id={`${uid}-capR`} cx="36%" cy="28%" r="72%">
+          <stop offset="0%"   stopColor="rgba(255,255,255,0.60)"/>
+          <stop offset="38%"  stopColor="rgba(255,255,255,0.14)"/>
+          <stop offset="100%" stopColor="rgba(0,0,0,0.18)"/>
+        </radialGradient>
+        {/* Suporte metálico */}
+        <linearGradient id={`${uid}-mt`} x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%"   stopColor="#7a8c9a"/>
+          <stop offset="30%"  stopColor="#b0c2ce"/>
+          <stop offset="55%"  stopColor="#d2e0e8"/>
+          <stop offset="100%" stopColor="#7a8c9a"/>
         </linearGradient>
       </defs>
 
-      {/* ── Pés de suporte ── */}
-      {[[X1+28, X1+18], [X2-35, X2-45]].map(([px, bx], i) => (
+      {/* ── Suportes metálicos U-bracket (como na imagem de referência) ── */}
+      {[{ cx: X1+42 }, { cx: X2-42 }].map(({ cx }, i) => (
         <g key={i}>
-          <rect x={px} y={CY+RY}    width={7}  height={28} fill="#8fa3b1" rx={2}/>
-          <rect x={bx} y={CY+RY+21} width={24} height={7}  fill="#a0b0bc" rx={2}/>
+          <rect x={cx-18} y={CY+RY-6}  width={10} height={32} fill={`url(#${uid}-mt)`} rx={2}/>
+          <rect x={cx+8}  y={CY+RY-6}  width={10} height={32} fill={`url(#${uid}-mt)`} rx={2}/>
+          <rect x={cx-24} y={CY+RY+23} width={48} height={10} fill={`url(#${uid}-mt)`} rx={2}/>
+          {/* Pino central */}
+          <rect x={cx-3}  y={CY+RY+16} width={6}  height={10} fill="#90a0b0" rx={1}/>
+          {/* Parafusos laterais */}
+          <circle cx={cx-18} cy={CY+RY+28} r={3} fill="#8090a0"/>
+          <circle cx={cx+18} cy={CY+RY+28} r={3} fill="#8090a0"/>
         </g>
       ))}
 
-      {/* ── Tampa traseira (esquerda) — cinza mais escuro para perspectiva ── */}
-      <ellipse cx={X1} cy={CY} rx={RX} ry={RY} fill="#b8c5cf" stroke="#94a3b1" strokeWidth={2}/>
+      {/* ── Tampa traseira (esquerda) ── */}
+      <ellipse cx={X1} cy={CY} rx={RX} ry={RY} fill="#b0bec8" stroke="#8898a8" strokeWidth={2}/>
+      <ellipse cx={X1} cy={CY} rx={RX*0.72} ry={RY*0.72} fill="rgba(0,0,0,0.05)"/>
+      <ellipse cx={X1} cy={CY-RY*0.38} rx={RX*0.55} ry={RY*0.14} fill="rgba(255,255,255,0.22)"/>
 
-      {/* ── Corpo: background cinza + líquido ── */}
+      {/* ── Corpo principal ── */}
       <g clipPath={`url(#${uid}-body)`}>
+        {/* Fundo */}
         <rect x={0} y={0} width={W} height={H} fill={`url(#${uid}-bg)`}/>
 
-        {/* Líquido */}
-        {safe > 0 && (
-          <rect x={0} y={fillY} width={W} height={fillH} fill={`url(#${uid}-liq)`}/>
-        )}
+        {/* Líquido base */}
+        {safe > 0 && <rect x={0} y={fillY} width={W} height={fillH} fill={`url(#${uid}-liq)`}/>}
 
-        {/* Superfície animada do líquido — onda 1 */}
+        {/* ── Ondas animadas (mais dramáticas) ── */}
         {safe > 2 && safe < 98 && (
-          <ellipse cx={W/2} cy={fillY} rx={BW * 0.52} ry={6} fill={color} opacity={0.5}>
+          <ellipse cx={W/2} cy={fillY} rx={BW*0.56} ry={14} fill={color} opacity={0.72}>
             <animate attributeName="cx"
-              values={`${W/2 - 18};${W/2 + 18};${W/2 - 18}`}
+              values={`${W/2-52};${W/2+52};${W/2-52}`}
+              dur="2.4s" repeatCount="indefinite"
+              calcMode="spline" keySplines="0.42 0 0.58 1; 0.42 0 0.58 1"/>
+            <animate attributeName="cy"
+              values={`${fillY};${fillY-7};${fillY}`}
+              dur="2.4s" repeatCount="indefinite"
+              calcMode="spline" keySplines="0.42 0 0.58 1; 0.42 0 0.58 1"/>
+          </ellipse>
+        )}
+        {safe > 2 && safe < 98 && (
+          <ellipse cx={W/2} cy={fillY-5} rx={BW*0.46} ry={9} fill="rgba(255,255,255,0.42)">
+            <animate attributeName="cx"
+              values={`${W/2+46};${W/2-46};${W/2+46}`}
+              dur="1.9s" repeatCount="indefinite"
+              calcMode="spline" keySplines="0.42 0 0.58 1; 0.42 0 0.58 1"/>
+            <animate attributeName="cy"
+              values={`${fillY-5};${fillY+3};${fillY-5}`}
+              dur="1.9s" repeatCount="indefinite"/>
+          </ellipse>
+        )}
+        {safe > 6 && safe < 94 && (
+          <ellipse cx={W/2-25} cy={fillY+8} rx={BW*0.3} ry={8} fill={color} opacity={0.42}>
+            <animate attributeName="cx"
+              values={`${W/2-68};${W/2+18};${W/2-68}`}
               dur="3.2s" repeatCount="indefinite"/>
           </ellipse>
         )}
-        {/* Onda 2 (desfasada) */}
-        {safe > 2 && safe < 98 && (
-          <ellipse cx={W/2} cy={fillY - 2} rx={BW * 0.38} ry={4} fill="rgba(255,255,255,0.25)">
+        {safe > 10 && safe < 90 && (
+          <ellipse cx={W/2+30} cy={fillY+5} rx={BW*0.22} ry={6} fill="rgba(255,255,255,0.30)">
             <animate attributeName="cx"
-              values={`${W/2 + 22};${W/2 - 22};${W/2 + 22}`}
-              dur="2.5s" repeatCount="indefinite"/>
+              values={`${W/2+60};${W/2-10};${W/2+60}`}
+              dur="2.7s" repeatCount="indefinite"/>
           </ellipse>
         )}
 
-        {/* ── Bolhas subindo no líquido ── */}
+        {/* ── Bolhas subindo ── */}
         {safe > 8 && [
-          { bx: X1+55,  dur:'3.1s', del:'0s',   r:3 },
-          { bx: X1+105, dur:'2.6s', del:'0.9s',  r:2 },
-          { bx: X1+160, dur:'3.6s', del:'1.7s',  r:3.5 },
-          { bx: X1+215, dur:'2.9s', del:'0.4s',  r:2 },
-          { bx: X1+265, dur:'3.3s', del:'1.3s',  r:2.5 },
-        ].map((b, i) => (
-          <circle key={i} cx={b.bx} cy={CY + RY - 6} r={b.r}
-            fill={`${color}70`} stroke={`${color}aa`} strokeWidth={0.8}>
+          { bx: X1+52,  dur:'2.8s', del:'0s',   r:4   },
+          { bx: X1+108, dur:'2.3s', del:'0.7s',  r:3   },
+          { bx: X1+170, dur:'3.2s', del:'1.4s',  r:4.5 },
+          { bx: X1+225, dur:'2.6s', del:'0.3s',  r:3   },
+          { bx: X1+275, dur:'3.0s', del:'1.1s',  r:3.5 },
+        ].map((b, bi) => (
+          <circle key={bi} cx={b.bx} cy={CY+RY-8} r={b.r}
+            fill={`${color}6a`} stroke={`${color}99`} strokeWidth={0.8}>
             <animate attributeName="cy"
-              values={`${CY + RY - 6};${fillY + b.r + 2};${CY + RY - 6}`}
+              values={`${CY+RY-8};${fillY+b.r+1};${CY+RY-8}`}
               dur={b.dur} begin={b.del} repeatCount="indefinite"/>
             <animate attributeName="opacity"
-              values="0;0.85;0.6;0"
-              dur={b.dur} begin={b.del} repeatCount="indefinite"/>
+              values="0;0.9;0.55;0" dur={b.dur} begin={b.del} repeatCount="indefinite"/>
           </circle>
         ))}
 
-        {/* Reflexo topo (brilho metálico da área vazia) */}
-        <ellipse cx={X1+BW*0.5} cy={CY - RY*0.55} rx={BW*0.26} ry={RY*0.12}
-          fill="rgba(255,255,255,0.30)"/>
-        {/* Costuras verticais */}
-        {[0.33, 0.66].map((f, i) => (
-          <line key={i} x1={X1+BW*f} y1={CY-RY} x2={X1+BW*f} y2={CY+RY}
-            stroke="rgba(0,0,0,0.07)" strokeWidth={1}/>
+        {/* ── Shading 3D cilíndrico: topo brilhante ── */}
+        <rect x={0} y={CY-RY} width={W} height={RY*0.48} fill={`url(#${uid}-hl)`}/>
+        {/* ── Shading 3D cilíndrico: sombra inferior ── */}
+        <rect x={0} y={CY+RY*0.55} width={W} height={RY*0.45} fill={`url(#${uid}-sh)`}/>
+
+        {/* Reflexo metálico no topo */}
+        <ellipse cx={X1+BW*0.50} cy={CY-RY*0.58} rx={BW*0.28} ry={RY*0.12}
+          fill="rgba(255,255,255,0.36)"/>
+
+        {/* Costuras de solda */}
+        {[0.34, 0.67].map((f, fi) => (
+          <line key={fi} x1={X1+BW*f} y1={CY-RY} x2={X1+BW*f} y2={CY+RY}
+            stroke="rgba(0,0,0,0.07)" strokeWidth={1.5}/>
         ))}
       </g>
 
       {/* ── Contorno do corpo ── */}
-      <line x1={X1} y1={CY-RY} x2={X2} y2={CY-RY} stroke="#94a3b1" strokeWidth={2}/>
-      <line x1={X1} y1={CY+RY} x2={X2} y2={CY+RY} stroke="#94a3b1" strokeWidth={2}/>
+      <line x1={X1} y1={CY-RY} x2={X2} y2={CY-RY} stroke="#8898a8" strokeWidth={1.8}/>
+      <line x1={X1} y1={CY+RY} x2={X2} y2={CY+RY} stroke="#8898a8" strokeWidth={1.8}/>
 
-      {/* ── Tubulação topo esquerdo (tubos vermelhos) ── */}
-      <rect x={X1+40} y={CY-RY-28} width={9}  height={28} fill="#7c2d12" rx={2}/>
-      <rect x={X1+34} y={CY-RY-30} width={21} height={7}  fill="#991b1b" rx={2}/>
-      <rect x={X1+8}  y={CY-RY-15} width={36} height={9}  fill="#7c2d12" rx={2}/>
-      <rect x={X1+5}  y={CY-RY-20} width={10} height={18} fill="#6b1e1e" rx={2}/>
-      <rect x={X1+20} y={CY-RY-20} width={10} height={18} fill="#6b1e1e" rx={2}/>
-      {/* Manômetro */}
-      <rect   x={X1+62}   y={CY-RY-5}  width={3}  height={5}   fill="#64748b"/>
-      <circle cx={X1+64}  cy={CY-RY-13} r={10} fill="#1e293b" stroke="#4b5563" strokeWidth={2}/>
-      <circle cx={X1+64}  cy={CY-RY-13} r={7}  fill="#111827"/>
-      <line   x1={X1+64}  y1={CY-RY-13} x2={X1+69} y2={CY-RY-17}
-        stroke="#f59e0b" strokeWidth={1.5} strokeLinecap="round"/>
-      <circle cx={X1+64}  cy={CY-RY-13} r={2}  fill="#6b7280"/>
+      {/* ── Tubulação topo esquerdo (estilo da imagem) ── */}
+      {/* Pipe horizontal base */}
+      <rect x={X1+6}  y={CY-RY-10} width={48} height={9}  fill="#7c2d12" rx={2}/>
+      {/* Pipe vertical riser */}
+      <rect x={X1+38} y={CY-RY-38} width={10} height={30} fill="#7c2d12" rx={2}/>
+      {/* Vent cap / chapéu */}
+      <rect x={X1+30} y={CY-RY-44} width={26} height={8}  fill="#991b1b" rx={3}/>
+      <ellipse cx={X1+43} cy={CY-RY-44} rx={14} ry={5.5} fill="#7c2d12"/>
+      {/* Valve body */}
+      <rect x={X1+4}  y={CY-RY-22} width={10} height={20} fill="#6b1e1e" rx={2}/>
+      {/* Valve horizontal */}
+      <rect x={X1+14} y={CY-RY-16} width={24} height={7}  fill="#991b1b" rx={2}/>
+      {/* Valve handle */}
+      <rect x={X1+24} y={CY-RY-30} width={5}  height={12} fill="#1e293b" rx={1.5}/>
+      {/* Pressure gauge */}
+      <rect   x={X1+72} y={CY-RY-4}   width={3}  height={5}  fill="#64748b"/>
+      <circle cx={X1+74} cy={CY-RY-16} r={12} fill="#1e293b" stroke="#4b5563" strokeWidth={2}/>
+      <circle cx={X1+74} cy={CY-RY-16} r={8.5} fill="#111827"/>
+      <line   x1={X1+74} y1={CY-RY-16} x2={X1+80} y2={CY-RY-22}
+        stroke="#f59e0b" strokeWidth={1.8} strokeLinecap="round"/>
+      <circle cx={X1+74} cy={CY-RY-16} r={2.5} fill="#6b7280"/>
 
-      {/* ── Boca de visita (topo centro) ── */}
-      <ellipse cx={W/2+8} cy={CY-RY} rx={22} ry={7}   fill="#374151" stroke="#4b5563" strokeWidth={2}/>
-      <ellipse cx={W/2+8} cy={CY-RY} rx={18} ry={5}   fill="#4b5563" stroke="#6b7280" strokeWidth={1.5}/>
-      <ellipse cx={W/2+8} cy={CY-RY} rx={6}  ry={2.5} fill="#64748b"/>
-      {[0,45,90,135,180,225,270,315].map((a, i) => (
-        <circle key={i}
-          cx={(W/2+8) + Math.cos(a*Math.PI/180)*19}
-          cy={(CY-RY) + Math.sin(a*Math.PI/180)*6}
-          r={2.2} fill="#6b7280"/>
+      {/* ── Boca de visita / manhole (topo centro — como na imagem) ── */}
+      {/* Outer flange ring */}
+      <ellipse cx={W/2+10} cy={CY-RY}    rx={28} ry={9.5} fill="#374151" stroke="#4b5563" strokeWidth={2}/>
+      {/* Inner lid */}
+      <ellipse cx={W/2+10} cy={CY-RY}    rx={22} ry={7}   fill="#4b5563" stroke="#6b7280" strokeWidth={1.5}/>
+      {/* Center plate */}
+      <ellipse cx={W/2+10} cy={CY-RY}    rx={8}  ry={3.2} fill="#64748b"/>
+      {/* Flange bolts */}
+      {[0,36,72,108,144,180,216,252,288,324].map((a, ai) => (
+        <circle key={ai}
+          cx={(W/2+10) + Math.cos(a*Math.PI/180)*24}
+          cy={(CY-RY) + Math.sin(a*Math.PI/180)*8}
+          r={2.8} fill="#6b7280"/>
       ))}
 
-      {/* ── Tampa frontal (direita) ── */}
+      {/* ── Tampa frontal (direita) com gradiente radial 3D ── */}
       <g clipPath={`url(#${uid}-cap)`}>
-        <rect x={X2-RX-4} y={0}     width={RX*2+8} height={H}     fill={`url(#${uid}-bg)`}/>
+        <rect x={X2-RX-4} y={0}     width={RX*2+8} height={H}  fill={`url(#${uid}-bg)`}/>
         {safe > 0 && (
-          <rect x={X2-RX-4} y={fillY} width={RX*2+8} height={fillH} fill={`url(#${uid}-liq)`} opacity={0.8}/>
+          <rect x={X2-RX-4} y={fillY} width={RX*2+8} height={fillH} fill={`url(#${uid}-liq)`} opacity={0.88}/>
         )}
+        {/* Cap top highlight */}
+        <rect x={X2-RX-4} y={0} width={RX*2+8} height={RY*0.42} fill={`url(#${uid}-hl)`}/>
         {safe > 2 && safe < 98 && (
-          <ellipse cx={X2} cy={fillY} rx={RX*0.9} ry={5} fill={color} opacity={0.4}>
+          <ellipse cx={X2} cy={fillY} rx={RX*0.88} ry={7} fill={color} opacity={0.48}>
             <animate attributeName="cx"
-              values={`${X2-14};${X2+14};${X2-14}`}
-              dur="3.2s" repeatCount="indefinite"/>
+              values={`${X2-22};${X2+22};${X2-22}`}
+              dur="2.4s" repeatCount="indefinite"
+              calcMode="spline" keySplines="0.42 0 0.58 1; 0.42 0 0.58 1"/>
           </ellipse>
         )}
       </g>
+      {/* Cap surface — radial gradient for 3D sphere look */}
       <ellipse cx={X2} cy={CY} rx={RX} ry={RY}
-        fill={`url(#${uid}-capShine)`} stroke="#94a3b1" strokeWidth={2.5}/>
+        fill={`url(#${uid}-capR)`} stroke="#8898a8" strokeWidth={2.5}/>
+      {/* Cap rim detail */}
+      <ellipse cx={X2} cy={CY} rx={RX-3} ry={RY-3}
+        fill="none" stroke="rgba(255,255,255,0.18)" strokeWidth={1.2}/>
 
-      {/* ── Sensor vermelho (lateral direita) ── */}
-      <rect x={X2+26} y={CY-14} width={20} height={17} fill="#991b1b" rx={2.5}/>
-      <rect x={X2+28} y={CY-12} width={16} height={13} fill="#7c2d12" rx={1.5}/>
-      <rect x={X2+18} y={CY-7}  width={10} height={5}  fill="#7c2d12" rx={1}/>
-      <rect x={X2+12} y={CY+22} width={16} height={7}  fill="#7c2d12" rx={2}/>
-      <rect x={X2+8}  y={CY+18} width={9}  height={15} fill="#6b1e1e" rx={2}/>
+      {/* ── Sensor box (lateral direita) ── */}
+      <rect x={X2+30} y={CY-20} width={24} height={22} fill="#991b1b" rx={3}/>
+      <rect x={X2+32} y={CY-18} width={20} height={18} fill="#7c2d12" rx={2}/>
+      <rect x={X2+22} y={CY-10} width={10} height={6}  fill="#7c2d12" rx={1}/>
+      <rect x={X2+30} y={CY+24} width={16} height={8}  fill="#7c2d12" rx={2}/>
+      <rect x={X2+12} y={CY+20} width={9}  height={18} fill="#6b1e1e" rx={2}/>
 
-      {/* ── Etiqueta de nível — maior ── */}
-      <rect x={W/2-62} y={CY-30} width={124} height={60} rx={6}
-        fill="rgba(0,0,0,0.72)" stroke={`${color}66`} strokeWidth={1.5}/>
-      <text x={W/2} y={CY-13} textAnchor="middle"
+      {/* ── Etiqueta digital de nível ── */}
+      <rect x={W/2-66} y={CY-33} width={132} height={66} rx={7}
+        fill="rgba(0,0,0,0.76)" stroke={`${color}77`} strokeWidth={1.5}/>
+      <text x={W/2} y={CY-14} textAnchor="middle"
         fill="#94a3b8" fontSize={10} fontFamily="monospace" fontWeight="700" letterSpacing="1">
         QTD COMBUSTÍVEL
       </text>
-      <text x={W/2} y={CY+12} textAnchor="middle"
-        fill={color} fontSize={20} fontFamily="monospace" fontWeight="900">
+      <text x={W/2} y={CY+14} textAnchor="middle"
+        fill={color} fontSize={22} fontFamily="monospace" fontWeight="900">
         {fmtN(liters)}
       </text>
-      <text x={W/2} y={CY+26} textAnchor="middle"
+      <text x={W/2} y={CY+30} textAnchor="middle"
         fill="#64748b" fontSize={10} fontFamily="monospace" fontWeight="600" letterSpacing="1">
         LITROS
       </text>
-
     </svg>
   );
 };
@@ -3099,14 +3173,14 @@ const ConvCarousel = ({ data, images, themeMode }) => {
         position:'absolute', inset:0, borderRadius:14, overflow:'hidden', pointerEvents:'none',
         background: dark
           ? 'radial-gradient(ellipse 80% 60% at 50% 20%, #2a0a0a 0%, #0a0000 100%)'
-          : 'radial-gradient(ellipse 80% 60% at 50% 20%, #e2e6f0 0%, #c8cdd8 100%)',
+          : 'radial-gradient(ellipse 80% 60% at 50% 20%, #fde8e8 0%, #f5cece 100%)',
       }}>
         {/* Floor */}
         <div style={{
           position:'absolute', bottom:0, left:0, right:0, height:'38%',
           background: dark
             ? 'linear-gradient(0deg, #100000 0%, transparent 100%)'
-            : 'linear-gradient(0deg, #b8bfcc 0%, transparent 100%)',
+            : 'linear-gradient(0deg, #e8b8b8 0%, transparent 100%)',
         }}/>
         {/* Floor reflection */}
         <div style={{
@@ -3346,6 +3420,114 @@ const FuelTypeCarousel = ({ estoques, selected, onSelect, dark }) => {
   );
 };
 
+// ─── Carrossel coverflow de seleção de combustível ────────────────────────────
+const FuelCarouselSelector = ({ estoques, selected, onSelect, dark }) => {
+  const n = estoques.length;
+  const [active, setActive] = useState(() => {
+    const idx = estoques.findIndex(e => e.produtoCodigo === selected);
+    return idx >= 0 ? idx : 0;
+  });
+  const [paused, setPaused] = useState(false);
+
+  useEffect(() => {
+    const idx = estoques.findIndex(e => e.produtoCodigo === selected);
+    if (idx >= 0 && idx !== active) setActive(idx);
+  }, [selected]);
+
+  useEffect(() => {
+    if (paused || n <= 1) return;
+    const t = setInterval(() => setActive(p => {
+      const next = (p + 1) % n;
+      onSelect(estoques[next].produtoCodigo);
+      return next;
+    }), 3800);
+    return () => clearInterval(t);
+  }, [n, paused, estoques, onSelect]);
+
+  if (n === 0) return null;
+
+  const handleClick = (i) => {
+    setActive(i);
+    onSelect(estoques[i].produtoCodigo);
+    setPaused(true);
+  };
+  const prev = () => handleClick((active - 1 + n) % n);
+  const next = () => handleClick((active + 1) % n);
+
+  return (
+    <div style={{ position: 'relative', padding: '4px 0 4px', userSelect: 'none' }}>
+      <div style={{ position: 'relative', height: 110, display: 'flex', alignItems: 'center', justifyContent: 'center', perspective: '700px', zIndex: 1, overflow: 'hidden' }}>
+        {/* Arrow left */}
+        <button onClick={prev} style={{ position:'absolute', left:6, zIndex:22, background: dark ? '#1e293b' : '#e2e6f0', border:`1px solid ${dark?'#334155':'#c4ccd8'}`, borderRadius:'50%', width:28, height:28, cursor:'pointer', color: dark ? '#94a3b8' : '#6b7280', fontSize:16, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>‹</button>
+
+        {estoques.map((e, i) => {
+          const raw    = (i - active + n) % n;
+          const offset = raw > n / 2 ? raw - n : raw;
+          const isAct  = offset === 0;
+          const absOff = Math.abs(offset);
+          const fColor = getFuelColor(e.produtoNome, DASHBOARD_COLORS.stock);
+          const pct    = Math.min(100, e.percentualOcupacao || 0);
+
+          const tx    = offset * 148;
+          const sc    = isAct ? 1.18 : Math.max(0.58, 1 - absOff * 0.26);
+          const rotY  = offset * -46;
+          const op    = absOff > 1 ? 0.3 : 1;
+          const zIdx  = n - absOff;
+
+          const cardBg = isAct
+            ? (dark ? `${fColor}1e` : `${fColor}22`)
+            : (dark ? '#0e1524' : '#dde2ee');
+
+          return (
+            <div key={i} onClick={() => handleClick(i)} style={{
+              position: 'absolute',
+              transform: `translateX(${tx}px) scale(${sc}) rotateY(${rotY}deg)`,
+              zIndex: zIdx, opacity: op,
+              transition: 'all 0.5s cubic-bezier(.4,0,.2,1)',
+              cursor: 'pointer', transformStyle: 'preserve-3d',
+            }}>
+              <div style={{
+                width: 136, padding: '9px 12px 8px', textAlign: 'center', borderRadius: 13,
+                background: cardBg,
+                border: isAct ? `1.5px solid ${fColor}66` : `1px solid ${dark?'#1a2235':'#c8d0e0'}`,
+                boxShadow: isAct ? `0 0 20px ${fColor}33, inset 0 0 10px ${fColor}0a` : 'none',
+                transition: 'all .5s',
+              }}>
+                <div style={{ color: isAct ? fColor : (dark?'#64748b':'#94a3b8'), fontSize:9, fontWeight:800, letterSpacing:0.5, marginBottom:6, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
+                  {e.produtoNome.split(' ').slice(0,3).join(' ').toUpperCase()}
+                </div>
+                <div style={{ height:5, borderRadius:3, background: dark ? '#1e293b' : '#ccd4e0', marginBottom:5, overflow:'hidden' }}>
+                  <div style={{ height:'100%', width:`${pct}%`, background: fColor, borderRadius:3, transition:'width .5s' }}/>
+                </div>
+                <div style={{ color: isAct ? fColor : (dark?'#475569':'#94a3b8'), fontSize:15, fontWeight:900 }}>{pct.toFixed(0)}%</div>
+                {isAct && (
+                  <div style={{ color: dark ? '#475569' : '#94a3b8', fontSize:9, marginTop:3 }}>
+                    {Number(e.estoqueTotal||0).toLocaleString('pt-BR',{maximumFractionDigits:0})} L
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+
+        {/* Arrow right */}
+        <button onClick={next} style={{ position:'absolute', right:6, zIndex:22, background: dark ? '#1e293b' : '#e2e6f0', border:`1px solid ${dark?'#334155':'#c4ccd8'}`, borderRadius:'50%', width:28, height:28, cursor:'pointer', color: dark ? '#94a3b8' : '#6b7280', fontSize:16, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>›</button>
+      </div>
+
+      {/* Dot indicators */}
+      <div style={{ display:'flex', justifyContent:'center', gap:5, zIndex:2, marginBottom:2 }}>
+        {estoques.map((_, di) => (
+          <button key={di} onClick={() => handleClick(di)} style={{
+            width: active===di ? 20 : 6, height:6, borderRadius:3,
+            background: active===di ? getFuelColor(estoques[active]?.produtoNome, DASHBOARD_COLORS.stock) : (dark?'#334155':'#c8cdd8'),
+            border:'none', cursor:'pointer', padding:0, transition:'all .3s ease',
+          }}/>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 // ─── Card de Estoque de Combustível — Posto 3D com Carrossel ─────────────────
 const FuelStationCard = ({ estoques = [], themeMode = 'dark' }) => {
   const dark = themeMode !== 'light';
@@ -3379,18 +3561,18 @@ const FuelStationCard = ({ estoques = [], themeMode = 'dark' }) => {
     }}>
       <style>{FUEL_STATION_CSS}</style>
 
-      {/* ── Showroom background — igual ConvCarousel ── */}
+      {/* ── Showroom background ── */}
       <div style={{
         position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'hidden',
         background: dark
           ? `radial-gradient(ellipse 86% 68% at 50% 14%, ${fuelColor}20 0%, #050508 100%)`
-          : `radial-gradient(ellipse 86% 68% at 50% 14%, ${fuelColor}16 0%, #c4c9d8 100%)`,
+          : `radial-gradient(ellipse 86% 68% at 50% 14%, ${fuelColor}30 0%, #fbd8d8 100%)`,
         transition: 'background 0.55s',
       }}>
         {/* Floor */}
         <div style={{
           position: 'absolute', bottom: 0, left: 0, right: 0, height: '40%',
-          background: dark ? 'linear-gradient(0deg, #020205 0%, transparent 100%)' : 'linear-gradient(0deg, #adb3c4 0%, transparent 100%)',
+          background: dark ? 'linear-gradient(0deg, #020205 0%, transparent 100%)' : 'linear-gradient(0deg, #f0b8b8 0%, transparent 100%)',
         }}/>
         {/* Floor reflection line */}
         <div style={{
@@ -3451,8 +3633,8 @@ const FuelStationCard = ({ estoques = [], themeMode = 'dark' }) => {
         )}
       </div>
 
-      {/* ── Carrossel de seleção de combustível ── */}
-      <FuelTypeCarousel
+      {/* ── Carrossel coverflow de seleção de combustível ── */}
+      <FuelCarouselSelector
         estoques={list}
         selected={selFuel || list[0]?.produtoCodigo}
         onSelect={handleSelect}
