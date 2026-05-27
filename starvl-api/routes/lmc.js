@@ -119,31 +119,12 @@ router.get('/controle', async (req, res) => {
   const { mes, ano, dataInicio, dataFim } = getPeriodoRange(periodo);
 
   try {
+    // SQL baseado na consulta original do SGA, adaptado para PostgreSQL multi-empresa
     const result = await query(
-      `WITH vendas AS (
-         SELECT
-           CAST(v.vdadata AS date) AS emissao,
-           p.prodcodigo AS cod_produto,
-           p.proddescricao AS descricao_produto,
-           COALESCE(SUM(i.vditqtd), 0) AS venda_110e220
-         FROM vda v
-         LEFT JOIN vdit i
-           ON v.vdacodigo = i.vditcodigovda
-          AND v.vdaempresa = i.vditempresa
-         LEFT JOIN prod p
-           ON i.vditproduto = p.prodcodigo
-         WHERE v.vdaempresa = $1
-           AND i.vditempresa = $1
-           AND p.prodtipo = 1
-           AND (v.vdastatus IS NULL OR v.vdastatus = 0)
-           AND (i.vditstatus IS NULL OR i.vditstatus = 0)
-           AND CAST(v.vdadata AS date) BETWEEN $2 AND $3
-         GROUP BY 1, 2, 3
-       )
-       SELECT
-         vendas.emissao,
-         vendas.cod_produto,
-         vendas.descricao_produto,
+      `SELECT DISTINCT
+         CAST(v.vdadata AS date) AS emissao,
+         p.prodcodigo             AS cod_produto,
+         p.proddescricao          AS descricao_produto,
          COALESCE((
            SELECT SUM(
              COALESCE(t.entcpivol1, 0) +
@@ -151,35 +132,37 @@ router.get('/controle', async (req, res) => {
              COALESCE(t.entcpivol3, 0)
            )
            FROM entcpi t
-           LEFT JOIN entcpa r
-             ON t.entcpicompra = r.entcpacodigo
-            AND t.entcpiempresa = r.entcpaempresa
-           WHERE t.entcpiempresa = $1
-             AND r.entcpaempresa = $1
-             AND t.entcpiproduto = vendas.cod_produto
-             AND CAST(r.entcpachegada AS date) = vendas.emissao
+           LEFT JOIN entcpa r ON t.entcpicompra = r.entcpacodigo
+           WHERE t.entcpiproduto = p.prodcodigo
+             AND CAST(r.entcpachegada AS date) = CAST(v.vdadata AS date)
          ), 0) AS compra_110,
          COALESCE((
            SELECT SUM(e.pediqtd)
            FROM pede d
-           LEFT JOIN pedi e
-             ON d.pedecodigo = e.pedicodigopede
-            AND d.pedeempresa = e.pediempresa
-           WHERE d.pedeempresa = $1
-             AND e.pediempresa = $1
-             AND e.pediproduto = vendas.cod_produto
-             AND CAST(d.pededatarecebimento AS date) = vendas.emissao
+           LEFT JOIN pedi e ON d.pedecodigo = e.pedicodigopede
+           WHERE e.pediproduto = p.prodcodigo
+             AND CAST(d.pededatarecebimento AS date) = CAST(v.vdadata AS date)
          ), 0) AS compra_220,
          COALESCE((
            SELECT SUM(a.aferqtd)
            FROM afer a
-           WHERE a.aferempresa = $1
-             AND a.aferproduto = vendas.cod_produto
-             AND CAST(a.afermovimento AS date) = vendas.emissao
+           WHERE a.aferproduto = p.prodcodigo
+             AND CAST(a.afermovimento AS date) = CAST(v.vdadata AS date)
          ), 0) AS afericao,
-         vendas.venda_110e220
-       FROM vendas
-       ORDER BY vendas.emissao, vendas.descricao_produto`,
+         SUM(i.vditqtd) AS venda_110e220
+       FROM vda v
+       LEFT JOIN vdit i ON v.vdacodigo = i.vditcodigovda
+       LEFT JOIN prod p  ON i.vditproduto = p.prodcodigo
+       WHERE v.vdaempresa = $1
+         AND p.prodtipo   = 1
+         AND v.vdastatus  = 0
+         AND i.vditstatus = 0
+         AND CAST(v.vdadata AS date) BETWEEN $2 AND $3
+       GROUP BY
+         CAST(v.vdadata AS date),
+         p.prodcodigo,
+         p.proddescricao
+       ORDER BY 1, 3`,
       [empresa, dataInicio, dataFim]
     );
 
