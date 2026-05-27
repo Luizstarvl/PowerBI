@@ -4636,7 +4636,12 @@ const ConvenienciaManager = ({ themeMode }) => {
               {paginated.map(p => (
                 <tr key={p.id} className={`pm-row${p.status === 'vencido' ? ' pm-row-vencido' : ''}`}>
                   <td>
-                    <div className="pm-foto-box" style={{ background: p.cor + '22' }}>{p.emoji}</div>
+                    {p.editImg
+                      ? <div className="pm-foto-box" style={{ background: 'transparent', padding: 0, overflow: 'hidden' }}>
+                          <img src={p.editImg} alt={p.nome} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 8 }} />
+                        </div>
+                      : <div className="pm-foto-box" style={{ background: p.cor + '22' }}>{p.emoji}</div>
+                    }
                   </td>
                   <td>
                     <div className="pm-prod-cell">
@@ -4761,7 +4766,8 @@ const ConvenienciaManager = ({ themeMode }) => {
 
       {/* ─── EDIT OVERLAY ─── */}
       {editProd && (
-        <div className="pm-edit-overlay">
+        <div className="pm-edit-overlay" onClick={() => setEditProd(null)}>
+          <div className="pm-edit-modal" onClick={e => e.stopPropagation()}>
           {/* Top bar */}
           <div className="pm-edit-topbar">
             <div className="pm-edit-topbar-title">
@@ -4992,6 +4998,7 @@ const ConvenienciaManager = ({ themeMode }) => {
               </div>
             </div>
           </div>{/* end body */}
+          </div>{/* end pm-edit-modal */}
         </div>
       )}
 
@@ -5004,7 +5011,12 @@ const ConvenienciaManager = ({ themeMode }) => {
               <button className="pm-modal-close" onClick={() => setViewProd(null)}><X size={18} /></button>
             </div>
             <div className="pm-modal-body">
-              <div className="pm-modal-foto" style={{ background: viewProd.cor + '22' }}>{viewProd.emoji}</div>
+              {viewProd.editImg
+                ? <div className="pm-modal-foto" style={{ background: 'transparent', padding: 0, overflow: 'hidden' }}>
+                    <img src={viewProd.editImg} alt={viewProd.nome} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 10 }} />
+                  </div>
+                : <div className="pm-modal-foto" style={{ background: viewProd.cor + '22' }}>{viewProd.emoji}</div>
+              }
               {[
                 ['Produto',        viewProd.nome],
                 ['Categoria',      viewProd.sub],

@@ -203,14 +203,25 @@
 /* ── Edit Product Overlay ─────────────────────────────────────────────── */
 .pm-edit-overlay {
   position: fixed; inset: 0;
-  background: #0d0d0d;
+  background: rgba(0, 0, 0, 0.82);
   z-index: 9100;
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px;
+}
+.pm-edit-modal {
+  background: #0d0d0d;
+  border: 1px solid #2a2a2a;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 1060px;
+  max-height: 88vh;
   overflow-y: auto;
   display: flex; flex-direction: column;
 }
 .pm-edit-topbar {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 14px 24px; background: #1a1a1a; border-bottom: 1px solid #2a2a2a;
+  padding: 12px 20px; background: #141414; border-bottom: 1px solid #2a2a2a;
+  border-radius: 16px 16px 0 0;
   flex-shrink: 0; position: sticky; top: 0; z-index: 1;
 }
 .pm-edit-topbar-title { display: flex; align-items: center; gap: 10px; font-size: 1rem; font-weight: 800; letter-spacing: 0.06em; color: #f8fafc; }
