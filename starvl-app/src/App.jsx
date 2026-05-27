@@ -8520,6 +8520,249 @@ const GoalManager = ({ themeMode = 'dark' }) => {
 
   const upd = k => e => setForm(f => ({ ...f, [k]: e.target.value }));
 
+  // ── Impressão ───────────────────────────────────────────────────────────────
+  const PRINT_CSS = `
+    @page { size: A4 landscape; margin: 10mm 14mm; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: Arial, Helvetica, sans-serif; color:#111; background:#fff; font-size:11px; }
+    h1  { font-size:20px; font-weight:900; color:#E31E24; margin:0 0 2px; letter-spacing:1px; }
+    h2  { font-size:12px; font-weight:700; color:#6b7280; text-transform:uppercase; letter-spacing:1px; margin:16px 0 8px; border-bottom:1px solid #e5e7eb; padding-bottom:4px; }
+    .header { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:16px; }
+    .header-sub { font-size:11px; color:#6b7280; margin:2px 0 0; }
+    .header-meta { text-align:right; font-size:10px; color:#9ca3af; }
+    /* KPIs */
+    .kpi-row { display:grid; grid-template-columns:repeat(6,1fr); gap:8px; margin-bottom:16px; }
+    .kpi { border:1.5px solid #e5e7eb; border-radius:8px; padding:10px 12px; }
+    .kpi-label { font-size:8px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:#9ca3af; }
+    .kpi-value { font-size:20px; font-weight:900; margin:3px 0; }
+    .kpi-sub   { font-size:9px; color:#9ca3af; }
+    /* Tables */
+    table { width:100%; border-collapse:collapse; font-size:10.5px; }
+    th { background:#f8fafc; font-size:8.5px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:#6b7280; padding:7px 8px; border-bottom:2px solid #e5e7eb; text-align:left; white-space:nowrap; }
+    td { padding:7px 8px; border-bottom:1px solid #f3f4f6; vertical-align:middle; }
+    tr:last-child td { border-bottom:none; }
+    .meta-name { font-weight:700; font-size:11px; }
+    .meta-desc { font-size:9px; color:#9ca3af; }
+    .bar-wrap { display:flex; align-items:center; gap:6px; }
+    .bar-bg   { flex:1; height:5px; border-radius:3px; background:#e5e7eb; }
+    .bar-fill { height:5px; border-radius:3px; }
+    .pct      { font-size:9px; font-weight:700; white-space:nowrap; }
+    .badge    { border-radius:10px; padding:2px 8px; font-size:9px; font-weight:700; display:inline-block; white-space:nowrap; }
+    .b-and  { background:#dbeafe; color:#1d4ed8; }
+    .b-ok   { background:#dcfce7; color:#15803d; }
+    .b-late { background:#fee2e2; color:#b91c1c; }
+    /* Cat list */
+    .cat-row { display:flex; align-items:center; justify-content:space-between; padding:5px 0; border-bottom:1px solid #f3f4f6; font-size:10.5px; }
+    .cat-row:last-child { border-bottom:none; }
+    .dot { width:9px; height:9px; border-radius:50%; display:inline-block; margin-right:6px; flex-shrink:0; }
+    /* Layout columns */
+    .row2 { display:grid; grid-template-columns:2fr 1fr; gap:16px; margin-bottom:16px; }
+    .card { border:1px solid #e5e7eb; border-radius:10px; padding:12px 16px; }
+    /* Totals row */
+    .totals { background:#f8fafc; }
+    .totals td { font-weight:700; font-size:11px; }
+    /* Filters bar */
+    .filter-tag { display:inline-block; background:#f3f4f6; border-radius:4px; padding:2px 8px; font-size:9px; margin-right:6px; color:#374151; }
+    /* Footer */
+    .footer { margin-top:16px; font-size:9px; color:#9ca3af; border-top:1px solid #e5e7eb; padding-top:8px; display:flex; justify-content:space-between; }
+    @media print { body { -webkit-print-color-adjust:exact; print-color-adjust:exact; } }
+  `;
+
+  const badgeHtml = (s) => {
+    const map = { 'Em andamento':'b-and', 'Concluída':'b-ok', 'Em atraso':'b-late' };
+    return `<span class="badge ${map[s]||'b-and'}">${s}</span>`;
+  };
+  const barHtml = (pct, col) =>
+    `<div class="bar-wrap"><div class="bar-bg"><div class="bar-fill" style="width:${pct}%;background:${col}"></div></div><span class="pct" style="color:${col}">${pct.toFixed(1)}%</span></div>`;
+  const goalRows = (list) => list.map(g => {
+    const pct = g.meta > 0 ? Math.min(100, g.alcancado / g.meta * 100) : 0;
+    const col = GOAL_CAT_COLORS[g.categoria] || '#6b7280';
+    const diff = Math.round((new Date(g.vencimento+'T00:00:00') - new Date(today+'T00:00:00')) / 86400000);
+    const vencLabel = diff < 0 ? `<span style="color:#ef4444">${Math.abs(diff)} dias em atraso</span>` : diff === 0 ? `<span style="color:#f59e0b">Vence hoje</span>` : `${diff} dias restantes`;
+    return `
+      <tr>
+        <td><div class="meta-name">${g.nome}</div><div class="meta-desc">${g.desc}</div></td>
+        <td><span style="color:${col};font-weight:600">${g.categoria}</span></td>
+        <td>${g.periodo}</td>
+        <td style="text-align:right">${fmtBRL(g.meta)}</td>
+        <td style="text-align:right">${fmtBRL(g.alcancado)}</td>
+        <td style="min-width:110px">${barHtml(pct, col)}</td>
+        <td>${badgeHtml(g.status)}</td>
+        <td>${g.vencimento}<br/><span style="font-size:9px">${vencLabel}</span></td>
+      </tr>`;
+  }).join('');
+
+  const printVisaoGeral = () => {
+    const totalMeta = goals.reduce((s,g) => s+g.meta, 0);
+    const totalAlc  = goals.reduce((s,g) => s+g.alcancado, 0);
+    const totalPct  = totalMeta > 0 ? (totalAlc/totalMeta*100) : 0;
+    const ativas    = goals.filter(g => g.status === 'Em andamento');
+    const atrasadas = goals.filter(g => g.status === 'Em atraso');
+    const concl     = goals.filter(g => g.status === 'Concluída');
+    const now       = new Date().toLocaleString('pt-BR');
+
+    const html = `<!doctype html><html><head><meta charset="utf-8"/>
+    <title>Relatório de Metas — Visão Geral</title>
+    <style>${PRINT_CSS}</style></head><body>
+    <div class="header">
+      <div>
+        <h1>🎯 GESTÃO DE METAS — VISÃO GERAL</h1>
+        <p class="header-sub">Resumo completo das metas financeiras da empresa</p>
+      </div>
+      <div class="header-meta">
+        <div><strong>STARVL</strong></div>
+        <div>Gerado em: ${now}</div>
+        <div>Total de metas: <strong>${goals.length}</strong></div>
+      </div>
+    </div>
+
+    <!-- KPIs -->
+    <div class="kpi-row">
+      <div class="kpi" style="border-color:#6366f144">
+        <div class="kpi-label">Metas Ativas</div>
+        <div class="kpi-value" style="color:#6366f1">${kpis.ativas}</div>
+        <div class="kpi-sub">Em andamento</div>
+      </div>
+      <div class="kpi" style="border-color:#22c55e44">
+        <div class="kpi-label">Concluídas</div>
+        <div class="kpi-value" style="color:#22c55e">${kpis.concl}</div>
+        <div class="kpi-sub">Este ano</div>
+      </div>
+      <div class="kpi" style="border-color:#3b82f644">
+        <div class="kpi-label">Progresso Médio</div>
+        <div class="kpi-value" style="color:#3b82f6">${fmtPct(kpis.progMed)}</div>
+        <div class="kpi-sub">Das metas ativas</div>
+      </div>
+      <div class="kpi" style="border-color:#f59e0b44">
+        <div class="kpi-label">Total Alcançado</div>
+        <div class="kpi-value" style="color:#f59e0b;font-size:15px">${fmtBRL(kpis.totalAlc)}</div>
+        <div class="kpi-sub">Valor acumulado</div>
+      </div>
+      <div class="kpi" style="border-color:#ef444444">
+        <div class="kpi-label">Em Atraso</div>
+        <div class="kpi-value" style="color:#ef4444">${kpis.atrasadas}</div>
+        <div class="kpi-sub">Fora do prazo</div>
+      </div>
+      <div class="kpi" style="border-color:#a855f744">
+        <div class="kpi-label">Progresso Geral</div>
+        <div class="kpi-value" style="color:#a855f7">${totalPct.toFixed(1)}%</div>
+        <div class="kpi-sub">${fmtBRL(totalAlc)} / ${fmtBRL(totalMeta)}</div>
+      </div>
+    </div>
+
+    <!-- Row 2: tabelas lado a lado -->
+    <div class="row2">
+      <div>
+        <h2>Metas em Andamento (${ativas.length})</h2>
+        <table>
+          <thead><tr><th>Meta</th><th>Categoria</th><th>Período</th><th style="text-align:right">Meta (R$)</th><th style="text-align:right">Alcançado</th><th>Progresso</th><th>Status</th><th>Vencimento</th></tr></thead>
+          <tbody>${goalRows(ativas)}</tbody>
+        </table>
+      </div>
+      <div>
+        <h2>Distribuição por Categoria</h2>
+        <div class="card">
+          ${catDist.map(c => `
+            <div class="cat-row">
+              <span><span class="dot" style="background:${c.color}"></span>${c.name}</span>
+              <span style="text-align:right">
+                <strong>${fmtBRL(c.value)}</strong><br/>
+                <span style="font-size:9px;color:#9ca3af">${c.pct}% do total</span>
+              </span>
+            </div>`).join('')}
+        </div>
+      </div>
+    </div>
+
+    ${atrasadas.length ? `
+    <h2>Metas em Atraso (${atrasadas.length})</h2>
+    <table>
+      <thead><tr><th>Meta</th><th>Categoria</th><th>Período</th><th style="text-align:right">Meta (R$)</th><th style="text-align:right">Alcançado</th><th>Progresso</th><th>Status</th><th>Vencimento</th></tr></thead>
+      <tbody>${goalRows(atrasadas)}</tbody>
+    </table>` : ''}
+
+    ${concl.length ? `
+    <h2>Metas Concluídas (${concl.length})</h2>
+    <table>
+      <thead><tr><th>Meta</th><th>Categoria</th><th>Período</th><th style="text-align:right">Meta (R$)</th><th style="text-align:right">Alcançado</th><th>Progresso</th><th>Status</th><th>Vencimento</th></tr></thead>
+      <tbody>${goalRows(concl)}</tbody>
+    </table>` : ''}
+
+    <div class="footer">
+      <span>STARVL — Gestão de Metas | Relatório de Visão Geral</span>
+      <span>Gerado em ${now}</span>
+    </div>
+    <script>window.onload=()=>{window.print();}</script>
+    </body></html>`;
+
+    const w = window.open('', '_blank', 'width=1200,height=800');
+    w.document.write(html);
+    w.document.close();
+  };
+
+  const printTodasMetas = () => {
+    const now        = new Date().toLocaleString('pt-BR');
+    const totalMeta  = filtered.reduce((s,g) => s+g.meta, 0);
+    const totalAlc   = filtered.reduce((s,g) => s+g.alcancado, 0);
+    const filtersInfo = [
+      catFilter !== 'Todas'  ? `Categoria: ${catFilter}`   : '',
+      statusFilter !== 'Todos' ? `Status: ${statusFilter}` : '',
+      search                 ? `Busca: "${search}"`        : '',
+      `Ordenação: ${orderBy === 'vencimento' ? 'Vencimento' : orderBy === 'meta' ? 'Meta' : 'Progresso'}`,
+    ].filter(Boolean);
+
+    const html = `<!doctype html><html><head><meta charset="utf-8"/>
+    <title>Relatório — Todas as Metas</title>
+    <style>${PRINT_CSS}</style></head><body>
+    <div class="header">
+      <div>
+        <h1>🎯 GESTÃO DE METAS — TODAS AS METAS</h1>
+        <p class="header-sub">
+          Filtros aplicados: ${filtersInfo.map(f=>`<span class="filter-tag">${f}</span>`).join('')}
+        </p>
+      </div>
+      <div class="header-meta">
+        <div><strong>STARVL</strong></div>
+        <div>Gerado em: ${now}</div>
+        <div>Exibindo: <strong>${filtered.length}</strong> meta${filtered.length !== 1 ? 's' : ''}</div>
+      </div>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Meta</th><th>Categoria</th><th>Período</th>
+          <th style="text-align:right">Meta (R$)</th>
+          <th style="text-align:right">Alcançado</th>
+          <th>Progresso</th><th>Status</th><th>Vencimento</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${goalRows(filtered)}
+        <tr class="totals">
+          <td colspan="3"><strong>TOTAIS (${filtered.length} metas)</strong></td>
+          <td style="text-align:right">${fmtBRL(totalMeta)}</td>
+          <td style="text-align:right">${fmtBRL(totalAlc)}</td>
+          <td>${barHtml(totalMeta > 0 ? Math.min(100,(totalAlc/totalMeta*100)) : 0, '#6366f1')}</td>
+          <td colspan="2" style="color:#6b7280;font-size:10px">
+            ${kpis.ativas} ativas · ${kpis.concl} concluídas · ${kpis.atrasadas} em atraso
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="footer">
+      <span>STARVL — Gestão de Metas | Relatório Completo</span>
+      <span>Gerado em ${now}</span>
+    </div>
+    <script>window.onload=()=>{window.print();}</script>
+    </body></html>`;
+
+    const w = window.open('', '_blank', 'width=1200,height=800');
+    w.document.write(html);
+    w.document.close();
+  };
+
   // ── Styles ──────────────────────────────────────────────────────────────────
   const dark = themeMode !== 'light';
   const S = {
@@ -8578,6 +8821,15 @@ const GoalManager = ({ themeMode = 'dark' }) => {
 
       {/* ═══ VISÃO GERAL ═══ */}
       {activeTab === 'visao' && (<>
+        {/* Barra de ação */}
+        <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:14 }}>
+          <button
+            onClick={printVisaoGeral}
+            style={{ display:'flex', alignItems:'center', gap:6, background: dark ? '#1c1c1e' : '#f3f4f6', color: dark ? '#94a3b8' : '#374151', border:`1px solid ${dark ? '#3f3f46' : '#d1d5db'}`, borderRadius:7, padding:'8px 16px', fontSize:12, fontWeight:600, cursor:'pointer' }}
+          >
+            <Printer size={14}/> Imprimir Relatório
+          </button>
+        </div>
         {/* KPIs */}
         <div style={S.kpiRow}>
           <div style={S.kpiCard('#6366f1')}>
@@ -8731,6 +8983,13 @@ const GoalManager = ({ themeMode = 'dark' }) => {
               <option value="meta">Ordenar por: Meta</option>
               <option value="progresso">Ordenar por: Progresso</option>
             </select>
+            <button
+              onClick={printTodasMetas}
+              title={`Imprimir ${filtered.length} meta${filtered.length !== 1 ? 's' : ''}`}
+              style={{ display:'flex', alignItems:'center', gap:6, background: dark ? '#1c1c1e' : '#f3f4f6', color: dark ? '#94a3b8' : '#374151', border:`1px solid ${dark ? '#3f3f46' : '#d1d5db'}`, borderRadius:6, padding:'7px 14px', fontSize:12, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap', flexShrink:0 }}
+            >
+              <Printer size={13}/> Imprimir ({filtered.length})
+            </button>
           </div>
           <table style={S.tbl}>
             <thead>
