@@ -2875,6 +2875,25 @@ const HorizTank = ({ pct = 0, color = '#22c55e', liters = 0 }) => {
           </ellipse>
         )}
 
+        {/* ── Bolhas subindo no líquido ── */}
+        {safe > 8 && [
+          { bx: X1+55,  dur:'3.1s', del:'0s',   r:3 },
+          { bx: X1+105, dur:'2.6s', del:'0.9s',  r:2 },
+          { bx: X1+160, dur:'3.6s', del:'1.7s',  r:3.5 },
+          { bx: X1+215, dur:'2.9s', del:'0.4s',  r:2 },
+          { bx: X1+265, dur:'3.3s', del:'1.3s',  r:2.5 },
+        ].map((b, i) => (
+          <circle key={i} cx={b.bx} cy={CY + RY - 6} r={b.r}
+            fill={`${color}70`} stroke={`${color}aa`} strokeWidth={0.8}>
+            <animate attributeName="cy"
+              values={`${CY + RY - 6};${fillY + b.r + 2};${CY + RY - 6}`}
+              dur={b.dur} begin={b.del} repeatCount="indefinite"/>
+            <animate attributeName="opacity"
+              values="0;0.85;0.6;0"
+              dur={b.dur} begin={b.del} repeatCount="indefinite"/>
+          </circle>
+        ))}
+
         {/* Reflexo topo (brilho metálico da área vazia) */}
         <ellipse cx={X1+BW*0.5} cy={CY - RY*0.55} rx={BW*0.26} ry={RY*0.12}
           fill="rgba(255,255,255,0.30)"/>
@@ -3026,6 +3045,23 @@ const CONV_CAROUSEL_CSS = `
 }
 `;
 
+const FUEL_STATION_CSS = `
+@keyframes fs-glow-pulse {
+  0%,100% { opacity: 0.45; }
+  50%      { opacity: 1; }
+}
+@keyframes fs-shimmer {
+  0%   { transform: skewX(-14deg) translateX(-220%); opacity: 0; }
+  15%  { opacity: 0.5; }
+  85%  { opacity: 0.4; }
+  100% { transform: skewX(-14deg) translateX(700%); opacity: 0; }
+}
+@keyframes fs-tank-idle {
+  0%,100% { filter: drop-shadow(0 6px 28px var(--fc,#E31E2444)); }
+  50%      { filter: drop-shadow(0 10px 44px var(--fc,#E31E2466)); }
+}
+`;
+
 const CONFETTI_COLORS = ['#f59e0b','#E31E24','#22c55e','#3b82f6','#f59e0b','#ec4899','#a78bfa'];
 const STAR_POSITIONS  = [
   { top:'14%', left:'8%'  }, { top:'6%',  left:'40%' }, { top:'14%', right:'8%'  },
@@ -3160,7 +3196,7 @@ const ConvCarousel = ({ data, images, themeMode }) => {
                 {/* Crown — só no campeão */}
                 {isWinner
                   ? <div style={{ fontSize:26, lineHeight:1, marginBottom:4, animation:'cc-crown-bounce 1.6s ease-in-out infinite' }}>👑</div>
-                  : <div style={{ fontSize:26, lineHeight:1, marginBottom:4 }}>{CONV_MEDALS[i]}</div>
+                  : <div style={{ fontSize:17, fontWeight:900, lineHeight:1, marginBottom:6, color: CONV_GLOW[i] || '#64748b', fontFamily:'monospace', letterSpacing:1 }}>{i+1}°</div>
                 }
 
                 {/* Photo */}
@@ -3224,6 +3260,82 @@ const ConvCarousel = ({ data, images, themeMode }) => {
           }}/>
         ))}
       </div>
+    </div>
+  );
+};
+
+// ─── Carrossel de seleção de combustível ─────────────────────────────────────
+const FuelTypeCarousel = ({ estoques, selected, onSelect, dark }) => {
+  const n = estoques.length;
+  const [viewOff, setViewOff] = useState(0);
+  const visible = Math.min(n, 4);
+
+  useEffect(() => {
+    const idx = estoques.findIndex(e => e.produtoCodigo === selected);
+    if (idx < 0) return;
+    setViewOff(o => {
+      const lo = Math.max(0, idx - Math.floor(visible / 2));
+      const hi = Math.max(0, n - visible);
+      return Math.min(lo, hi);
+    });
+  }, [selected, n, visible]);
+
+  if (n === 0) return null;
+
+  const canPrev = viewOff > 0;
+  const canNext = viewOff + visible < n;
+
+  const arrowStyle = (disabled) => ({
+    background: 'none', border: 'none', cursor: disabled ? 'default' : 'pointer',
+    color: disabled ? (dark ? '#1e293b' : '#d4d8e4') : (dark ? '#64748b' : '#94a3b8'),
+    fontSize: 22, padding: '0 2px', lineHeight: 1,
+    opacity: disabled ? 0.3 : 1, transition: 'color .2s',
+    flexShrink: 0,
+  });
+
+  return (
+    <div style={{ display:'flex', alignItems:'center', gap:4, padding:'4px 16px 12px', position:'relative', zIndex:5 }}>
+      {n > visible && (
+        <button onClick={() => setViewOff(o => Math.max(0, o - 1))} style={arrowStyle(!canPrev)}>‹</button>
+      )}
+      <div style={{ display:'flex', gap:7, flex:1 }}>
+        {estoques.slice(viewOff, viewOff + visible).map(e => {
+          const color = getFuelColor(e.produtoNome, DASHBOARD_COLORS.stock);
+          const isActive = e.produtoCodigo === selected;
+          const pct = Math.min(100, e.percentualOcupacao || 0);
+          const shortName = e.produtoNome.split(' ').slice(0, 3).join(' ');
+          return (
+            <button key={e.produtoCodigo} onClick={() => onSelect(e.produtoCodigo)} style={{
+              flex: 1, textAlign: 'center', cursor: 'pointer', outline: 'none',
+              padding: '8px 6px 7px', borderRadius: 10, transition: 'all .3s',
+              background: isActive
+                ? (dark ? `${color}1a` : `${color}12`)
+                : (dark ? '#0f1624' : '#e2e6f0'),
+              border: isActive
+                ? `1.5px solid ${color}66`
+                : `1.5px solid ${dark ? '#1a2235' : '#c8d0e0'}`,
+              boxShadow: isActive ? `0 0 14px ${color}33, inset 0 0 8px ${color}0a` : 'none',
+            }}>
+              <div style={{
+                color: isActive ? color : (dark ? '#64748b' : '#94a3b8'),
+                fontSize: 9, fontWeight: 800, letterSpacing: 0.5, marginBottom: 5,
+                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+              }}>
+                {shortName.toUpperCase()}
+              </div>
+              <div style={{ height: 4, borderRadius: 2, background: dark ? '#1e293b' : '#d0d5e4', marginBottom: 4, overflow: 'hidden' }}>
+                <div style={{ height: '100%', width: `${pct}%`, background: color, borderRadius: 2, transition: 'width .6s ease' }}/>
+              </div>
+              <div style={{ color: isActive ? color : (dark ? '#475569' : '#9ca3af'), fontSize: 10, fontWeight: 700 }}>
+                {pct.toFixed(0)}%
+              </div>
+            </button>
+          );
+        })}
+      </div>
+      {n > visible && (
+        <button onClick={() => setViewOff(o => Math.min(o + 1, n - visible))} style={arrowStyle(!canNext)}>›</button>
+      )}
     </div>
   );
 };
@@ -3387,7 +3499,7 @@ const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcContr
     salesFuel: (
       <div className="chart-card">
         <div className="card-header" style={{ flexWrap: 'wrap', gap: 8 }}>
-          <h3>{salesFuelSection === 'combustivel' ? 'COMBUSTÍVEIS MAIS VENDIDOS' : 'CONVENIÊNCIA MAIS VENDIDA'}</h3>
+          <h3>{salesFuelSection === 'combustivel' ? 'COMBUSTÍVEIS MAIS VENDIDOS' : 'RANKING PRODUTOS MAIS VENDIDOS'}</h3>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginLeft: 'auto', flexWrap: 'wrap' }}>
             <div className="vp-toggle-group">
               {[{ k: 'combustivel', l: '⛽ Combustível' }, { k: 'conveniencia', l: '🏪 Conveniência' }].map(v => (
@@ -3421,31 +3533,111 @@ const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcContr
         )}
       </div>
     ),
-    stock: (
-      <div className="chart-card">
-        <div className="card-header"><h3>ESTOQUE COMB</h3></div>
-        {estoquesList.length > 0 && (
-          <div className="fuel-selector">
-            <label>Combustível:</label>
-            <select value={selectedFuelDonut || estoquesList[0]?.produtoCodigo || ''} onChange={(e) => setSelectedFuelDonut(parseInt(e.target.value))}>
-              {estoquesList.map(e => (<option key={e.produtoCodigo} value={e.produtoCodigo}>{e.produtoNome}</option>))}
-            </select>
+    stock: (() => {
+      const isDark = themeMode !== 'light';
+      return (
+        <div className="chart-card" style={{ padding: 0, overflow: 'hidden', position: 'relative', minHeight: 295, background: isDark ? '#08080f' : '#eef0f8' }}>
+          <style>{FUEL_STATION_CSS}</style>
+
+          {/* ── Atmosfera posto de combustível ── */}
+          <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'hidden' }}>
+            {/* Céu noturno / dia */}
+            <div style={{ position: 'absolute', inset: 0, background: isDark
+              ? 'linear-gradient(165deg, #060610 0%, #0b0b1a 50%, #0c0608 100%)'
+              : 'linear-gradient(165deg, #e4e8f8 0%, #dce0f0 50%, #e0dce8 100%)'
+            }}/>
+            {/* Glow ambiente do combustível */}
+            <div style={{
+              position: 'absolute', bottom: '-15%', left: '50%', transform: 'translateX(-50%)',
+              width: '80%', height: '65%', borderRadius: '50%',
+              background: `radial-gradient(ellipse, ${activeFuelColor}1a 0%, transparent 70%)`,
+              filter: 'blur(18px)',
+              animation: 'fs-glow-pulse 3s ease-in-out infinite',
+            }}/>
+            {/* Cobertura do posto (canopy) */}
+            <div style={{
+              position: 'absolute', top: 38, left: 0, right: 0, height: 3,
+              background: isDark ? '#10101c' : '#d4d8ec',
+              boxShadow: `0 0 24px ${activeFuelColor}33`,
+            }}/>
+            {/* Luzes teto (neon) */}
+            <div style={{
+              position: 'absolute', top: 36, left: '5%', right: '5%', height: 5,
+              background: `linear-gradient(90deg, transparent, ${activeFuelColor}55 25%, ${activeFuelColor}99 50%, ${activeFuelColor}55 75%, transparent)`,
+              filter: 'blur(2px)',
+              animation: 'fs-glow-pulse 2.8s ease-in-out infinite',
+            }}/>
+            {/* Pilar esquerdo */}
+            <div style={{ position: 'absolute', top: 41, left: '8%', width: 7, height: '30%', background: isDark ? '#0c0c18' : '#ccd0e0', opacity: 0.7 }}/>
+            {/* Pilar direito */}
+            <div style={{ position: 'absolute', top: 41, right: '8%', width: 7, height: '30%', background: isDark ? '#0c0c18' : '#ccd0e0', opacity: 0.7 }}/>
+            {/* Chão do posto */}
+            <div style={{
+              position: 'absolute', bottom: 0, left: 0, right: 0, height: '28%',
+              background: isDark
+                ? 'linear-gradient(0deg, #040408 0%, transparent 100%)'
+                : 'linear-gradient(0deg, #c4c8d8 0%, transparent 100%)',
+            }}/>
+            {/* Reflexo no chão */}
+            <div style={{
+              position: 'absolute', bottom: '16%', left: '50%', transform: 'translateX(-50%)',
+              width: '52%', height: 14,
+              background: `radial-gradient(ellipse at center, ${activeFuelColor}28 0%, transparent 70%)`,
+              filter: 'blur(8px)',
+            }}/>
+            {/* Brilho horizontal sweeping */}
+            <div style={{
+              position: 'absolute', top: '10%', left: '-10%', width: '18%', height: '75%',
+              background: `linear-gradient(90deg, transparent, ${activeFuelColor}10, transparent)`,
+              animation: 'fs-shimmer 7s 1s ease-in-out infinite',
+              pointerEvents: 'none',
+            }}/>
           </div>
-        )}
-        <div style={{ padding: '12px 4px 4px', filter: `drop-shadow(0 0 20px ${activeFuelColor}55)` }}>
-          <HorizTank
-            pct={fuelPct}
-            color={activeFuelColor}
-            liters={activeFuelEstoque?.estoqueTotal || 0}
+
+          {/* ── Header ── */}
+          <div style={{ position: 'relative', zIndex: 10, padding: '14px 20px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <h3 style={{ margin: 0, fontSize: 13, fontWeight: 900, letterSpacing: 2, color: '#E31E24' }}>⛽ ESTOQUE COMB</h3>
+            {activeFuelEstoque && (
+              <span style={{ fontSize: 11, color: isDark ? '#475569' : '#8898b8' }}>
+                Cap: <strong style={{ color: activeFuelColor }}>{fmt(activeFuelEstoque.capacidadeTotal, 0)} L</strong>
+              </span>
+            )}
+          </div>
+
+          {/* ── Carrossel de seleção de combustível ── */}
+          <FuelTypeCarousel
+            estoques={estoquesList}
+            selected={selectedFuelDonut || estoquesList[0]?.produtoCodigo}
+            onSelect={(cod) => setSelectedFuelDonut(parseInt(cod))}
+            dark={isDark}
           />
+
+          {/* ── Tanque 3D ── */}
+          <div style={{ position: 'relative', zIndex: 5, padding: '0 14px 14px' }}>
+            <div style={{
+              perspective: '900px',
+              perspectiveOrigin: '50% 35%',
+            }}>
+              <div style={{
+                transform: 'rotateX(7deg) scale(0.97)',
+                transformOrigin: 'center bottom',
+                filter: `drop-shadow(0 8px 36px ${activeFuelColor}55) drop-shadow(0 2px 8px ${activeFuelColor}33)`,
+                transition: 'filter 0.5s',
+              }}>
+                <HorizTank pct={fuelPct} color={activeFuelColor} liters={activeFuelEstoque?.estoqueTotal || 0} />
+              </div>
+            </div>
+            {/* Sombra / reflexo chão do tanque */}
+            <div style={{
+              position: 'absolute', bottom: 14, left: '18%', right: '18%', height: 10,
+              background: `radial-gradient(ellipse at center, ${activeFuelColor}35 0%, transparent 70%)`,
+              filter: 'blur(7px)',
+              zIndex: 1,
+            }}/>
+          </div>
         </div>
-        <div className="update-time">
-          <Calendar size={18} />
-          <span>CAPACIDADE TOTAL:</span>
-          <strong style={{ color: activeFuelColor }}>{activeFuelEstoque ? fmt(activeFuelEstoque.capacidadeTotal, 0) + ' L' : '—'}</strong>
-        </div>
-      </div>
-    ),
+      );
+    })(),
     purchases: (
       <div className="chart-card">
         <div className="card-header"><h3>COMPRAS 110 / 220 POR COMBUSTÍVEL</h3><span style={{ fontSize: '12px', color: '#666' }}>litros no período</span></div>
