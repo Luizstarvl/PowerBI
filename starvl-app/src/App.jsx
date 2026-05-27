@@ -3050,15 +3050,21 @@ const FUEL_STATION_CSS = `
   0%,100% { opacity: 0.45; }
   50%      { opacity: 1; }
 }
-@keyframes fs-shimmer {
-  0%   { transform: skewX(-14deg) translateX(-220%); opacity: 0; }
-  15%  { opacity: 0.5; }
-  85%  { opacity: 0.4; }
-  100% { transform: skewX(-14deg) translateX(700%); opacity: 0; }
+@keyframes fs-spotlight {
+  0%,100% { opacity: 0.5; }
+  50%      { opacity: 0.88; }
 }
-@keyframes fs-tank-idle {
-  0%,100% { filter: drop-shadow(0 6px 28px var(--fc,#E31E2444)); }
-  50%      { filter: drop-shadow(0 10px 44px var(--fc,#E31E2466)); }
+@keyframes fs-slide-right {
+  from { transform: translateX(55%) rotateY(-38deg) scale(0.78); opacity: 0; filter: blur(2px); }
+  to   { transform: translateX(0)   rotateY(0deg)   scale(1);    opacity: 1; filter: blur(0px); }
+}
+@keyframes fs-slide-left {
+  from { transform: translateX(-55%) rotateY(38deg) scale(0.78); opacity: 0; filter: blur(2px); }
+  to   { transform: translateX(0)    rotateY(0deg)  scale(1);    opacity: 1; filter: blur(0px); }
+}
+@keyframes fs-tank-appear {
+  from { transform: scale(0.88) rotateY(12deg); opacity: 0; filter: blur(3px); }
+  to   { transform: scale(1)    rotateY(0deg);  opacity: 1; filter: blur(0px); }
 }
 `;
 
@@ -3340,6 +3346,145 @@ const FuelTypeCarousel = ({ estoques, selected, onSelect, dark }) => {
   );
 };
 
+// ─── Card de Estoque de Combustível — Posto 3D com Carrossel ─────────────────
+const FuelStationCard = ({ estoques = [], themeMode = 'dark' }) => {
+  const dark = themeMode !== 'light';
+  const list = estoques || [];
+  const [selFuel, setSelFuel]     = useState(null);
+  const [slideAnim, setSlideAnim] = useState('appear');
+  const [animKey, setAnimKey]     = useState(0);
+
+  const active    = list.find(e => e.produtoCodigo === selFuel) || list[0] || null;
+  const fuelPct   = active ? Math.round(active.percentualOcupacao) : 0;
+  const fuelColor = active ? getFuelColor(active.produtoNome, DASHBOARD_COLORS.stock) : DASHBOARD_COLORS.stock;
+  const fmtN      = n => Number(n || 0).toLocaleString('pt-BR', { maximumFractionDigits: 0 });
+
+  const handleSelect = (cod) => {
+    const curId = selFuel || list[0]?.produtoCodigo;
+    if (cod === curId) return;
+    const oldIdx = list.findIndex(e => e.produtoCodigo === curId);
+    const newIdx = list.findIndex(e => e.produtoCodigo === cod);
+    setSlideAnim(newIdx > oldIdx ? 'right' : 'left');
+    setAnimKey(k => k + 1);
+    setSelFuel(cod);
+  };
+
+  const tankAnim = slideAnim === 'right' ? 'fs-slide-right 0.52s cubic-bezier(.4,0,.2,1)'
+                 : slideAnim === 'left'  ? 'fs-slide-left  0.52s cubic-bezier(.4,0,.2,1)'
+                 :                         'fs-tank-appear  0.55s cubic-bezier(.4,0,.2,1)';
+
+  return (
+    <div className="chart-card" style={{
+      padding: 0, overflow: 'hidden', position: 'relative', minHeight: 295,
+    }}>
+      <style>{FUEL_STATION_CSS}</style>
+
+      {/* ── Showroom background — igual ConvCarousel ── */}
+      <div style={{
+        position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'hidden',
+        background: dark
+          ? `radial-gradient(ellipse 86% 68% at 50% 14%, ${fuelColor}20 0%, #050508 100%)`
+          : `radial-gradient(ellipse 86% 68% at 50% 14%, ${fuelColor}16 0%, #c4c9d8 100%)`,
+        transition: 'background 0.55s',
+      }}>
+        {/* Floor */}
+        <div style={{
+          position: 'absolute', bottom: 0, left: 0, right: 0, height: '40%',
+          background: dark ? 'linear-gradient(0deg, #020205 0%, transparent 100%)' : 'linear-gradient(0deg, #adb3c4 0%, transparent 100%)',
+        }}/>
+        {/* Floor reflection line */}
+        <div style={{
+          position: 'absolute', bottom: '30%', left: '12%', right: '12%', height: 1,
+          background: dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.07)',
+        }}/>
+        {/* Spotlight cone */}
+        <div style={{
+          position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)',
+          width: 0, height: 0,
+          borderLeft: '110px solid transparent', borderRight: '110px solid transparent',
+          borderTop: dark ? `260px solid ${fuelColor}07` : `260px solid ${fuelColor}0e`,
+          animation: 'fs-spotlight 3.5s ease-in-out infinite',
+          transition: 'border-top-color 0.55s',
+        }}/>
+        {/* Inner spotlight glow */}
+        <div style={{
+          position: 'absolute', top: '4%', left: '50%', transform: 'translateX(-50%)',
+          width: '52%', height: '62%',
+          background: dark
+            ? `radial-gradient(ellipse at top, ${fuelColor}0d 0%, transparent 70%)`
+            : `radial-gradient(ellipse at top, ${fuelColor}16 0%, transparent 70%)`,
+          animation: 'fs-spotlight 3.5s ease-in-out infinite',
+          transition: 'background 0.55s',
+        }}/>
+        {/* Canopy neon line */}
+        <div style={{
+          position: 'absolute', top: 44, left: '3%', right: '3%', height: 3,
+          background: `linear-gradient(90deg, transparent, ${fuelColor}55 28%, ${fuelColor}99 50%, ${fuelColor}55 72%, transparent)`,
+          filter: 'blur(1.5px)',
+          animation: 'fs-glow-pulse 2.6s ease-in-out infinite',
+          transition: 'background 0.55s',
+        }}/>
+        {/* Ground glow */}
+        <div style={{
+          position: 'absolute', bottom: '15%', left: '50%', transform: 'translateX(-50%)',
+          width: '58%', height: 22,
+          background: `radial-gradient(ellipse at center, ${fuelColor}2a 0%, transparent 70%)`,
+          filter: 'blur(10px)',
+          animation: 'fs-glow-pulse 3s ease-in-out infinite',
+          transition: 'background 0.55s',
+        }}/>
+        {/* Shimmer sweep */}
+        <div style={{
+          position: 'absolute', top: '5%', left: '-12%', width: '20%', height: '80%',
+          background: `linear-gradient(90deg, transparent, ${fuelColor}0d, transparent)`,
+          animation: 'none',
+        }}/>
+      </div>
+
+      {/* ── Header ── */}
+      <div style={{ position: 'relative', zIndex: 10, padding: '14px 20px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <h3 style={{ margin: 0, fontSize: 13, fontWeight: 900, letterSpacing: 2, color: '#E31E24' }}>⛽ ESTOQUE COMB</h3>
+        {active && (
+          <span style={{ fontSize: 11, color: dark ? '#475569' : '#8898b8' }}>
+            Cap: <strong style={{ color: fuelColor, transition: 'color 0.4s' }}>{fmtN(active.capacidadeTotal)} L</strong>
+          </span>
+        )}
+      </div>
+
+      {/* ── Carrossel de seleção de combustível ── */}
+      <FuelTypeCarousel
+        estoques={list}
+        selected={selFuel || list[0]?.produtoCodigo}
+        onSelect={handleSelect}
+        dark={dark}
+      />
+
+      {/* ── Tanque com animação 3D coverflow ── */}
+      <div style={{ position: 'relative', zIndex: 5, padding: '0 20px 20px', perspective: '760px', perspectiveOrigin: '50% 28%', overflow: 'hidden' }}>
+        <div
+          key={animKey}
+          style={{
+            animation: tankAnim,
+            filter: `drop-shadow(0 6px 34px ${fuelColor}55) drop-shadow(0 2px 10px ${fuelColor}33)`,
+            transition: 'filter 0.5s',
+            transformOrigin: 'center center',
+          }}
+        >
+          <HorizTank pct={fuelPct} color={fuelColor} liters={active?.estoqueTotal || 0} />
+        </div>
+        {/* Reflexo sombra no chão */}
+        <div style={{
+          position: 'absolute', bottom: 20, left: '18%', right: '18%', height: 14,
+          background: `radial-gradient(ellipse at center, ${fuelColor}38 0%, transparent 70%)`,
+          filter: 'blur(9px)',
+          transition: 'background 0.5s',
+          pointerEvents: 'none',
+        }}/>
+      </div>
+    </div>
+  );
+};
+
 // Dashboard Component
 const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcControle, estoques, loading, clients, selectedClient, selectedPeriod, setSelectedPeriod, onRefresh, themeMode }) => {
   const [selectedFuelDonut, setSelectedFuelDonut] = useState(null);
@@ -3533,111 +3678,9 @@ const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcContr
         )}
       </div>
     ),
-    stock: (() => {
-      const isDark = themeMode !== 'light';
-      return (
-        <div className="chart-card" style={{ padding: 0, overflow: 'hidden', position: 'relative', minHeight: 295, background: isDark ? '#08080f' : '#eef0f8' }}>
-          <style>{FUEL_STATION_CSS}</style>
-
-          {/* ── Atmosfera posto de combustível ── */}
-          <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'hidden' }}>
-            {/* Céu noturno / dia */}
-            <div style={{ position: 'absolute', inset: 0, background: isDark
-              ? 'linear-gradient(165deg, #060610 0%, #0b0b1a 50%, #0c0608 100%)'
-              : 'linear-gradient(165deg, #e4e8f8 0%, #dce0f0 50%, #e0dce8 100%)'
-            }}/>
-            {/* Glow ambiente do combustível */}
-            <div style={{
-              position: 'absolute', bottom: '-15%', left: '50%', transform: 'translateX(-50%)',
-              width: '80%', height: '65%', borderRadius: '50%',
-              background: `radial-gradient(ellipse, ${activeFuelColor}1a 0%, transparent 70%)`,
-              filter: 'blur(18px)',
-              animation: 'fs-glow-pulse 3s ease-in-out infinite',
-            }}/>
-            {/* Cobertura do posto (canopy) */}
-            <div style={{
-              position: 'absolute', top: 38, left: 0, right: 0, height: 3,
-              background: isDark ? '#10101c' : '#d4d8ec',
-              boxShadow: `0 0 24px ${activeFuelColor}33`,
-            }}/>
-            {/* Luzes teto (neon) */}
-            <div style={{
-              position: 'absolute', top: 36, left: '5%', right: '5%', height: 5,
-              background: `linear-gradient(90deg, transparent, ${activeFuelColor}55 25%, ${activeFuelColor}99 50%, ${activeFuelColor}55 75%, transparent)`,
-              filter: 'blur(2px)',
-              animation: 'fs-glow-pulse 2.8s ease-in-out infinite',
-            }}/>
-            {/* Pilar esquerdo */}
-            <div style={{ position: 'absolute', top: 41, left: '8%', width: 7, height: '30%', background: isDark ? '#0c0c18' : '#ccd0e0', opacity: 0.7 }}/>
-            {/* Pilar direito */}
-            <div style={{ position: 'absolute', top: 41, right: '8%', width: 7, height: '30%', background: isDark ? '#0c0c18' : '#ccd0e0', opacity: 0.7 }}/>
-            {/* Chão do posto */}
-            <div style={{
-              position: 'absolute', bottom: 0, left: 0, right: 0, height: '28%',
-              background: isDark
-                ? 'linear-gradient(0deg, #040408 0%, transparent 100%)'
-                : 'linear-gradient(0deg, #c4c8d8 0%, transparent 100%)',
-            }}/>
-            {/* Reflexo no chão */}
-            <div style={{
-              position: 'absolute', bottom: '16%', left: '50%', transform: 'translateX(-50%)',
-              width: '52%', height: 14,
-              background: `radial-gradient(ellipse at center, ${activeFuelColor}28 0%, transparent 70%)`,
-              filter: 'blur(8px)',
-            }}/>
-            {/* Brilho horizontal sweeping */}
-            <div style={{
-              position: 'absolute', top: '10%', left: '-10%', width: '18%', height: '75%',
-              background: `linear-gradient(90deg, transparent, ${activeFuelColor}10, transparent)`,
-              animation: 'fs-shimmer 7s 1s ease-in-out infinite',
-              pointerEvents: 'none',
-            }}/>
-          </div>
-
-          {/* ── Header ── */}
-          <div style={{ position: 'relative', zIndex: 10, padding: '14px 20px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <h3 style={{ margin: 0, fontSize: 13, fontWeight: 900, letterSpacing: 2, color: '#E31E24' }}>⛽ ESTOQUE COMB</h3>
-            {activeFuelEstoque && (
-              <span style={{ fontSize: 11, color: isDark ? '#475569' : '#8898b8' }}>
-                Cap: <strong style={{ color: activeFuelColor }}>{fmt(activeFuelEstoque.capacidadeTotal, 0)} L</strong>
-              </span>
-            )}
-          </div>
-
-          {/* ── Carrossel de seleção de combustível ── */}
-          <FuelTypeCarousel
-            estoques={estoquesList}
-            selected={selectedFuelDonut || estoquesList[0]?.produtoCodigo}
-            onSelect={(cod) => setSelectedFuelDonut(parseInt(cod))}
-            dark={isDark}
-          />
-
-          {/* ── Tanque 3D ── */}
-          <div style={{ position: 'relative', zIndex: 5, padding: '0 14px 14px' }}>
-            <div style={{
-              perspective: '900px',
-              perspectiveOrigin: '50% 35%',
-            }}>
-              <div style={{
-                transform: 'rotateX(7deg) scale(0.97)',
-                transformOrigin: 'center bottom',
-                filter: `drop-shadow(0 8px 36px ${activeFuelColor}55) drop-shadow(0 2px 8px ${activeFuelColor}33)`,
-                transition: 'filter 0.5s',
-              }}>
-                <HorizTank pct={fuelPct} color={activeFuelColor} liters={activeFuelEstoque?.estoqueTotal || 0} />
-              </div>
-            </div>
-            {/* Sombra / reflexo chão do tanque */}
-            <div style={{
-              position: 'absolute', bottom: 14, left: '18%', right: '18%', height: 10,
-              background: `radial-gradient(ellipse at center, ${activeFuelColor}35 0%, transparent 70%)`,
-              filter: 'blur(7px)',
-              zIndex: 1,
-            }}/>
-          </div>
-        </div>
-      );
-    })(),
+    stock: (
+      <FuelStationCard estoques={estoquesList} themeMode={themeMode} />
+    ),
     purchases: (
       <div className="chart-card">
         <div className="card-header"><h3>COMPRAS 110 / 220 POR COMBUSTÍVEL</h3><span style={{ fontSize: '12px', color: '#666' }}>litros no período</span></div>
@@ -3814,12 +3857,12 @@ const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcContr
         <div className="dashboard-static-full">{dashboardSections.salesFuel}</div>
         <div className="dashboard-static-full">{dashboardSections.stock}</div>
         <div className="dashboard-static-full">
+          <ProjecaoVendas />
+        </div>
+        <div className="dashboard-static-full">
           <VendasPista clients={clients} selectedClient={selectedClient} selectedPeriod={selectedPeriod} themeMode={themeMode} />
         </div>
         <div className="dashboard-static-full">{dashboardSections.productMatrix}</div>
-        <div className="dashboard-static-full">
-          <ProjecaoVendas />
-        </div>
       </div>
     </div>
   );
