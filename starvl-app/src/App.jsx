@@ -3,7 +3,7 @@ import logoStarvl from './logo-starvl.png';
 import logoStarvlBlack from './logo-starvl-black.png';
 import * as XLSX from 'xlsx';
 import { LineChart, Line, BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Area, AreaChart, LabelList, ComposedChart, ReferenceLine } from 'recharts';
-import { Home, FileText, Users as UsersIcon, Truck, Package, LogOut, Eye, Search, Plus, Edit2, Trash2, X, Calendar, TrendingUp, Droplet, DollarSign, Calculator, Bell, ChevronDown, Activity, Settings, Building2, Phone, Mail, MapPin, Hash, Clock, BarChart2, Layers, CircleDollarSign, UserCheck, UserPlus, AlertCircle, Globe, Camera, Building, Tag, RefreshCw, Database, ChevronRight, ChevronLeft, Filter, Printer, Moon, Sun, Trophy, Lock, Unlock, Wallet, Download, CreditCard, AlertTriangle, Save } from 'lucide-react';
+import { Home, FileText, Users as UsersIcon, BookOpen, Package, LogOut, Eye, Search, Plus, Edit2, Trash2, X, Calendar, TrendingUp, Droplet, DollarSign, Calculator, Bell, ChevronDown, Activity, Settings, Building2, Phone, Mail, MapPin, Hash, Clock, BarChart2, Layers, CircleDollarSign, UserCheck, UserPlus, AlertCircle, Globe, Camera, Building, Tag, RefreshCw, Database, ChevronRight, ChevronLeft, Filter, Printer, Moon, Sun, Trophy, Lock, Unlock, Wallet, Download, CreditCard, AlertTriangle, Save, PiggyBank } from 'lucide-react';
 import './App.css';
 import './cr-styles.css';
 import './pm-styles.css';
@@ -254,10 +254,10 @@ const Login = ({ onLogin, adminUsers }) => {
 // Sidebar Component
 const Sidebar = ({ currentPage, setCurrentPage, onLogout, themeMode }) => {
   const menuItems = [
-    { icon: Home,      label: 'DASHBOARD',           page: 'dashboard' },
+    { icon: Home,      label: 'HOME',                 page: 'dashboard' },
     { icon: Package,   label: 'ESTOQUE',              page: 'stock'     },
-    { icon: Truck,     label: 'LIVROS',               page: 'control'   },
-    { icon: Wallet,    label: 'FINANCEIRO',           page: 'receber'   },
+    { icon: BookOpen,  label: 'LIVROS',               page: 'control'   },
+    { icon: PiggyBank, label: 'FINANCEIRO',           page: 'receber'   },
     { icon: FileText,  label: 'RELATÓRIOS',           page: 'reports'   },
     { icon: Settings,  label: 'CONFIGURAÇÕES',        page: 'params'    },
   ];
@@ -297,13 +297,13 @@ const Sidebar = ({ currentPage, setCurrentPage, onLogout, themeMode }) => {
 
 // TopBar Component
 const PAGE_TITLES = {
-  dashboard: 'Dashboard',
+  dashboard: 'Home',
   reports: 'Relatórios',
-  control: 'Livro de Movimentação',
-  stock: 'Posição de Estoque',
-  receber: 'Contas a Receber',
+  control: 'Livros',
+  stock: 'Estoque',
+  receber: 'Financeiro',
   users: 'Gerenciamento de Usuários',
-  params: 'Parâmetros',
+  params: 'Configurações',
 };
 
 const TopBar = ({ currentPage, setCurrentPage, isConnected, apiError, clients, selectedClient, setSelectedClient, selectedPeriod, setSelectedPeriod, onRefresh, onLogout, loggedUser, themeMode, setThemeMode }) => {
@@ -5296,8 +5296,8 @@ const EstoqueManager = ({ estoques, projecao, loading, selectedClient, clients, 
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
       <div className="estoque-tab-bar">
         <div className="vp-toggle-group">
-          <button type="button" className={`vp-period-btn vp-secao-btn${tab === 'pista' ? ' active' : ''}`} onClick={() => setTab('pista')}>⛽ Pista</button>
           <button type="button" className={`vp-period-btn vp-secao-btn${tab === 'conveniencia' ? ' active' : ''}`} onClick={() => setTab('conveniencia')}>🏪 Conveniência</button>
+          <button type="button" className={`vp-period-btn vp-secao-btn${tab === 'pista' ? ' active' : ''}`} onClick={() => setTab('pista')}>⛽ Combustíveis</button>
         </div>
       </div>
       {tab === 'pista'
@@ -5397,11 +5397,11 @@ const StockPosition = ({ estoques, projecao, loading, selectedClient, clients })
   return (
     <div className="page-content">
       <div className="page-header">
-        <h2>POSIÇÃO ESTOQUE</h2>
+        <h2>GERENCIAMENTO DE PRODUTOS — COMBUSTÍVEIS</h2>
       </div>
 
       {loading && (
-        <LoadingState compact label="Atualizando posicao de estoque..." />
+        <LoadingState compact label="Atualizando combustíveis..." />
       )}
 
       <div className="stock-grid">
