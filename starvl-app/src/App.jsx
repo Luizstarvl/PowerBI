@@ -5362,6 +5362,338 @@ const MargemFilterPanel = ({ filters, setFilters, onClose, onGenerate }) => {
 };
 // ── fim Margem por Combustível e Produtos ────────────────────────────────────
 
+// ── Conciliação de Cartões e Taxas — dados + print ───────────────────────────
+const _CONCIL_BASE = [
+  { id:'C001', dataVenda:'2026-05-01', nsu:'123456789', adq:'Cielo',  band:'Visa',       mod:'Crédito', bruto:1250.00, txCont:2.5, txReal:2.5, dataDep:'2026-05-29', sitDep:'Depositado' },
+  { id:'C002', dataVenda:'2026-05-02', nsu:'123456790', adq:'Cielo',  band:'Visa',       mod:'Débito',  bruto: 320.00, txCont:1.5, txReal:1.5, dataDep:'2026-05-04', sitDep:'Depositado' },
+  { id:'C003', dataVenda:'2026-05-03', nsu:'123456791', adq:'Cielo',  band:'Mastercard', mod:'Crédito', bruto: 890.50, txCont:2.5, txReal:2.5, dataDep:'2026-05-31', sitDep:'A Receber'  },
+  { id:'C004', dataVenda:'2026-05-05', nsu:'234567890', adq:'Stone',  band:'Mastercard', mod:'Crédito', bruto:2100.00, txCont:2.2, txReal:2.2, dataDep:'2026-05-20', sitDep:'Depositado' },
+  { id:'C005', dataVenda:'2026-05-06', nsu:'234567891', adq:'Stone',  band:'Elo',        mod:'Débito',  bruto: 450.00, txCont:1.8, txReal:1.8, dataDep:'2026-05-08', sitDep:'Depositado' },
+  { id:'C006', dataVenda:'2026-05-07', nsu:'234567892', adq:'Stone',  band:'Mastercard', mod:'Crédito', bruto: 750.00, txCont:2.2, txReal:2.2, dataDep:'2026-05-15', sitDep:'Atrasado'   },
+  { id:'C007', dataVenda:'2026-05-08', nsu:'345678901', adq:'GetNet', band:'Visa',       mod:'Crédito', bruto:1800.00, txCont:2.3, txReal:2.3, dataDep:'2026-06-05', sitDep:'A Receber'  },
+  { id:'C008', dataVenda:'2026-05-10', nsu:'345678902', adq:'GetNet', band:'Amex',       mod:'Crédito', bruto: 560.00, txCont:3.0, txReal:3.65,dataDep:'2026-06-08', sitDep:'A Receber'  }, // Divergência
+  { id:'C009', dataVenda:'2026-05-12', nsu:'345678903', adq:'GetNet', band:'Visa',       mod:'Débito',  bruto: 230.00, txCont:1.6, txReal:1.6, dataDep:'2026-05-14', sitDep:'Depositado' },
+  { id:'C010', dataVenda:'2026-05-13', nsu:'456789012', adq:'Rede',   band:'Elo',        mod:'Crédito', bruto:3200.00, txCont:2.4, txReal:2.4, dataDep:'2026-06-10', sitDep:'A Receber'  },
+  { id:'C011', dataVenda:'2026-05-15', nsu:'456789013', adq:'Rede',   band:'Mastercard', mod:'Débito',  bruto: 180.00, txCont:1.7, txReal:1.7, dataDep:'2026-05-17', sitDep:'Atrasado'   },
+  { id:'C012', dataVenda:'2026-05-16', nsu:'456789014', adq:'Rede',   band:'Elo',        mod:'Crédito', bruto: 980.00, txCont:2.4, txReal:2.95,dataDep:'2026-06-13', sitDep:'A Receber'  }, // Divergência
+  { id:'C013', dataVenda:'2026-05-18', nsu:'567890123', adq:'Cielo',  band:'Amex',       mod:'Crédito', bruto:4500.00, txCont:3.2, txReal:3.2, dataDep:'2026-06-15', sitDep:'A Receber'  },
+  { id:'C014', dataVenda:'2026-05-20', nsu:'567890124', adq:'Stone',  band:'Visa',       mod:'Crédito', bruto: 670.00, txCont:2.2, txReal:2.55,dataDep:'2026-05-15', sitDep:'Atrasado'   }, // Divergência + Atrasado
+  { id:'C015', dataVenda:'2026-05-22', nsu:'678901234', adq:'Cielo',  band:'Mastercard', mod:'Débito',  bruto: 290.00, txCont:1.5, txReal:1.5, dataDep:'2026-05-24', sitDep:'Depositado' },
+];
+
+function _computeConcilRows({ adquirente, bandeira, modalidade, dataInicial, dataFinal }) {
+  return _CONCIL_BASE.filter(r => {
+    if (adquirente !== 'Todos' && r.adq !== adquirente) return false;
+    if (bandeira   !== 'Todos' && r.band !== bandeira)  return false;
+    if (modalidade !== 'Todos' && r.mod  !== modalidade) return false;
+    if (dataInicial && r.dataDep < dataInicial) return false;
+    if (dataFinal   && r.dataDep > dataFinal)   return false;
+    return true;
+  }).map(r => {
+    const hasDiverg = Math.abs(r.txReal - r.txCont) > 0.01;
+    const desconto  = parseFloat((r.bruto * r.txReal  / 100).toFixed(2));
+    const liquido   = parseFloat((r.bruto - desconto).toFixed(2));
+    let status = 'A Receber';
+    if (hasDiverg && r.sitDep === 'Atrasado') status = 'Divergência de Taxa';
+    else if (hasDiverg) status = 'Divergência de Taxa';
+    else if (r.sitDep === 'Atrasado') status = 'Depósito Atrasado';
+    else status = r.sitDep; // 'Depositado' | 'A Receber'
+    return { ...r, desconto, liquido, status, hasDiverg };
+  });
+}
+
+function buildConciliacaoReportHtml({ filters, clientName }) {
+  const rows = _computeConcilRows(filters);
+  if (!rows.length) {
+    toast('Nenhuma transação encontrada para os filtros selecionados.', 'warn');
+    return null;
+  }
+
+  const e = escapeHtml;
+  const fmtR = v => 'R$ ' + v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const fmtD = s => { if (!s) return '-'; const [y,m,d] = s.split('-'); return `${d}/${m}/${y}`; };
+  const generatedAt = new Date().toLocaleString('pt-BR');
+
+  const totBruto      = rows.reduce((s, r) => s + r.bruto, 0);
+  const totDesconto   = rows.reduce((s, r) => s + r.desconto, 0);
+  const totLiquido    = rows.reduce((s, r) => s + r.liquido, 0);
+  const totDepositado = rows.filter(r => r.status === 'Depositado').reduce((s, r) => s + r.liquido, 0);
+  const nDiverg  = rows.filter(r => r.status === 'Divergência de Taxa').length;
+  const nAtrasado = rows.filter(r => r.status === 'Depósito Atrasado').length;
+
+  const periodLabel = filters.dataInicial && filters.dataFinal
+    ? `Depósito ${fmtD(filters.dataInicial)} a ${fmtD(filters.dataFinal)}`
+    : 'Período completo';
+
+  const STATUS_MAP = {
+    'Depositado':          { icon: '✅', color: '#059669', bg: '#d1fae5' },
+    'A Receber':           { icon: '🕐', color: '#2563eb', bg: '#dbeafe' },
+    'Divergência de Taxa': { icon: '⚠️', color: '#d97706', bg: '#fef3c7' },
+    'Depósito Atrasado':   { icon: '🔴', color: '#dc2626', bg: '#fee2e2' },
+  };
+
+  const tableRows = rows.map((row, i) => {
+    const sm = STATUS_MAP[row.status] || STATUS_MAP['A Receber'];
+    const isDiverg = row.hasDiverg;
+    const isAtrasado = row.status === 'Depósito Atrasado';
+    const rowBg = isDiverg || isAtrasado ? 'rgba(239,68,68,.07)' : i % 2 === 0 ? '#fff' : '#f9fafb';
+    const txColor = isDiverg ? '#dc2626' : '#111827';
+    return `
+    <tr style="background:${rowBg}">
+      <td>${e(fmtD(row.dataVenda))}</td>
+      <td style="font-family:monospace;font-size:9px">${e(row.nsu)}</td>
+      <td><strong>${e(row.adq)}</strong></td>
+      <td>${e(row.band)}</td>
+      <td>${e(row.mod)}</td>
+      <td class="num">${e(fmtR(row.bruto))}</td>
+      <td class="num" style="color:${txColor};font-weight:${isDiverg?700:400}">${e(row.txCont.toFixed(2))}%${isDiverg ? ` ⚠️ (real: ${e(row.txReal.toFixed(2))}%)` : ''}</td>
+      <td class="num" style="color:${isDiverg?'#dc2626':'#111827'};font-weight:${isDiverg?700:400}">${e(fmtR(row.desconto))}</td>
+      <td class="num">${e(fmtR(row.liquido))}</td>
+      <td style="color:${isAtrasado?'#dc2626':'#374151'};font-weight:${isAtrasado?700:400}">${e(fmtD(row.dataDep))}</td>
+      <td><span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:20px;font-size:9px;font-weight:700;background:${sm.bg};color:${sm.color};white-space:nowrap">${sm.icon} ${e(row.status)}</span></td>
+    </tr>`;
+  }).join('');
+
+  const kpis = [
+    { label: 'TRANSAÇÕES',      value: e(rows.length) },
+    { label: 'TOTAL BRUTO',     value: e(fmtR(totBruto)) },
+    { label: 'TOTAL TAXAS',     value: e(fmtR(totDesconto)) },
+    { label: 'TOTAL LÍQUIDO',   value: e(fmtR(totLiquido)) },
+    { label: 'JÁ DEPOSITADO',   value: e(fmtR(totDepositado)) },
+    { label: 'DIVERGÊNCIAS',    value: e(nDiverg),  alert: nDiverg > 0 },
+    { label: 'EM ATRASO',       value: e(nAtrasado), alert: nAtrasado > 0 },
+  ];
+  const kpiHtml = kpis.map(k => `
+    <div class="summary-item${k.alert ? ' summary-alert' : ''}">
+      <span>${k.label}</span><strong>${k.value}</strong>
+    </div>`).join('');
+
+  return `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <meta name="color-scheme" content="light"/>
+  <title>Relatorio Conciliacao de Cartoes e Taxas</title>
+  <style>
+    @page { size: A4 landscape; margin: 10mm; }
+    * { box-sizing: border-box; }
+    html, body, .report, .header, .panel, .summary-item, table, th, td, tfoot td {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+      color-adjust: exact !important;
+    }
+    :root { color-scheme: light only; }
+    body { margin:0; font-family:Arial,Helvetica,sans-serif; color:#111827; background:#fff; }
+    .report { min-height:100vh; padding:18px; background:#fff; }
+    .header { display:flex; align-items:center; justify-content:space-between; gap:18px; padding:16px 18px; border:1px solid #e5e7eb; border-bottom:3px solid #e31e24; border-radius:8px; background:#fff; margin-bottom:14px; }
+    .header-left { display:flex; align-items:center; gap:14px; }
+    .mark { width:44px; height:44px; border-radius:8px; background:#fff5f5; border:1px solid #fecaca; display:flex; align-items:center; justify-content:center; font-size:24px; flex-shrink:0; }
+    h1 { margin:0; font-size:19px; line-height:1.15; }
+    .header-meta { color:#667085; font-size:11px; line-height:1.55; text-align:right; }
+    .summary-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:10px; margin-bottom:14px; }
+    .summary-item { border:1px solid #e5e7eb; border-radius:8px; background:#f9fafb; padding:10px 12px; }
+    .summary-item.summary-alert { border-color:#fca5a5; background:#fef2f2; }
+    .summary-item span { display:block; color:#667085; font-size:8px; font-weight:800; margin-bottom:5px; }
+    .summary-item strong { display:block; color:#111827; font-size:15px; font-weight:900; line-height:1.1; }
+    .summary-alert strong { color:#dc2626; }
+    .panel { border:1px solid #e5e7eb; border-radius:8px; background:#fff; padding:16px; }
+    .panel-head { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; }
+    .panel-title { margin:0; color:#111827; font-size:13px; font-weight:800; }
+    .pill { border:1px solid #d0d5dd; border-radius:8px; color:#344054; padding:5px 9px; font-size:9px; font-weight:800; white-space:nowrap; background:#f9fafb; }
+    table { width:100%; border-collapse:collapse; font-size:9px; }
+    th, td { border:1px solid #d0d5dd; padding:5px 7px; word-break:break-word; }
+    th { background:#e31e24 !important; color:#fff; font-size:8.5px; font-weight:700; text-align:left; }
+    td { color:#111827; background:inherit; }
+    td.num, th.num { text-align:right; }
+    tfoot td { color:#111827; background:#f3f4f6 !important; font-weight:900; font-size:9px; }
+    .footer { margin-top:10px; color:#667085; font-size:10px; text-align:right; }
+    @media screen { body { background:#f3f4f6; padding:18px; } .report { max-width:1280px; margin:0 auto; box-shadow:0 18px 50px rgba(15,23,42,.12); } }
+    @media print {
+      body, html, .report, .panel, .header, .summary-item { background:#fff !important; color-scheme:light !important; }
+      th { background:#e31e24 !important; color:#fff !important; }
+      tfoot td { background:#f3f4f6 !important; }
+      .summary-alert { background:#fef2f2 !important; border-color:#fca5a5 !important; }
+    }
+  </style>
+</head>
+<body>
+<main class="report">
+  <section class="header">
+    <div class="header-left">
+      <div class="mark">💳</div>
+      <div>
+        <h1>CONCILIAÇÃO DE CARTÕES E TAXAS</h1>
+        <div class="header-meta" style="text-align:left">${e(clientName || 'Cliente')} | ${e(periodLabel)}</div>
+      </div>
+    </div>
+    <div class="header-meta">
+      <div>Adquirente: ${e(filters.adquirente)} · Bandeira: ${e(filters.bandeira)} · Modalidade: ${e(filters.modalidade)}</div>
+      <div>Lógica: taxa contratada × taxa cobrada — divergências destacadas em vermelho</div>
+      <div>Gerado em ${e(generatedAt)}</div>
+    </div>
+  </section>
+
+  <div class="summary-grid">${kpiHtml}</div>
+
+  <section class="panel">
+    <div class="panel-head">
+      <h2 class="panel-title">DETALHAMENTO DAS TRANSAÇÕES</h2>
+      <div class="pill">${e(rows.length)} transaç${rows.length !== 1 ? 'ões' : 'ão'} · ${e(periodLabel)}</div>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>DATA VENDA</th>
+          <th>NSU</th>
+          <th>ADQUIRENTE</th>
+          <th>BANDEIRA</th>
+          <th>MODALIDADE</th>
+          <th class="num">VALOR BRUTO (R$)</th>
+          <th class="num">TAXA CONT. (%)</th>
+          <th class="num">DESCONTO (R$)</th>
+          <th class="num">LÍQUIDO PREV. (R$)</th>
+          <th>DATA DEPÓSITO</th>
+          <th>STATUS</th>
+        </tr>
+      </thead>
+      <tbody>${tableRows}</tbody>
+      <tfoot>
+        <tr>
+          <td colspan="5">TOTAIS — ${e(rows.length)} transaç${rows.length !== 1 ? 'ões' : 'ão'}</td>
+          <td class="num">${e(fmtR(totBruto))}</td>
+          <td></td>
+          <td class="num">${e(fmtR(totDesconto))}</td>
+          <td class="num">${e(fmtR(totLiquido))}</td>
+          <td></td>
+          <td>Depositado: ${e(fmtR(totDepositado))}</td>
+        </tr>
+      </tfoot>
+    </table>
+  </section>
+
+  <footer class="footer">STARVL | Relatório de Conciliação de Cartões e Taxas</footer>
+</main>
+</body>
+</html>`;
+}
+
+function exportConciliacaoReport({ filters, clientName }) {
+  const html = buildConciliacaoReportHtml({ filters, clientName });
+  if (!html) return;
+  const w = window.open('', '_blank');
+  if (!w) { toast('Permita pop-ups no navegador para imprimir o relatório.', 'warn'); return; }
+  w.document.open();
+  w.document.write(html.replace('</body>', `
+    <script>
+      window.addEventListener('load', function () {
+        setTimeout(function () { window.print(); }, 500);
+      });
+    </script>
+  </body>`));
+  w.document.close();
+}
+
+const ConciliacaoFilterPanel = ({ filters, setFilters, onClose, onGenerate }) => {
+  const upd = field => e => setFilters(prev => ({ ...prev, [field]: e.target.value }));
+  const ADQ  = ['Todos','Cielo','Stone','GetNet','Rede'];
+  const BAND = ['Todos','Visa','Mastercard','Elo','Amex'];
+  const MOD  = ['Todos','Crédito','Débito'];
+
+  const TogRow = ({ field, values, current }) => (
+    <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginTop:8 }}>
+      {values.map(v => (
+        <label key={v} style={{ display:'flex', alignItems:'center', gap:6, padding:'6px 14px',
+          background: current === v ? '#E31E24' : 'transparent',
+          border: `1px solid ${current === v ? '#E31E24' : '#374151'}`,
+          borderRadius:8, cursor:'pointer', fontSize:12, fontWeight:600,
+          color: current === v ? '#fff' : '#d1d5db', transition:'all .15s' }}>
+          <input type="radio" name={field} value={v} checked={current === v} onChange={upd(field)} style={{ display:'none' }} />
+          {v}
+        </label>
+      ))}
+    </div>
+  );
+
+  return (
+    <div className="modal-overlay control-print-overlay" onClick={onClose}>
+      <div className="control-print-panel ranking-filter-panel" onClick={ev => ev.stopPropagation()}>
+        <div className="control-print-header">
+          <div className="control-print-title">
+            <span className="control-print-icon"><Filter size={25} /></span>
+            <h3>FILTROS — CONCILIAÇÃO DE CARTÕES E TAXAS</h3>
+          </div>
+          <button type="button" className="control-print-close" onClick={onClose} aria-label="Fechar">
+            <X size={28} />
+          </button>
+        </div>
+
+        <div className="control-print-body">
+          <div className="control-print-grid ranking-filter-grid">
+
+            {/* Período */}
+            <section className="control-print-section">
+              <div className="control-print-section-title">
+                <Calendar size={20} /><span>DATA PREVISTA DE DEPÓSITO</span>
+              </div>
+              <div className="control-print-date-row">
+                <label className="control-print-field">
+                  <span>DATA INICIAL</span>
+                  <div className="control-print-input">
+                    <input type="date" value={filters.dataInicial} onChange={upd('dataInicial')} />
+                    <Calendar size={19} />
+                  </div>
+                </label>
+                <label className="control-print-field">
+                  <span>DATA FINAL</span>
+                  <div className="control-print-input">
+                    <input type="date" value={filters.dataFinal} onChange={upd('dataFinal')} />
+                    <Calendar size={19} />
+                  </div>
+                </label>
+              </div>
+            </section>
+
+            {/* Modalidade */}
+            <section className="control-print-section">
+              <div className="control-print-section-title">
+                <Package size={20} /><span>MODALIDADE</span>
+              </div>
+              <TogRow field="modalidade" values={MOD} current={filters.modalidade} />
+            </section>
+
+          </div>
+
+          {/* Adquirente */}
+          <section className="control-print-section" style={{ marginTop:16 }}>
+            <div className="control-print-section-title">
+              <BarChart2 size={20} /><span>ADQUIRENTE</span>
+            </div>
+            <TogRow field="adquirente" values={ADQ} current={filters.adquirente} />
+          </section>
+
+          {/* Bandeira */}
+          <section className="control-print-section" style={{ marginTop:16 }}>
+            <div className="control-print-section-title">
+              <TrendingUp size={20} /><span>BANDEIRA</span>
+            </div>
+            <TogRow field="bandeira" values={BAND} current={filters.bandeira} />
+          </section>
+        </div>
+
+        <div className="control-print-footer">
+          <button type="button" className="btn-secondary control-print-cancel" onClick={onClose}>
+            <X size={20} /> CANCELAR
+          </button>
+          <button type="button" className="btn-primary control-print-generate" onClick={onGenerate}>
+            <Printer size={20} /> GERAR IMPRESSÃO
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+// ── fim Conciliação de Cartões e Taxas ───────────────────────────────────────
+
 const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients }) => {
   const [activeTab, setActiveTab] = useState('descarregamentos');
   const [data, setData] = useState({ descarregamentos: null, vendas: null, historico: null, consolidado: null, controle: null });
@@ -5372,6 +5704,8 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
   const [showRankingPrintPanel, setShowRankingPrintPanel] = useState(false);
   const [showMargemPanel,       setShowMargemPanel]       = useState(false);
   const [margemFilters, setMargemFilters] = useState({ categoria: 'Todos', dataInicial: '', dataFinal: '', ordenacao: 'margemTotal' });
+  const [showConciliacaoPanel,  setShowConciliacaoPanel]  = useState(false);
+  const [conciliacaoFilters, setConciliacaoFilters] = useState({ adquirente:'Todos', bandeira:'Todos', modalidade:'Todos', dataInicial:'', dataFinal:'' });
   const [vendedores, setVendedores] = useState([]);
   const [rankingFilters, setRankingFilters] = useState({
     dataInicial: '',
@@ -5933,6 +6267,25 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
     setShowMargemPanel(false);
   };
 
+  const openConciliacaoPanel = () => {
+    const range = getPeriodDateRange(selectedPeriod);
+    setConciliacaoFilters(prev => ({
+      ...prev,
+      dataInicial: prev.dataInicial || range.dataInicial,
+      dataFinal:   prev.dataFinal   || range.dataFinal,
+    }));
+    setShowConciliacaoPanel(true);
+  };
+
+  const handleGenerateConciliacaoReport = () => {
+    if (conciliacaoFilters.dataInicial && conciliacaoFilters.dataFinal && conciliacaoFilters.dataInicial > conciliacaoFilters.dataFinal) {
+      toast('A data inicial não pode ser maior que a data final.', 'warn');
+      return;
+    }
+    exportConciliacaoReport({ filters: conciliacaoFilters, clientName: selectedClient });
+    setShowConciliacaoPanel(false);
+  };
+
   const renderOutrosRelatorios = () => (
     <div className="other-reports-panel">
       <div className="other-reports-list">
@@ -5952,6 +6305,16 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
           <div className="other-report-main">
             <strong>Margem por Combustível e Produtos</strong>
             <span>Análise de margem bruta unitária e total com ST, frete e custo real</span>
+          </div>
+          <ChevronRight size={20} />
+        </button>
+
+        <button type="button" className="other-report-row" onClick={openConciliacaoPanel}>
+          <div className="other-report-index">REL 3</div>
+          <div className="other-report-icon"><CreditCard size={22} /></div>
+          <div className="other-report-main">
+            <strong>Conciliação de Cartões e Taxas</strong>
+            <span>Cruzamento de vendas × extrato das maquininhas — divergências e depósitos atrasados</span>
           </div>
           <ChevronRight size={20} />
         </button>
@@ -5976,6 +6339,15 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
           setFilters={setMargemFilters}
           onClose={() => setShowMargemPanel(false)}
           onGenerate={handleGenerateMargemReport}
+        />
+      )}
+
+      {showConciliacaoPanel && (
+        <ConciliacaoFilterPanel
+          filters={conciliacaoFilters}
+          setFilters={setConciliacaoFilters}
+          onClose={() => setShowConciliacaoPanel(false)}
+          onGenerate={handleGenerateConciliacaoReport}
         />
       )}
 
