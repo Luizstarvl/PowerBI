@@ -3743,6 +3743,7 @@ const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcContr
   const [salesFuelSection, setSalesFuelSection] = useState('conveniencia');
   const [productMatrixUnit, setProductMatrixUnit] = useState('Pista');
   const [productMatrixPeriod, setProductMatrixPeriod] = useState('Mensal');
+  const [productMatrixAnimKey, setProductMatrixAnimKey] = useState(0);
   const [convProductImages, setConvProductImages] = useState({});
 
   // Carregar imagens dos produtos de conveniência do IndexedDB
@@ -3765,6 +3766,8 @@ const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcContr
     media.addListener(updateCompact);
     return () => media.removeListener(updateCompact);
   }, []);
+
+  useEffect(() => { setProductMatrixAnimKey(k => k + 1); }, [productMatrixUnit, productMatrixPeriod]);
 
   const fmt = (n, d = 2) => (n || 0).toLocaleString('pt-BR', { minimumFractionDigits: d, maximumFractionDigits: d });
   const fmtCompactCurrency = (value) => {
@@ -3959,7 +3962,18 @@ const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcContr
     ),
     productMatrix: (
       <div className="chart-card product-matrix-card">
-        <div className="card-header product-matrix-header">
+        <style>{`
+@keyframes abc-fade-up {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes abc-badge-pop {
+  from { opacity: 0; transform: scale(0.6); }
+  to   { opacity: 1; transform: scale(1); }
+}
+`}</style>
+        <div className="card-header product-matrix-header"
+          style={{ animation: `abc-fade-up 0.4s ease-out both` }}>
           <div className="product-matrix-title">
             <h3>ANÁLISE ABC DE PRODUTOS</h3>
             <span>Classificação por volume de vendas e margem bruta</span>
@@ -3993,13 +4007,19 @@ const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcContr
         </div>
 
         {/* ABC legend */}
-        <div className="pm-abc-legend">
-          <span><span style={{ color: PM_ABC_COLORS.A }}>■</span> A — Alto volume (top 20%)</span>
-          <span><span style={{ color: PM_ABC_COLORS.B }}>■</span> B — Volume médio (30%)</span>
-          <span><span style={{ color: PM_ABC_COLORS.C }}>■</span> C — Baixo volume (50%)</span>
+        <div className="pm-abc-legend" style={{ animation: 'abc-fade-up 0.45s 0.15s ease-out both' }}>
+          {[
+            { cls: 'A', label: 'A — Alto volume (top 20%)' },
+            { cls: 'B', label: 'B — Volume médio (30%)' },
+            { cls: 'C', label: 'C — Baixo volume (50%)' },
+          ].map(({ cls, label }, i) => (
+            <span key={cls} style={{ animation: `abc-badge-pop 0.35s ${0.2 + i * 0.1}s ease-out both` }}>
+              <span style={{ color: PM_ABC_COLORS[cls] }}>■</span> {label}
+            </span>
+          ))}
         </div>
 
-        <ResponsiveContainer width="100%" height={productMatrixHeight}>
+        <ResponsiveContainer key={`abc-${productMatrixAnimKey}`} width="100%" height={productMatrixHeight}>
           <BarChart
             layout="vertical"
             data={productMatrixSorted}
@@ -4024,7 +4044,15 @@ const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcContr
               cursor={{ fill: 'rgba(148,163,184,0.08)' }}
               content={<ProductMatrixTooltip />}
             />
-            <Bar dataKey="volume" radius={[0, 4, 4, 0]} maxBarSize={24} isAnimationActive={false}>
+            <Bar
+              dataKey="volume"
+              radius={[0, 4, 4, 0]}
+              maxBarSize={24}
+              isAnimationActive={true}
+              animationDuration={1200}
+              animationEasing="ease-out"
+              animationBegin={120}
+            >
               {productMatrixSorted.map((item) => (
                 <Cell key={item.name} fill={item.abcColor} />
               ))}
