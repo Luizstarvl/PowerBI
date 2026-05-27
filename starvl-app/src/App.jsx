@@ -8520,70 +8520,85 @@ const GoalManager = ({ themeMode = 'dark' }) => {
 
   const upd = k => e => setForm(f => ({ ...f, [k]: e.target.value }));
 
-  // ── Impressão (tema escuro, idêntico à tela) ────────────────────────────────
-  const _DARK_CSS = `
-    *{box-sizing:border-box;margin:0;padding:0}
-    body{background:#0a0a0a;color:#f1f5f9;font-family:-apple-system,Arial,sans-serif;padding:24px 28px;min-height:100vh}
-    .hdr{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px}
-    .hdr-title{font-size:20px;font-weight:900;letter-spacing:1px;margin-bottom:3px}
-    .hdr-sub{font-size:12px;color:#94a3b8}
-    .hdr-right{text-align:right;font-size:11px;color:#64748b;line-height:1.7}
-    /* KPI row */
-    .kpi-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:20px}
-    .kpi{background:#1c1c1e;border:1px solid;border-radius:10px;padding:14px 16px}
-    .kpi-lbl{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#6b7280;margin-bottom:2px}
-    .kpi-val{font-size:22px;font-weight:900;margin-bottom:2px}
-    .kpi-sub{font-size:10px;color:#4b5563}
-    /* Section header */
-    .sec-h{font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;margin:0 0 14px}
-    /* Two-column grid */
-    .grid2{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:20px}
-    .card{background:#1c1c1e;border:1px solid #2c2c2e;border-radius:12px;padding:18px 20px}
-    /* Monthly bar chart */
-    .chart-leg{display:flex;gap:14px;margin-bottom:12px}
-    .leg-it{display:flex;align-items:center;gap:5px;font-size:10px;color:#94a3b8}
-    .leg-line{width:18px;height:3px;border-radius:2px}
-    .chart-area{display:flex;align-items:flex-end;gap:4px;height:140px;padding-bottom:0;border-bottom:1px solid #1e293b}
-    .m-col{display:flex;flex-direction:column;align-items:center;flex:1}
-    .m-bars{display:flex;align-items:flex-end;gap:2px;position:relative;width:100%;justify-content:center;height:128px}
-    .b-alc{background:#22c55e;border-radius:2px 2px 0 0;width:9px}
-    .b-prev{background:#3b82f6;border-radius:2px 2px 0 0;width:9px;opacity:.7}
-    .b-meta-line{position:absolute;left:0;right:0;border-top:1.5px dashed #475569;pointer-events:none}
-    .m-lbl{font-size:8px;color:#64748b;margin-top:4px}
-    /* Category list */
-    .cat-it{display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid #2c2c2e}
+  // ── Impressão (mesmo tema do Ranking de Vendas) ─────────────────────────────
+  const _REPORT_CSS = `
+    @page{size:A4 landscape;margin:10mm}
+    *{box-sizing:border-box}
+    html,body,.report,.header,.panel,.summary-item,.mark,.bar-track,.bar-fill,table,th,td,tfoot td{
+      -webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important}
+    body{margin:0;font-family:Arial,Helvetica,sans-serif;color:#111827;background:#ffffff}
+    .report{min-height:100vh;padding:18px;background:#ffffff}
+    .header{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:16px 18px;border:1px solid #e5e7eb;border-bottom:3px solid #e31e24;border-radius:8px;background:#ffffff;margin-bottom:14px}
+    .header-left{display:flex;align-items:center;gap:14px;min-width:0}
+    .mark{width:44px;height:44px;border-radius:8px;background:#fff5f5;border:1px solid #fecaca;display:grid;place-items:end center;padding:8px;gap:3px;grid-template-columns:repeat(3,1fr)}
+    .mark span{display:block;width:7px;border-radius:3px 3px 0 0;background:#e31e24}
+    .mark span:nth-child(1){height:14px;opacity:.75}
+    .mark span:nth-child(2){height:24px}
+    .mark span:nth-child(3){height:32px;opacity:.85}
+    h1{margin:0;font-size:20px;letter-spacing:0;line-height:1.15;font-weight:900}
+    .header-sub{color:#667085;font-size:11px;margin-top:3px}
+    .header-meta{color:#667085;font-size:11px;line-height:1.45;text-align:right}
+    /* KPI strip */
+    .kpi-strip{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:14px}
+    .kpi-card{border:1px solid #e5e7eb;border-radius:8px;background:#f9fafb;padding:12px 14px}
+    .kpi-lbl{font-size:8.5px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:#667085;margin-bottom:4px}
+    .kpi-val{font-size:20px;font-weight:900;line-height:1.1;margin-bottom:2px}
+    .kpi-sub{font-size:9px;color:#9ca3af}
+    /* Dashboard grid */
+    .dashboard{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(280px,.85fr);gap:14px;align-items:stretch;margin-bottom:14px}
+    .panel{border:1px solid #e5e7eb;border-radius:8px;background:#ffffff;padding:18px}
+    .panel-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}
+    .panel-title{margin:0;color:#111827;font-size:13px;font-weight:800}
+    .pill{border:1px solid #d0d5dd;border-radius:8px;color:#344054;padding:7px 10px;font-size:9.5px;font-weight:800;white-space:nowrap;background:#f9fafb}
+    /* Ranking bars */
+    .rank-list{display:grid;gap:14px}
+    .rank-row{display:grid;grid-template-columns:42px minmax(170px,220px) minmax(140px,1fr) 110px;align-items:center;gap:10px;min-height:48px}
+    .rank-pos{color:#111827;font-size:20px;font-weight:900}
+    .rank-person{display:flex;align-items:center;gap:9px;min-width:0}
+    .avatar{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;background:#475467;border:2px solid #d1d5db;font-size:11px;font-weight:900;flex:0 0 auto}
+    .person-text strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:#111827}
+    .person-text span{display:block;margin-top:3px;color:#667085;font-size:10px;font-weight:700}
+    .bar-track{height:36px;background:#e5e7eb;border-radius:0;overflow:hidden}
+    .bar-fill{height:100%;border-radius:0}
+    .bar-value{color:#111827;font-size:12px;font-weight:900;text-align:right;white-space:nowrap}
+    /* Summary */
+    .summary-grid{display:grid;gap:10px}
+    .summary-item{border:1px solid #e5e7eb;border-radius:8px;background:#f9fafb;padding:14px}
+    .summary-item span{display:block;color:#667085;font-size:9.5px;font-weight:800;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px}
+    .summary-item strong{display:block;color:#111827;font-size:18px;line-height:1.15;font-weight:900}
+    /* Details table */
+    .details{margin-top:0}
+    table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:10px}
+    th,td{border:1px solid #d0d5dd;padding:7px;word-break:break-word}
+    th{background:#e31e24;color:#fff;text-align:left;font-size:9px;font-weight:800}
+    td{color:#111827;background:#fff}
+    td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+    tfoot td{color:#111827;background:#f3f4f6;font-weight:900}
+    /* Progress bar inline */
+    .prog-wrap{display:flex;align-items:center;gap:5px}
+    .prog-bg{flex:1;height:5px;border-radius:3px;background:#e5e7eb}
+    .prog-fill-sm{height:5px;border-radius:3px}
+    .prog-pct{font-size:9px;font-weight:700;white-space:nowrap}
+    /* Badge */
+    .badge{border-radius:10px;padding:2px 8px;font-size:9px;font-weight:700;display:inline-block;white-space:nowrap}
+    .b-and{background:#dbeafe;color:#1d4ed8}
+    .b-ok{background:#dcfce7;color:#15803d}
+    .b-late{background:#fee2e2;color:#b91c1c}
+    /* Cat list */
+    .cat-it{display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f3f4f6;font-size:11px}
     .cat-it:last-child{border-bottom:none}
-    .dot{width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:7px;flex-shrink:0}
-    .cat-name{font-size:11px;color:#cbd5e1}
-    .cat-right{text-align:right}
-    .cat-val{font-size:11px;font-weight:700;color:#f1f5f9}
-    .cat-pct{font-size:9px;color:#4b5563}
-    /* Goals table */
-    table{width:100%;border-collapse:collapse;font-size:11px}
-    th{color:#6b7280;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:8px 10px;border-bottom:1px solid #2c2c2e;text-align:left;white-space:nowrap}
-    td{padding:10px 10px;border-bottom:1px solid #1c1c1e;vertical-align:middle}
-    .g-name{font-weight:700;color:#f1f5f9;font-size:12px}
-    .g-desc{font-size:9px;color:#475569;margin-top:2px}
-    .prog{display:flex;align-items:center;gap:6px;min-width:110px}
-    .prog-bg{flex:1;height:6px;border-radius:3px;background:#2c2c2e}
-    .prog-fill{height:6px;border-radius:3px}
-    .prog-pct{font-size:10px;font-weight:700;white-space:nowrap}
-    .badge{border-radius:12px;padding:2px 10px;font-size:10px;font-weight:700;display:inline-block;white-space:nowrap}
-    .b-and{background:#1d4ed8;color:#dbeafe}
-    .b-ok{background:#15803d;color:#dcfce7}
-    .b-late{background:#b91c1c;color:#fee2e2}
-    .v-date{color:#cbd5e1;font-size:11px}
-    .v-days{font-size:9px}
-    /* Totals row */
-    .tr-tot td{background:#141414;font-weight:700;border-bottom:none}
-    /* Filters display */
-    .flt-bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
-    .flt-tag{display:inline-flex;align-items:center;background:#1c1c1e;border:1px solid #3f3f46;border-radius:6px;padding:3px 10px;font-size:10px;color:#94a3b8}
-    /* Footer */
-    .footer{margin-top:20px;font-size:10px;color:#4b5563;border-top:1px solid #2c2c2e;padding-top:8px;display:flex;justify-content:space-between}
+    .dot{width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:6px;flex-shrink:0}
+    /* Filters pill */
+    .flt-tag{display:inline-block;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:5px;padding:2px 8px;font-size:9px;color:#374151;margin-right:5px}
+    .footer{margin-top:10px;color:#667085;font-size:10px;text-align:right}
+    @media screen{
+      body{background:#f3f4f6;padding:18px}
+      .report{max-width:1180px;min-height:auto;margin:0 auto;box-shadow:0 18px 50px rgba(15,23,42,.12)}
+    }
     @media print{
-      body{-webkit-print-color-adjust:exact;print-color-adjust:exact}
-      @page{size:A4 landscape;margin:8mm 10mm}
+      .panel,.header,tr{break-inside:avoid;page-break-inside:avoid}
+      body{background:#fff!important}
+      .report{background:#fff!important;box-shadow:none!important}
     }
   `;
 
@@ -8591,56 +8606,33 @@ const GoalManager = ({ themeMode = 'dark' }) => {
     const m = {'Em andamento':'b-and','Concluída':'b-ok','Em atraso':'b-late'};
     return `<span class="badge ${m[s]||'b-and'}">${s}</span>`;
   };
-  const _prog = (pct, col) =>
-    `<div class="prog"><div class="prog-bg"><div class="prog-fill" style="width:${pct}%;background:${col}"></div></div><span class="prog-pct" style="color:${col}">${pct.toFixed(1)}%</span></div>`;
+  const _progInline = (pct, col) =>
+    `<div class="prog-wrap"><div class="prog-bg"><div class="prog-fill-sm" style="width:${pct}%;background:${col}"></div></div><span class="prog-pct" style="color:${col}">${pct.toFixed(1)}%</span></div>`;
   const _vencDays = venc => {
     const diff = Math.round((new Date(venc+'T00:00:00') - new Date(today+'T00:00:00')) / 86400000);
-    if (diff < 0) return `<span style="color:#ef4444">${Math.abs(diff)} dias em atraso</span>`;
-    if (diff === 0) return `<span style="color:#f59e0b;font-weight:700">Vence hoje</span>`;
-    return `<span style="color:${diff<=7?'#f59e0b':'#64748b'}">${diff} dias restantes</span>`;
+    if (diff < 0) return `<span style="color:#dc2626;font-size:9px">${Math.abs(diff)} dias em atraso</span>`;
+    if (diff === 0) return `<span style="color:#d97706;font-size:9px;font-weight:700">Vence hoje</span>`;
+    return `<span style="color:${diff<=7?'#d97706':'#6b7280'};font-size:9px">${diff} dias restantes</span>`;
   };
   const _goalTR = g => {
     const pct = g.meta > 0 ? Math.min(100, g.alcancado / g.meta * 100) : 0;
     const col = GOAL_CAT_COLORS[g.categoria] || '#6b7280';
     return `<tr>
-      <td><div class="g-name">${g.nome}</div><div class="g-desc">${g.desc}</div></td>
-      <td><span style="color:${col};font-weight:600">${g.categoria}</span></td>
-      <td style="color:#94a3b8">${g.periodo}</td>
-      <td style="text-align:right;color:#f1f5f9">${fmtBRL(g.meta)}</td>
-      <td style="text-align:right;color:#f1f5f9">${fmtBRL(g.alcancado)}</td>
-      <td>${_prog(pct, col)}</td>
+      <td><strong style="font-size:11px">${g.nome}</strong><br/><span style="color:#667085;font-size:9px">${g.desc}</span></td>
+      <td><span style="color:${col};font-weight:700">${g.categoria}</span></td>
+      <td style="color:#374151">${g.periodo}</td>
+      <td class="num">${fmtBRL(g.meta)}</td>
+      <td class="num">${fmtBRL(g.alcancado)}</td>
+      <td>${_progInline(pct, col)}</td>
       <td>${_badge(g.status)}</td>
-      <td><div class="v-date">${g.vencimento}</div><div class="v-days">${_vencDays(g.vencimento)}</div></td>
+      <td>${g.vencimento}<br/>${_vencDays(g.vencimento)}</td>
     </tr>`;
-  };
-
-  const _monthChart = () => {
-    const CH = 128;
-    const maxV = Math.max(...GOAL_MONTHLY_CHART.map(m => Math.max(m.meta||0, m.alcancado||0, m.previsto||0)));
-    const cols = GOAL_MONTHLY_CHART.map(m => {
-      const hA = maxV > 0 ? (m.alcancado/maxV*CH) : 0;
-      const hP = maxV > 0 ? (m.previsto/maxV*CH)  : 0;
-      const hM = maxV > 0 ? (m.meta/maxV*CH)       : 0;
-      return `<div class="m-col">
-        <div class="m-bars">
-          <div class="b-alc"  style="height:${hA}px;min-height:${m.alcancado>0?2:0}px"></div>
-          <div class="b-prev" style="height:${hP}px;min-height:${m.previsto>0?2:0}px"></div>
-          <div class="b-meta-line" style="bottom:${hM}px"></div>
-        </div>
-        <div class="m-lbl">${m.mes}</div>
-      </div>`;
-    }).join('');
-    return `
-      <div class="chart-leg">
-        <span class="leg-it"><span class="leg-line" style="background:#22c55e"></span>Alcançado</span>
-        <span class="leg-it"><span class="leg-line" style="background:#3b82f6;opacity:.7"></span>Previsto</span>
-        <span class="leg-it"><span style="width:18px;border-top:1.5px dashed #475569;display:inline-block"></span>Meta</span>
-      </div>
-      <div class="chart-area">${cols}</div>`;
   };
 
   const _openTab = html => {
     const w = window.open('', '_blank');
+    if (!w) { alert('Permita pop-ups no navegador para abrir o relatório.'); return; }
+    w.document.open();
     w.document.write(html);
     w.document.close();
   };
@@ -8648,97 +8640,106 @@ const GoalManager = ({ themeMode = 'dark' }) => {
   const printVisaoGeral = () => {
     const now      = new Date().toLocaleString('pt-BR');
     const ativas   = goals.filter(g => g.status === 'Em andamento');
+    const atrasadas= goals.filter(g => g.status === 'Em atraso');
+    const concl    = goals.filter(g => g.status === 'Concluída');
     const totalMeta= goals.reduce((s,g) => s+g.meta,0);
     const totalAlc = goals.reduce((s,g) => s+g.alcancado,0);
-    const totalPct = totalMeta > 0 ? (totalAlc/totalMeta*100) : 0;
+    // Ranking bars: top 5 por alcançado
+    const top5 = [...goals].sort((a,b) => b.alcancado - a.alcancado).slice(0,5);
+    const maxAlc = top5[0]?.alcancado || 1;
+    const RANK_COLORS = ['#22c55e','#eab308','#f97316','#ef4444','#ef4444'];
+    const initials = n => n.split(' ').slice(0,2).map(w=>w[0]||'').join('').toUpperCase();
+    const rankRows = top5.map((g,i) => {
+      const w = Math.max(4, (g.alcancado/maxAlc)*100);
+      const col = GOAL_CAT_COLORS[g.categoria] || RANK_COLORS[i];
+      return `<div class="rank-row">
+        <div class="rank-pos">${i+1}°</div>
+        <div class="rank-person">
+          <div class="avatar" style="background:${col}">${initials(g.nome)}</div>
+          <div class="person-text">
+            <strong>${g.nome}</strong>
+            <span>${g.categoria} · ${g.periodo}</span>
+          </div>
+        </div>
+        <div class="bar-track"><div class="bar-fill" style="width:${w}%;background:${col}"></div></div>
+        <div class="bar-value">${fmtBRL(g.alcancado)}</div>
+      </div>`;
+    }).join('');
 
     _openTab(`<!doctype html><html><head><meta charset="utf-8">
-      <title>Gestão de Metas — Visão Geral</title>
-      <style>${_DARK_CSS}</style></head><body>
-      <div class="hdr">
-        <div>
-          <div class="hdr-title">🎯 GESTÃO DE METAS</div>
-          <div class="hdr-sub">Crie, acompanhe e gerencie as metas financeiras da sua empresa.</div>
-        </div>
-        <div class="hdr-right"><strong style="color:#f1f5f9">STARVL</strong><br/>Gerado em ${now}<br/>${goals.length} metas no total</div>
-      </div>
-
-      <div class="kpi-grid">
-        <div class="kpi" style="border-color:#6366f140">
-          <div class="kpi-lbl">Metas Ativas</div>
-          <div class="kpi-val" style="color:#6366f1">${kpis.ativas}</div>
-          <div class="kpi-sub">Em andamento</div>
-        </div>
-        <div class="kpi" style="border-color:#22c55e40">
-          <div class="kpi-lbl">Concluídas</div>
-          <div class="kpi-val" style="color:#22c55e">${kpis.concl}</div>
-          <div class="kpi-sub">Este ano</div>
-        </div>
-        <div class="kpi" style="border-color:#3b82f640">
-          <div class="kpi-lbl">Progresso Médio</div>
-          <div class="kpi-val" style="color:#3b82f6">${fmtPct(kpis.progMed)}</div>
-          <div class="kpi-sub">Das metas ativas</div>
-        </div>
-        <div class="kpi" style="border-color:#f59e0b40">
-          <div class="kpi-lbl">Atingimento Total</div>
-          <div class="kpi-val" style="color:#f59e0b;font-size:15px">${fmtBRL(kpis.totalAlc)}</div>
-          <div class="kpi-sub">Valor acumulado</div>
-        </div>
-        <div class="kpi" style="border-color:#f59e0b40">
-          <div class="kpi-lbl">A Vencer Hoje</div>
-          <div class="kpi-val" style="color:#f59e0b">${kpis.venceHoje}</div>
-          <div class="kpi-sub">Próximas do vencimento</div>
-        </div>
-        <div class="kpi" style="border-color:#ef444440">
-          <div class="kpi-lbl">Em Atraso</div>
-          <div class="kpi-val" style="color:#ef4444">${kpis.atrasadas}</div>
-          <div class="kpi-sub">Fora do prazo</div>
-        </div>
-      </div>
-
-      <div class="grid2">
-        <div class="card">
-          <div class="sec-h">Progresso das Metas</div>
-          ${_monthChart()}
-        </div>
-        <div class="card">
-          <div class="sec-h">Distribuição por Categoria</div>
-          <div style="text-align:center;margin:12px 0 16px">
-            <span style="font-size:32px;font-weight:900;color:#f8fafc">${goals.length}</span>
-            <div style="font-size:11px;color:#64748b;font-weight:600">Metas</div>
+      <title>Relatório Gestão de Metas — Visão Geral</title>
+      <style>${_REPORT_CSS}</style></head>
+      <body><main class="report">
+        <section class="header">
+          <div class="header-left">
+            <div class="mark" aria-hidden="true"><span></span><span></span><span></span></div>
+            <div>
+              <h1>RELATÓRIO GESTÃO DE METAS</h1>
+              <div class="header-sub">Visão Geral — ${new Date().toLocaleDateString('pt-BR',{month:'long',year:'numeric'})}</div>
+            </div>
           </div>
-          ${catDist.map(c => `
-            <div class="cat-it">
-              <span style="display:flex;align-items:center">
-                <span class="dot" style="background:${c.color}"></span>
-                <span class="cat-name">${c.name}</span>
-              </span>
-              <span class="cat-right">
-                <span class="cat-val">${fmtBRL(c.value)}</span>
-                <span class="cat-pct"> (${c.pct}%)</span>
-              </span>
-            </div>`).join('')}
+          <div class="header-meta">
+            <div>Metas ativas: ${kpis.ativas} &nbsp;|&nbsp; Concluídas: ${kpis.concl} &nbsp;|&nbsp; Em atraso: ${kpis.atrasadas}</div>
+            <div>Gerado em ${now}</div>
+          </div>
+        </section>
+
+        <div class="kpi-strip">
+          <div class="kpi-card"><div class="kpi-lbl">Metas Ativas</div><div class="kpi-val" style="color:#6366f1">${kpis.ativas}</div><div class="kpi-sub">Em andamento</div></div>
+          <div class="kpi-card"><div class="kpi-lbl">Concluídas</div><div class="kpi-val" style="color:#16a34a">${kpis.concl}</div><div class="kpi-sub">Este ano</div></div>
+          <div class="kpi-card"><div class="kpi-lbl">Progresso Médio</div><div class="kpi-val" style="color:#2563eb">${fmtPct(kpis.progMed)}</div><div class="kpi-sub">Das metas ativas</div></div>
+          <div class="kpi-card"><div class="kpi-lbl">Total Alcançado</div><div class="kpi-val" style="color:#d97706;font-size:15px">${fmtBRL(totalAlc)}</div><div class="kpi-sub">Valor acumulado</div></div>
+          <div class="kpi-card"><div class="kpi-lbl">A Vencer Hoje</div><div class="kpi-val" style="color:#d97706">${kpis.venceHoje}</div><div class="kpi-sub">Próximas do vencimento</div></div>
+          <div class="kpi-card"><div class="kpi-lbl">Em Atraso</div><div class="kpi-val" style="color:#dc2626">${kpis.atrasadas}</div><div class="kpi-sub">Fora do prazo</div></div>
         </div>
-      </div>
 
-      <div class="card">
-        <div class="sec-h">Metas em Andamento</div>
-        <table>
-          <thead><tr>
-            <th>Meta</th><th>Categoria</th><th>Período</th>
-            <th style="text-align:right">Meta (R$)</th><th style="text-align:right">Alcançado</th>
-            <th>Progresso</th><th>Status</th><th>Vencimento</th>
-          </tr></thead>
-          <tbody>${ativas.slice(0,5).map(_goalTR).join('')}</tbody>
-        </table>
-      </div>
+        <section class="dashboard">
+          <div class="panel">
+            <div class="panel-head">
+              <h2 class="panel-title">TOP 5 METAS — MAIOR ATINGIMENTO</h2>
+              <div class="pill">R$ ALCANÇADO</div>
+            </div>
+            <div class="rank-list">${rankRows}</div>
+          </div>
+          <aside class="panel">
+            <div class="panel-head"><h2 class="panel-title">RESUMO</h2></div>
+            <div class="summary-grid">
+              <div class="summary-item"><span>Total de Metas</span><strong>${goals.length}</strong></div>
+              <div class="summary-item"><span>Meta Total (R$)</span><strong>${fmtBRL(totalMeta)}</strong></div>
+              <div class="summary-item"><span>Total Alcançado</span><strong>${fmtBRL(totalAlc)}</strong></div>
+            </div>
+            <div style="margin-top:12px">
+              ${catDist.map(c=>`
+                <div class="cat-it">
+                  <span><span class="dot" style="background:${c.color}"></span>${c.name}</span>
+                  <span style="font-weight:700">${c.pct}%</span>
+                </div>`).join('')}
+            </div>
+          </aside>
+        </section>
 
-      <div class="footer">
-        <span>STARVL — Gestão de Metas | Visão Geral</span>
-        <span>Gerado em ${now}</span>
-      </div>
-      <script>window.onload=()=>window.print()</script>
-    </body></html>`);
+        <section class="panel details">
+          <div class="panel-head"><h2 class="panel-title">DETALHAMENTO — TODAS AS METAS</h2></div>
+          <table>
+            <thead><tr>
+              <th style="width:22%">Meta</th><th style="width:13%">Categoria</th><th style="width:8%">Período</th>
+              <th class="num" style="width:11%">Meta (R$)</th><th class="num" style="width:11%">Alcançado</th>
+              <th style="width:13%">Progresso</th><th style="width:10%">Status</th><th style="width:12%">Vencimento</th>
+            </tr></thead>
+            <tbody>${goals.map(_goalTR).join('')}</tbody>
+            <tfoot><tr>
+              <td colspan="3">TOTAL</td>
+              <td class="num">${fmtBRL(totalMeta)}</td>
+              <td class="num">${fmtBRL(totalAlc)}</td>
+              <td colspan="3">${kpis.ativas} ativas · ${kpis.concl} concluídas · ${kpis.atrasadas} em atraso</td>
+            </tr></tfoot>
+          </table>
+        </section>
+
+        <footer class="footer">STARVL | Relatório Gestão de Metas — Visão Geral</footer>
+      </main>
+      <script>window.addEventListener('load',function(){setTimeout(function(){window.print();},500);})</script>
+      </body></html>`);
   };
 
   const printTodasMetas = () => {
@@ -8752,46 +8753,88 @@ const GoalManager = ({ themeMode = 'dark' }) => {
       search                   ? `Busca: "${search}"`        : null,
       `Ordenar por: ${orderBy === 'vencimento' ? 'Vencimento' : orderBy === 'meta' ? 'Meta' : 'Progresso'}`,
     ].filter(Boolean);
-
-    _openTab(`<!doctype html><html><head><meta charset="utf-8">
-      <title>Gestão de Metas — Todas as Metas</title>
-      <style>${_DARK_CSS}</style></head><body>
-      <div class="hdr">
-        <div>
-          <div class="hdr-title">🎯 GESTÃO DE METAS</div>
-          <div class="flt-bar" style="margin-top:8px">
-            ${filtersActive.map(f=>`<span class="flt-tag">${f}</span>`).join('')}
+    // Top 5 para o painel ranking
+    const top5 = [...filtered].sort((a,b) => b.alcancado - a.alcancado).slice(0,5);
+    const maxAlc = top5[0]?.alcancado || 1;
+    const initials = n => n.split(' ').slice(0,2).map(w=>w[0]||'').join('').toUpperCase();
+    const rankRows = top5.map((g,i) => {
+      const w = Math.max(4, (g.alcancado/maxAlc)*100);
+      const col = GOAL_CAT_COLORS[g.categoria] || '#6b7280';
+      return `<div class="rank-row">
+        <div class="rank-pos">${i+1}°</div>
+        <div class="rank-person">
+          <div class="avatar" style="background:${col}">${initials(g.nome)}</div>
+          <div class="person-text">
+            <strong>${g.nome}</strong>
+            <span>${g.categoria} · ${g.periodo}</span>
           </div>
         </div>
-        <div class="hdr-right"><strong style="color:#f1f5f9">STARVL</strong><br/>Gerado em ${now}<br/>${filtered.length} meta${filtered.length!==1?'s':''} exibida${filtered.length!==1?'s':''}</div>
-      </div>
+        <div class="bar-track"><div class="bar-fill" style="width:${w}%;background:${col}"></div></div>
+        <div class="bar-value">${fmtBRL(g.alcancado)}</div>
+      </div>`;
+    }).join('');
 
-      <div class="card">
-        <table>
-          <thead><tr>
-            <th>Meta</th><th>Categoria</th><th>Período</th>
-            <th style="text-align:right">Meta (R$)</th><th style="text-align:right">Alcançado</th>
-            <th>Progresso</th><th>Status</th><th>Vencimento</th>
-          </tr></thead>
-          <tbody>
-            ${filtered.map(_goalTR).join('')}
-            <tr class="tr-tot">
-              <td colspan="3" style="color:#94a3b8">TOTAIS — ${filtered.length} metas &nbsp;|&nbsp; ${kpis.ativas} ativas · ${kpis.concl} concluídas · ${kpis.atrasadas} em atraso</td>
-              <td style="text-align:right;color:#f1f5f9">${fmtBRL(totalMeta)}</td>
-              <td style="text-align:right;color:#f1f5f9">${fmtBRL(totalAlc)}</td>
-              <td>${_prog(totalPct,'#6366f1')}</td>
-              <td colspan="2"></td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+    _openTab(`<!doctype html><html><head><meta charset="utf-8">
+      <title>Relatório Gestão de Metas — Todas as Metas</title>
+      <style>${_REPORT_CSS}</style></head>
+      <body><main class="report">
+        <section class="header">
+          <div class="header-left">
+            <div class="mark" aria-hidden="true"><span></span><span></span><span></span></div>
+            <div>
+              <h1>RELATÓRIO GESTÃO DE METAS</h1>
+              <div class="header-sub">
+                Filtros: ${filtersActive.map(f=>`<span class="flt-tag">${f}</span>`).join('')}
+              </div>
+            </div>
+          </div>
+          <div class="header-meta">
+            <div>${filtered.length} meta${filtered.length!==1?'s':''} exibida${filtered.length!==1?'s':''}</div>
+            <div>Gerado em ${now}</div>
+          </div>
+        </section>
 
-      <div class="footer">
-        <span>STARVL — Gestão de Metas | Todas as Metas</span>
-        <span>Gerado em ${now}</span>
-      </div>
-      <script>window.onload=()=>window.print()</script>
-    </body></html>`);
+        <section class="dashboard">
+          <div class="panel">
+            <div class="panel-head">
+              <h2 class="panel-title">TOP 5 — MAIOR ATINGIMENTO</h2>
+              <div class="pill">R$ ALCANÇADO</div>
+            </div>
+            <div class="rank-list">${rankRows || '<p style="color:#9ca3af;font-size:12px">Nenhuma meta encontrada.</p>'}</div>
+          </div>
+          <aside class="panel">
+            <div class="panel-head"><h2 class="panel-title">RESUMO</h2></div>
+            <div class="summary-grid">
+              <div class="summary-item"><span>Metas no Filtro</span><strong>${filtered.length}</strong></div>
+              <div class="summary-item"><span>Meta Total (R$)</span><strong>${fmtBRL(totalMeta)}</strong></div>
+              <div class="summary-item"><span>Total Alcançado</span><strong>${fmtBRL(totalAlc)}</strong></div>
+            </div>
+          </aside>
+        </section>
+
+        <section class="panel details">
+          <div class="panel-head"><h2 class="panel-title">DETALHAMENTO</h2></div>
+          <table>
+            <thead><tr>
+              <th style="width:22%">Meta</th><th style="width:13%">Categoria</th><th style="width:8%">Período</th>
+              <th class="num" style="width:11%">Meta (R$)</th><th class="num" style="width:11%">Alcançado</th>
+              <th style="width:13%">Progresso</th><th style="width:10%">Status</th><th style="width:12%">Vencimento</th>
+            </tr></thead>
+            <tbody>${filtered.map(_goalTR).join('')}</tbody>
+            <tfoot><tr>
+              <td colspan="3">TOTAL DO PERÍODO (${filtered.length} metas)</td>
+              <td class="num">${fmtBRL(totalMeta)}</td>
+              <td class="num">${fmtBRL(totalAlc)}</td>
+              <td>${_progInline(totalPct,'#6366f1')}</td>
+              <td colspan="2">${kpis.ativas} ativas · ${kpis.concl} concluídas · ${kpis.atrasadas} em atraso</td>
+            </tr></tfoot>
+          </table>
+        </section>
+
+        <footer class="footer">STARVL | Relatório Gestão de Metas — Todas as Metas</footer>
+      </main>
+      <script>window.addEventListener('load',function(){setTimeout(function(){window.print();},500);})</script>
+      </body></html>`);
   };
 
   // ── Styles ──────────────────────────────────────────────────────────────────
