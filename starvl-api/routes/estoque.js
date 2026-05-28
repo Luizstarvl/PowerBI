@@ -190,4 +190,69 @@ router.get('/projecao', async (req, res) => {
   }
 });
 
+// GET /api/estoque/convenio?empresa=7432
+router.get('/convenio', async (req, res) => {
+  const empresa = parseInt(req.query.empresa);
+  if (!empresa) return res.status(400).json({ error: 'empresa is required' });
+
+  try {
+    const result = await query(
+      `SELECT
+         p2.e_prodempresa  AS empresa,
+         p1.prodcodigo     AS cod_produto,
+         p1.prodbarra      AS cod_barra,
+         p1.proddescricao  AS descricao,
+         s.sprocodigo      AS cod_secao,
+         s.sprodescricao   AS descricao_secao,
+         g.gprocodigo      AS cod_grupo,
+         g.gprodescricao   AS descricao_grupo,
+         p2.e_prodv1       AS preco_venda1,
+         p2.e_prodv2       AS preco_venda2,
+         k.kardexestoque   AS estoque_produto,
+         p2.e_prodcusto    AS custo,
+         CASE
+           WHEN p2.e_prodinativo IS NOT NULL THEN 'INATIVO'
+           ELSE 'ATIVO'
+         END AS situacao
+       FROM prod p1
+       JOIN e_prod p2
+         ON p1.prodcodigo = p2.e_prodproduto
+        AND p2.e_prodempresa = $1
+       LEFT JOIN LATERAL (
+           SELECT k.kardexestoque
+           FROM kardex k
+           WHERE k.kardexempresa = p2.e_prodempresa
+             AND k.kardexproduto = p2.e_prodproduto
+           ORDER BY k.kardexdata DESC
+           LIMIT 1
+       ) k ON TRUE
+       LEFT JOIN spro s ON s.sprocodigo = p1.prodsecao
+       LEFT JOIN gpro g ON g.gprosecao = p1.prodsecao
+                       AND g.gprocodigo = p1.prodgrupo
+       ORDER BY 6, 8, 4`,
+      [empresa]
+    );
+
+    const produtos = result.rows.map(r => ({
+      cod_produto:     r.cod_produto,
+      cod_barra:       r.cod_barra       || '',
+      descricao:       r.descricao       || '',
+      cod_secao:       r.cod_secao,
+      descricao_secao: r.descricao_secao || 'Sem Categoria',
+      cod_grupo:       r.cod_grupo,
+      descricao_grupo: r.descricao_grupo || '',
+      preco_venda1:    parseFloat(r.preco_venda1    || 0),
+      preco_venda2:    parseFloat(r.preco_venda2    || 0),
+      estoque_produto: parseFloat(r.estoque_produto || 0),
+      custo:           parseFloat(r.custo           || 0),
+      situacao:        r.situacao,
+    }));
+
+    res.json({ empresa, produtos });
+  } catch (err) {
+    console.error('Error in /estoque/convenio:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

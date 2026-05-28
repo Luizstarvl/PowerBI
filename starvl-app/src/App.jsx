@@ -11585,7 +11585,7 @@ function printProductCard({ prod, editForm, editImg }) {
   pw.document.close();
 }
 
-const ConvenienciaManager = ({ themeMode }) => {
+const ConvenienciaManager = ({ themeMode, selectedClient, clients }) => {
   const [page, setPage]           = useState(1);
   const [search, setSearch]       = useState('');
   const [categoria, setCategoria] = useState('Todas');
@@ -11597,6 +11597,9 @@ const ConvenienciaManager = ({ themeMode }) => {
   const [editProd, setEditProd]     = useState(null);
   const [editForm, setEditForm]     = useState({});
   const [editImg, setEditImg]         = useState(null);
+  // Produtos carregados da API
+  const [apiProds, setApiProds]       = useState([]);
+  const [loadingConvenio, setLoadingConvenio] = useState(false);
   // Inicializa do cache localStorage de forma síncrona — sem flash ao abrir
   const [productImages, setProductImages] = useState(() => {
     try { return JSON.parse(localStorage.getItem(IMG_LS_KEY) || 'null') || {}; }
@@ -11614,6 +11617,41 @@ const ConvenienciaManager = ({ themeMode }) => {
   });
   const imgInputRef = useRef(null);
   const LIMIT = 7;
+
+  // Resolve empresa a partir do cliente selecionado
+  const empresa = useMemo(() => {
+    const c = (clients || []).find(cl => cl.nome === selectedClient) || (clients || [])[0];
+    return c?.codigoEmpresa || null;
+  }, [clients, selectedClient]);
+
+  // Busca produtos da conveniência na API sempre que a empresa mudar
+  useEffect(() => {
+    if (!empresa) return;
+    setLoadingConvenio(true);
+    fetch(`${API_URL}/api/estoque/convenio?empresa=${empresa}`)
+      .then(r => r.ok ? r.json() : Promise.reject(r))
+      .then(data => {
+        const prods = (data.produtos || []).map(r => ({
+          id:     r.cod_produto,
+          nome:   r.descricao,
+          sub:    r.descricao_grupo || '',
+          codigo: r.cod_barra       || '',
+          cat:    r.descricao_secao || 'Sem Categoria',
+          forn:   '',
+          uni:    'UN',
+          estoque: r.estoque_produto,
+          preco:   r.preco_venda1,
+          custo:   r.custo,
+          venc:    '',        // sem data de vencimento no DB
+          emoji:   '📦',
+          cor:     '#94a3b8',
+          situacao: r.situacao,
+        }));
+        setApiProds(prods);
+      })
+      .catch(() => { /* mantém lista vazia em caso de erro */ })
+      .finally(() => setLoadingConvenio(false));
+  }, [empresa]);
 
   // Background: sincroniza com API (atualiza se houver mudança desde o cache)
   useEffect(() => {
@@ -11638,15 +11676,16 @@ const ConvenienciaManager = ({ themeMode }) => {
   // Compute status for all products (merge localEdits + images from IndexedDB)
   const allProds = useMemo(() => {
     const today = new Date(); today.setHours(0,0,0,0);
-    return PM_MOCK_PRODUCTS.map(p => {
+    return apiProds.map(p => {
       const edits = localEdits[p.id] || {};
       const merged = { ...p, ...edits };
-      const vencDate = new Date(merged.venc + 'T00:00:00');
-      const dias = Math.round((vencDate - today) / 86400000);
-      const status = dias < 0 ? 'vencido' : dias === 0 ? 'vencendo_hoje' : dias <= 7 ? 'prox_vencer' : 'ok';
-      return { ...merged, dias, status, valorEstoque: merged.custo * merged.estoque, editImg: productImages[p.id] || null };
+      const vencRaw = merged.venc || '';
+      const vencDate = vencRaw ? new Date(vencRaw + 'T00:00:00') : null;
+      const dias = vencDate && !isNaN(vencDate) ? Math.round((vencDate - today) / 86400000) : null;
+      const status = dias === null ? 'ok' : (dias < 0 ? 'vencido' : dias === 0 ? 'vencendo_hoje' : dias <= 7 ? 'prox_vencer' : 'ok');
+      return { ...merged, dias, status, valorEstoque: (merged.custo || 0) * (merged.estoque || 0), editImg: productImages[p.id] || null };
     });
-  }, [localEdits, productImages]);
+  }, [apiProds, localEdits, productImages]);
 
   const openEdit = useCallback((p) => {
     const merged = { ...p, ...(localEdits[p.id] || {}) };
@@ -11705,7 +11744,10 @@ const ConvenienciaManager = ({ themeMode }) => {
     const valorTotal = allProds.reduce((s, p) => s + p.valorEstoque, 0);
     const proxVencer = allProds.filter(p => p.status === 'prox_vencer').length;
     const vencidos   = allProds.filter(p => p.status === 'vencido').length;
-    const margem     = allProds.reduce((s, p) => s + (p.preco - p.custo) / p.preco * 100, 0) / n;
+    const comPreco   = allProds.filter(p => p.preco > 0);
+    const margem     = comPreco.length > 0
+      ? comPreco.reduce((s, p) => s + (p.preco - p.custo) / p.preco * 100, 0) / comPreco.length
+      : 0;
     return { n, valorTotal, proxVencer, vencidos, margem };
   }, [allProds]);
 
@@ -11750,15 +11792,15 @@ const ConvenienciaManager = ({ themeMode }) => {
 
   const { sc, total: aTotal, exp, cats: catList } = analytics;
   const donutParts = [
-    { label:'OK (Válidos)',          count: sc.ok,      pct: sc.ok/aTotal*100,      color:'#22c55e' },
-    { label:'Próx. Vencer (7 dias)', count: sc.prox,    pct: sc.prox/aTotal*100,    color:'#f59e0b' },
-    { label:'Vencendo Hoje',         count: sc.hoje,    pct: sc.hoje/aTotal*100,    color:'#fb923c' },
-    { label:'Vencidos',              count: sc.vencido, pct: sc.vencido/aTotal*100, color:'#ef4444' },
+    { label:'OK (Válidos)',          count: sc.ok,      pct: aTotal > 0 ? sc.ok/aTotal*100      : 0, color:'#22c55e' },
+    { label:'Próx. Vencer (7 dias)', count: sc.prox,    pct: aTotal > 0 ? sc.prox/aTotal*100    : 0, color:'#f59e0b' },
+    { label:'Vencendo Hoje',         count: sc.hoje,    pct: aTotal > 0 ? sc.hoje/aTotal*100    : 0, color:'#fb923c' },
+    { label:'Vencidos',              count: sc.vencido, pct: aTotal > 0 ? sc.vencido/aTotal*100 : 0, color:'#ef4444' },
   ];
   const donutBg = pmBuildDonut(donutParts);
 
-  const cats = ['Todas', ...new Set(PM_MOCK_PRODUCTS.map(p => p.cat))].sort((a,b) => a === 'Todas' ? -1 : a.localeCompare(b));
-  const fors  = ['Todos', ...new Set(PM_MOCK_PRODUCTS.map(p => p.forn))].sort((a,b) => a === 'Todos' ? -1 : a.localeCompare(b));
+  const cats = useMemo(() => ['Todas', ...new Set(apiProds.map(p => p.cat).filter(Boolean))].sort((a,b) => a === 'Todas' ? -1 : a.localeCompare(b)), [apiProds]);
+  const fors = useMemo(() => ['Todos', ...new Set(apiProds.map(p => p.forn).filter(Boolean))].sort((a,b) => a === 'Todos' ? -1 : a.localeCompare(b)), [apiProds]);
 
   // Pagination helper
   const pagBtns = () => {
@@ -11862,7 +11904,11 @@ const ConvenienciaManager = ({ themeMode }) => {
 
       {/* Table */}
       <div className="pm-table-wrap">
-        {filtered.length === 0 ? (
+        {loadingConvenio ? (
+          <div className="pm-empty" style={{ color:'#64748b' }}>⏳ Carregando produtos...</div>
+        ) : !empresa ? (
+          <div className="pm-empty" style={{ color:'#64748b' }}>Selecione uma empresa para carregar os produtos.</div>
+        ) : filtered.length === 0 ? (
           <div className="pm-empty">Nenhum produto encontrado.</div>
         ) : (
           <table className="pm-table">
@@ -11905,9 +11951,9 @@ const ConvenienciaManager = ({ themeMode }) => {
                   <td className="pm-num">{fmtBRL(p.preco)}</td>
                   <td className="pm-num">{fmtBRL(p.custo)}</td>
                   <td className="pm-num" style={{ fontWeight:700, color:'#f8fafc' }}>{fmtBRL(p.valorEstoque)}</td>
-                  <td>{fmtDate(p.venc)}</td>
-                  <td className={`pm-dias ${PM_DIAS_CLS[p.status]}`}>
-                    {p.dias < 0 ? p.dias : p.dias === 0 ? '0' : `+${p.dias}`}
+                  <td>{p.venc ? fmtDate(p.venc) : <span style={{color:'#475569'}}>—</span>}</td>
+                  <td className={`pm-dias ${p.dias !== null ? PM_DIAS_CLS[p.status] : 'pm-dias-ok'}`}>
+                    {p.dias !== null ? (p.dias < 0 ? p.dias : p.dias === 0 ? '0' : `+${p.dias}`) : <span style={{color:'#475569'}}>—</span>}
                   </td>
                   <td><span className={`pm-badge ${PM_STATUS_CLS[p.status]}`}>{PM_STATUS_LABEL[p.status]}</span></td>
                   <td>
@@ -11955,7 +12001,7 @@ const ConvenienciaManager = ({ themeMode }) => {
           <div className="pm-donut-wrap">
             <div className="pm-donut" style={{ background: donutBg }}>
               <div className="pm-donut-center">
-                <span>{((sc.ok / aTotal)*100).toFixed(0)}%</span>
+                <span>{aTotal > 0 ? ((sc.ok / aTotal)*100).toFixed(0) : 0}%</span>
                 <small>válidos</small>
               </div>
             </div>
@@ -11985,7 +12031,7 @@ const ConvenienciaManager = ({ themeMode }) => {
               <span className="pm-exp-label">{row.label}</span>
               <div className="pm-exp-right">
                 <span className="pm-exp-count">{row.count}</span>
-                <span className="pm-exp-pct">({((row.count/aTotal)*100).toFixed(1)}%)</span>
+                <span className="pm-exp-pct">({(aTotal > 0 ? (row.count/aTotal)*100 : 0).toFixed(1)}%)</span>
               </div>
             </div>
           ))}
@@ -12312,7 +12358,7 @@ const EstoqueManager = ({ estoques, projecao, loading, selectedClient, clients, 
       </div>
       {tab === 'pista'
         ? <StockPosition estoques={estoques} projecao={projecao} loading={loading} selectedClient={selectedClient} clients={clients} />
-        : <ConvenienciaManager themeMode={themeMode} />
+        : <ConvenienciaManager themeMode={themeMode} selectedClient={selectedClient} clients={clients} />
       }
     </div>
   );
