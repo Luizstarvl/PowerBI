@@ -1,4 +1,5 @@
 const express = require('express');
+const https   = require('https');
 const router  = express.Router();
 const pool    = require('../db/pool');
 
@@ -12,6 +13,43 @@ pool.query(`
     PRIMARY KEY (img_tipo, img_ref)
   )
 `).catch(err => console.error('[imagens] ensureTable:', err.message));
+
+// ── Helper: POST via https nativo (evita problemas com fetch global no Render) ──
+function httpsPost(url, { headers = {}, body } = {}, timeoutMs = 120_000) {
+  return new Promise((resolve, reject) => {
+    const u = new URL(url);
+    const bodyBuf = Buffer.isBuffer(body) ? body : Buffer.from(body);
+
+    const req = https.request(
+      {
+        hostname: u.hostname,
+        port: 443,
+        path: u.pathname + u.search,
+        method: 'POST',
+        headers: { ...headers, 'Content-Length': bodyBuf.length },
+      },
+      (resp) => {
+        const chunks = [];
+        resp.on('data', c => chunks.push(c));
+        resp.on('end', () => {
+          const buf = Buffer.concat(chunks);
+          resolve({
+            ok:          resp.statusCode >= 200 && resp.statusCode < 300,
+            status:      resp.statusCode,
+            contentType: (resp.headers['content-type'] || '').toLowerCase(),
+            buf,
+            text:        () => buf.toString('utf-8'),
+          });
+        });
+      }
+    );
+
+    req.setTimeout(timeoutMs, () => req.destroy(new Error(`Timeout após ${timeoutMs / 1000}s`)));
+    req.on('error', reject);
+    req.write(bodyBuf);
+    req.end();
+  });
+}
 
 // GET /api/imagens/:tipo
 // Retorna { "<ref>": "<dataUrl>", ... } para todos do tipo
@@ -102,26 +140,25 @@ router.post('/auto-gerar', async (req, res) => {
       `isolated on pure white background, studio lighting, ` +
       `high resolution, 4k, sharp focus, clean, no shadows, product advertisement`;
 
-    const genResp = await fetch(
+    const genResp = await httpsPost(
       'https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-schnell',
       {
-        method: 'POST',
         headers: {
-          Authorization: `Bearer ${hfToken}`,
-          'Content-Type': 'application/json',
-          'X-Use-Cache': 'false',
+          Authorization:   `Bearer ${hfToken}`,
+          'Content-Type':  'application/json',
+          'X-Use-Cache':   'false',
         },
         body: JSON.stringify({
           inputs: prompt,
           parameters: { num_inference_steps: 4, guidance_scale: 3.5 },
         }),
-        signal: AbortSignal.timeout(120_000), // 2 min timeout
-      }
+      },
+      120_000 // 2 min timeout
     );
 
     if (!genResp.ok) {
-      const txt = await genResp.text();
-      // Model loading (503) — devolve erro amigável
+      const txt = genResp.text();
+      console.error(`[auto-gerar] FLUX ${genResp.status}:`, txt.slice(0, 300));
       if (genResp.status === 503) {
         return res.status(503).json({ error: 'Modelo ainda carregando. Tente novamente em 30 segundos.' });
       }
@@ -130,45 +167,38 @@ router.post('/auto-gerar', async (req, res) => {
       });
     }
 
-    const genBuffer = Buffer.from(await genResp.arrayBuffer());
-    const genContentType = genResp.headers.get('content-type') || 'image/jpeg';
+    const genBuf         = genResp.buf;
+    const genContentType = genResp.contentType || 'image/jpeg';
 
     // ── 2. Remover fundo com RMBG-2.0 ──────────────────────────────────────
     let finalDataUrl;
     try {
-      const rmResp = await fetch(
+      const rmResp = await httpsPost(
         'https://api-inference.huggingface.co/models/briaai/RMBG-2.0',
         {
-          method: 'POST',
           headers: {
-            Authorization: `Bearer ${hfToken}`,
+            Authorization:  `Bearer ${hfToken}`,
             'Content-Type': genContentType,
           },
-          body: genBuffer,
-          signal: AbortSignal.timeout(60_000),
-        }
+          body: genBuf,
+        },
+        60_000 // 1 min timeout
       );
 
-      if (rmResp.ok) {
-        const rmType = rmResp.headers.get('content-type') || '';
-        if (rmType.startsWith('image/')) {
-          const rmBuf = Buffer.from(await rmResp.arrayBuffer());
-          const ext = rmType.includes('png') ? 'png' : 'jpeg';
-          finalDataUrl = `data:image/${ext};base64,${rmBuf.toString('base64')}`;
-        } else {
-          // Resposta JSON inesperada — usa imagem original
-          const ext = genContentType.includes('png') ? 'png' : 'jpeg';
-          finalDataUrl = `data:image/${ext};base64,${genBuffer.toString('base64')}`;
-        }
+      if (rmResp.ok && rmResp.contentType.startsWith('image/')) {
+        const ext = rmResp.contentType.includes('png') ? 'png' : 'jpeg';
+        finalDataUrl = `data:image/${ext};base64,${rmResp.buf.toString('base64')}`;
       } else {
-        // RMBG falhou — usa imagem gerada sem remoção de fundo
+        // RMBG falhou ou retornou JSON — usa imagem gerada sem remoção de fundo
+        console.warn('[auto-gerar] RMBG fallback, status:', rmResp.status);
         const ext = genContentType.includes('png') ? 'png' : 'jpeg';
-        finalDataUrl = `data:image/${ext};base64,${genBuffer.toString('base64')}`;
+        finalDataUrl = `data:image/${ext};base64,${genBuf.toString('base64')}`;
       }
-    } catch {
-      // Timeout na remoção — usa imagem original
+    } catch (rmErr) {
+      // Timeout ou erro de rede no RMBG — usa imagem original
+      console.warn('[auto-gerar] RMBG erro/timeout:', rmErr.message);
       const ext = genContentType.includes('png') ? 'png' : 'jpeg';
-      finalDataUrl = `data:image/${ext};base64,${genBuffer.toString('base64')}`;
+      finalDataUrl = `data:image/${ext};base64,${genBuf.toString('base64')}`;
     }
 
     if (finalDataUrl.length > 8_000_000) {
@@ -186,8 +216,9 @@ router.post('/auto-gerar', async (req, res) => {
 
     res.json({ ok: true, dados: finalDataUrl });
   } catch (err) {
-    console.error('Error in /imagens/auto-gerar:', err.message);
-    res.status(500).json({ error: err.message });
+    const cause = err.cause ? ` (causa: ${err.cause.code || err.cause.message || err.cause})` : '';
+    console.error('[auto-gerar] Erro:', err.message + cause);
+    res.status(500).json({ error: err.message + cause });
   }
 });
 
