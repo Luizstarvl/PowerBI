@@ -9658,6 +9658,39 @@ async function ctBandImgDelete(id) {
   if (_ctBandMem) { const n = { ..._ctBandMem }; delete n[String(id)]; _ctBandCacheSet(n); }
 }
 
+// ── CRUD de usuários do sistema (starvl_users) ─────────────────────────────
+async function suLoadAll() {
+  const res = await fetch(`${API_URL}/api/starvl-users`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json(); // [{ id, usuario, senha, perfil }]
+}
+async function suCreate({ usuario, senha, perfil }) {
+  const res = await fetch(`${API_URL}/api/starvl-users`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ usuario, senha, perfil }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  return data;
+}
+async function suUpdate(id, { usuario, senha, perfil }) {
+  const res = await fetch(`${API_URL}/api/starvl-users/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ usuario, senha, perfil }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  return data;
+}
+async function suDelete(id) {
+  const res = await fetch(`${API_URL}/api/starvl-users/${id}`, { method: 'DELETE' });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  return data;
+}
+
 function printProductCard({ prod, editForm, editImg }) {
   const custo  = parseFloat(editForm.custo)  || prod.custo;
   const preco  = parseFloat(editForm.preco)  || prod.preco;
@@ -10878,38 +10911,52 @@ const Users = ({ adminUsers, setAdminUsers, isAdmin }) => {
   const handleDelete = (userId) => {
     const user = users.find((item) => item.id === userId);
     if (!user) return;
-
-    const shouldDelete = window.confirm(`Deseja remover o usuário ${user.name}?`);
-    if (shouldDelete) {
-      setUsers(users.filter((item) => item.id !== userId));
-    }
+    if (!window.confirm(`Deseja remover o usuário "${user.name}"?`)) return;
+    suDelete(userId)
+      .then(() => {
+        setAdminUsers(prev => prev.filter(u => u.id !== userId));
+        toast('Usuário removido.', 'info');
+      })
+      .catch(err => toast(`Erro ao remover: ${err.message}`, 'error'));
   };
 
   const handleSave = (formData, imgData) => {
-    let savedId;
+    const perfil = formData.role === 'Administrador' ? 'admin' : 'user';
+    const usuario = formData.name.trim();
+    const senha   = formData.senha?.trim() || '';
+
     if (modalMode === 'create') {
-      savedId = Date.now();
-      setUsers([...users, {
-        ...formData,
-        id: savedId,
-        avatar: formData.name.trim().charAt(0).toUpperCase() || 'U',
-        lastAccess: 'Nunca',
-      }]);
-    } else {
-      savedId = selectedUser.id;
-      setUsers(users.map(u => u.id === savedId ? { ...u, ...formData } : u));
-    }
-    if (imgData) {
-      userImgSave(savedId, imgData)
-        .then(compressed => {
-          setUserImages(prev => ({ ...prev, [String(savedId)]: compressed }));
-          toast('Foto salva!', 'success');
+      if (!senha) { toast('Defina uma senha para o novo usuário.', 'warn'); return; }
+      suCreate({ usuario, senha, perfil })
+        .then(created => {
+          setAdminUsers(prev => [...prev, created]);
+          toast('✅ Usuário criado!', 'success');
+          // foto
+          if (imgData) {
+            userImgSave(created.id, imgData)
+              .then(c => setUserImages(prev => ({ ...prev, [String(created.id)]: c })))
+              .catch(err => toast(`Erro ao salvar foto: ${err.message}`, 'error'));
+          }
         })
-        .catch(err => toast(`Erro ao salvar foto: ${err.message}`, 'error'));
-    } else if (userImages[String(savedId)] && imgData === null) {
-      userImgDelete(savedId)
-        .then(() => setUserImages(prev => { const n = { ...prev }; delete n[String(savedId)]; return n; }))
-        .catch(err => toast(`Erro ao remover foto: ${err.message}`, 'error'));
+        .catch(err => toast(`Erro ao criar usuário: ${err.message}`, 'error'));
+    } else {
+      const savedId = selectedUser.id;
+      suUpdate(savedId, { usuario, senha, perfil })
+        .then(updated => {
+          setAdminUsers(prev => prev.map(u => u.id === savedId ? updated : u));
+          toast('✅ Usuário atualizado!', 'success');
+          // foto
+          if (imgData) {
+            userImgSave(savedId, imgData)
+              .then(c => setUserImages(prev => ({ ...prev, [String(savedId)]: c })))
+              .catch(err => toast(`Erro ao salvar foto: ${err.message}`, 'error'));
+          } else if (userImages[String(savedId)] && imgData === null) {
+            userImgDelete(savedId)
+              .then(() => setUserImages(prev => { const n={...prev}; delete n[String(savedId)]; return n; }))
+              .catch(err => toast(`Erro ao remover foto: ${err.message}`, 'error'));
+          }
+        })
+        .catch(err => toast(`Erro ao atualizar usuário: ${err.message}`, 'error'));
     }
     setShowModal(false);
   };
@@ -12294,6 +12341,13 @@ export default function App() {
   const [themeMode, setThemeMode] = useState(() => localStorage.getItem('starvl-theme-mode') || 'dark');
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  // Carrega usuários da API na inicialização do app
+  useEffect(() => {
+    suLoadAll()
+      .then(users => { if (users && users.length > 0) setAdminUsers(users); })
+      .catch(() => { /* sem rede: mantém fallback hardcoded */ });
+  }, []);
 
   // Mensagem de boas-vindas após login
   useEffect(() => {
