@@ -14078,7 +14078,7 @@ const GoalManager = ({ themeMode = 'dark' }) => {
             </div>
           </form>
         </div>
-      </div>
+      )}
     </div>
   );
 };
