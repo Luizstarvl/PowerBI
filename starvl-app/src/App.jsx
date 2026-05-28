@@ -11804,17 +11804,16 @@ const ConvenienciaManager = ({ themeMode, selectedClient, clients }) => {
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
               <div>
                 <div style={{ fontSize:17, fontWeight:700, color:'#f1f5f9' }}>🤖 Gerador Automático de Imagens</div>
-                <div style={{ fontSize:12, color:'#64748b', marginTop:3 }}>Usa FLUX.1-schnell + RMBG-2.0 via Hugging Face</div>
+                <div style={{ fontSize:12, color:'#64748b', marginTop:3 }}>Usa Flux via Pollinations.ai · Gratuito · Sem configuração</div>
               </div>
               {!autoGenStatus.running && (
                 <button onClick={() => setAutoGenOpen(false)} style={{ background:'none', border:'none', color:'#64748b', cursor:'pointer', fontSize:22, lineHeight:1 }}>✕</button>
               )}
             </div>
 
-            {/* Info HF_TOKEN */}
+            {/* Info */}
             <div style={{ background:'#0f1d2e', border:'1px solid #1e3a5f', borderRadius:8, padding:'10px 14px', marginBottom:16, fontSize:12, color:'#7dd3fc' }}>
-              ℹ️ Requer <strong>HF_TOKEN</strong> no <code>.env</code> do servidor.
-              Obtenha grátis em <strong>huggingface.co → Settings → Access Tokens</strong>. Tempo estimado: 30–90s por produto.
+              🖼️ Gera fotos comerciais com fundo branco usando o modelo <strong>Flux</strong> (Pollinations.ai). Sem necessidade de token ou cadastro. Tempo estimado: <strong>10–30s por produto</strong>.
             </div>
 
             {/* Progresso */}

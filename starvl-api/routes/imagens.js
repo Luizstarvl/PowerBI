@@ -14,40 +14,32 @@ pool.query(`
   )
 `).catch(err => console.error('[imagens] ensureTable:', err.message));
 
-// ── Helper: POST via https nativo (evita problemas com fetch global no Render) ──
-function httpsPost(url, { headers = {}, body } = {}, timeoutMs = 120_000) {
+// ── Helper: GET com redirecionamento (Pollinations redireciona 1x) ────────────
+function httpsGetFollow(url, timeoutMs = 90_000, maxRedirects = 5) {
   return new Promise((resolve, reject) => {
-    const u = new URL(url);
-    const bodyBuf = Buffer.isBuffer(body) ? body : Buffer.from(body);
+    if (maxRedirects <= 0) return reject(new Error('Muitos redirecionamentos'));
 
-    const req = https.request(
-      {
-        hostname: u.hostname,
-        port: 443,
-        path: u.pathname + u.search,
-        method: 'POST',
-        headers: { ...headers, 'Content-Length': bodyBuf.length },
-      },
-      (resp) => {
-        const chunks = [];
-        resp.on('data', c => chunks.push(c));
-        resp.on('end', () => {
-          const buf = Buffer.concat(chunks);
-          resolve({
-            ok:          resp.statusCode >= 200 && resp.statusCode < 300,
-            status:      resp.statusCode,
-            contentType: (resp.headers['content-type'] || '').toLowerCase(),
-            buf,
-            text:        () => buf.toString('utf-8'),
-          });
-        });
+    const req = https.get(url, (resp) => {
+      // Seguir redirect 301/302/307/308
+      if (resp.statusCode >= 300 && resp.statusCode < 400 && resp.headers.location) {
+        resp.resume();
+        httpsGetFollow(resp.headers.location, timeoutMs, maxRedirects - 1)
+          .then(resolve).catch(reject);
+        return;
       }
-    );
+      const chunks = [];
+      resp.on('data', c => chunks.push(c));
+      resp.on('end', () => resolve({
+        ok:          resp.statusCode >= 200 && resp.statusCode < 300,
+        status:      resp.statusCode,
+        contentType: (resp.headers['content-type'] || 'image/jpeg').toLowerCase(),
+        buf:         Buffer.concat(chunks),
+      }));
+      resp.on('error', reject);
+    });
 
     req.setTimeout(timeoutMs, () => req.destroy(new Error(`Timeout após ${timeoutMs / 1000}s`)));
     req.on('error', reject);
-    req.write(bodyBuf);
-    req.end();
   });
 }
 
@@ -74,13 +66,11 @@ router.get('/:tipo', async (req, res) => {
 
 // PUT /api/imagens/:tipo/:ref
 // Body: { dados: "<base64 dataUrl>" }
-// Cria ou atualiza
 router.put('/:tipo/:ref', async (req, res) => {
   const { tipo, ref } = req.params;
   const { dados } = req.body;
   if (!dados) return res.status(400).json({ error: 'dados é obrigatório' });
 
-  // Limite ~8 MB (base64 — o frontend comprime para << 1 MB, mas mantemos margem)
   if (dados.length > 8_000_000) {
     return res.status(413).json({ error: 'Imagem muito grande (máx ~6 MB)' });
   }
@@ -118,94 +108,42 @@ router.delete('/:tipo/:ref', async (req, res) => {
 
 // POST /api/imagens/auto-gerar
 // Body: { prodcodigo, nome }
-// Gera imagem de produto com FLUX.1-schnell (HuggingFace) e remove o fundo com RMBG-2.0
-// Requer HF_TOKEN no .env
+// Gera imagem via Pollinations.ai (Flux) — gratuito, sem auth, sem DNS issues
 router.post('/auto-gerar', async (req, res) => {
   const { prodcodigo, nome } = req.body;
   if (!prodcodigo || !nome) {
     return res.status(400).json({ error: 'prodcodigo e nome são obrigatórios' });
   }
 
-  const hfToken = process.env.HF_TOKEN;
-  if (!hfToken) {
-    return res.status(503).json({
-      error: 'HF_TOKEN não configurada. Acesse huggingface.co → Settings → Access Tokens → New token (read) e adicione ao .env do servidor.',
-    });
-  }
-
   try {
-    // ── 1. Gerar imagem com FLUX.1-schnell ─────────────────────────────────
-    const prompt =
+    // ── 1. Gerar imagem via Pollinations.ai (Flux model) ───────────────────
+    const prompt = encodeURIComponent(
       `professional commercial product photography, ${nome}, ` +
       `isolated on pure white background, studio lighting, ` +
-      `high resolution, 4k, sharp focus, clean, no shadows, product advertisement`;
-
-    const genResp = await httpsPost(
-      'https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-schnell',
-      {
-        headers: {
-          Authorization:   `Bearer ${hfToken}`,
-          'Content-Type':  'application/json',
-          'X-Use-Cache':   'false',
-        },
-        body: JSON.stringify({
-          inputs: prompt,
-          parameters: { num_inference_steps: 4, guidance_scale: 3.5 },
-        }),
-      },
-      120_000 // 2 min timeout
+      `high resolution, sharp focus, clean, no shadows, product advertisement`
     );
 
-    if (!genResp.ok) {
-      const txt = genResp.text();
-      console.error(`[auto-gerar] FLUX ${genResp.status}:`, txt.slice(0, 300));
-      if (genResp.status === 503) {
-        return res.status(503).json({ error: 'Modelo ainda carregando. Tente novamente em 30 segundos.' });
-      }
-      return res.status(genResp.status).json({
-        error: `Geração falhou (${genResp.status}): ${txt.slice(0, 300)}`,
-      });
+    const genUrl =
+      `https://image.pollinations.ai/prompt/${prompt}` +
+      `?width=1024&height=1024&nologo=true&enhance=true&model=flux&seed=${Math.floor(Math.random() * 999999)}`;
+
+    console.log(`[auto-gerar] Gerando "${nome}" via Pollinations.ai...`);
+    const genResp = await httpsGetFollow(genUrl, 90_000);
+
+    if (!genResp.ok || !genResp.contentType.startsWith('image/')) {
+      const msg = genResp.ok ? `Content-Type inesperado: ${genResp.contentType}` : `Status ${genResp.status}`;
+      console.error('[auto-gerar] Pollinations falhou:', msg);
+      return res.status(502).json({ error: `Geração falhou: ${msg}` });
     }
 
-    const genBuf         = genResp.buf;
-    const genContentType = genResp.contentType || 'image/jpeg';
-
-    // ── 2. Remover fundo com RMBG-2.0 ──────────────────────────────────────
-    let finalDataUrl;
-    try {
-      const rmResp = await httpsPost(
-        'https://api-inference.huggingface.co/models/briaai/RMBG-2.0',
-        {
-          headers: {
-            Authorization:  `Bearer ${hfToken}`,
-            'Content-Type': genContentType,
-          },
-          body: genBuf,
-        },
-        60_000 // 1 min timeout
-      );
-
-      if (rmResp.ok && rmResp.contentType.startsWith('image/')) {
-        const ext = rmResp.contentType.includes('png') ? 'png' : 'jpeg';
-        finalDataUrl = `data:image/${ext};base64,${rmResp.buf.toString('base64')}`;
-      } else {
-        // RMBG falhou ou retornou JSON — usa imagem gerada sem remoção de fundo
-        console.warn('[auto-gerar] RMBG fallback, status:', rmResp.status);
-        const ext = genContentType.includes('png') ? 'png' : 'jpeg';
-        finalDataUrl = `data:image/${ext};base64,${genBuf.toString('base64')}`;
-      }
-    } catch (rmErr) {
-      // Timeout ou erro de rede no RMBG — usa imagem original
-      console.warn('[auto-gerar] RMBG erro/timeout:', rmErr.message);
-      const ext = genContentType.includes('png') ? 'png' : 'jpeg';
-      finalDataUrl = `data:image/${ext};base64,${genBuf.toString('base64')}`;
-    }
+    const ext          = genResp.contentType.includes('png') ? 'png' : 'jpeg';
+    const finalDataUrl = `data:image/${ext};base64,${genResp.buf.toString('base64')}`;
 
     if (finalDataUrl.length > 8_000_000) {
       return res.status(413).json({ error: 'Imagem gerada muito grande (> 6 MB)' });
     }
 
-    // ── 3. Salvar no banco ──────────────────────────────────────────────────
+    // ── 2. Salvar no banco ──────────────────────────────────────────────────
     await pool.query(
       `INSERT INTO starvl_imagens (img_tipo, img_ref, img_dados, img_updated)
        VALUES ('produto', $1, $2, NOW())
@@ -214,11 +152,11 @@ router.post('/auto-gerar', async (req, res) => {
       [String(prodcodigo), finalDataUrl]
     );
 
+    console.log(`[auto-gerar] "${nome}" salvo (${Math.round(genResp.buf.length / 1024)} KB)`);
     res.json({ ok: true, dados: finalDataUrl });
   } catch (err) {
-    const cause = err.cause ? ` (causa: ${err.cause.code || err.cause.message || err.cause})` : '';
-    console.error('[auto-gerar] Erro:', err.message + cause);
-    res.status(500).json({ error: err.message + cause });
+    console.error('[auto-gerar] Erro:', err.message);
+    res.status(500).json({ error: err.message });
   }
 });
 
