@@ -119,46 +119,65 @@ router.get('/controle', async (req, res) => {
   const { mes, ano, dataInicio, dataFim } = getPeriodoRange(periodo);
 
   try {
-    // SQL baseado na consulta original do SGA, adaptado para PostgreSQL multi-empresa
+    // Reescrito com LEFT JOINs pre-agregados para evitar "subquery uses ungrouped column"
     const result = await query(
-      `SELECT DISTINCT
-         CAST(v.vdadata AS date) AS emissao,
-         p.prodcodigo             AS cod_produto,
-         p.proddescricao          AS descricao_produto,
-         COALESCE((
-           SELECT SUM(
-             COALESCE(t.entcpivol1, 0) +
-             COALESCE(t.entcpivol2, 0) +
-             COALESCE(t.entcpivol3, 0)
-           )
-           FROM entcpi t
-           LEFT JOIN entcpa r ON t.entcpicompra = r.entcpacodigo
-                             AND r.entcpaempresa = $1
-           WHERE t.entcpiempresa = $1
-             AND t.entcpiproduto = p.prodcodigo
-             AND CAST(r.entcpachegada AS date) = CAST(v.vdadata AS date)
-         ), 0) AS compra_110,
-         COALESCE((
-           SELECT SUM(e.pediqtd)
-           FROM pede d
-           LEFT JOIN pedi e ON d.pedecodigo = e.pedicodigopede
-                           AND e.pediempresa = $1
-           WHERE d.pedeempresa = $1
-             AND e.pediproduto  = p.prodcodigo
-             AND CAST(d.pededatarecebimento AS date) = CAST(v.vdadata AS date)
-         ), 0) AS compra_220,
-         COALESCE((
-           SELECT SUM(a.aferqtd)
-           FROM afer a
-           WHERE a.aferempresa  = $1
-             AND a.aferproduto  = p.prodcodigo
-             AND CAST(a.afermovimento AS date) = CAST(v.vdadata AS date)
-         ), 0) AS afericao,
-         SUM(i.vditqtd) AS venda_110e220
+      `SELECT
+         CAST(v.vdadata AS date)         AS emissao,
+         p.prodcodigo                     AS cod_produto,
+         p.proddescricao                  AS descricao_produto,
+         COALESCE(MAX(c110.total), 0)     AS compra_110,
+         COALESCE(MAX(c220.total), 0)     AS compra_220,
+         COALESCE(MAX(af.total),   0)     AS afericao,
+         COALESCE(SUM(i.vditqtd),  0)     AS venda_110e220
        FROM vda v
-       LEFT JOIN vdit i ON v.vdacodigo    = i.vditcodigovda
-                       AND i.vditempresa  = $1
-       LEFT JOIN prod p  ON i.vditproduto = p.prodcodigo
+       LEFT JOIN vdit i
+         ON i.vditcodigovda = v.vdacodigo
+        AND i.vditempresa   = $1
+       LEFT JOIN prod p
+         ON p.prodcodigo = i.vditproduto
+       LEFT JOIN (
+           SELECT
+             CAST(r.entcpachegada AS date) AS dia,
+             t.entcpiproduto               AS produto,
+             SUM(
+               COALESCE(t.entcpivol1, 0) +
+               COALESCE(t.entcpivol2, 0) +
+               COALESCE(t.entcpivol3, 0)
+             ) AS total
+           FROM entcpi t
+           LEFT JOIN entcpa r
+             ON r.entcpacodigo  = t.entcpicompra
+            AND r.entcpaempresa = $1
+           WHERE t.entcpiempresa = $1
+           GROUP BY CAST(r.entcpachegada AS date), t.entcpiproduto
+       ) c110
+         ON c110.dia     = CAST(v.vdadata AS date)
+        AND c110.produto = p.prodcodigo
+       LEFT JOIN (
+           SELECT
+             CAST(d.pededatarecebimento AS date) AS dia,
+             e.pediproduto                        AS produto,
+             SUM(e.pediqtd)                       AS total
+           FROM pede d
+           LEFT JOIN pedi e
+             ON e.pedicodigopede = d.pedecodigo
+            AND e.pediempresa    = $1
+           WHERE d.pedeempresa = $1
+           GROUP BY CAST(d.pededatarecebimento AS date), e.pediproduto
+       ) c220
+         ON c220.dia     = CAST(v.vdadata AS date)
+        AND c220.produto = p.prodcodigo
+       LEFT JOIN (
+           SELECT
+             CAST(a.afermovimento AS date) AS dia,
+             a.aferproduto                 AS produto,
+             SUM(a.aferqtd)                AS total
+           FROM afer a
+           WHERE a.aferempresa = $1
+           GROUP BY CAST(a.afermovimento AS date), a.aferproduto
+       ) af
+         ON af.dia     = CAST(v.vdadata AS date)
+        AND af.produto = p.prodcodigo
        WHERE v.vdaempresa = $1
          AND p.prodtipo   = 1
          AND v.vdastatus  = 0
