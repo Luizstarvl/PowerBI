@@ -11550,6 +11550,7 @@ const ConvenienciaManager = ({ themeMode, selectedClient, clients }) => {
   // ── Auto-geração de imagens ──────────────────────────────────────────────
   const [autoGenOpen,   setAutoGenOpen]   = useState(false);
   const [autoGenSel,    setAutoGenSel]    = useState(null);   // null = todos sem imagem
+  const [autoGenBatch,  setAutoGenBatch]  = useState(20);     // máx por rodada
   const [autoGenStatus, setAutoGenStatus] = useState({
     running: false, current: 0, total: 0, currentName: '',
     feitos: [], erros: [],
@@ -11561,9 +11562,10 @@ const ConvenienciaManager = ({ themeMode, selectedClient, clients }) => {
   );
 
   const runAutoGen = async () => {
-    const lista = autoGenSel !== null
+    const fonte = autoGenSel !== null
       ? apiProds.filter(p => autoGenSel.includes(p.id))
       : produtosSemImagem;
+    const lista = fonte.slice(0, autoGenBatch);
     if (lista.length === 0) return;
 
     setAutoGenStatus({ running: true, current: 0, total: lista.length, currentName: '', feitos: [], erros: [] });
@@ -11875,14 +11877,44 @@ const ConvenienciaManager = ({ themeMode, selectedClient, clients }) => {
                   </div>
                 )}
 
-                {/* Botões de ação */}
+                {/* Seletor de lote + botões de ação */}
+                {produtosSemImagem.length > 0 && (
+                  <div style={{ marginBottom:14 }}>
+                    <div style={{ fontSize:12, color:'#94a3b8', marginBottom:6 }}>
+                      Gerar por lote <span style={{ color:'#475569' }}>(HuggingFace gratuito: ~{Math.min(autoGenBatch,150)} req/rodada)</span>
+                    </div>
+                    <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                      {[5,10,20,50].map(n => (
+                        <button
+                          key={n}
+                          onClick={() => setAutoGenBatch(n)}
+                          style={{
+                            padding:'5px 14px', borderRadius:6, fontSize:13, fontWeight:600, cursor:'pointer',
+                            border: autoGenBatch === n ? '2px solid #E31E24' : '1px solid #374151',
+                            background: autoGenBatch === n ? 'rgba(227,30,36,0.15)' : '#1f2937',
+                            color: autoGenBatch === n ? '#fca5a5' : '#94a3b8',
+                          }}
+                        >{n}</button>
+                      ))}
+                      <input
+                        type="number" min={1} max={500}
+                        value={autoGenBatch}
+                        onChange={e => setAutoGenBatch(Math.max(1, Math.min(500, parseInt(e.target.value)||1)))}
+                        style={{ width:70, padding:'5px 8px', borderRadius:6, border:'1px solid #374151', background:'#0f172a', color:'#f1f5f9', fontSize:13, textAlign:'center' }}
+                      />
+                    </div>
+                    <div style={{ marginTop:6, fontSize:11, color:'#475569' }}>
+                      Vai gerar as primeiras <strong style={{ color:'#94a3b8' }}>{Math.min(autoGenBatch, produtosSemImagem.length)}</strong> de {produtosSemImagem.length} · Tempo estimado: ~{Math.round(Math.min(autoGenBatch, produtosSemImagem.length) * 1.2)} min
+                    </div>
+                  </div>
+                )}
                 <div style={{ display:'flex', gap:10 }}>
                   {produtosSemImagem.length > 0 && (
                     <button
                       onClick={runAutoGen}
                       style={{ flex:1, padding:'11px 0', background:'linear-gradient(135deg,#E31E24,#b91c1c)', color:'#fff', border:'none', borderRadius:8, fontWeight:700, fontSize:14, cursor:'pointer' }}
                     >
-                      🤖 Gerar {produtosSemImagem.length} imagens
+                      🤖 Gerar {Math.min(autoGenBatch, produtosSemImagem.length)} imagens
                     </button>
                   )}
                   <button
