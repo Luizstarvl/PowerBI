@@ -5496,24 +5496,10 @@ const Financeiro = ({ clients, selectedClient, themeMode }) => {
         >
           💳 Cartões
         </button>
-        <button
-          className={`vp-period-btn vp-secao-btn${tab === 'fluxo' ? ' active' : ''}`}
-          onClick={() => setTab('fluxo')}
-        >
-          <Wallet size={15} /> Fluxo de Caixa
-        </button>
-        <button
-          className={`vp-period-btn vp-secao-btn${tab === 'conta' ? ' active' : ''}`}
-          onClick={() => setTab('conta')}
-        >
-          <Building2 size={15} /> Conta Corrente
-        </button>
       </div>
       {tab === 'receber' && <ContasReceber clients={clients} selectedClient={selectedClient} />}
       {tab === 'pagar' && <ContasPagar clients={clients} selectedClient={selectedClient} />}
       {tab === 'cartoes' && <ControleCartoes />}
-      {tab === 'fluxo' && <FluxoCaixa clients={clients} selectedClient={selectedClient} themeMode={themeMode} />}
-      {tab === 'conta' && <ContaCorrente clients={clients} selectedClient={selectedClient} themeMode={themeMode} />}
     </div>
   );
 };
@@ -11080,11 +11066,13 @@ const ControlPrintPanel = ({ fuels, filters, setFilters, onClose, onGenerate }) 
 };
 
 // ─── LivrosManager — seções dentro da aba Livros ────────────────────────────
-const LivrosManager = ({ lmcRegistros, lmcDiario, lmcControle, selectedPeriod, setSelectedPeriod, selectedClient, clients }) => {
+const LivrosManager = ({ lmcRegistros, lmcDiario, lmcControle, selectedPeriod, setSelectedPeriod, selectedClient, clients, themeMode }) => {
   const [section, setSection] = useState('movimentacao');
 
   const sections = [
     { id: 'movimentacao', label: '⛽ Movimentação de Combustíveis' },
+    { id: 'fluxo',        label: '💵 Fluxo de Caixa'               },
+    { id: 'conta',        label: '🏦 Conta Corrente'                },
   ];
 
   return (
@@ -11115,6 +11103,12 @@ const LivrosManager = ({ lmcRegistros, lmcDiario, lmcControle, selectedPeriod, s
           selectedClient={selectedClient}
           clients={clients}
         />
+      )}
+      {section === 'fluxo' && (
+        <FluxoCaixa clients={clients} selectedClient={selectedClient} themeMode={themeMode} />
+      )}
+      {section === 'conta' && (
+        <ContaCorrente clients={clients} selectedClient={selectedClient} themeMode={themeMode} />
       )}
     </div>
   );
@@ -14852,7 +14846,7 @@ export default function App() {
       case 'reports':
         return <Reports selectedClient={selectedClient} selectedPeriod={reportsPeriod} setSelectedPeriod={setReportsPeriod} clients={clients} />;
       case 'control':
-        return <LivrosManager lmcRegistros={apiData.lmcRegistros} lmcDiario={apiData.lmcDiario} lmcControle={apiData.lmcControle} selectedPeriod={controlPeriod} setSelectedPeriod={setControlPeriod} selectedClient={selectedClient} clients={clients} />;
+        return <LivrosManager lmcRegistros={apiData.lmcRegistros} lmcDiario={apiData.lmcDiario} lmcControle={apiData.lmcControle} selectedPeriod={controlPeriod} setSelectedPeriod={setControlPeriod} selectedClient={selectedClient} clients={clients} themeMode={themeMode} />;
       case 'stock':
         return <EstoqueManager estoques={apiData.estoques} projecao={apiData.projecao} loading={apiData.loading} selectedClient={selectedClient} clients={clients} themeMode={themeMode} />;
       case 'receber':
