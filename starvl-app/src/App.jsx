@@ -8,6 +8,7 @@ import './App.css';
 import './cr-styles.css';
 import './cp-styles.css';
 import './pm-styles.css';
+import './ct-styles.css';
 
 // Mock data
 const hourlyData = [
@@ -3023,6 +3024,480 @@ const ContasPagar = ({ clients, selectedClient }) => {
 };
 // ── fim ContasPagar ───────────────────────────────────────────────────────────
 
+// ── Controle de Cartões ───────────────────────────────────────────────────────
+const CT_MAQUININHAS = [
+  { id:1, nome:'Cielo Lio',       sn:'12345678901234', local:'Caixa 01', adquirente:'Cielo',      bandeira:'Crédito', taxa:2.49, vencDias:30, vencTipo:'Padrão', proxVenc:'2025-06-20', recebPrevisto:156897.00, recebAntecipado:85293.12, status:'Ativa' },
+  { id:2, nome:'Mastercard Pay',  sn:'98765432109876', local:'Caixa 02', adquirente:'Mastercard', bandeira:'Crédito', taxa:2.35, vencDias:28, vencTipo:'Padrão', proxVenc:'2025-06-18', recebPrevisto:201345.00, recebAntecipado:56412.71, status:'Ativa' },
+  { id:3, nome:'Rede Getnet',     sn:'56473829105647', local:'Caixa 03', adquirente:'Rede',       bandeira:'Débito',  taxa:1.95, vencDias:2,  vencTipo:'Padrão', proxVenc:'2025-05-22', recebPrevisto:85029.00,  recebAntecipado:32560.00, status:'Ativa' },
+  { id:4, nome:'PagSeguro Smart', sn:'11223344556677', local:'Caixa 04', adquirente:'PagSeguro',  bandeira:'Crédito', taxa:2.99, vencDias:14, vencTipo:'D+14',   proxVenc:'2025-06-03', recebPrevisto:64800.00,  recebAntecipado:0,        status:'Ativa' },
+  { id:5, nome:'Stone Ton Mini',  sn:'99887766554433', local:'Caixa 05', adquirente:'Stone',      bandeira:'Débito',  taxa:0.99, vencDias:1,  vencTipo:'D+1',    proxVenc:'2025-05-27', recebPrevisto:38200.00,  recebAntecipado:0,        status:'Ativa' },
+  { id:6, nome:'Cielo V3',        sn:'55443322110099', local:'Caixa 06', adquirente:'Cielo',      bandeira:'Crédito', taxa:2.49, vencDias:30, vencTipo:'Padrão', proxVenc:'2025-06-20', recebPrevisto:29400.00,  recebAntecipado:0,        status:'Ativa' },
+  { id:7, nome:'GetNet Smart',    sn:'77665544332211', local:'Pátio',    adquirente:'GetNet',     bandeira:'Débito',  taxa:1.49, vencDias:3,  vencTipo:'D+3',    proxVenc:'2025-05-26', recebPrevisto:21000.00,  recebAntecipado:0,        status:'Ativa' },
+];
+
+const CT_POS_CFG = {
+  Cielo:      { body:'#1d4ed8', screen:'#1e3a8a', key:'#93c5fd', label:'CIELO' },
+  Mastercard: { body:'#1c1c2e', screen:'#0f0f1a', key:'#f59e0b', label:'MC'    },
+  Rede:       { body:'#991b1b', screen:'#7f1d1d', key:'#fca5a5', label:'REDE'  },
+  PagSeguro:  { body:'#1e3a8a', screen:'#172554', key:'#93c5fd', label:'PAG'   },
+  Stone:      { body:'#166534', screen:'#14532d', key:'#86efac', label:'STONE' },
+  GetNet:     { body:'#9a3412', screen:'#7c2d12', key:'#fed7aa', label:'GNET'  },
+};
+
+const PosMachineIcon = ({ adquirente }) => {
+  const c = CT_POS_CFG[adquirente] || { body:'#374151', screen:'#1f2937', key:'#9ca3af', label:'POS' };
+  return (
+    <svg viewBox="0 0 60 90" width={60} height={90} style={{display:'block',borderRadius:8,flexShrink:0}}>
+      <rect x={0} y={0} width={60} height={90} rx={8} fill={c.body}/>
+      <rect x={0} y={0} width={60} height={6} rx={8} fill="rgba(255,255,255,0.14)"/>
+      <rect x={5} y={8} width={50} height={34} rx={3} fill={c.screen}/>
+      <text x={30} y={30} textAnchor="middle" fill="#fff" fontSize={8} fontWeight={900} fontFamily="Arial,sans-serif">{c.label}</text>
+      <circle cx={46} cy={17} r={5} fill="none" stroke="rgba(255,255,255,0.25)" strokeWidth={1}/>
+      <circle cx={46} cy={17} r={3} fill="none" stroke="rgba(255,255,255,0.25)" strokeWidth={1}/>
+      <rect x={5} y={47} width={50} height={4} rx={2} fill="rgba(0,0,0,0.4)"/>
+      <rect x={8}  y={56} width={12} height={6} rx={1.5} fill={c.key} opacity={0.72}/>
+      <rect x={24} y={56} width={12} height={6} rx={1.5} fill={c.key} opacity={0.72}/>
+      <rect x={40} y={56} width={12} height={6} rx={1.5} fill={c.key} opacity={0.72}/>
+      <rect x={8}  y={66} width={12} height={6} rx={1.5} fill={c.key} opacity={0.72}/>
+      <rect x={24} y={66} width={12} height={6} rx={1.5} fill={c.key} opacity={0.72}/>
+      <rect x={40} y={66} width={12} height={6} rx={1.5} fill={c.key} opacity={0.72}/>
+      <rect x={8}  y={76} width={12} height={6} rx={1.5} fill={c.key} opacity={0.72}/>
+      <rect x={24} y={76} width={28} height={6} rx={1.5} fill="#22c55e" opacity={0.88}/>
+    </svg>
+  );
+};
+
+const AdquirenteLogo = ({ adquirente }) => {
+  if (adquirente === 'Cielo')      return <span className="ct-adq-cielo">cielo</span>;
+  if (adquirente === 'Mastercard') return (
+    <div className="ct-adq-mastercard">
+      <div className="mc-r"/>
+      <div className="mc-y"/>
+    </div>
+  );
+  if (adquirente === 'Rede')       return <span className="ct-adq-rede">rede<sup style={{fontSize:8,verticalAlign:'super'}}>.</sup></span>;
+  if (adquirente === 'PagSeguro')  return <span className="ct-adq-pagseguro">PagSeguro</span>;
+  if (adquirente === 'Stone')      return <div className="ct-adq-stone"><div className="stone-dot"/><span>Stone</span></div>;
+  return <span className="ct-adq-getnet">{adquirente}</span>;
+};
+
+const ControleCartoes = () => {
+  const [search,        setSearch]        = useState('');
+  const [statusFiltro,  setStatusFiltro]  = useState('todos');
+  const [bandFiltro,    setBandFiltro]    = useState('todos');
+  const [vencDe,        setVencDe]        = useState('');
+  const [vencAte,       setVencAte]       = useState('');
+  const [page,          setPage]          = useState(1);
+  const [viewModal,     setViewModal]     = useState(null); // machine obj
+  const [novaModal,     setNovaModal]     = useState(false);
+  const [openMore,      setOpenMore]      = useState(null); // id of row with open menu
+  const [maquininhas,   setMaquininhas]   = useState(CT_MAQUININHAS);
+  const [novaForm,      setNovaForm]      = useState({ nome:'', sn:'', local:'', adquirente:'Cielo', bandeira:'Crédito', taxa:'', vencDias:'', vencTipo:'Padrão', proxVenc:'', recebPrevisto:'', recebAntecipado:'', status:'Ativa' });
+
+  const ITEMS_PP = 3;
+  const fmtBRL  = v => Number(v||0).toLocaleString('pt-BR', { style:'currency', currency:'BRL' });
+  const fmtDate = d => d ? d.split('-').reverse().join('/') : '—';
+  const fmtPct  = v => `${Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}%`;
+
+  const filtered = useMemo(() => maquininhas.filter(m => {
+    if (search) {
+      const s = search.toLowerCase();
+      if (!m.nome.toLowerCase().includes(s) && !m.adquirente.toLowerCase().includes(s) && !m.bandeira.toLowerCase().includes(s)) return false;
+    }
+    if (statusFiltro !== 'todos' && m.status.toLowerCase() !== statusFiltro) return false;
+    if (bandFiltro   !== 'todos' && m.bandeira.toLowerCase() !== bandFiltro)  return false;
+    return true;
+  }), [maquininhas, search, statusFiltro, bandFiltro]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PP));
+  const pageItems  = filtered.slice((page-1)*ITEMS_PP, page*ITEMS_PP);
+  const ativas     = maquininhas.filter(m => m.status === 'Ativa').length;
+  const taxaMedia  = maquininhas.length ? maquininhas.reduce((s,m) => s + m.taxa, 0) / maquininhas.length : 0;
+
+  const handleSalvarNova = () => {
+    if (!novaForm.nome.trim() || !novaForm.sn.trim()) { toast('Preencha ao menos o nome e número de série.', 'warn'); return; }
+    const newM = { ...novaForm, id: Date.now(), taxa: parseFloat(novaForm.taxa)||0, vencDias: parseInt(novaForm.vencDias)||30, recebPrevisto: parseFloat(novaForm.recebPrevisto)||0, recebAntecipado: parseFloat(novaForm.recebAntecipado)||0 };
+    setMaquininhas(prev => [...prev, newM]);
+    setNovaModal(false);
+    setNovaForm({ nome:'', sn:'', local:'', adquirente:'Cielo', bandeira:'Crédito', taxa:'', vencDias:'', vencTipo:'Padrão', proxVenc:'', recebPrevisto:'', recebAntecipado:'', status:'Ativa' });
+    toast('✅ Maquininha cadastrada com sucesso!', 'success');
+  };
+
+  const handleExcluir = (id) => {
+    setMaquininhas(prev => prev.filter(m => m.id !== id));
+    setOpenMore(null);
+    toast('Maquininha removida.', 'info');
+  };
+
+  // Close more menu when clicking outside
+  const handlePageClick = () => { if (openMore !== null) setOpenMore(null); };
+
+  const renderPagination = () => {
+    const pages = [];
+    if (totalPages <= 7) { for(let i=1;i<=totalPages;i++) pages.push(i); }
+    else {
+      pages.push(1);
+      if (page > 3) pages.push('...');
+      for(let i=Math.max(2,page-1); i<=Math.min(totalPages-1,page+1); i++) pages.push(i);
+      if (page < totalPages-2) pages.push('...');
+      pages.push(totalPages);
+    }
+    const from = filtered.length === 0 ? 0 : (page-1)*ITEMS_PP+1;
+    const to   = Math.min(page*ITEMS_PP, filtered.length);
+    return (
+      <div className="ct-pagination">
+        <span className="ct-pag-info">Mostrando {from} a {to} de {filtered.length} maquininha{filtered.length!==1?'s':''}</span>
+        <div className="ct-pag-btns">
+          <button className="ct-pag-btn" disabled={page<=1} onClick={()=>setPage(1)}>«</button>
+          <button className="ct-pag-btn" disabled={page<=1} onClick={()=>setPage(p=>p-1)}>‹</button>
+          {pages.map((p,i) => p==='...'
+            ? <span key={`e${i}`} className="ct-pag-ellipsis">...</span>
+            : <button key={p} className={`ct-pag-btn${page===p?' active':''}`} onClick={()=>setPage(p)}>{p}</button>
+          )}
+          <button className="ct-pag-btn" disabled={page>=totalPages} onClick={()=>setPage(p=>p+1)}>›</button>
+          <button className="ct-pag-btn" disabled={page>=totalPages} onClick={()=>setPage(totalPages)}>»</button>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="ct-page" onClick={handlePageClick}>
+      {/* ── Header ──────────────────────────────────────────────────────── */}
+      <div className="ct-header">
+        <div className="ct-header-title">
+          <CreditCard size={26} color="#E31E24"/>
+          <h2>CONTROLE DE CARTÕES</h2>
+          <span className="ct-demo-badge">demonstração</span>
+        </div>
+        <div className="ct-header-actions">
+          <button className="ct-btn-nova" onClick={()=>setNovaModal(true)}>
+            <Plus size={14}/> Nova Maquininha
+          </button>
+          <button className="ct-btn-export" onClick={()=>{
+            const ws = XLSX.utils.json_to_sheet(maquininhas.map(m=>({
+              Nome:m.nome,SN:m.sn,Local:m.local,Adquirente:m.adquirente,Bandeira:m.bandeira,
+              'Taxa (%)':m.taxa,'Venc. Dias':m.vencDias,'Tipo Venc.':m.vencTipo,
+              'Próx. Venc.':fmtDate(m.proxVenc),'Receb. Previsto':m.recebPrevisto,
+              'Receb. Antecipado':m.recebAntecipado,Status:m.status,
+            })));
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb,ws,'Cartões');
+            XLSX.writeFile(wb,'controle-cartoes.xlsx');
+          }}>
+            <Download size={14}/> Exportar Excel
+          </button>
+        </div>
+      </div>
+
+      {/* ── KPIs ────────────────────────────────────────────────────────── */}
+      <div className="ct-kpi-row">
+        {[
+          { label:'Total de Maquininhas', value: String(ativas), sub:'ativas',          icon: Database,       color:'#f8fafc', bg:'rgba(248,250,252,0.08)' },
+          { label:'Volume no Mês',        value: 'R$ 628.271',   sub:'R$ 628.271,00',   icon: TrendingUp,     color:'#22c55e', bg:'rgba(34,197,94,0.12)' },
+          { label:'Taxa Média',           value: fmtPct(taxaMedia), sub:'ponderada',    icon: BarChart2,      color:'#a78bfa', bg:'rgba(167,139,250,0.12)' },
+          { label:'Recebimento Previsto', value: 'R$ 323.404',   sub:'R$ 323.404,84',   icon: CircleDollarSign, color:'#c084fc', bg:'rgba(192,132,252,0.12)' },
+          { label:'Receb. Antecipado',    value: 'R$ 174.265',   sub:'R$ 174.265,83',   icon: Clock,          color:'#fbbf24', bg:'rgba(251,191,36,0.12)'  },
+        ].map(k => (
+          <div key={k.label} className="ct-kpi">
+            <div className="ct-kpi-icon" style={{background:k.bg}}>
+              <k.icon size={22} color={k.color}/>
+            </div>
+            <div className="ct-kpi-body">
+              <span className="ct-kpi-label">{k.label}</span>
+              <span className="ct-kpi-value" style={{color:k.color}}>{k.value}</span>
+              <span className="ct-kpi-sub">{k.sub}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Filters ─────────────────────────────────────────────────────── */}
+      <div className="ct-filters">
+        <div className="ct-search-wrap">
+          <Search size={14} className="ct-search-icon"/>
+          <input className="ct-search" placeholder="Buscar maquininha, adquirente ou bandeira..."
+            value={search} onChange={e=>{setSearch(e.target.value);setPage(1);}}/>
+        </div>
+        <select className="ct-select" value={statusFiltro} onChange={e=>{setStatusFiltro(e.target.value);setPage(1);}}>
+          <option value="todos">Todos os Status</option>
+          <option value="ativa">Ativa</option>
+          <option value="inativa">Inativa</option>
+        </select>
+        <select className="ct-select" value={bandFiltro} onChange={e=>{setBandFiltro(e.target.value);setPage(1);}}>
+          <option value="todos">Todas as Bandeiras</option>
+          <option value="crédito">Crédito</option>
+          <option value="débito">Débito</option>
+        </select>
+        <div className="ct-date-range">
+          <span className="ct-date-label">Vencimento de</span>
+          <input type="date" className="ct-date-input" value={vencDe}  onChange={e=>setVencDe(e.target.value)}/>
+          <span className="ct-date-label">até</span>
+          <input type="date" className="ct-date-input" value={vencAte} onChange={e=>setVencAte(e.target.value)}/>
+          {(vencDe||vencAte) && <button className="ct-clear-btn" onClick={()=>{setVencDe('');setVencAte('');}}><X size={12}/></button>}
+        </div>
+      </div>
+
+      {/* ── Table ───────────────────────────────────────────────────────── */}
+      <div className="ct-table-wrap">
+        <table className="ct-table">
+          <thead>
+            <tr>
+              <th>MAQUININHA</th>
+              <th>ADQUIRENTE</th>
+              <th>BANDEIRA</th>
+              <th>TAXA (%)</th>
+              <th>VENCIMENTO</th>
+              <th className="ct-th-right">RECEBIMENTO PREVISTO</th>
+              <th className="ct-th-right">RECEBIMENTO ANTECIPADO</th>
+              <th className="ct-th-center">STATUS</th>
+              <th className="ct-th-center">AÇÕES</th>
+            </tr>
+          </thead>
+          <tbody>
+            {pageItems.length === 0 && (
+              <tr><td colSpan={9} style={{textAlign:'center',padding:40,color:'#64748b',fontSize:14}}>Nenhuma maquininha encontrada.</td></tr>
+            )}
+            {pageItems.map(m => (
+              <tr key={m.id} className="ct-row">
+                {/* MAQUININHA */}
+                <td>
+                  <div className="ct-maq-cell">
+                    <PosMachineIcon adquirente={m.adquirente}/>
+                    <div className="ct-maq-info">
+                      <span className="ct-maq-nome">{m.nome}</span>
+                      <span className="ct-maq-sn">SN: {m.sn}</span>
+                      <span className="ct-maq-local"><MapPin size={11}/>{m.local}</span>
+                    </div>
+                  </div>
+                </td>
+                {/* ADQUIRENTE */}
+                <td>
+                  <div className="ct-adq-cell">
+                    <div className="ct-adq-logo"><AdquirenteLogo adquirente={m.adquirente}/></div>
+                    <span className="ct-adq-sub">{m.adquirente}</span>
+                  </div>
+                </td>
+                {/* BANDEIRA */}
+                <td>
+                  {m.bandeira === 'Crédito'
+                    ? <span className="ct-badge-credito"><CreditCard size={11}/> Crédito</span>
+                    : <span className="ct-badge-debito"><Layers size={11}/> Débito</span>
+                  }
+                </td>
+                {/* TAXA */}
+                <td>
+                  <div className="ct-taxa-cell">
+                    <span className="ct-taxa-val">{fmtPct(m.taxa)}</span>
+                    <span className="ct-taxa-label">Taxa</span>
+                  </div>
+                </td>
+                {/* VENCIMENTO */}
+                <td>
+                  <div className="ct-venc-cell">
+                    <span className="ct-venc-dias">{m.vencDias} {m.vencDias===1?'dia':'dias'}</span>
+                    <span className="ct-venc-tipo">{m.vencTipo}</span>
+                    <span className="ct-venc-prox">Próx. venc.: {fmtDate(m.proxVenc)}</span>
+                  </div>
+                </td>
+                {/* RECEBIMENTO PREVISTO */}
+                <td style={{textAlign:'right'}}>
+                  <div className="ct-rec-cell">
+                    <span className="ct-rec-val">{fmtBRL(m.recebPrevisto)}</span>
+                    <span className="ct-rec-prox">Próx. venc.: {fmtDate(m.proxVenc)}</span>
+                  </div>
+                </td>
+                {/* RECEBIMENTO ANTECIPADO */}
+                <td style={{textAlign:'right'}}>
+                  <div className="ct-rec-cell">
+                    {m.recebAntecipado > 0
+                      ? <><span className="ct-rec-val">{fmtBRL(m.recebAntecipado)}</span><span className="ct-rec-disponivel">Disponível</span></>
+                      : <span className="ct-rec-zero">—</span>
+                    }
+                  </div>
+                </td>
+                {/* STATUS */}
+                <td style={{textAlign:'center'}}>
+                  {m.status === 'Ativa'
+                    ? <span className="ct-status-ativa"><span className="ct-status-dot" style={{background:'#22c55e'}}/> Ativa</span>
+                    : <span className="ct-status-inativa"><span className="ct-status-dot" style={{background:'#ef4444'}}/> Inativa</span>
+                  }
+                </td>
+                {/* AÇÕES */}
+                <td>
+                  <div className="ct-actions" onClick={e=>e.stopPropagation()}>
+                    <button className="ct-action-btn" title="Visualizar" onClick={()=>setViewModal(m)}><Eye size={14}/></button>
+                    <button className="ct-action-btn ct-action-edit" title="Editar" onClick={()=>toast('Edição disponível na versão completa.','info')}><Edit2 size={14}/></button>
+                    <div className="ct-action-more" style={{position:'relative'}}>
+                      <button className="ct-action-btn ct-action-more-btn" title="Mais ações"
+                        onClick={()=>setOpenMore(openMore===m.id?null:m.id)}>
+                        <svg width={14} height={14} viewBox="0 0 24 24" fill="currentColor">
+                          <circle cx={5} cy={12} r={2}/><circle cx={12} cy={12} r={2}/><circle cx={19} cy={12} r={2}/>
+                        </svg>
+                      </button>
+                      {openMore===m.id && (
+                        <div className="ct-more-menu">
+                          <div className="ct-more-item" onClick={()=>{
+                            setMaquininhas(prev=>prev.map(x=>x.id===m.id?{...x,status:x.status==='Ativa'?'Inativa':'Ativa'}:x));
+                            setOpenMore(null);
+                            toast(`Maquininha ${m.status==='Ativa'?'inativada':'ativada'}.`,'info');
+                          }}>
+                            {m.status==='Ativa'?<Lock size={13}/>:<Unlock size={13}/>} {m.status==='Ativa'?'Inativar':'Ativar'}
+                          </div>
+                          <div className="ct-more-item" onClick={()=>{ setViewModal(m); setOpenMore(null); }}>
+                            <Eye size={13}/> Detalhes
+                          </div>
+                          <div className="ct-more-item danger" onClick={()=>handleExcluir(m.id)}>
+                            <Trash2 size={13}/> Excluir
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* ── Pagination ──────────────────────────────────────────────────── */}
+      {renderPagination()}
+
+      {/* ── View Modal ──────────────────────────────────────────────────── */}
+      {viewModal && (
+        <div className="ct-modal-overlay" onClick={()=>setViewModal(null)}>
+          <div className="ct-modal" onClick={e=>e.stopPropagation()}>
+            <div className="ct-modal-header">
+              <h3><CreditCard size={18} color="#E31E24"/> {viewModal.nome}</h3>
+              <button className="ct-modal-close" onClick={()=>setViewModal(null)}><X size={18}/></button>
+            </div>
+            <div className="ct-modal-body">
+              <div style={{display:'flex',justifyContent:'center',margin:'8px 0 4px'}}>
+                <PosMachineIcon adquirente={viewModal.adquirente}/>
+              </div>
+              <div className="ct-modal-section">Identificação</div>
+              {[
+                ['Nome',             viewModal.nome],
+                ['Número de Série',  viewModal.sn],
+                ['Local / Caixa',    viewModal.local],
+                ['Adquirente',       viewModal.adquirente],
+                ['Bandeira',         viewModal.bandeira],
+                ['Status',           viewModal.status],
+              ].map(([k,v])=>(
+                <div key={k} className="ct-modal-row">
+                  <span className="ct-modal-key">{k}</span>
+                  <span className="ct-modal-val">{v}</span>
+                </div>
+              ))}
+              <div className="ct-modal-section">Taxas e Prazos</div>
+              {[
+                ['Taxa',                  fmtPct(viewModal.taxa)],
+                ['Prazo de Vencimento',   `${viewModal.vencDias} ${viewModal.vencDias===1?'dia':'dias'} — ${viewModal.vencTipo}`],
+                ['Próximo Vencimento',    fmtDate(viewModal.proxVenc)],
+              ].map(([k,v])=>(
+                <div key={k} className="ct-modal-row">
+                  <span className="ct-modal-key">{k}</span>
+                  <span className="ct-modal-val">{v}</span>
+                </div>
+              ))}
+              <div className="ct-modal-section">Recebimentos</div>
+              {[
+                ['Recebimento Previsto',    fmtBRL(viewModal.recebPrevisto)],
+                ['Recebimento Antecipado',  viewModal.recebAntecipado>0 ? fmtBRL(viewModal.recebAntecipado) : '—'],
+              ].map(([k,v])=>(
+                <div key={k} className="ct-modal-row">
+                  <span className="ct-modal-key">{k}</span>
+                  <span className="ct-modal-val" style={{color:'#22c55e'}}>{v}</span>
+                </div>
+              ))}
+            </div>
+            <div className="ct-modal-footer">
+              <button className="ct-modal-cancel" onClick={()=>setViewModal(null)}>Fechar</button>
+              <button className="ct-modal-save" onClick={()=>{toast('Edição disponível na versão completa.','info');setViewModal(null);}}>
+                <Edit2 size={13}/> Editar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Nova Maquininha Modal ────────────────────────────────────────── */}
+      {novaModal && (
+        <div className="ct-modal-overlay" onClick={()=>setNovaModal(false)}>
+          <div className="ct-modal" onClick={e=>e.stopPropagation()}>
+            <div className="ct-modal-header">
+              <h3><Plus size={18} color="#E31E24"/> Nova Maquininha</h3>
+              <button className="ct-modal-close" onClick={()=>setNovaModal(false)}><X size={18}/></button>
+            </div>
+            <div className="ct-form-body">
+              <div className="ct-form-grid">
+                <div className="ct-form-field">
+                  <label className="ct-form-label">Nome da Maquininha *</label>
+                  <input className="ct-form-input" placeholder="Ex: Cielo Lio" value={novaForm.nome} onChange={e=>setNovaForm(f=>({...f,nome:e.target.value}))}/>
+                </div>
+                <div className="ct-form-field">
+                  <label className="ct-form-label">Número de Série *</label>
+                  <input className="ct-form-input" placeholder="SN: 00000000000000" value={novaForm.sn} onChange={e=>setNovaForm(f=>({...f,sn:e.target.value}))}/>
+                </div>
+                <div className="ct-form-field">
+                  <label className="ct-form-label">Local / Caixa</label>
+                  <input className="ct-form-input" placeholder="Ex: Caixa 01" value={novaForm.local} onChange={e=>setNovaForm(f=>({...f,local:e.target.value}))}/>
+                </div>
+                <div className="ct-form-field">
+                  <label className="ct-form-label">Adquirente</label>
+                  <select className="ct-form-select" value={novaForm.adquirente} onChange={e=>setNovaForm(f=>({...f,adquirente:e.target.value}))}>
+                    {['Cielo','Mastercard','Rede','PagSeguro','Stone','GetNet'].map(a=><option key={a}>{a}</option>)}
+                  </select>
+                </div>
+                <div className="ct-form-field">
+                  <label className="ct-form-label">Bandeira</label>
+                  <select className="ct-form-select" value={novaForm.bandeira} onChange={e=>setNovaForm(f=>({...f,bandeira:e.target.value}))}>
+                    <option>Crédito</option>
+                    <option>Débito</option>
+                  </select>
+                </div>
+                <div className="ct-form-field">
+                  <label className="ct-form-label">Taxa (%)</label>
+                  <input className="ct-form-input" type="number" step="0.01" placeholder="2.49" value={novaForm.taxa} onChange={e=>setNovaForm(f=>({...f,taxa:e.target.value}))}/>
+                </div>
+                <div className="ct-form-field">
+                  <label className="ct-form-label">Prazo (dias)</label>
+                  <input className="ct-form-input" type="number" placeholder="30" value={novaForm.vencDias} onChange={e=>setNovaForm(f=>({...f,vencDias:e.target.value}))}/>
+                </div>
+                <div className="ct-form-field">
+                  <label className="ct-form-label">Tipo de Vencimento</label>
+                  <select className="ct-form-select" value={novaForm.vencTipo} onChange={e=>setNovaForm(f=>({...f,vencTipo:e.target.value}))}>
+                    {['Padrão','D+1','D+3','D+14','D+30'].map(t=><option key={t}>{t}</option>)}
+                  </select>
+                </div>
+                <div className="ct-form-field">
+                  <label className="ct-form-label">Próximo Vencimento</label>
+                  <input className="ct-form-input" type="date" value={novaForm.proxVenc} onChange={e=>setNovaForm(f=>({...f,proxVenc:e.target.value}))}/>
+                </div>
+                <div className="ct-form-field">
+                  <label className="ct-form-label">Status</label>
+                  <select className="ct-form-select" value={novaForm.status} onChange={e=>setNovaForm(f=>({...f,status:e.target.value}))}>
+                    <option>Ativa</option>
+                    <option>Inativa</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div className="ct-modal-footer">
+              <button className="ct-modal-cancel" onClick={()=>setNovaModal(false)}>Cancelar</button>
+              <button className="ct-modal-save" onClick={handleSalvarNova}>
+                <Save size={13}/> Salvar Maquininha
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+// ── fim Controle de Cartões ───────────────────────────────────────────────────
+
 // ── Financeiro (wrapper com abas Receber / Pagar) ────────────────────────────
 const Financeiro = ({ clients, selectedClient }) => {
   const [tab, setTab] = useState('receber');
@@ -3041,11 +3516,16 @@ const Financeiro = ({ clients, selectedClient }) => {
         >
           📤 Contas a Pagar
         </button>
+        <button
+          className={`vp-period-btn vp-secao-btn${tab === 'cartoes' ? ' active' : ''}`}
+          onClick={() => setTab('cartoes')}
+        >
+          💳 Cartões
+        </button>
       </div>
-      {tab === 'receber'
-        ? <ContasReceber clients={clients} selectedClient={selectedClient} />
-        : <ContasPagar   clients={clients} selectedClient={selectedClient} />
-      }
+      {tab === 'receber' ? <ContasReceber clients={clients} selectedClient={selectedClient} />
+      : tab === 'pagar'  ? <ContasPagar   clients={clients} selectedClient={selectedClient} />
+      : <ControleCartoes />}
     </div>
   );
 };
