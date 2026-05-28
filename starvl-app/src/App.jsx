@@ -3,7 +3,7 @@ import logoStarvl from './logo-starvl.png';
 import logoStarvlBlack from './logo-starvl-black.png';
 import * as XLSX from 'xlsx';
 import { LineChart, Line, BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Area, AreaChart, LabelList, ComposedChart, ReferenceLine, PieChart, Pie } from 'recharts';
-import { Home, FileText, Users as UsersIcon, BookOpen, Package, LogOut, Eye, Search, Plus, Edit2, Trash2, X, Calendar, TrendingUp, Droplet, DollarSign, Calculator, Bell, ChevronDown, Activity, Settings, Building2, Phone, Mail, MapPin, Hash, Clock, BarChart2, Layers, CircleDollarSign, UserCheck, UserPlus, AlertCircle, Globe, Camera, Building, Tag, RefreshCw, Database, ChevronRight, ChevronLeft, Filter, Printer, Moon, Sun, Trophy, Lock, Unlock, Wallet, Download, CreditCard, AlertTriangle, Save, PiggyBank, Target, CheckCircle, TrendingDown, Flag } from 'lucide-react';
+import { Home, FileText, Users as UsersIcon, BookOpen, Package, LogOut, Eye, Search, Plus, Edit2, Trash2, X, Calendar, TrendingUp, Droplet, DollarSign, Calculator, Bell, ChevronDown, Activity, Settings, Building2, Phone, Mail, MapPin, Hash, Clock, BarChart2, Layers, CircleDollarSign, UserCheck, UserPlus, AlertCircle, Globe, Camera, Building, Tag, RefreshCw, Database, ChevronRight, ChevronLeft, Filter, Printer, Moon, Sun, Trophy, Lock, Unlock, Wallet, Download, CreditCard, AlertTriangle, Save, PiggyBank, Target, CheckCircle, TrendingDown, Flag, Upload } from 'lucide-react';
 import './App.css';
 import './cr-styles.css';
 import './cp-styles.css';
@@ -3026,14 +3026,15 @@ const ContasPagar = ({ clients, selectedClient }) => {
 
 // ── Controle de Cartões ───────────────────────────────────────────────────────
 const CT_MAQUININHAS = [
-  { id:1, nome:'Cielo Lio',       sn:'12345678901234', local:'Caixa 01', adquirente:'Cielo',      bandeira:'Crédito', taxa:2.49, vencDias:30, vencTipo:'Padrão', proxVenc:'2025-06-20', recebPrevisto:156897.00, recebAntecipado:85293.12, status:'Ativa' },
-  { id:2, nome:'Mastercard Pay',  sn:'98765432109876', local:'Caixa 02', adquirente:'Mastercard', bandeira:'Crédito', taxa:2.35, vencDias:28, vencTipo:'Padrão', proxVenc:'2025-06-18', recebPrevisto:201345.00, recebAntecipado:56412.71, status:'Ativa' },
-  { id:3, nome:'Rede Getnet',     sn:'56473829105647', local:'Caixa 03', adquirente:'Rede',       bandeira:'Débito',  taxa:1.95, vencDias:2,  vencTipo:'Padrão', proxVenc:'2025-05-22', recebPrevisto:85029.00,  recebAntecipado:32560.00, status:'Ativa' },
-  { id:4, nome:'PagSeguro Smart', sn:'11223344556677', local:'Caixa 04', adquirente:'PagSeguro',  bandeira:'Crédito', taxa:2.99, vencDias:14, vencTipo:'D+14',   proxVenc:'2025-06-03', recebPrevisto:64800.00,  recebAntecipado:0,        status:'Ativa' },
-  { id:5, nome:'Stone Ton Mini',  sn:'99887766554433', local:'Caixa 05', adquirente:'Stone',      bandeira:'Débito',  taxa:0.99, vencDias:1,  vencTipo:'D+1',    proxVenc:'2025-05-27', recebPrevisto:38200.00,  recebAntecipado:0,        status:'Ativa' },
-  { id:6, nome:'Cielo V3',        sn:'55443322110099', local:'Caixa 06', adquirente:'Cielo',      bandeira:'Crédito', taxa:2.49, vencDias:30, vencTipo:'Padrão', proxVenc:'2025-06-20', recebPrevisto:29400.00,  recebAntecipado:0,        status:'Ativa' },
-  { id:7, nome:'GetNet Smart',    sn:'77665544332211', local:'Pátio',    adquirente:'GetNet',     bandeira:'Débito',  taxa:1.49, vencDias:3,  vencTipo:'D+3',    proxVenc:'2025-05-26', recebPrevisto:21000.00,  recebAntecipado:0,        status:'Ativa' },
+  { id:1, nome:'Cielo Lio',       sn:'12345678901234', local:'Caixa 01', adquirente:'Cielo',      bandeira:'Crédito', taxa:2.49, vencDias:30, vencTipo:'Padrão', proxVenc:'2025-06-20', recebPrevisto:156897.00, recebAntecipado:85293.12, status:'Ativa', imgMaquininha:null, imgBandeira:null },
+  { id:2, nome:'Mastercard Pay',  sn:'98765432109876', local:'Caixa 02', adquirente:'Mastercard', bandeira:'Crédito', taxa:2.35, vencDias:28, vencTipo:'Padrão', proxVenc:'2025-06-18', recebPrevisto:201345.00, recebAntecipado:56412.71, status:'Ativa', imgMaquininha:null, imgBandeira:null },
+  { id:3, nome:'Rede Getnet',     sn:'56473829105647', local:'Caixa 03', adquirente:'Rede',       bandeira:'Débito',  taxa:1.95, vencDias:2,  vencTipo:'Padrão', proxVenc:'2025-05-22', recebPrevisto:85029.00,  recebAntecipado:32560.00, status:'Ativa', imgMaquininha:null, imgBandeira:null },
+  { id:4, nome:'PagSeguro Smart', sn:'11223344556677', local:'Caixa 04', adquirente:'PagSeguro',  bandeira:'Crédito', taxa:2.99, vencDias:14, vencTipo:'D+14',   proxVenc:'2025-06-03', recebPrevisto:64800.00,  recebAntecipado:0,        status:'Ativa', imgMaquininha:null, imgBandeira:null },
+  { id:5, nome:'Stone Ton Mini',  sn:'99887766554433', local:'Caixa 05', adquirente:'Stone',      bandeira:'Débito',  taxa:0.99, vencDias:1,  vencTipo:'D+1',    proxVenc:'2025-05-27', recebPrevisto:38200.00,  recebAntecipado:0,        status:'Ativa', imgMaquininha:null, imgBandeira:null },
+  { id:6, nome:'Cielo V3',        sn:'55443322110099', local:'Caixa 06', adquirente:'Cielo',      bandeira:'Crédito', taxa:2.49, vencDias:30, vencTipo:'Padrão', proxVenc:'2025-06-20', recebPrevisto:29400.00,  recebAntecipado:0,        status:'Ativa', imgMaquininha:null, imgBandeira:null },
+  { id:7, nome:'GetNet Smart',    sn:'77665544332211', local:'Pátio',    adquirente:'GetNet',     bandeira:'Débito',  taxa:1.49, vencDias:3,  vencTipo:'D+3',    proxVenc:'2025-05-26', recebPrevisto:21000.00,  recebAntecipado:0,        status:'Ativa', imgMaquininha:null, imgBandeira:null },
 ];
+const CT_FORM_EMPTY = { nome:'', sn:'', local:'', adquirente:'', bandeira:'Crédito', taxa:'', vencDias:'', vencTipo:'Padrão', proxVenc:'', recebPrevisto:'', recebAntecipado:'', status:'Ativa', imgMaquininha:'', imgBandeira:'' };
 
 const PosMachineIcon = ({ adquirente }) => {
   const cfgs = {
@@ -3184,11 +3185,11 @@ const ControleCartoes = () => {
   const [vencDe,        setVencDe]        = useState('');
   const [vencAte,       setVencAte]       = useState('');
   const [page,          setPage]          = useState(1);
-  const [viewModal,     setViewModal]     = useState(null); // machine obj
-  const [novaModal,     setNovaModal]     = useState(false);
-  const [openMore,      setOpenMore]      = useState(null); // id of row with open menu
+  const [viewModal,     setViewModal]     = useState(null);
+  const [formModal,     setFormModal]     = useState(null); // null | 'nova' | {machine obj being edited}
+  const [formData,      setFormData]      = useState(CT_FORM_EMPTY);
+  const [openMore,      setOpenMore]      = useState(null);
   const [maquininhas,   setMaquininhas]   = useState(CT_MAQUININHAS);
-  const [novaForm,      setNovaForm]      = useState({ nome:'', sn:'', local:'', adquirente:'Cielo', bandeira:'Crédito', taxa:'', vencDias:'', vencTipo:'Padrão', proxVenc:'', recebPrevisto:'', recebAntecipado:'', status:'Ativa' });
 
   const ITEMS_PP = 3;
   const fmtBRL  = v => Number(v||0).toLocaleString('pt-BR', { style:'currency', currency:'BRL' });
@@ -3210,13 +3211,31 @@ const ControleCartoes = () => {
   const ativas     = maquininhas.filter(m => m.status === 'Ativa').length;
   const taxaMedia  = maquininhas.length ? maquininhas.reduce((s,m) => s + m.taxa, 0) / maquininhas.length : 0;
 
-  const handleSalvarNova = () => {
-    if (!novaForm.nome.trim() || !novaForm.sn.trim()) { toast('Preencha ao menos o nome e número de série.', 'warn'); return; }
-    const newM = { ...novaForm, id: Date.now(), taxa: parseFloat(novaForm.taxa)||0, vencDias: parseInt(novaForm.vencDias)||30, recebPrevisto: parseFloat(novaForm.recebPrevisto)||0, recebAntecipado: parseFloat(novaForm.recebAntecipado)||0 };
-    setMaquininhas(prev => [...prev, newM]);
-    setNovaModal(false);
-    setNovaForm({ nome:'', sn:'', local:'', adquirente:'Cielo', bandeira:'Crédito', taxa:'', vencDias:'', vencTipo:'Padrão', proxVenc:'', recebPrevisto:'', recebAntecipado:'', status:'Ativa' });
-    toast('✅ Maquininha cadastrada com sucesso!', 'success');
+  const handleImgFile = (field, file) => {
+    if (!file) return;
+    const r = new FileReader();
+    r.onload = e => setFormData(f => ({ ...f, [field]: e.target.result }));
+    r.readAsDataURL(file);
+  };
+  const handleOpenNova  = () => { setFormData(CT_FORM_EMPTY); setFormModal('nova'); };
+  const handleOpenEdit  = (m)  => {
+    setFormData({ ...m, taxa: String(m.taxa), vencDias: String(m.vencDias), recebPrevisto: String(m.recebPrevisto), recebAntecipado: String(m.recebAntecipado) });
+    setFormModal(m);
+    setViewModal(null);
+    setOpenMore(null);
+  };
+  const handleCloseForm = () => setFormModal(null);
+  const handleSalvar = () => {
+    if (!formData.nome.trim() || !formData.sn.trim()) { toast('Preencha ao menos o nome e número de série.', 'warn'); return; }
+    const parsed = { ...formData, taxa: parseFloat(formData.taxa)||0, vencDias: parseInt(formData.vencDias)||30, recebPrevisto: parseFloat(formData.recebPrevisto)||0, recebAntecipado: parseFloat(formData.recebAntecipado)||0 };
+    if (formModal === 'nova') {
+      setMaquininhas(prev => [...prev, { ...parsed, id: Date.now() }]);
+      toast('✅ Maquininha cadastrada com sucesso!', 'success');
+    } else {
+      setMaquininhas(prev => prev.map(m => m.id === formModal.id ? { ...parsed, id: formModal.id } : m));
+      toast('✅ Maquininha atualizada!', 'success');
+    }
+    handleCloseForm();
   };
 
   const handleExcluir = (id) => {
@@ -3267,7 +3286,7 @@ const ControleCartoes = () => {
           <span className="ct-demo-badge">demonstração</span>
         </div>
         <div className="ct-header-actions">
-          <button className="ct-btn-nova" onClick={()=>setNovaModal(true)}>
+          <button className="ct-btn-nova" onClick={handleOpenNova}>
             <Plus size={14}/> Nova Maquininha
           </button>
           <button className="ct-btn-export" onClick={()=>{
@@ -3359,7 +3378,10 @@ const ControleCartoes = () => {
                 {/* MAQUININHA */}
                 <td>
                   <div className="ct-maq-cell">
-                    <PosMachineIcon adquirente={m.adquirente}/>
+                    {m.imgMaquininha
+                      ? <img src={m.imgMaquininha} className="ct-maq-img-custom" alt={m.nome}/>
+                      : <PosMachineIcon adquirente={m.adquirente}/>
+                    }
                     <div className="ct-maq-info">
                       <span className="ct-maq-nome">{m.nome}</span>
                       <span className="ct-maq-sn">SN: {m.sn}</span>
@@ -3370,8 +3392,13 @@ const ControleCartoes = () => {
                 {/* ADQUIRENTE */}
                 <td>
                   <div className="ct-adq-cell">
-                    <div className="ct-adq-logo"><AdquirenteLogo adquirente={m.adquirente}/></div>
-                    <span className={`ct-adq-sub ct-adq-band-${m.bandeira === 'Crédito' ? 'credito' : 'debito'}`}>{m.bandeira}</span>
+                    <div className="ct-adq-logo">
+                      {m.imgBandeira
+                        ? <img src={m.imgBandeira} className="ct-adq-img-custom" alt={m.adquirente}/>
+                        : <AdquirenteLogo adquirente={m.adquirente}/>
+                      }
+                    </div>
+                    <span className="ct-adq-sub">{m.adquirente}</span>
                   </div>
                 </td>
                 {/* BANDEIRA */}
@@ -3423,7 +3450,7 @@ const ControleCartoes = () => {
                 <td>
                   <div className="ct-actions" onClick={e=>e.stopPropagation()}>
                     <button className="ct-action-btn" title="Visualizar" onClick={()=>setViewModal(m)}><Eye size={14}/></button>
-                    <button className="ct-action-btn ct-action-edit" title="Editar" onClick={()=>toast('Edição disponível na versão completa.','info')}><Edit2 size={14}/></button>
+                    <button className="ct-action-btn ct-action-edit" title="Editar" onClick={()=>handleOpenEdit(m)}><Edit2 size={14}/></button>
                     <div className="ct-action-more" style={{position:'relative'}}>
                       <button className="ct-action-btn ct-action-more-btn" title="Mais ações"
                         onClick={()=>setOpenMore(openMore===m.id?null:m.id)}>
@@ -3510,7 +3537,7 @@ const ControleCartoes = () => {
             </div>
             <div className="ct-modal-footer">
               <button className="ct-modal-cancel" onClick={()=>setViewModal(null)}>Fechar</button>
-              <button className="ct-modal-save" onClick={()=>{toast('Edição disponível na versão completa.','info');setViewModal(null);}}>
+              <button className="ct-modal-save" onClick={()=>handleOpenEdit(viewModal)}>
                 <Edit2 size={13}/> Editar
               </button>
             </div>
@@ -3518,62 +3545,111 @@ const ControleCartoes = () => {
         </div>
       )}
 
-      {/* ── Nova Maquininha Modal ────────────────────────────────────────── */}
-      {novaModal && (
-        <div className="ct-modal-overlay" onClick={()=>setNovaModal(false)}>
-          <div className="ct-modal" onClick={e=>e.stopPropagation()}>
+      {/* ── Form Modal — Nova / Editar Maquininha ───────────────────────── */}
+      {formModal && (
+        <div className="ct-modal-overlay" onClick={handleCloseForm}>
+          <div className="ct-modal ct-modal-lg" onClick={e=>e.stopPropagation()}>
             <div className="ct-modal-header">
-              <h3><Plus size={18} color="#E31E24"/> Nova Maquininha</h3>
-              <button className="ct-modal-close" onClick={()=>setNovaModal(false)}><X size={18}/></button>
+              <h3>
+                {formModal === 'nova'
+                  ? <><Plus size={18} color="#E31E24"/> Nova Maquininha</>
+                  : <><Edit2 size={18} color="#f59e0b"/> Editar Maquininha</>
+                }
+              </h3>
+              <button className="ct-modal-close" onClick={handleCloseForm}><X size={18}/></button>
             </div>
             <div className="ct-form-body">
+              {/* ── Uploads de Imagem ─────────────────────────────── */}
+              <div className="ct-form-imgs-row">
+                <div className="ct-form-img-block">
+                  <span className="ct-form-label">Foto da Maquininha</span>
+                  <label className="ct-img-upload">
+                    {formData.imgMaquininha
+                      ? <img src={formData.imgMaquininha} className="ct-img-preview" alt="maquininha"/>
+                      : <div className="ct-img-placeholder"><Upload size={22}/><span>Importar imagem</span></div>
+                    }
+                    <input type="file" accept="image/*" className="ct-img-input"
+                      onChange={e=>handleImgFile('imgMaquininha', e.target.files[0])}/>
+                  </label>
+                  {formData.imgMaquininha && (
+                    <button className="ct-img-clear" onClick={()=>setFormData(f=>({...f,imgMaquininha:''}))}>
+                      <X size={11}/> Remover
+                    </button>
+                  )}
+                </div>
+                <div className="ct-form-img-block">
+                  <span className="ct-form-label">Logo Adquirente / Bandeira</span>
+                  <label className="ct-img-upload">
+                    {formData.imgBandeira
+                      ? <img src={formData.imgBandeira} className="ct-img-preview" alt="bandeira"/>
+                      : <div className="ct-img-placeholder"><Upload size={22}/><span>Importar imagem</span></div>
+                    }
+                    <input type="file" accept="image/*" className="ct-img-input"
+                      onChange={e=>handleImgFile('imgBandeira', e.target.files[0])}/>
+                  </label>
+                  {formData.imgBandeira && (
+                    <button className="ct-img-clear" onClick={()=>setFormData(f=>({...f,imgBandeira:''}))}>
+                      <X size={11}/> Remover
+                    </button>
+                  )}
+                </div>
+              </div>
+              {/* ── Campos de texto ───────────────────────────────── */}
               <div className="ct-form-grid">
                 <div className="ct-form-field">
                   <label className="ct-form-label">Nome da Maquininha *</label>
-                  <input className="ct-form-input" placeholder="Ex: Cielo Lio" value={novaForm.nome} onChange={e=>setNovaForm(f=>({...f,nome:e.target.value}))}/>
+                  <input className="ct-form-input" placeholder="Ex: Cielo Lio"
+                    value={formData.nome} onChange={e=>setFormData(f=>({...f,nome:e.target.value}))}/>
                 </div>
                 <div className="ct-form-field">
                   <label className="ct-form-label">Número de Série *</label>
-                  <input className="ct-form-input" placeholder="SN: 00000000000000" value={novaForm.sn} onChange={e=>setNovaForm(f=>({...f,sn:e.target.value}))}/>
+                  <input className="ct-form-input" placeholder="SN: 00000000000000"
+                    value={formData.sn} onChange={e=>setFormData(f=>({...f,sn:e.target.value}))}/>
                 </div>
                 <div className="ct-form-field">
                   <label className="ct-form-label">Local / Caixa</label>
-                  <input className="ct-form-input" placeholder="Ex: Caixa 01" value={novaForm.local} onChange={e=>setNovaForm(f=>({...f,local:e.target.value}))}/>
+                  <input className="ct-form-input" placeholder="Ex: Caixa 01"
+                    value={formData.local} onChange={e=>setFormData(f=>({...f,local:e.target.value}))}/>
                 </div>
                 <div className="ct-form-field">
-                  <label className="ct-form-label">Adquirente</label>
-                  <select className="ct-form-select" value={novaForm.adquirente} onChange={e=>setNovaForm(f=>({...f,adquirente:e.target.value}))}>
-                    {['Cielo','Mastercard','Rede','PagSeguro','Stone','GetNet'].map(a=><option key={a}>{a}</option>)}
-                  </select>
+                  <label className="ct-form-label">Fornecedor / Adquirente</label>
+                  <input className="ct-form-input" placeholder="Ex: Cielo S.A., Banco do Brasil…"
+                    value={formData.adquirente} onChange={e=>setFormData(f=>({...f,adquirente:e.target.value}))}/>
                 </div>
                 <div className="ct-form-field">
-                  <label className="ct-form-label">Bandeira</label>
-                  <select className="ct-form-select" value={novaForm.bandeira} onChange={e=>setNovaForm(f=>({...f,bandeira:e.target.value}))}>
+                  <label className="ct-form-label">Modalidade</label>
+                  <select className="ct-form-select" value={formData.bandeira}
+                    onChange={e=>setFormData(f=>({...f,bandeira:e.target.value}))}>
                     <option>Crédito</option>
                     <option>Débito</option>
                   </select>
                 </div>
                 <div className="ct-form-field">
                   <label className="ct-form-label">Taxa (%)</label>
-                  <input className="ct-form-input" type="number" step="0.01" placeholder="2.49" value={novaForm.taxa} onChange={e=>setNovaForm(f=>({...f,taxa:e.target.value}))}/>
+                  <input className="ct-form-input" type="number" step="0.01" placeholder="2.49"
+                    value={formData.taxa} onChange={e=>setFormData(f=>({...f,taxa:e.target.value}))}/>
                 </div>
                 <div className="ct-form-field">
                   <label className="ct-form-label">Prazo (dias)</label>
-                  <input className="ct-form-input" type="number" placeholder="30" value={novaForm.vencDias} onChange={e=>setNovaForm(f=>({...f,vencDias:e.target.value}))}/>
+                  <input className="ct-form-input" type="number" placeholder="30"
+                    value={formData.vencDias} onChange={e=>setFormData(f=>({...f,vencDias:e.target.value}))}/>
                 </div>
                 <div className="ct-form-field">
                   <label className="ct-form-label">Tipo de Vencimento</label>
-                  <select className="ct-form-select" value={novaForm.vencTipo} onChange={e=>setNovaForm(f=>({...f,vencTipo:e.target.value}))}>
+                  <select className="ct-form-select" value={formData.vencTipo}
+                    onChange={e=>setFormData(f=>({...f,vencTipo:e.target.value}))}>
                     {['Padrão','D+1','D+3','D+14','D+30'].map(t=><option key={t}>{t}</option>)}
                   </select>
                 </div>
                 <div className="ct-form-field">
                   <label className="ct-form-label">Próximo Vencimento</label>
-                  <input className="ct-form-input" type="date" value={novaForm.proxVenc} onChange={e=>setNovaForm(f=>({...f,proxVenc:e.target.value}))}/>
+                  <input className="ct-form-input" type="date"
+                    value={formData.proxVenc} onChange={e=>setFormData(f=>({...f,proxVenc:e.target.value}))}/>
                 </div>
                 <div className="ct-form-field">
                   <label className="ct-form-label">Status</label>
-                  <select className="ct-form-select" value={novaForm.status} onChange={e=>setNovaForm(f=>({...f,status:e.target.value}))}>
+                  <select className="ct-form-select" value={formData.status}
+                    onChange={e=>setFormData(f=>({...f,status:e.target.value}))}>
                     <option>Ativa</option>
                     <option>Inativa</option>
                   </select>
@@ -3581,9 +3657,9 @@ const ControleCartoes = () => {
               </div>
             </div>
             <div className="ct-modal-footer">
-              <button className="ct-modal-cancel" onClick={()=>setNovaModal(false)}>Cancelar</button>
-              <button className="ct-modal-save" onClick={handleSalvarNova}>
-                <Save size={13}/> Salvar Maquininha
+              <button className="ct-modal-cancel" onClick={handleCloseForm}>Cancelar</button>
+              <button className="ct-modal-save" onClick={handleSalvar}>
+                <Save size={13}/> {formModal === 'nova' ? 'Salvar Maquininha' : 'Salvar Alterações'}
               </button>
             </div>
           </div>
