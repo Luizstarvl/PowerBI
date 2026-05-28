@@ -3190,6 +3190,13 @@ const ControleCartoes = () => {
   const [formData,      setFormData]      = useState(CT_FORM_EMPTY);
   const [openMore,      setOpenMore]      = useState(null);
   const [maquininhas,   setMaquininhas]   = useState(CT_MAQUININHAS);
+  // Imagens persistidas na API (memória → localStorage → PostgreSQL)
+  const [maqFotoImages, setMaqFotoImages] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(CT_MAQ_LS_KEY) || 'null') || {}; } catch { return {}; }
+  });
+  const [maqBandImages, setMaqBandImages] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(CT_BAND_LS_KEY) || 'null') || {}; } catch { return {}; }
+  });
 
   const ITEMS_PP = 3;
   const fmtBRL  = v => Number(v||0).toLocaleString('pt-BR', { style:'currency', currency:'BRL' });
@@ -3211,15 +3218,36 @@ const ControleCartoes = () => {
   const ativas     = maquininhas.filter(m => m.status === 'Ativa').length;
   const taxaMedia  = maquininhas.length ? maquininhas.reduce((s,m) => s + m.taxa, 0) / maquininhas.length : 0;
 
+  // Carrega imagens da API na montagem (stale-while-revalidate)
+  useEffect(() => {
+    ctMaqImgLoadAll().then(data => setMaqFotoImages(prev => {
+      const ks = new Set([...Object.keys(prev), ...Object.keys(data)]);
+      return [...ks].some(k => prev[k] !== data[k]) ? data : prev;
+    })).catch(()=>{});
+    ctBandImgLoadAll().then(data => setMaqBandImages(prev => {
+      const ks = new Set([...Object.keys(prev), ...Object.keys(data)]);
+      return [...ks].some(k => prev[k] !== data[k]) ? data : prev;
+    })).catch(()=>{});
+  }, []);
+
   const handleImgFile = (field, file) => {
     if (!file) return;
     const r = new FileReader();
     r.onload = e => setFormData(f => ({ ...f, [field]: e.target.result }));
     r.readAsDataURL(file);
   };
-  const handleOpenNova  = () => { setFormData(CT_FORM_EMPTY); setFormModal('nova'); };
-  const handleOpenEdit  = (m)  => {
-    setFormData({ ...m, taxa: String(m.taxa), vencDias: String(m.vencDias), recebPrevisto: String(m.recebPrevisto), recebAntecipado: String(m.recebAntecipado) });
+  const handleOpenNova  = () => {
+    setFormData(CT_FORM_EMPTY);
+    setFormModal('nova');
+  };
+  const handleOpenEdit  = (m) => {
+    setFormData({
+      ...m,
+      taxa: String(m.taxa), vencDias: String(m.vencDias),
+      recebPrevisto: String(m.recebPrevisto), recebAntecipado: String(m.recebAntecipado),
+      imgMaquininha: maqFotoImages[String(m.id)] || '',
+      imgBandeira:   maqBandImages[String(m.id)] || '',
+    });
     setFormModal(m);
     setViewModal(null);
     setOpenMore(null);
@@ -3227,14 +3255,42 @@ const ControleCartoes = () => {
   const handleCloseForm = () => setFormModal(null);
   const handleSalvar = () => {
     if (!formData.nome.trim() || !formData.sn.trim()) { toast('Preencha ao menos o nome e número de série.', 'warn'); return; }
-    const parsed = { ...formData, taxa: parseFloat(formData.taxa)||0, vencDias: parseInt(formData.vencDias)||30, recebPrevisto: parseFloat(formData.recebPrevisto)||0, recebAntecipado: parseFloat(formData.recebAntecipado)||0 };
+    const { imgMaquininha, imgBandeira, ...rest } = formData;
+    const parsed = { ...rest, taxa: parseFloat(rest.taxa)||0, vencDias: parseInt(rest.vencDias)||30, recebPrevisto: parseFloat(rest.recebPrevisto)||0, recebAntecipado: parseFloat(rest.recebAntecipado)||0 };
+
+    let machineId;
     if (formModal === 'nova') {
-      setMaquininhas(prev => [...prev, { ...parsed, id: Date.now() }]);
-      toast('✅ Maquininha cadastrada com sucesso!', 'success');
+      machineId = Date.now();
+      setMaquininhas(prev => [...prev, { ...parsed, id: machineId, imgMaquininha: null, imgBandeira: null }]);
+      toast('✅ Maquininha cadastrada!', 'success');
     } else {
-      setMaquininhas(prev => prev.map(m => m.id === formModal.id ? { ...parsed, id: formModal.id } : m));
+      machineId = formModal.id;
+      setMaquininhas(prev => prev.map(m => m.id === machineId ? { ...parsed, id: machineId, imgMaquininha: null, imgBandeira: null } : m));
       toast('✅ Maquininha atualizada!', 'success');
     }
+
+    // ── Foto da maquininha ──────────────────────────────────────────
+    if (imgMaquininha) {
+      ctMaqImgSave(machineId, imgMaquininha)
+        .then(c => setMaqFotoImages(prev => ({ ...prev, [String(machineId)]: c })))
+        .catch(err => toast(`Erro ao salvar foto: ${err.message}`, 'error'));
+    } else if (maqFotoImages[String(machineId)]) {
+      ctMaqImgDelete(machineId)
+        .then(() => setMaqFotoImages(prev => { const n={...prev}; delete n[String(machineId)]; return n; }))
+        .catch(err => toast(`Erro ao remover foto: ${err.message}`, 'error'));
+    }
+
+    // ── Logo do adquirente / bandeira ──────────────────────────────
+    if (imgBandeira) {
+      ctBandImgSave(machineId, imgBandeira)
+        .then(c => setMaqBandImages(prev => ({ ...prev, [String(machineId)]: c })))
+        .catch(err => toast(`Erro ao salvar logo: ${err.message}`, 'error'));
+    } else if (maqBandImages[String(machineId)]) {
+      ctBandImgDelete(machineId)
+        .then(() => setMaqBandImages(prev => { const n={...prev}; delete n[String(machineId)]; return n; }))
+        .catch(err => toast(`Erro ao remover logo: ${err.message}`, 'error'));
+    }
+
     handleCloseForm();
   };
 
@@ -3378,8 +3434,8 @@ const ControleCartoes = () => {
                 {/* MAQUININHA */}
                 <td>
                   <div className="ct-maq-cell">
-                    {m.imgMaquininha
-                      ? <img src={m.imgMaquininha} className="ct-maq-img-custom" alt={m.nome}/>
+                    {maqFotoImages[String(m.id)]
+                      ? <img src={maqFotoImages[String(m.id)]} className="ct-maq-img-custom" alt={m.nome}/>
                       : <PosMachineIcon adquirente={m.adquirente}/>
                     }
                     <div className="ct-maq-info">
@@ -3393,8 +3449,8 @@ const ControleCartoes = () => {
                 <td>
                   <div className="ct-adq-cell">
                     <div className="ct-adq-logo">
-                      {m.imgBandeira
-                        ? <img src={m.imgBandeira} className="ct-adq-img-custom" alt={m.adquirente}/>
+                      {maqBandImages[String(m.id)]
+                        ? <img src={maqBandImages[String(m.id)]} className="ct-adq-img-custom" alt={m.adquirente}/>
                         : <AdquirenteLogo adquirente={m.adquirente}/>
                       }
                     </div>
@@ -3497,7 +3553,10 @@ const ControleCartoes = () => {
             </div>
             <div className="ct-modal-body">
               <div style={{display:'flex',justifyContent:'center',margin:'8px 0 4px'}}>
-                <PosMachineIcon adquirente={viewModal.adquirente}/>
+                {maqFotoImages[String(viewModal.id)]
+                  ? <img src={maqFotoImages[String(viewModal.id)]} style={{width:66,height:102,objectFit:'contain',borderRadius:6,filter:'drop-shadow(0 3px 8px rgba(0,0,0,0.5))'}} alt={viewModal.nome}/>
+                  : <PosMachineIcon adquirente={viewModal.adquirente}/>
+                }
               </div>
               <div className="ct-modal-section">Identificação</div>
               {[
@@ -9525,6 +9584,78 @@ async function userImgDelete(id) {
   const res = await fetch(`${API_URL}/api/imagens/usuario/${id}`, { method: 'DELETE' });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   if (_uImgMem) { const next = { ..._uImgMem }; delete next[String(id)]; _uImgCacheSet(next); }
+}
+
+// ── Imagens de maquininha (foto do device) ─────────────────────────────────
+const CT_MAQ_LS_KEY  = 'starvl:ctmaq-v1';
+let _ctMaqMem      = null;
+let _ctMaqFetching = null;
+function _ctMaqCacheRead()  { try { return JSON.parse(localStorage.getItem(CT_MAQ_LS_KEY) || 'null'); } catch { return null; } }
+function _ctMaqCacheWrite(d){ try { localStorage.setItem(CT_MAQ_LS_KEY, JSON.stringify(d)); } catch {} }
+function _ctMaqCacheSet(d)  { _ctMaqMem = d; _ctMaqCacheWrite(d); }
+function _ctMaqApiFetch() {
+  if (_ctMaqFetching) return _ctMaqFetching;
+  _ctMaqFetching = fetch(`${API_URL}/api/imagens/maquininha`)
+    .then(r => r.ok ? r.json() : {}).catch(() => ({}))
+    .then(d => { _ctMaqCacheSet(d); _ctMaqFetching = null; return d; });
+  return _ctMaqFetching;
+}
+async function ctMaqImgLoadAll() {
+  if (_ctMaqMem !== null) return _ctMaqMem;
+  const c = _ctMaqCacheRead();
+  if (c) { _ctMaqMem = c; _ctMaqApiFetch(); return c; }
+  return _ctMaqApiFetch();
+}
+async function ctMaqImgSave(id, dataUrl) {
+  const compressed = await compressImage(dataUrl);
+  const res = await fetch(`${API_URL}/api/imagens/maquininha/${id}`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ dados: compressed }),
+  });
+  if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e.error||`HTTP ${res.status}`); }
+  _ctMaqCacheSet({ ...(_ctMaqMem||{}), [String(id)]: compressed });
+  return compressed;
+}
+async function ctMaqImgDelete(id) {
+  const res = await fetch(`${API_URL}/api/imagens/maquininha/${id}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  if (_ctMaqMem) { const n = { ..._ctMaqMem }; delete n[String(id)]; _ctMaqCacheSet(n); }
+}
+
+// ── Imagens de bandeira/logo do adquirente ──────────────────────────────────
+const CT_BAND_LS_KEY  = 'starvl:ctband-v1';
+let _ctBandMem      = null;
+let _ctBandFetching = null;
+function _ctBandCacheRead()  { try { return JSON.parse(localStorage.getItem(CT_BAND_LS_KEY) || 'null'); } catch { return null; } }
+function _ctBandCacheWrite(d){ try { localStorage.setItem(CT_BAND_LS_KEY, JSON.stringify(d)); } catch {} }
+function _ctBandCacheSet(d)  { _ctBandMem = d; _ctBandCacheWrite(d); }
+function _ctBandApiFetch() {
+  if (_ctBandFetching) return _ctBandFetching;
+  _ctBandFetching = fetch(`${API_URL}/api/imagens/maquininha-band`)
+    .then(r => r.ok ? r.json() : {}).catch(() => ({}))
+    .then(d => { _ctBandCacheSet(d); _ctBandFetching = null; return d; });
+  return _ctBandFetching;
+}
+async function ctBandImgLoadAll() {
+  if (_ctBandMem !== null) return _ctBandMem;
+  const c = _ctBandCacheRead();
+  if (c) { _ctBandMem = c; _ctBandApiFetch(); return c; }
+  return _ctBandApiFetch();
+}
+async function ctBandImgSave(id, dataUrl) {
+  const compressed = await compressImage(dataUrl);
+  const res = await fetch(`${API_URL}/api/imagens/maquininha-band/${id}`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ dados: compressed }),
+  });
+  if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e.error||`HTTP ${res.status}`); }
+  _ctBandCacheSet({ ...(_ctBandMem||{}), [String(id)]: compressed });
+  return compressed;
+}
+async function ctBandImgDelete(id) {
+  const res = await fetch(`${API_URL}/api/imagens/maquininha-band/${id}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  if (_ctBandMem) { const n = { ..._ctBandMem }; delete n[String(id)]; _ctBandCacheSet(n); }
 }
 
 function printProductCard({ prod, editForm, editImg }) {
