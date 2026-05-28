@@ -1083,21 +1083,13 @@ const VendasPista = ({ clients, selectedClient, selectedPeriod, themeMode }) => 
 // ── fim VendasPista ────────────────────────────────────────────────────────────
 
 // ── MetasRealizadoChart ──────────────────────────────────────────────────────
-const _METAS_DAILY_L = [
-  4500,3600,2200,4100,4400,4000,4200,  // semana 1
-  4600,3800,2400,4000,4300,4100,4400,  // semana 2
-  4700,3900,2300,4100,4400,4200,4500,  // semana 3
-  4600,3700,2100,4200,4500,3900,       // semana 4 parcial (27 dias)
-];
-const _METAS_PRICE = 5.0; // R$/L (mock)
-
 const MR_CSS = `
 @keyframes mr-fade-up { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
 @keyframes mr-count-bar { from{width:0} to{width:var(--tw)} }
 @keyframes mr-pulse { 0%,100%{opacity:1} 50%{opacity:.55} }
 `;
 
-const MetasRealizadoChart = ({ themeMode = 'dark' }) => {
+const MetasRealizadoChart = ({ themeMode = 'dark', vendasDiariasCombusFull, selectedPeriod }) => {
   const [metrica, setMetrica]   = useState('litros');
   const [periodo, setPeriodo]   = useState('mensal');
   const [animKey, setAnimKey]   = useState(0);
@@ -1106,34 +1098,46 @@ const MetasRealizadoChart = ({ themeMode = 'dark' }) => {
   useEffect(() => { setAnimKey(k => k + 1); }, [metrica, periodo]);
 
   const cfg = useMemo(() => {
-    const mensal    = periodo === 'mensal';
-    const totalDias = mensal ? 31 : 7;
-    const raw       = mensal ? _METAS_DAILY_L : _METAS_DAILY_L.slice(-7);
-    const metaL     = mensal ? 150000 : 35000;
-    const meta      = metrica === 'litros' ? metaL : metaL * _METAS_PRICE;
-    const semLabels = ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'];
+    const [mesStr, anoStr] = (selectedPeriod || '').split('/');
+    const mes            = parseInt(mesStr) || (new Date().getMonth() + 1);
+    const ano            = parseInt(anoStr)  || new Date().getFullYear();
+    const totalDiasNoMes = new Date(ano, mes, 0).getDate();
+    const mensal         = periodo === 'mensal';
+    const semLabels      = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+
+    const allData = (vendasDiariasCombusFull || []).slice().sort((a, b) => new Date(a.dia) - new Date(b.dia));
+    const src     = mensal ? allData : allData.slice(-7);
+    const raw     = src.map(r => metrica === 'litros'
+      ? parseFloat(r.litrosCombustivel || 0)
+      : parseFloat(r.valorCombustivel  || 0));
+    const labels  = mensal
+      ? src.map(r => String(new Date(r.dia).getUTCDate()))
+      : semLabels.slice(0, src.length);
+
+    const totalDias = mensal ? totalDiasNoMes : 7;
+    const avgDiario = raw.length > 0 ? raw.reduce((s, v) => s + v, 0) / raw.length : 0;
+    const meta      = avgDiario * totalDias || 1; // projeção de fechamento ao ritmo atual
 
     let acc = 0;
-    const data = raw.map((l, i) => {
-      const v = metrica === 'litros' ? l : Math.round(l * _METAS_PRICE);
+    const data = raw.map((v, i) => {
       acc += v;
       return {
-        label   : mensal ? String(i + 1) : semLabels[i],
+        label    : labels[i] || String(i + 1),
         realizado: Math.round(acc),
-        ritmo   : Math.round(meta * (i + 1) / totalDias),
+        ritmo    : Math.round(meta * (i + 1) / totalDias),
       };
     });
 
-    const realizado   = Math.round(acc);
-    const pct         = Math.min(100, (realizado / meta) * 100);
-    const faltante    = Math.max(0, meta - realizado);
-    const diasRest    = totalDias - raw.length;
-    const cor         = pct >= 90 ? '#22c55e' : pct >= 70 ? '#f59e0b' : '#ef4444';
-    const corBg       = pct >= 90 ? (dark ? '#14532d' : '#dcfce7') : pct >= 70 ? (dark ? '#78350f' : '#fef3c7') : (dark ? '#7f1d1d' : '#fee2e2');
-    const corText     = pct >= 90 ? '#22c55e' : pct >= 70 ? '#f59e0b' : '#ef4444';
-    const status      = pct >= 90 ? 'No alvo ✓' : pct >= 70 ? 'Atenção' : 'Abaixo da meta';
+    const realizado = Math.round(acc);
+    const pct       = meta > 0 ? Math.min(100, (realizado / meta) * 100) : 100;
+    const faltante  = Math.max(0, meta - realizado);
+    const diasRest  = Math.max(0, totalDias - raw.length);
+    const cor       = pct >= 90 ? '#22c55e' : pct >= 70 ? '#f59e0b' : '#ef4444';
+    const corBg     = pct >= 90 ? (dark ? '#14532d' : '#dcfce7') : pct >= 70 ? (dark ? '#78350f' : '#fef3c7') : (dark ? '#7f1d1d' : '#fee2e2');
+    const corText   = cor;
+    const status    = pct >= 90 ? 'No alvo ✓' : pct >= 70 ? 'Atenção' : 'Abaixo da meta';
     return { data, meta, realizado, pct, faltante, diasRest, totalDias, cor, corBg, corText, status };
-  }, [metrica, periodo, dark]);
+  }, [metrica, periodo, dark, vendasDiariasCombusFull, selectedPeriod]);
 
   const fmtV = v => metrica === 'litros'
     ? v.toLocaleString('pt-BR', { maximumFractionDigits: 0 }) + ' L'
@@ -1161,7 +1165,7 @@ const MetasRealizadoChart = ({ themeMode = 'dark' }) => {
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 18, flexWrap: 'wrap', gap: 10 }}>
         <div style={{ animation: 'mr-fade-up .35s ease-out both' }}>
           <h3 style={c.title}>Acompanhamento de Metas vs. Realizado</h3>
-          <div style={c.sub}>Maio 2026 · Acumulado diário</div>
+          <div style={c.sub}>{selectedPeriod || ''} · Acumulado diário de combustível</div>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', animation: 'mr-fade-up .35s .05s ease-out both' }}>
           <div style={{ display: 'flex', gap: 3, background: dark ? '#141414' : '#f3f4f6', borderRadius: 7, padding: 3 }}>
@@ -1306,33 +1310,8 @@ const usePvCount = (target, duration = 1250) => {
 };
 
 // ── ProjecaoVendas ──────────────────────────────────────────────────────────
-const PV_TODAY_DIA  = 26;   // dia de hoje em maio/2026
-const PV_TOTAL_DIAS = 31;   // dias em maio/2026
-const PV_UNITS      = ['Combustível', 'Conveniência'];
-const PV_DAY_TYPES  = ['Todos', 'Dias Úteis', 'Finais de Semana'];
-
-// Metadados de cada dia de maio/2026: dia, dow (0=Dom, 6=Sáb), isFDS
-const PV_DAYS_META = Array.from({ length: PV_TOTAL_DIAS }, (_, i) => {
-  const dia = i + 1;
-  const dow = new Date(2026, 4, dia).getDay();
-  return { dia, dow, isFDS: dow === 0 || dow === 6 };
-});
-
-// Faturamento diário realizado (mai/2026, dias 1–26)
-const PV_REALIZED = {
-  Combustível: {
-    1:14820, 2:21350, 3:19840, 4:13250, 5:14620, 6:15380, 7:12980, 8:16450,
-    9:22180, 10:20640, 11:13760, 12:14980, 13:16230, 14:15410, 15:17890,
-    16:23540, 17:21780, 18:14230, 19:15670, 20:16890, 21:13450, 22:17320,
-    23:24160, 24:22340, 25:15890, 26:16540,
-  },
-  Conveniência: {
-    1:3640, 2:6820, 3:6120, 4:2980, 5:3210, 6:3540, 7:2870, 8:3890,
-    9:7340, 10:6980, 11:3120, 12:3450, 13:3780, 14:3320, 15:4120,
-    16:7890, 17:7230, 18:3080, 19:3560, 20:3920, 21:2980, 22:4230,
-    23:8120, 24:7680, 25:3640, 26:3820,
-  },
-};
+const PV_UNITS     = ['Combustível', 'Conveniência'];
+const PV_DAY_TYPES = ['Todos', 'Dias Úteis', 'Finais de Semana'];
 
 const PvTooltip = ({ active, payload }) => {
   if (!active || !payload?.length) return null;
@@ -1349,39 +1328,55 @@ const PvTooltip = ({ active, payload }) => {
   );
 };
 
-const ProjecaoVendas = () => {
+const ProjecaoVendas = ({ vendasDiariasCombusFull, selectedPeriod }) => {
   const [unit,    setUnit]    = useState('Combustível');
   const [dayType, setDayType] = useState('Todos');
   const [animKey, setAnimKey] = useState(0);   // forçar re-animação do gráfico
   const [progW,   setProgW]   = useState(0);   // largura animada da barra
 
   const { chartData, totalRealizado, mediaDiaria, projecaoTotal, diasRestantes, lastRealDia } = useMemo(() => {
-    const realized = PV_REALIZED[unit] || {};
+    const [mesStr, anoStr] = (selectedPeriod || '').split('/');
+    const mes       = parseInt(mesStr) || (new Date().getMonth() + 1);
+    const ano       = parseInt(anoStr)  || new Date().getFullYear();
+    const totalDias = new Date(ano, mes, 0).getDate();
 
-    const allFiltered = PV_DAYS_META.filter(d => {
+    const allDays = Array.from({ length: totalDias }, (_, i) => {
+      const dia = i + 1;
+      const dow = new Date(ano, mes - 1, dia).getDay();
+      return { dia, isFDS: dow === 0 || dow === 6 };
+    });
+
+    const src = vendasDiariasCombusFull || [];
+    const realized = {};
+    src.forEach(r => {
+      const d   = new Date(r.dia);
+      const dia = d.getUTCDate();
+      const val = unit === 'Combustível'
+        ? parseFloat(r.valorCombustivel  || 0)
+        : parseFloat(r.valorConveniencia || 0);
+      realized[dia] = (realized[dia] || 0) + val;
+    });
+
+    const allFiltered = allDays.filter(d => {
       if (dayType === 'Dias Úteis')       return !d.isFDS;
       if (dayType === 'Finais de Semana') return  d.isFDS;
       return true;
     });
 
-    const passedDays = allFiltered.filter(d => d.dia <= PV_TODAY_DIA);
-    const futureDays = allFiltered.filter(d => d.dia >  PV_TODAY_DIA);
-
-    const totalReal = passedDays.reduce((s, d) => s + (realized[d.dia] || 0), 0);
-    const media     = passedDays.length > 0 ? totalReal / passedDays.length : 0;
-    const projTotal = totalReal + media * futureDays.length;
-
-    const lastDia = passedDays.length > 0 ? passedDays[passedDays.length - 1].dia : 0;
-    const lastVal = realized[lastDia] || 0;
+    const diasComDados = Object.keys(realized).map(Number).filter(d => (realized[d] || 0) > 0);
+    const lastDia      = diasComDados.length > 0 ? Math.max(...diasComDados) : 0;
+    const passedDays   = allFiltered.filter(d => d.dia <= lastDia);
+    const futureDays   = allFiltered.filter(d => d.dia >  lastDia);
+    const totalReal    = passedDays.reduce((s, d) => s + (realized[d.dia] || 0), 0);
+    const media        = passedDays.length > 0 ? totalReal / passedDays.length : 0;
+    const projTotal    = totalReal + media * futureDays.length;
+    const lastVal      = realized[lastDia] || 0;
 
     const data = allFiltered.map(d => ({
       dia:          d.dia,
       label:        String(d.dia),
       isProjection: d.dia > lastDia,
-      realizado:    d.dia <= PV_TODAY_DIA ? (realized[d.dia] ?? null) : null,
-      // projetado: null para dias anteriores ao último real;
-      //            no último dia real = mesmo valor (ponto de conexão);
-      //            futuros = média diária
+      realizado:    d.dia <= lastDia ? (realized[d.dia] ?? null) : null,
       projetado:    d.dia <  lastDia ? null
                   : d.dia === lastDia ? lastVal
                   : media,
@@ -1389,9 +1384,18 @@ const ProjecaoVendas = () => {
 
     return { chartData: data, totalRealizado: totalReal, mediaDiaria: media,
              projecaoTotal: projTotal, diasRestantes: futureDays.length, lastRealDia: lastDia };
-  }, [unit, dayType]);
+  }, [unit, dayType, selectedPeriod, vendasDiariasCombusFull]);
 
   const pct  = projecaoTotal > 0 ? Math.min(100, Math.round((totalRealizado / projecaoTotal) * 100)) : 0;
+
+  const pvPeriodLabel = useMemo(() => {
+    if (!selectedPeriod) return '';
+    const [mesStr, anoStr] = selectedPeriod.split('/');
+    const mes = parseInt(mesStr);
+    const nomes = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+    return `${nomes[mes - 1] || mesStr}/${String(parseInt(anoStr)).slice(2)}`;
+  }, [selectedPeriod]);
+
   const fmtK = n => {
     const v = Number(n || 0);
     if (v >= 1_000_000) return `R$\xa0${(v / 1_000_000).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}M`;
@@ -1424,7 +1428,7 @@ const ProjecaoVendas = () => {
       <div className="card-header pv-header" style={{ animation: 'pv-fade-up 0.4s ease-out both' }}>
         <div className="pv-title">
           <h3>PROJEÇÃO DE VENDAS — RUN RATE</h3>
-          <span>Faturamento realizado + projeção sazonalizada · {unit.toLowerCase()} · mai/2026</span>
+          <span>Faturamento realizado + projeção sazonalizada · {unit.toLowerCase()} · {pvPeriodLabel}</span>
         </div>
         <div className="pv-controls">
           <div className="segmented-filter" aria-label="Unidade de negócio">
@@ -1550,64 +1554,6 @@ const PRODUCT_MATRIX_PERIODS = [
   { value: 'Mensal', factor: 1, marginShift: 0 },
   { value: 'Anual', factor: 12, marginShift: 1.2 },
 ];
-
-const PRODUCT_MATRIX_MOCK = {
-  // prodtipo = 2 — produtos de pista (não combustível)
-  Pista: [
-    { name: 'Arla 32', volume: 680, margin: 19 },
-    { name: 'Lavagem Completa', volume: 640, margin: 45 },
-    { name: 'Óleo Sintético 5W30', volume: 540, margin: 42 },
-    { name: 'Lavagem Simples', volume: 620, margin: 30 },
-    { name: 'Calibragem de Pneu', volume: 480, margin: 35 },
-    { name: 'Óleo 2T', volume: 395, margin: 21 },
-    { name: 'Filtro de Óleo', volume: 390, margin: 35 },
-    { name: 'Aditivo Flex', volume: 320, margin: 37 },
-    { name: 'Recarga TAG', volume: 300, margin: 12 },
-    { name: 'Fluido Radiador', volume: 260, margin: 39 },
-    { name: 'Óleo de Câmbio', volume: 220, margin: 36 },
-    { name: 'Palheta Limpador', volume: 180, margin: 44 },
-    { name: 'Fluido de Freio', volume: 175, margin: 38 },
-    { name: 'Desengraxante Motor', volume: 170, margin: 14 },
-    { name: 'Limpeza de Vidros', volume: 155, margin: 34 },
-    { name: 'Cristalizador Para-brisa', volume: 140, margin: 41 },
-    { name: 'Extintor Revisão', volume: 120, margin: 11 },
-    { name: 'Graxa Lubrificante', volume: 110, margin: 28 },
-    { name: 'Funil Abastecimento', volume: 90, margin: 16 },
-    { name: 'Kit Revisão Básica', volume: 75, margin: 32 },
-  ],
-  Conveniência: [
-    { name: 'Café Expresso', volume: 880, margin: 48 },
-    { name: 'Pão de Queijo', volume: 790, margin: 39 },
-    { name: 'Água Mineral 500ml', volume: 940, margin: 34 },
-    { name: 'Energético Lata', volume: 710, margin: 41 },
-    { name: 'Salgado Assado', volume: 680, margin: 36 },
-    { name: 'Refrigerante 2L', volume: 870, margin: 19 },
-    { name: 'Cerveja Long Neck', volume: 750, margin: 22 },
-    { name: 'Chocolate Barra', volume: 640, margin: 18 },
-    { name: 'Cigarro Carteira', volume: 920, margin: 12 },
-    { name: 'Gelo 5kg', volume: 560, margin: 20 },
-    { name: 'Vinho Seleção', volume: 170, margin: 45 },
-    { name: 'Castanhas Premium', volume: 240, margin: 43 },
-    { name: 'Suco Natural', volume: 310, margin: 38 },
-    { name: 'Sanduíche Natural', volume: 360, margin: 35 },
-    { name: 'Acessório Celular', volume: 130, margin: 46 },
-    { name: 'Biscoito Recheado', volume: 310, margin: 16 },
-    { name: 'Chiclete Unitário', volume: 210, margin: 14 },
-    { name: 'Raspadinha', volume: 80, margin: 10 },
-    { name: 'Isqueiro', volume: 190, margin: 18 },
-    { name: 'Copo Descartável', volume: 110, margin: 13 },
-  ],
-  Combustível: [
-    { name: 'Diesel S10', volume: 5240, margin: 18 },
-    { name: 'Gasolina Comum', volume: 4820, margin: 17 },
-    { name: 'Etanol Hidratado', volume: 3180, margin: 22 },
-    { name: 'Diesel S500', volume: 2100, margin: 15 },
-    { name: 'Gasolina Aditivada', volume: 1920, margin: 21 },
-    { name: 'GNV Veicular', volume: 1380, margin: 25 },
-    { name: 'Arla 32', volume: 680, margin: 19 },
-    { name: 'Gasolina Premium', volume: 440, margin: 20 },
-  ],
-};
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
@@ -5751,14 +5697,6 @@ const HorizTank = ({ pct = 0, color = '#22c55e', liters = 0 }) => {
   );
 };
 
-// Dados mock dos top produtos de conveniência — id referencia PM_MOCK_PRODUCTS
-const _CONV_DASH_BASE = [
-  { id: 1,  name: 'Refrig. 350ml',   qty: 1842, emoji: '🥤' },
-  { id: 3,  name: 'Água 500ml',      qty: 1725, emoji: '💧' },
-  { id: 32, name: 'Café 3 Corações', qty:  930, emoji: '☕' },
-  { id: 23, name: 'Marlboro',        qty:  760, emoji: '🚬' },
-];
-
 // ─── Tick customizado: imagem circular + nome (eixo X do gráfico conveniência) ──
 const ConvProductTick = ({ x, y, payload, chartData, images }) => {
   const item   = (chartData || []).find(d => d.name === payload?.value);
@@ -5856,10 +5794,18 @@ const ConvCarousel = ({ data, images, themeMode }) => {
   const isChampion = active === 0;           // 1º lugar em destaque
 
   useEffect(() => {
-    if (paused) return;
+    if (paused || n === 0) return;
     const t = setInterval(() => setActive(p => (p + 1) % n), 3200);
     return () => clearInterval(t);
   }, [n, paused]);
+
+  if (n === 0) {
+    return (
+      <div style={{ padding: '40px 0', textAlign: 'center', color: '#64748b', fontSize: 14 }}>
+        Sem dados de conveniência no período
+      </div>
+    );
+  }
 
   const prev = () => { setPaused(true); setActive(p => (p - 1 + n) % n); };
   const next = () => { setPaused(true); setActive(p => (p + 1) % n); };
@@ -6368,36 +6314,25 @@ const FuelStationCard = ({ estoques = [], themeMode = 'dark' }) => {
 };
 
 // Dashboard Component
-const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcControle, estoques, loading, clients, selectedClient, selectedPeriod, setSelectedPeriod, onRefresh, themeMode }) => {
+const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcControle, estoques, loading, clients, selectedClient, selectedPeriod, setSelectedPeriod, onRefresh, themeMode, topConvenio, vendasDiariasCombusFull, abcProdutos1, abcProdutos2 }) => {
   const [selectedFuelDonut, setSelectedFuelDonut] = useState(null);
   const [isCompactDashboard, setIsCompactDashboard] = useState(false);
   const [salesFuelSection, setSalesFuelSection] = useState('conveniencia');
   const [productMatrixUnit, setProductMatrixUnit] = useState('Pista');
   const [productMatrixPeriod, setProductMatrixPeriod] = useState('Mensal');
   const [productMatrixAnimKey, setProductMatrixAnimKey] = useState(0);
-  // Inicializa imagens do cache localStorage de forma SÍNCRONA (zero flash)
-  // depois atualiza em background caso o cache esteja desatualizado
+  // Carrega todas as imagens de produto (stale-while-revalidate)
   const [convProductImages, setConvProductImages] = useState(() => {
-    try {
-      const cached = JSON.parse(localStorage.getItem(IMG_LS_KEY) || 'null');
-      if (cached) {
-        const map = {};
-        _CONV_DASH_BASE.forEach(item => { if (cached[item.id]) map[item.id] = cached[item.id]; });
-        return map;
-      }
-    } catch {}
-    return {};
+    try { return JSON.parse(localStorage.getItem(IMG_LS_KEY) || 'null') || {}; }
+    catch { return {}; }
   });
 
-  // Background: busca da API e atualiza o estado se houver mudanças
   useEffect(() => {
     imgLoadAll().then(all => {
       setConvProductImages(prev => {
-        const next = {};
-        _CONV_DASH_BASE.forEach(item => { if (all[item.id]) next[item.id] = all[item.id]; });
-        // Só re-renderiza se algo mudou
-        const changed = _CONV_DASH_BASE.some(item => prev[item.id] !== next[item.id]);
-        return changed ? next : prev;
+        const allKeys  = new Set([...Object.keys(all), ...Object.keys(prev)]);
+        const changed  = [...allKeys].some(k => prev[k] !== all[k]);
+        return changed ? all : prev;
       });
     }).catch(() => {});
   }, []);
@@ -6465,9 +6400,8 @@ const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcContr
 
   const vendasCombustivelFallback = [{ name: 'Sem dados', litros: 0, color: DASHBOARD_COLORS.sale }];
 
-  // Mock top-4 conveniência mais vendida (demo) — produtos individuais
   const _CONV_DASH_COLORS = ['#3b82f6', '#8b5cf6', '#f59e0b', '#06b6d4'];
-  const salesConvChartData = _CONV_DASH_BASE.map((r, i) => ({ ...r, color: _CONV_DASH_COLORS[i] }));
+  const salesConvChartData = (topConvenio && topConvenio.length > 0 ? topConvenio : []).map((r, i) => ({ ...r, color: _CONV_DASH_COLORS[i % _CONV_DASH_COLORS.length] }));
 
   const monthlyChart = vendasDiarias && vendasDiarias.length > 0
     ? vendasDiarias.map(r => ({ day: new Date(r.dia).getUTCDate(), value: r.valorTotal }))
@@ -6500,10 +6434,11 @@ const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcContr
   const showDenseValueLabels = !isCompactDashboard;
   const selectedMatrixPeriod = PRODUCT_MATRIX_PERIODS.find(period => period.value === productMatrixPeriod) || PRODUCT_MATRIX_PERIODS[2];
   const pmUnitLabel = productMatrixUnit === 'Combustível' ? 'Litros (L)' : 'Qtd. Vendas';
-  const productMatrixData = (PRODUCT_MATRIX_MOCK[productMatrixUnit] || PRODUCT_MATRIX_MOCK.Pista).map((item, index) => ({
+  const abcBase = productMatrixUnit === 'Combustível' ? (abcProdutos1 || []) : (abcProdutos2 || []);
+  const productMatrixData = abcBase.map(item => ({
     ...item,
-    volume: Math.round(item.volume * selectedMatrixPeriod.factor + (index % 4) * selectedMatrixPeriod.factor * 6),
-    margin: clamp(item.margin + selectedMatrixPeriod.marginShift + ((index % 3) - 1) * 0.7, 4, 50),
+    volume: Math.round(item.volume * selectedMatrixPeriod.factor),
+    margin: clamp(item.margin, 0, 99),
   }));
   // Sort descending and assign ABC tier
   const productMatrixSorted = [...productMatrixData]
@@ -6666,7 +6601,12 @@ const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcContr
           ))}
         </div>
 
-        <ResponsiveContainer key={`abc-${productMatrixAnimKey}`} width="100%" height={productMatrixHeight}>
+        {productMatrixSorted.length === 0 && (
+          <div style={{ padding: '40px 0', textAlign: 'center', color: '#64748b', fontSize: 14 }}>
+            Sem dados de produtos no período
+          </div>
+        )}
+        <ResponsiveContainer key={`abc-${productMatrixAnimKey}`} width="100%" height={productMatrixSorted.length > 0 ? productMatrixHeight : 0}>
           <BarChart
             layout="vertical"
             data={productMatrixSorted}
@@ -6783,10 +6723,10 @@ const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcContr
         <div className="dashboard-static-full">{dashboardSections.salesFuel}</div>
         <div className="dashboard-static-full">{dashboardSections.stock}</div>
         <div className="dashboard-static-full">
-          <ProjecaoVendas />
+          <ProjecaoVendas vendasDiariasCombusFull={vendasDiariasCombusFull} selectedPeriod={selectedPeriod} />
         </div>
         <div className="dashboard-static-full">
-          <MetasRealizadoChart themeMode={themeMode} />
+          <MetasRealizadoChart themeMode={themeMode} vendasDiariasCombusFull={vendasDiariasCombusFull} selectedPeriod={selectedPeriod} />
         </div>
         <div className="dashboard-static-full">
           <VendasPista clients={clients} selectedClient={selectedClient} selectedPeriod={selectedPeriod} themeMode={themeMode} />
@@ -14740,6 +14680,10 @@ export default function App() {
     lmcControle: null,
     estoques: [],
     projecao: [],
+    topConvenio: [],
+    vendasDiariasCombusFull: [],
+    abcProdutos1: [],
+    abcProdutos2: [],
     loading: false,
     error: null,
   });
@@ -14769,7 +14713,11 @@ export default function App() {
       fetch(`${API_URL}/api/lmc/controle?empresa=${empresa}&periodo=${controlPeriodo}`).then(r => r.json()),
       fetch(`${API_URL}/api/estoque?empresa=${empresa}`).then(r => r.json()),
       fetch(`${API_URL}/api/estoque/projecao?empresa=${empresa}&dias=7`).then(r => r.json()),
-    ]).then(([kpis, combustiveis, vendasDiarias, vendasHorarias, dashboardLmcControle, lmcResp, lmcDiario, lmcControle, estoqueResp, projecaoResp]) => {
+      fetch(`${API_URL}/api/dashboard/top-convenio?empresa=${empresa}&periodo=${dashboardPeriodo}`).then(r => r.json()),
+      fetch(`${API_URL}/api/dashboard/vendas-diarias-full?empresa=${empresa}&periodo=${dashboardPeriodo}`).then(r => r.json()),
+      fetch(`${API_URL}/api/dashboard/abc-produtos?empresa=${empresa}&periodo=${dashboardPeriodo}&prodtipo=1`).then(r => r.json()),
+      fetch(`${API_URL}/api/dashboard/abc-produtos?empresa=${empresa}&periodo=${dashboardPeriodo}&prodtipo=2`).then(r => r.json()),
+    ]).then(([kpis, combustiveis, vendasDiarias, vendasHorarias, dashboardLmcControle, lmcResp, lmcDiario, lmcControle, estoqueResp, projecaoResp, topConvenioResp, vendasDiariasFullResp, abcProd1Resp, abcProd2Resp]) => {
       setIsConnected(true);
       setApiData({
         kpis: kpis.error ? null : kpis,
@@ -14782,6 +14730,10 @@ export default function App() {
         lmcControle: lmcControle.registros || [],
         estoques: estoqueResp.estoques || [],
         projecao: projecaoResp.projecoes || [],
+        topConvenio: Array.isArray(topConvenioResp) ? topConvenioResp : [],
+        vendasDiariasCombusFull: Array.isArray(vendasDiariasFullResp) ? vendasDiariasFullResp : [],
+        abcProdutos1: Array.isArray(abcProd1Resp) ? abcProd1Resp : [],
+        abcProdutos2: Array.isArray(abcProd2Resp) ? abcProd2Resp : [],
         loading: false,
         error: null,
       });
@@ -14812,7 +14764,11 @@ export default function App() {
       fetch(`${API_URL}/api/lmc/controle?empresa=${empresa}&periodo=${controlPeriodo}`).then(r => r.json()),
       fetch(`${API_URL}/api/estoque?empresa=${empresa}`).then(r => r.json()),
       fetch(`${API_URL}/api/estoque/projecao?empresa=${empresa}&dias=7`).then(r => r.json()),
-    ]).then(([kpis, combustiveis, vendasDiarias, vendasHorarias, dashboardLmcControle, lmcResp, lmcDiario, lmcControle, estoqueResp, projecaoResp]) => {
+      fetch(`${API_URL}/api/dashboard/top-convenio?empresa=${empresa}&periodo=${dashboardPeriodo}`).then(r => r.json()),
+      fetch(`${API_URL}/api/dashboard/vendas-diarias-full?empresa=${empresa}&periodo=${dashboardPeriodo}`).then(r => r.json()),
+      fetch(`${API_URL}/api/dashboard/abc-produtos?empresa=${empresa}&periodo=${dashboardPeriodo}&prodtipo=1`).then(r => r.json()),
+      fetch(`${API_URL}/api/dashboard/abc-produtos?empresa=${empresa}&periodo=${dashboardPeriodo}&prodtipo=2`).then(r => r.json()),
+    ]).then(([kpis, combustiveis, vendasDiarias, vendasHorarias, dashboardLmcControle, lmcResp, lmcDiario, lmcControle, estoqueResp, projecaoResp, topConvenioResp, vendasDiariasFullResp, abcProd1Resp, abcProd2Resp]) => {
       setIsConnected(true);
       setApiData({
         kpis: kpis.error ? null : kpis,
@@ -14825,6 +14781,10 @@ export default function App() {
         lmcControle: lmcControle.registros || [],
         estoques: estoqueResp.estoques || [],
         projecao: projecaoResp.projecoes || [],
+        topConvenio: Array.isArray(topConvenioResp) ? topConvenioResp : [],
+        vendasDiariasCombusFull: Array.isArray(vendasDiariasFullResp) ? vendasDiariasFullResp : [],
+        abcProdutos1: Array.isArray(abcProd1Resp) ? abcProd1Resp : [],
+        abcProdutos2: Array.isArray(abcProd2Resp) ? abcProd2Resp : [],
         loading: false,
         error: null,
       });
@@ -14837,7 +14797,7 @@ export default function App() {
   const renderPage = () => {
     switch (currentPage) {
       case 'dashboard':
-        return <Dashboard kpis={apiData.kpis} combustiveis={apiData.combustiveis} vendasDiarias={apiData.vendasDiarias} vendasHorarias={apiData.vendasHorarias} lmcControle={apiData.dashboardLmcControle} estoques={apiData.estoques} loading={apiData.loading} clients={clients} selectedClient={selectedClient} selectedPeriod={dashboardPeriod} setSelectedPeriod={setDashboardPeriod} onRefresh={handleRefresh} themeMode={themeMode} />;
+        return <Dashboard kpis={apiData.kpis} combustiveis={apiData.combustiveis} vendasDiarias={apiData.vendasDiarias} vendasHorarias={apiData.vendasHorarias} lmcControle={apiData.dashboardLmcControle} estoques={apiData.estoques} loading={apiData.loading} clients={clients} selectedClient={selectedClient} selectedPeriod={dashboardPeriod} setSelectedPeriod={setDashboardPeriod} onRefresh={handleRefresh} themeMode={themeMode} topConvenio={apiData.topConvenio} vendasDiariasCombusFull={apiData.vendasDiariasCombusFull} abcProdutos1={apiData.abcProdutos1} abcProdutos2={apiData.abcProdutos2} />;
       case 'reports':
         return <Reports selectedClient={selectedClient} selectedPeriod={reportsPeriod} setSelectedPeriod={setReportsPeriod} clients={clients} />;
       case 'control':
@@ -14857,7 +14817,7 @@ export default function App() {
       case 'admin':
         return <Parameters clients={clients} setClients={setClients} isAdmin={isAdmin} />;
       default:
-        return <Dashboard kpis={apiData.kpis} combustiveis={apiData.combustiveis} vendasDiarias={apiData.vendasDiarias} vendasHorarias={apiData.vendasHorarias} lmcControle={apiData.dashboardLmcControle} estoques={apiData.estoques} loading={apiData.loading} clients={clients} selectedClient={selectedClient} selectedPeriod={dashboardPeriod} setSelectedPeriod={setDashboardPeriod} onRefresh={handleRefresh} themeMode={themeMode} />;
+        return <Dashboard kpis={apiData.kpis} combustiveis={apiData.combustiveis} vendasDiarias={apiData.vendasDiarias} vendasHorarias={apiData.vendasHorarias} lmcControle={apiData.dashboardLmcControle} estoques={apiData.estoques} loading={apiData.loading} clients={clients} selectedClient={selectedClient} selectedPeriod={dashboardPeriod} setSelectedPeriod={setDashboardPeriod} onRefresh={handleRefresh} themeMode={themeMode} topConvenio={apiData.topConvenio} vendasDiariasCombusFull={apiData.vendasDiariasCombusFull} abcProdutos1={apiData.abcProdutos1} abcProdutos2={apiData.abcProdutos2} />;
     }
   };
 

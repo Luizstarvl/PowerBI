@@ -375,4 +375,157 @@ router.get('/prod-categorias', async (req, res) => {
   }
 });
 
+// GET /api/dashboard/top-convenio?empresa=7432&periodo=052026
+// Top 4 non-fuel products by qty sold in the period
+router.get('/top-convenio', async (req, res) => {
+  const empresa = parseInt(req.query.empresa);
+  const periodo = req.query.periodo;
+
+  if (!empresa || !periodo || periodo.length !== 6) {
+    return res.status(400).json({ error: 'empresa and periodo (MMYYYY) required' });
+  }
+
+  const mes = parseInt(periodo.substring(0, 2));
+  const ano = parseInt(periodo.substring(2, 6));
+  const diasNoMes = new Date(ano, mes, 0).getDate();
+  const dataInicio = `${ano}-${String(mes).padStart(2, '0')}-01`;
+  const dataFim = `${ano}-${String(mes).padStart(2, '0')}-${diasNoMes}`;
+
+  try {
+    const result = await query(
+      `SELECT
+         p.prodcodigo AS id,
+         p.prodresumo AS nome,
+         COALESCE(SUM(i.vditqtd), 0) AS qtd
+       FROM vdit i
+       JOIN vda v  ON v.vdacodigo  = i.vditcodigovda AND v.vdaempresa = i.vditempresa
+       JOIN prod p ON p.prodcodigo = i.vditproduto
+       WHERE i.vditempresa = $1
+         AND v.vdamovimento >= $2
+         AND v.vdamovimento <= $3
+         AND (v.vdastatus IS NULL OR v.vdastatus = 0)
+         AND p.prodtipo != 1
+       GROUP BY p.prodcodigo, p.prodresumo
+       ORDER BY qtd DESC
+       LIMIT 4`,
+      [empresa, dataInicio, dataFim]
+    );
+
+    res.json(result.rows.map(r => ({
+      id:   r.id,
+      name: r.nome,
+      qty:  parseFloat(r.qtd),
+    })));
+  } catch (err) {
+    console.error('Error in /dashboard/top-convenio:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/dashboard/vendas-diarias-full?empresa=7432&periodo=052026
+// Daily litros + valor combustivel + valor conveniencia
+router.get('/vendas-diarias-full', async (req, res) => {
+  const empresa = parseInt(req.query.empresa);
+  const periodo = req.query.periodo;
+
+  if (!empresa || !periodo || periodo.length !== 6) {
+    return res.status(400).json({ error: 'empresa and periodo (MMYYYY) required' });
+  }
+
+  const mes = parseInt(periodo.substring(0, 2));
+  const ano = parseInt(periodo.substring(2, 6));
+  const diasNoMes = new Date(ano, mes, 0).getDate();
+  const dataInicio = `${ano}-${String(mes).padStart(2, '0')}-01`;
+  const dataFim = `${ano}-${String(mes).padStart(2, '0')}-${diasNoMes}`;
+
+  try {
+    const result = await query(
+      `SELECT
+         v.vdamovimento AS dia,
+         COALESCE(SUM(CASE WHEN p.prodtipo = 1  THEN i.vditqtd    ELSE 0 END), 0) AS litros_combustivel,
+         COALESCE(SUM(CASE WHEN p.prodtipo = 1  THEN i.vdittotal  ELSE 0 END), 0) AS valor_combustivel,
+         COALESCE(SUM(CASE WHEN p.prodtipo != 1 THEN i.vdittotal  ELSE 0 END), 0) AS valor_conveniencia
+       FROM vda v
+       JOIN vdit i  ON i.vditcodigovda = v.vdacodigo AND i.vditempresa = v.vdaempresa
+       JOIN prod p  ON p.prodcodigo    = i.vditproduto
+       WHERE v.vdaempresa = $1
+         AND v.vdamovimento >= $2
+         AND v.vdamovimento <= $3
+         AND (v.vdastatus IS NULL OR v.vdastatus = 0)
+       GROUP BY v.vdamovimento
+       ORDER BY dia`,
+      [empresa, dataInicio, dataFim]
+    );
+
+    res.json(result.rows.map(r => ({
+      dia:               r.dia,
+      litrosCombustivel: parseFloat(r.litros_combustivel),
+      valorCombustivel:  parseFloat(r.valor_combustivel),
+      valorConveniencia: parseFloat(r.valor_conveniencia),
+    })));
+  } catch (err) {
+    console.error('Error in /dashboard/vendas-diarias-full:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/dashboard/abc-produtos?empresa=7432&periodo=052026&prodtipo=1
+// Products ranked by volume for ABC matrix — prodtipo=1 (combustíveis), prodtipo=2 (pista/convenio)
+router.get('/abc-produtos', async (req, res) => {
+  const empresa  = parseInt(req.query.empresa);
+  const periodo  = req.query.periodo;
+  const prodtipo = parseInt(req.query.prodtipo) || 1;
+
+  if (!empresa || !periodo || periodo.length !== 6) {
+    return res.status(400).json({ error: 'empresa and periodo (MMYYYY) required' });
+  }
+
+  const mes = parseInt(periodo.substring(0, 2));
+  const ano = parseInt(periodo.substring(2, 6));
+  const diasNoMes = new Date(ano, mes, 0).getDate();
+  const dataInicio = `${ano}-${String(mes).padStart(2, '0')}-01`;
+  const dataFim = `${ano}-${String(mes).padStart(2, '0')}-${diasNoMes}`;
+
+  try {
+    const result = await query(
+      `SELECT
+         p.prodresumo                     AS nome,
+         COALESCE(SUM(i.vditqtd),   0)    AS qtd,
+         COALESCE(SUM(i.vdittotal), 0)    AS faturamento,
+         COALESCE(AVG(ep.e_prodcusto), 0) AS custo_medio
+       FROM vdit i
+       JOIN vda  v  ON v.vdacodigo  = i.vditcodigovda AND v.vdaempresa = i.vditempresa
+       JOIN prod p  ON p.prodcodigo = i.vditproduto
+       LEFT JOIN e_prod ep ON ep.e_prodproduto = i.vditproduto
+                          AND ep.e_prodempresa  = $1
+       WHERE i.vditempresa = $1
+         AND v.vdamovimento >= $2
+         AND v.vdamovimento <= $3
+         AND (v.vdastatus IS NULL OR v.vdastatus = 0)
+         AND p.prodtipo = $4
+       GROUP BY p.prodresumo
+       ORDER BY qtd DESC
+       LIMIT 25`,
+      [empresa, dataInicio, dataFim, prodtipo]
+    );
+
+    res.json(result.rows.map(r => {
+      const qtd   = parseFloat(r.qtd);
+      const fat   = parseFloat(r.faturamento);
+      const custo = parseFloat(r.custo_medio);
+      const margin = fat > 0 && custo > 0
+        ? Math.max(0, Math.min(99, ((fat - qtd * custo) / fat) * 100))
+        : 0;
+      return {
+        name:   r.nome,
+        volume: qtd,
+        margin: parseFloat(margin.toFixed(1)),
+      };
+    }));
+  } catch (err) {
+    console.error('Error in /dashboard/abc-produtos:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
