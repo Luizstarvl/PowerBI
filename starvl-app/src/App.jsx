@@ -5490,16 +5490,9 @@ const Financeiro = ({ clients, selectedClient }) => {
         >
           📤 Contas a Pagar
         </button>
-        <button
-          className={`vp-period-btn vp-secao-btn${tab === 'cartoes' ? ' active' : ''}`}
-          onClick={() => setTab('cartoes')}
-        >
-          💳 Cartões
-        </button>
       </div>
       {tab === 'receber' && <ContasReceber clients={clients} selectedClient={selectedClient} />}
       {tab === 'pagar' && <ContasPagar clients={clients} selectedClient={selectedClient} />}
-      {tab === 'cartoes' && <ControleCartoes />}
     </div>
   );
 };
@@ -11071,6 +11064,7 @@ const LivrosManager = ({ lmcRegistros, lmcDiario, lmcControle, selectedPeriod, s
 
   const sections = [
     { id: 'movimentacao', label: '⛽ Movimentação de Combustíveis' },
+    { id: 'cartoes',      label: '💳 Cartões'                      },
     { id: 'fluxo',        label: '💵 Fluxo de Caixa'               },
     { id: 'conta',        label: '🏦 Conta Corrente'                },
   ];
@@ -11104,6 +11098,7 @@ const LivrosManager = ({ lmcRegistros, lmcDiario, lmcControle, selectedPeriod, s
           clients={clients}
         />
       )}
+      {section === 'cartoes' && <ControleCartoes />}
       {section === 'fluxo' && (
         <FluxoCaixa clients={clients} selectedClient={selectedClient} themeMode={themeMode} />
       )}
