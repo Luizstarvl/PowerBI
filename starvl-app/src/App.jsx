@@ -3035,50 +3035,130 @@ const CT_MAQUININHAS = [
   { id:7, nome:'GetNet Smart',    sn:'77665544332211', local:'Pátio',    adquirente:'GetNet',     bandeira:'Débito',  taxa:1.49, vencDias:3,  vencTipo:'D+3',    proxVenc:'2025-05-26', recebPrevisto:21000.00,  recebAntecipado:0,        status:'Ativa' },
 ];
 
-const CT_POS_CFG = {
-  Cielo:      { body:'#1d4ed8', screen:'#1e3a8a', key:'#93c5fd', label:'CIELO' },
-  Mastercard: { body:'#1c1c2e', screen:'#0f0f1a', key:'#f59e0b', label:'MC'    },
-  Rede:       { body:'#991b1b', screen:'#7f1d1d', key:'#fca5a5', label:'REDE'  },
-  PagSeguro:  { body:'#1e3a8a', screen:'#172554', key:'#93c5fd', label:'PAG'   },
-  Stone:      { body:'#166534', screen:'#14532d', key:'#86efac', label:'STONE' },
-  GetNet:     { body:'#9a3412', screen:'#7c2d12', key:'#fed7aa', label:'GNET'  },
-};
-
 const PosMachineIcon = ({ adquirente }) => {
-  const c = CT_POS_CFG[adquirente] || { body:'#374151', screen:'#1f2937', key:'#9ca3af', label:'POS' };
+  const cfgs = {
+    Cielo:      { g0:'#eef3f8', g1:'#c2d0dc', screen:'#080c14', bezel:'#161c28', key:'#b0beca', keyD:'#8898a6', enter:'#0033a0', sTxt:'#5b9fd6', isLight:true  },
+    Mastercard: { g0:'#1c1c2a', g1:'#0d0d18', screen:'#060610', bezel:'#111120', key:'#252536', keyD:'#161626', enter:'#c00018', sTxt:'#fbbf24', isLight:false },
+    Rede:       { g0:'#1e1e26', g1:'#0e0e18', screen:'#060610', bezel:'#121220', key:'#242434', keyD:'#141428', enter:'#c81414', sTxt:'#f87171', isLight:false },
+    PagSeguro:  { g0:'#18254a', g1:'#0e1830', screen:'#05080e', bezel:'#101828', key:'#1c2c4a', keyD:'#10203a', enter:'#1a4bd8', sTxt:'#93c5fd', isLight:false },
+    Stone:      { g0:'#1a3428', g1:'#0e2018', screen:'#050a08', bezel:'#102018', key:'#1e3228', keyD:'#12241c', enter:'#007a3c', sTxt:'#86efac', isLight:false },
+    GetNet:     { g0:'#3a1e0e', g1:'#22120a', screen:'#080402', bezel:'#201008', key:'#3c2010', keyD:'#2a1408', enter:'#c84810', sTxt:'#fbbf24', isLight:false },
+  };
+  const c = cfgs[adquirente] || cfgs.Mastercard;
+  const label = { Cielo:'CIELO', Mastercard:'MC PAY', Rede:'REDE', PagSeguro:'PAG', Stone:'STONE', GetNet:'GETNET' }[adquirente] || adquirente.toUpperCase().slice(0,6);
+  const uid = `p${adquirente.replace(/[^a-z]/gi,'')}`;
   return (
-    <svg viewBox="0 0 60 90" width={60} height={90} style={{display:'block',borderRadius:8,flexShrink:0}}>
-      <rect x={0} y={0} width={60} height={90} rx={8} fill={c.body}/>
-      <rect x={0} y={0} width={60} height={6} rx={8} fill="rgba(255,255,255,0.14)"/>
-      <rect x={5} y={8} width={50} height={34} rx={3} fill={c.screen}/>
-      <text x={30} y={30} textAnchor="middle" fill="#fff" fontSize={8} fontWeight={900} fontFamily="Arial,sans-serif">{c.label}</text>
-      <circle cx={46} cy={17} r={5} fill="none" stroke="rgba(255,255,255,0.25)" strokeWidth={1}/>
-      <circle cx={46} cy={17} r={3} fill="none" stroke="rgba(255,255,255,0.25)" strokeWidth={1}/>
-      <rect x={5} y={47} width={50} height={4} rx={2} fill="rgba(0,0,0,0.4)"/>
-      <rect x={8}  y={56} width={12} height={6} rx={1.5} fill={c.key} opacity={0.72}/>
-      <rect x={24} y={56} width={12} height={6} rx={1.5} fill={c.key} opacity={0.72}/>
-      <rect x={40} y={56} width={12} height={6} rx={1.5} fill={c.key} opacity={0.72}/>
-      <rect x={8}  y={66} width={12} height={6} rx={1.5} fill={c.key} opacity={0.72}/>
-      <rect x={24} y={66} width={12} height={6} rx={1.5} fill={c.key} opacity={0.72}/>
-      <rect x={40} y={66} width={12} height={6} rx={1.5} fill={c.key} opacity={0.72}/>
-      <rect x={8}  y={76} width={12} height={6} rx={1.5} fill={c.key} opacity={0.72}/>
-      <rect x={24} y={76} width={28} height={6} rx={1.5} fill="#22c55e" opacity={0.88}/>
+    <svg viewBox="0 0 70 108" width={66} height={102}
+      style={{display:'block',flexShrink:0,filter:'drop-shadow(0 3px 8px rgba(0,0,0,0.5))'}}>
+      <defs>
+        <linearGradient id={`${uid}b`} x1="0.1" y1="0" x2="0.9" y2="1">
+          <stop offset="0%" stopColor={c.g0}/>
+          <stop offset="100%" stopColor={c.g1}/>
+        </linearGradient>
+        <linearGradient id={`${uid}k`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={c.key}/>
+          <stop offset="100%" stopColor={c.keyD}/>
+        </linearGradient>
+      </defs>
+      {/* Body */}
+      <rect x={0} y={0} width={70} height={108} rx={9} fill={`url(#${uid}b)`}/>
+      {/* Top shine */}
+      <rect x={1} y={1} width={68} height={5} rx={8} fill="rgba(255,255,255,0.28)"/>
+      {/* Left highlight */}
+      <rect x={1} y={1} width={3} height={106} rx={2} fill="rgba(255,255,255,0.1)"/>
+      {/* Screen bezel */}
+      <rect x={4} y={7} width={62} height={54} rx={5} fill={c.bezel}/>
+      {/* Screen */}
+      <rect x={5} y={8} width={60} height={52} rx={4} fill={c.screen}/>
+      {/* Screen top glare */}
+      <rect x={5} y={8} width={34} height={14} rx={4} fill="rgba(255,255,255,0.07)"/>
+      {/* Camera dot */}
+      <circle cx={35} cy={14} r={2.4} fill={c.isLight ? '#22222a' : '#000'}/>
+      <circle cx={35} cy={14} r={1.1} fill={c.isLight ? '#444' : '#1a1a1a'}/>
+      {/* NFC waves top-right */}
+      <path d="M 55 13 Q 60 9.5 60 14 Q 60 18.5 55 15" fill="none" stroke={`${c.sTxt}55`} strokeWidth={1.1} strokeLinecap="round"/>
+      <path d="M 52 11.5 Q 59 6.5 59 14 Q 59 21.5 52 16.5" fill="none" stroke={`${c.sTxt}33`} strokeWidth={1.1} strokeLinecap="round"/>
+      {/* Brand label in screen */}
+      <text x={35} y={45} textAnchor="middle" fill={c.sTxt} fontSize={8.5} fontWeight={900}
+        fontFamily="'Arial Black',Arial,sans-serif" letterSpacing={0.6}>{label}</text>
+      {/* Screen bottom accent line */}
+      <rect x={16} y={56} width={38} height={1.2} rx={0.6} fill={c.sTxt} opacity={0.18}/>
+      {/* Side button */}
+      <rect x={68} y={20} width={3} height={14} rx={1.5} fill={c.g0} opacity={0.55}/>
+      {/* Card slot housing */}
+      <rect x={4} y={65} width={62} height={8} rx={3} fill="rgba(0,0,0,0.28)"/>
+      {/* Card slot */}
+      <rect x={7} y={67} width={56} height={4} rx={2} fill="rgba(0,0,0,0.65)"/>
+      <rect x={8} y={68} width={54} height={2} rx={1} fill="rgba(0,0,0,0.38)"/>
+      {/* Keys row 1 */}
+      <rect x={6}  y={76} width={17} height={7.5} rx={2} fill={`url(#${uid}k)`}/>
+      <rect x={27} y={76} width={16} height={7.5} rx={2} fill={`url(#${uid}k)`}/>
+      <rect x={47} y={76} width={17} height={7.5} rx={2} fill={`url(#${uid}k)`}/>
+      {/* Keys row 2 */}
+      <rect x={6}  y={87} width={17} height={7.5} rx={2} fill={`url(#${uid}k)`}/>
+      <rect x={27} y={87} width={16} height={7.5} rx={2} fill={`url(#${uid}k)`}/>
+      <rect x={47} y={87} width={17} height={7.5} rx={2} fill={`url(#${uid}k)`}/>
+      {/* Enter key */}
+      <rect x={6} y={98} width={58} height={8} rx={2.5} fill={c.enter}/>
+      <rect x={6} y={98} width={58} height={3} rx={2.5} fill="rgba(255,255,255,0.14)"/>
+      <text x={35} y={103.8} textAnchor="middle" fill="#fff" fontSize={5.5} fontWeight={800}
+        fontFamily="Arial,sans-serif" letterSpacing={0.6}>ENTER</text>
     </svg>
   );
 };
 
 const AdquirenteLogo = ({ adquirente }) => {
-  if (adquirente === 'Cielo')      return <span className="ct-adq-cielo">cielo</span>;
-  if (adquirente === 'Mastercard') return (
-    <div className="ct-adq-mastercard">
-      <div className="mc-r"/>
-      <div className="mc-y"/>
-    </div>
+  if (adquirente === 'Cielo') return (
+    <svg viewBox="0 0 72 32" width={72} height={32}>
+      {/* Cielo arc/wave */}
+      <path d="M 8 16 A 24 24 0 0 1 56 10" fill="none" stroke="#0033a0" strokeWidth={3.5} strokeLinecap="round"/>
+      {/* cielo text */}
+      <text x={6} y={28} fill="#0033a0" fontSize={18} fontWeight={900} fontStyle="italic"
+        fontFamily="'Arial Black',Arial,sans-serif" letterSpacing={-0.5}>cielo</text>
+    </svg>
   );
-  if (adquirente === 'Rede')       return <span className="ct-adq-rede">rede<sup style={{fontSize:8,verticalAlign:'super'}}>.</sup></span>;
-  if (adquirente === 'PagSeguro')  return <span className="ct-adq-pagseguro">PagSeguro</span>;
-  if (adquirente === 'Stone')      return <div className="ct-adq-stone"><div className="stone-dot"/><span>Stone</span></div>;
-  return <span className="ct-adq-getnet">{adquirente}</span>;
+  if (adquirente === 'Mastercard') return (
+    <svg viewBox="0 0 72 30" width={72} height={30}>
+      <circle cx={22} cy={15} r={15} fill="#EB001B"/>
+      <circle cx={40} cy={15} r={15} fill="#F79E1B"/>
+      {/* overlap blend */}
+      <path d="M 31 3.5 Q 36 15 31 26.5 Q 26 15 31 3.5 Z" fill="#FF5F00" opacity={0.85}/>
+      <text x={62} y={20} textAnchor="middle" fill="#1c1c1c" fontSize={8} fontWeight={700}
+        fontFamily="Arial,sans-serif">PAY</text>
+    </svg>
+  );
+  if (adquirente === 'Rede') return (
+    <svg viewBox="0 0 72 28" width={72} height={28}>
+      <text x={2} y={22} fill="#cc0018" fontSize={22} fontWeight={900}
+        fontFamily="'Arial Black',Arial,sans-serif" letterSpacing={-1}>rede</text>
+      <circle cx={60} cy={20} r={4} fill="#cc0018"/>
+    </svg>
+  );
+  if (adquirente === 'PagSeguro') return (
+    <svg viewBox="0 0 80 28" width={80} height={28}>
+      <rect x={0} y={4} width={22} height={20} rx={4} fill="#003087"/>
+      <text x={11} y={19} textAnchor="middle" fill="#fff" fontSize={8} fontWeight={900}
+        fontFamily="Arial,sans-serif">PAG</text>
+      <text x={26} y={20} fill="#003087" fontSize={13} fontWeight={800}
+        fontFamily="Arial,sans-serif">Seguro</text>
+    </svg>
+  );
+  if (adquirente === 'Stone') return (
+    <svg viewBox="0 0 64 28" width={64} height={28}>
+      <rect x={0} y={2} width={24} height={24} rx={6} fill="#00a651"/>
+      <text x={12} y={18} textAnchor="middle" fill="#fff" fontSize={9} fontWeight={900}
+        fontFamily="Arial,sans-serif">st</text>
+      <text x={28} y={20} fill="#00a651" fontSize={15} fontWeight={900}
+        fontFamily="'Arial Black',Arial,sans-serif">Stone</text>
+    </svg>
+  );
+  // GetNet
+  return (
+    <svg viewBox="0 0 72 28" width={72} height={28}>
+      <text x={2} y={21} fill="#e55c19" fontSize={18} fontWeight={900}
+        fontFamily="'Arial Black',Arial,sans-serif" letterSpacing={-0.5}>GetNet</text>
+    </svg>
+  );
 };
 
 const ControleCartoes = () => {
@@ -3275,15 +3355,15 @@ const ControleCartoes = () => {
                 <td>
                   <div className="ct-adq-cell">
                     <div className="ct-adq-logo"><AdquirenteLogo adquirente={m.adquirente}/></div>
-                    <span className="ct-adq-sub">{m.adquirente}</span>
+                    <span className={`ct-adq-sub ct-adq-band-${m.bandeira === 'Crédito' ? 'credito' : 'debito'}`}>{m.bandeira}</span>
                   </div>
                 </td>
                 {/* BANDEIRA */}
                 <td>
-                  {m.bandeira === 'Crédito'
-                    ? <span className="ct-badge-credito"><CreditCard size={11}/> Crédito</span>
-                    : <span className="ct-badge-debito"><Layers size={11}/> Débito</span>
-                  }
+                  <span className={`ct-band-pill ct-band-${m.bandeira === 'Crédito' ? 'credito' : 'debito'}`}>
+                    <span className="ct-band-dot"/>
+                    {m.bandeira}
+                  </span>
                 </td>
                 {/* TAXA */}
                 <td>

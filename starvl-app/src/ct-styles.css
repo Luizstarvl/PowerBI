@@ -72,9 +72,19 @@
 .ct-adq-stone .stone-dot { width: 16px; height: 16px; border-radius: 50%; background: #00a651; }
 .ct-adq-stone span  { font-size: 14px; font-weight: 800; color: #00a651; }
 .ct-adq-getnet     { font-size: 14px; font-weight: 800; color: #e55c19; }
-.ct-adq-sub        { font-size: 11px; color: #94a3b8; }
+.ct-adq-sub             { font-size: 11px; font-weight: 600; margin-top: 2px; }
+.ct-adq-band-credito    { color: #60a5fa; }
+.ct-adq-band-debito     { color: #c084fc; }
 
-/* ── Bandeira Badge ───────────────────────────────────────────────────────── */
+/* ── Bandeira Pill ────────────────────────────────────────────────────────── */
+.ct-band-pill    { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; white-space: nowrap; }
+.ct-band-dot     { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.ct-band-credito { color: #60a5fa; }
+.ct-band-credito .ct-band-dot { background: #3b82f6; box-shadow: 0 0 5px rgba(59,130,246,0.6); }
+.ct-band-debito  { color: #c084fc; }
+.ct-band-debito  .ct-band-dot { background: #a855f7; box-shadow: 0 0 5px rgba(168,85,247,0.6); }
+
+/* Legacy (kept for compatibility, can be removed) */
 .ct-badge-credito { display: inline-flex; align-items: center; gap: 5px; padding: 3px 11px; border-radius: 20px; font-size: 11px; font-weight: 700; background: rgba(59,130,246,0.15); color: #60a5fa; white-space: nowrap; }
 .ct-badge-debito  { display: inline-flex; align-items: center; gap: 5px; padding: 3px 11px; border-radius: 20px; font-size: 11px; font-weight: 700; background: rgba(168,85,247,0.15); color: #c084fc; white-space: nowrap; }
 
@@ -185,6 +195,12 @@
 .theme-light .ct-venc-prox               { color: #9ca3af; }
 .theme-light .ct-rec-prox                { color: #9ca3af; }
 .theme-light .ct-adq-sub                 { color: #9ca3af; }
+.theme-light .ct-adq-band-credito        { color: #2563eb; }
+.theme-light .ct-adq-band-debito         { color: #7c3aed; }
+.theme-light .ct-band-credito            { color: #2563eb; }
+.theme-light .ct-band-credito .ct-band-dot { background: #2563eb; box-shadow: 0 0 4px rgba(37,99,235,0.5); }
+.theme-light .ct-band-debito             { color: #7c3aed; }
+.theme-light .ct-band-debito  .ct-band-dot { background: #7c3aed; box-shadow: 0 0 4px rgba(124,58,237,0.5); }
 .theme-light .ct-adq-cielo               { color: #1d4ed8; }
 .theme-light .ct-adq-pagseguro           { color: #1e40af; }
 .theme-light .ct-pag-btn                 { background: #fff; border-color: #e2e8f0; color: #6b7280; }
