@@ -3045,7 +3045,6 @@ const PosMachineIcon = ({ adquirente }) => {
     GetNet:     { g0:'#3a1e0e', g1:'#22120a', screen:'#080402', bezel:'#201008', key:'#3c2010', keyD:'#2a1408', enter:'#c84810', sTxt:'#fbbf24', isLight:false },
   };
   const c = cfgs[adquirente] || cfgs.Mastercard;
-  const label = { Cielo:'CIELO', Mastercard:'MC PAY', Rede:'REDE', PagSeguro:'PAG', Stone:'STONE', GetNet:'GETNET' }[adquirente] || adquirente.toUpperCase().slice(0,6);
   const uid = `p${adquirente.replace(/[^a-z]/gi,'')}`;
   return (
     <svg viewBox="0 0 70 108" width={66} height={102}
@@ -3078,9 +3077,28 @@ const PosMachineIcon = ({ adquirente }) => {
       {/* NFC waves top-right */}
       <path d="M 55 13 Q 60 9.5 60 14 Q 60 18.5 55 15" fill="none" stroke={`${c.sTxt}55`} strokeWidth={1.1} strokeLinecap="round"/>
       <path d="M 52 11.5 Q 59 6.5 59 14 Q 59 21.5 52 16.5" fill="none" stroke={`${c.sTxt}33`} strokeWidth={1.1} strokeLinecap="round"/>
-      {/* Brand label in screen */}
-      <text x={35} y={45} textAnchor="middle" fill={c.sTxt} fontSize={8.5} fontWeight={900}
-        fontFamily="'Arial Black',Arial,sans-serif" letterSpacing={0.6}>{label}</text>
+      {/* Brand content in screen – brand-specific */}
+      {adquirente === 'Cielo' ? <>
+        <path d="M 11 35 C 16 20 52 18 59 30" fill="none" stroke={c.sTxt} strokeWidth={1.8} strokeLinecap="round"/>
+        <text x={35} y={50} textAnchor="middle" fill={c.sTxt} fontSize={12} fontWeight={900} fontStyle="italic"
+          fontFamily="'Arial Black',Arial,sans-serif" letterSpacing={-0.3}>cielo</text>
+      </> : adquirente === 'Mastercard' ? <>
+        <circle cx={27} cy={38} r={10} fill="#EB001B" opacity={0.9}/>
+        <circle cx={43} cy={38} r={10} fill="#F79E1B" opacity={0.9}/>
+        <path d="M 31 28.2 Q 35 38 31 47.8 Q 27 38 31 28.2 Z" fill="#FF5F00" opacity={0.78}/>
+      </> : adquirente === 'Rede' ? (
+        <text x={35} y={45} textAnchor="middle" fill={c.sTxt} fontSize={14} fontWeight={900}
+          fontFamily="'Arial Black',Arial,sans-serif" letterSpacing={-0.4}>rede.</text>
+      ) : adquirente === 'Stone' ? (
+        <text x={35} y={45} textAnchor="middle" fill={c.sTxt} fontSize={12} fontWeight={900}
+          fontFamily="'Arial Black',Arial,sans-serif">Stone</text>
+      ) : adquirente === 'PagSeguro' ? (
+        <text x={35} y={45} textAnchor="middle" fill={c.sTxt} fontSize={8} fontWeight={800}
+          fontFamily="Arial,sans-serif">PagSeguro</text>
+      ) : (
+        <text x={35} y={45} textAnchor="middle" fill={c.sTxt} fontSize={9} fontWeight={900}
+          fontFamily="Arial,sans-serif">GetNet</text>
+      )}
       {/* Screen bottom accent line */}
       <rect x={16} y={56} width={38} height={1.2} rx={0.6} fill={c.sTxt} opacity={0.18}/>
       {/* Side button */}
@@ -3109,29 +3127,27 @@ const PosMachineIcon = ({ adquirente }) => {
 
 const AdquirenteLogo = ({ adquirente }) => {
   if (adquirente === 'Cielo') return (
-    <svg viewBox="0 0 72 32" width={72} height={32}>
-      {/* Cielo arc/wave */}
-      <path d="M 8 16 A 24 24 0 0 1 56 10" fill="none" stroke="#0033a0" strokeWidth={3.5} strokeLinecap="round"/>
-      {/* cielo text */}
-      <text x={6} y={28} fill="#0033a0" fontSize={18} fontWeight={900} fontStyle="italic"
-        fontFamily="'Arial Black',Arial,sans-serif" letterSpacing={-0.5}>cielo</text>
+    <svg viewBox="0 0 76 38" width={76} height={38}>
+      {/* Cielo swoosh – arco característico que passa sobre o texto */}
+      <path d="M 5 26 C 12 4 62 2 70 18" fill="none" stroke="#0033a0" strokeWidth={3.4} strokeLinecap="round"/>
+      {/* cielo lowercase italic bold */}
+      <text x={3} y={36} fill="#0033a0" fontSize={22} fontWeight={900} fontStyle="italic"
+        fontFamily="'Arial Black',Arial,sans-serif" letterSpacing={-0.8}>cielo</text>
     </svg>
   );
   if (adquirente === 'Mastercard') return (
-    <svg viewBox="0 0 72 30" width={72} height={30}>
-      <circle cx={22} cy={15} r={15} fill="#EB001B"/>
-      <circle cx={40} cy={15} r={15} fill="#F79E1B"/>
-      {/* overlap blend */}
-      <path d="M 31 3.5 Q 36 15 31 26.5 Q 26 15 31 3.5 Z" fill="#FF5F00" opacity={0.85}/>
-      <text x={62} y={20} textAnchor="middle" fill="#1c1c1c" fontSize={8} fontWeight={700}
-        fontFamily="Arial,sans-serif">PAY</text>
+    <svg viewBox="0 0 54 32" width={54} height={32}>
+      <circle cx={18} cy={16} r={15} fill="#EB001B"/>
+      <circle cx={36} cy={16} r={15} fill="#F79E1B"/>
+      {/* overlap lens */}
+      <path d="M 27 2 Q 22 16 27 30 Q 32 16 27 2 Z" fill="#FF5F00" opacity={0.88}/>
     </svg>
   );
   if (adquirente === 'Rede') return (
-    <svg viewBox="0 0 72 28" width={72} height={28}>
-      <text x={2} y={22} fill="#cc0018" fontSize={22} fontWeight={900}
-        fontFamily="'Arial Black',Arial,sans-serif" letterSpacing={-1}>rede</text>
-      <circle cx={60} cy={20} r={4} fill="#cc0018"/>
+    <svg viewBox="0 0 74 28" width={74} height={28}>
+      <text x={1} y={23} fill="#cc0018" fontSize={23} fontWeight={900}
+        fontFamily="'Arial Black',Arial,sans-serif" letterSpacing={-1.2}>rede</text>
+      <circle cx={63} cy={21} r={4} fill="#cc0018"/>
     </svg>
   );
   if (adquirente === 'PagSeguro') return (
