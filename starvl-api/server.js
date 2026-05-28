@@ -11,8 +11,11 @@ const estoqueRoutes   = require('./routes/estoque');
 const relatoriosRoutes = require('./routes/relatorios');
 const receberRoutes   = require('./routes/receber');
 const pagarRoutes     = require('./routes/pagar');
-const imagensRoutes      = require('./routes/imagens');
-const starvlUsersRoutes  = require('./routes/starvlUsers');
+const fluxoCaixaRoutes    = require('./routes/fluxoCaixa');
+const contaCorrenteRoutes = require('./routes/contaCorrente');
+const imagensRoutes       = require('./routes/imagens');
+const starvlUsersRoutes   = require('./routes/starvlUsers');
+const auditoriaRoutes     = require('./routes/auditoria');
 
 const app = express();
 const PORT = process.env.PORT || process.env.API_PORT || 3001;
@@ -93,9 +96,12 @@ app.use('/api/lmc', lmcRoutes);
 app.use('/api/estoque', estoqueRoutes);
 app.use('/api/receber', receberRoutes);
 app.use('/api/pagar',   pagarRoutes);
+app.use('/api/fluxo-caixa', fluxoCaixaRoutes);
+app.use('/api/conta-corrente', contaCorrenteRoutes);
 app.use('/api/relatorios', relatoriosRoutes);
-app.use('/api/imagens',       imagensRoutes);
-app.use('/api/starvl-users',  starvlUsersRoutes);
+app.use('/api/imagens',        imagensRoutes);
+app.use('/api/starvl-users',   starvlUsersRoutes);
+app.use('/api/auditoria',      auditoriaRoutes);
 
 if (fs.existsSync(clientBuildPath)) {
   app.use(express.static(clientBuildPath, {

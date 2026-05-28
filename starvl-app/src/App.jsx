@@ -3,12 +3,15 @@ import logoStarvl from './logo-starvl.png';
 import logoStarvlBlack from './logo-starvl-black.png';
 import * as XLSX from 'xlsx';
 import { LineChart, Line, BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Area, AreaChart, LabelList, ComposedChart, ReferenceLine, PieChart, Pie } from 'recharts';
-import { Home, FileText, Users as UsersIcon, BookOpen, Package, LogOut, Eye, Search, Plus, Edit2, Trash2, X, Calendar, TrendingUp, Droplet, DollarSign, Calculator, Bell, ChevronDown, Activity, Settings, Building2, Phone, Mail, MapPin, Hash, Clock, BarChart2, Layers, CircleDollarSign, UserCheck, UserPlus, AlertCircle, Globe, Camera, Building, Tag, RefreshCw, Database, ChevronRight, ChevronLeft, Filter, Printer, Moon, Sun, Trophy, Lock, Unlock, Wallet, Download, CreditCard, AlertTriangle, Save, PiggyBank, Target, CheckCircle, TrendingDown, Flag, Upload } from 'lucide-react';
+import { Home, FileText, Users as UsersIcon, BookOpen, Package, LogOut, Eye, Search, Plus, Edit2, Trash2, X, Calendar, TrendingUp, TrendingDown, Droplet, DollarSign, Calculator, Bell, ChevronDown, ChevronUp, Activity, Settings, Building2, Phone, Mail, MapPin, Hash, Clock, BarChart2, Layers, CircleDollarSign, UserCheck, UserPlus, AlertCircle, Globe, Camera, Building, Tag, RefreshCw, Database, ChevronRight, ChevronLeft, Filter, Printer, Moon, Sun, Trophy, Lock, Unlock, Wallet, Download, CreditCard, AlertTriangle, Save, PiggyBank, Target, CheckCircle, Flag, Upload, Maximize2, Minimize2, ShieldCheck } from 'lucide-react';
 import './App.css';
 import './cr-styles.css';
 import './cp-styles.css';
 import './pm-styles.css';
 import './ct-styles.css';
+import './fc-pdv.css';
+import './cc-styles.css';
+import './auditoria.css';
 
 // Mock data
 const hourlyData = [
@@ -256,13 +259,14 @@ const Login = ({ onLogin, adminUsers }) => {
 // Sidebar Component
 const Sidebar = ({ currentPage, setCurrentPage, onLogout, themeMode, collapsed, onToggleCollapse }) => {
   const menuItems = [
-    { icon: Home,      label: 'HOME',                        page: 'dashboard' },
-    { icon: Package,   label: 'ESTOQUE',                     page: 'stock'     },
-    { icon: BookOpen,  label: 'LIVROS',                      page: 'control'   },
-    { icon: Target,    label: 'INDICADORES PATRIMONIAIS',    page: 'goals'     },
-    { icon: PiggyBank, label: 'FINANCEIRO',                  page: 'receber'   },
-    { icon: FileText,  label: 'RELATÓRIOS',                  page: 'reports'   },
-    { icon: Settings,  label: 'CONFIGURAÇÕES',               page: 'params'    },
+    { icon: Home,         label: 'HOME',                     page: 'dashboard' },
+    { icon: Package,      label: 'ESTOQUE',                  page: 'stock'     },
+    { icon: BookOpen,     label: 'LIVROS',                   page: 'control'   },
+    { icon: Target,       label: 'INDICADORES PATRIMONIAIS', page: 'goals'     },
+    { icon: PiggyBank,    label: 'FINANCEIRO',               page: 'receber'   },
+    { icon: FileText,     label: 'RELATÓRIOS',               page: 'reports'   },
+    { icon: ShieldCheck,  label: 'AUDITORIA',                page: 'auditoria' },
+    { icon: Settings,     label: 'CONFIGURAÇÕES',            page: 'params'    },
   ];
 
   return (
@@ -3730,7 +3734,1746 @@ const ControleCartoes = () => {
 // ── fim Controle de Cartões ───────────────────────────────────────────────────
 
 // ── Financeiro (wrapper com abas Receber / Pagar) ────────────────────────────
-const Financeiro = ({ clients, selectedClient }) => {
+const todayInput = () => {
+  const date = new Date();
+  date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
+  return date.toISOString().slice(0, 10);
+};
+
+const fmtTime = value => {
+  if (!value) return '--:--';
+  return new Date(value).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+};
+
+const fmtDateTime = value => {
+  if (!value) return 'Em aberto';
+  return `${fmtDate(String(value).slice(0, 10))} ${fmtTime(value)}`;
+};
+
+// ── PDV Conference — Detail Modal ─────────────────────────────────────────────
+const CpdvDetalheModal = ({ item, caixa, data, empresa, onClose }) => {
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!item?.tipo) return;
+    setLoading(true);
+    setError('');
+    const qs = new URLSearchParams({ empresa: String(empresa), data, caixa: String(caixa), tipo: item.tipo });
+    fetch(`${API_URL}/api/fluxo-caixa/detalhe?${qs.toString()}`)
+      .then(r => r.json())
+      .then(json => {
+        if (json.error) throw new Error(json.error);
+        setRows(json.itens || []);
+      })
+      .catch(err => setError(err.message || 'Erro ao carregar detalhes.'))
+      .finally(() => setLoading(false));
+  }, [item, caixa, data, empresa]);
+
+  useEffect(() => {
+    const fn = e => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', fn);
+    return () => document.removeEventListener('keydown', fn);
+  }, [onClose]);
+
+  const total = rows.reduce((s, r) => s + (r.valor || 0), 0);
+
+  const colsFor = tipo => {
+    if (tipo === 'vendaCombustiveis' || tipo === 'vendaProdutos') return [
+      { k: 'momento', l: 'Hora', f: fmtTime },
+      { k: 'cliente', l: 'Cliente' },
+      { k: 'produto', l: 'Produto' },
+      { k: 'quantidade', l: 'Qtd', f: v => fmtNum(v, 3) },
+      { k: 'unitario', l: 'Unit.', f: fmtBRL },
+      { k: 'valor', l: 'Total', f: fmtBRL },
+    ];
+    if (tipo === 'recebimentos') return [
+      { k: 'momento', l: 'Hora', f: fmtTime },
+      { k: 'cliente', l: 'Cliente' },
+      { k: 'documento', l: 'Documento' },
+      { k: 'valor', l: 'Valor', f: fmtBRL },
+    ];
+    if (tipo === 'papeisApresentados') return [
+      { k: 'operadora', l: 'Operadora' },
+      { k: 'bandeira', l: 'Bandeira' },
+      { k: 'valor', l: 'Valor', f: fmtBRL },
+    ];
+    return [
+      { k: 'momento', l: 'Hora', f: fmtTime },
+      { k: 'historico', l: 'Historico' },
+      { k: 'valor', l: 'Valor', f: fmtBRL },
+    ];
+  };
+
+  const cols = colsFor(item.tipo);
+
+  return (
+    <div className="cpdv-modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="cpdv-modal">
+        <div className="cpdv-modal-header">
+          <div>
+            <h3>{item.label}</h3>
+            <small>Caixa {caixa} &bull; {fmtDate(data)}</small>
+          </div>
+          <button className="cpdv-modal-close" onClick={onClose}><X size={18} /></button>
+        </div>
+        <div className="cpdv-modal-body">
+          {loading && <div className="cpdv-empty">Carregando...</div>}
+          {!loading && error && <div className="cpdv-empty" style={{ color: '#ef4444' }}>{error}</div>}
+          {!loading && !error && rows.length === 0 && <div className="cpdv-empty">Nenhum registro encontrado.</div>}
+          {!loading && !error && rows.length > 0 && (
+            <table className="cpdv-modal-table">
+              <thead><tr>{cols.map(c => <th key={c.k}>{c.l}</th>)}</tr></thead>
+              <tbody>
+                {rows.map((row, i) => (
+                  <tr key={i}>{cols.map(c => <td key={c.k}>{c.f ? c.f(row[c.k]) : (row[c.k] ?? '—')}</td>)}</tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+        <div className="cpdv-modal-footer">
+          <span>{rows.length} registro{rows.length !== 1 ? 's' : ''}</span>
+          <strong>{fmtBRL(total)}</strong>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ── Fluxo de Caixa — Row icons map ───────────────────────────────────────────
+const CPDV_ROW_ICONS = {
+  trocoInicial:       Wallet,
+  vendaCombustiveis:  Droplet,
+  vendaProdutos:      Package,
+  recebimentos:       TrendingUp,
+  suprimentos:        PiggyBank,
+  adiantamentos:      CreditCard,
+  creditosVendaProg:  Tag,
+  chequesTroco:       FileText,
+  acrescimosCadastro: Plus,
+  acrescimosGerais:   BarChart2,
+  baixaDeChecques:    Download,
+  outrasEntradas:     Activity,
+  trocoFinal:         Wallet,
+  dinheiroApresentado:DollarSign,
+  papeisApresentados: FileText,
+  pagamentos:         CircleDollarSign,
+  sangrias:           TrendingDown,
+  emprestimos:        Database,
+  retiradasVendaProg: Tag,
+  resgateDepontos:    Trophy,
+  descontosCadastro:  Calculator,
+  descontosGerais:    Calculator,
+  estornoCheques:     RefreshCw,
+  outrasSaidas:       Activity,
+};
+
+// ── Fluxo de Caixa — Print HTML builder ──────────────────────────────────────
+function buildCpdvPrintHtml({ payload, data, empresa }) {
+  if (!payload) return null;
+  const { entradas = [], saidas = [], resumo = {}, caixas = [] } = payload;
+  const generatedAt = new Date().toLocaleString('pt-BR');
+  const dataFmt = fmtDate(data);
+  const caixaInfo = caixas.length > 0 ? caixas.map(c => `Caixa ${c.numero} (${c.operador})`).join(' | ') : 'Todos os caixas';
+  const divergencia = resumo.divergencia || 0;
+  const mkRows = items => items.map(r =>
+    `<tr><td>${r.label}</td><td class="num${r.valor > 0 ? ' bold' : ''}">${fmtNum(r.valor, 2)}</td></tr>`
+  ).join('');
+  return `<!doctype html><html><head><meta charset="utf-8"/>
+<title>Conferência de Caixa — ${dataFmt}</title>
+<style>
+  @page{size:A4 portrait;margin:10mm}*{box-sizing:border-box}
+  body{margin:0;font-family:Arial,Helvetica,sans-serif;color:#111;background:#fff;font-size:11px}
+  .report{width:100%}
+  .hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;border-bottom:2px solid #e31e24;padding-bottom:8px}
+  h1{margin:0 0 3px;font-size:17px;font-weight:800}
+  .sub{color:#555;font-size:10px}
+  img.logo{width:110px;height:auto;object-fit:contain}
+  .meta{display:flex;justify-content:space-between;margin-bottom:10px;color:#666;font-size:9px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+  .col-hd{font-size:11px;font-weight:800;letter-spacing:.05em;padding:5px 8px;border-radius:4px 4px 0 0;margin-bottom:0}
+  .col-hd.e{background:#15803d;color:#fff}.col-hd.s{background:#b91c1c;color:#fff}
+  table{width:100%;border-collapse:collapse;font-size:10px}
+  tr{page-break-inside:avoid}
+  td{padding:4px 6px;border-bottom:1px solid #eee}
+  td.num{text-align:right;font-variant-numeric:tabular-nums}
+  td.bold{font-weight:700;color:#111}
+  .total-row td{font-weight:800;font-size:11px;background:#f3f4f6;border-top:2px solid #ddd;border-bottom:2px solid #ddd}
+  .footer{border-top:2px solid #e31e24;padding-top:8px;text-align:center;margin-top:8px}
+  .dv-warn{font-size:13px;font-weight:800;color:#b45309}
+  .dv-ok{font-size:13px;font-weight:800;color:#15803d}
+  .rf{margin-top:6px;color:#777;font-size:9px;text-align:right}
+  @media screen{body{background:#f3f4f6;padding:20px}.report{max-width:820px;margin:0 auto;background:#fff;padding:24px;box-shadow:0 10px 30px rgba(0,0,0,.12)}}
+</style></head><body><main class="report">
+<header class="hd">
+  <div><h1>CONFERÊNCIA DE CAIXA (PDV)</h1><div class="sub">${caixaInfo}</div></div>
+  <img class="logo" src="/logo-starvl.png" alt="STARVL"/>
+</header>
+<div class="meta"><span>Data: ${dataFmt} | Empresa: ${empresa}</span><span>Gerado em ${generatedAt}</span></div>
+<div class="grid">
+  <div><div class="col-hd e">▲ ENTRADAS</div><table>${mkRows(entradas)}
+    <tr class="total-row"><td>TOTAL ENTRADAS</td><td class="num">${fmtNum(resumo.entradas||0,2)}</td></tr>
+  </table></div>
+  <div><div class="col-hd s">▼ SAÍDAS</div><table>${mkRows(saidas)}
+    <tr class="total-row"><td>TOTAL SAÍDAS</td><td class="num">${fmtNum(resumo.saidas||0,2)}</td></tr>
+  </table></div>
+</div>
+<div class="footer">
+  ${divergencia > 0
+    ? `<span class="dv-warn">⚠ DIVERGÊNCIA: R$ ${fmtNum(divergencia,2)}</span>`
+    : `<span class="dv-ok">✓ Caixa Conferido</span>`}
+</div>
+<div class="rf">STARVL | Conferência de Caixa (PDV) | ${dataFmt}</div>
+</main>
+<script>window.addEventListener('load',function(){setTimeout(function(){window.print();},400);});</script>
+</body></html>`;
+}
+
+// ── Fluxo de Caixa — Impressão Modal ─────────────────────────────────────────
+const CpdvImpressaoModal = ({ caixas, data, setData, empresa, payload, onClose }) => {
+  const [selCaixas, setSelCaixas] = useState((caixas || []).map(c => c.numero));
+
+  useEffect(() => {
+    const fn = e => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', fn);
+    return () => document.removeEventListener('keydown', fn);
+  }, [onClose]);
+
+  const allSelected = selCaixas.length === (caixas || []).length;
+  const toggleAll = () => setSelCaixas(allSelected ? [] : (caixas || []).map(c => c.numero));
+  const toggleCaixa = num => setSelCaixas(prev => prev.includes(num) ? prev.filter(n => n !== num) : [...prev, num]);
+
+  const handleGenerate = () => {
+    const html = buildCpdvPrintHtml({ payload, data, empresa });
+    if (!html) return;
+    const win = window.open('', '_blank');
+    if (!win) { alert('Permita pop-ups no navegador para gerar o relatório.'); return; }
+    win.document.open();
+    win.document.write(html);
+    win.document.close();
+    onClose();
+  };
+
+  return (
+    <div className="modal-overlay control-print-overlay" onClick={onClose}>
+      <div className="control-print-panel" onClick={e => e.stopPropagation()} style={{ maxWidth: 560 }}>
+        <div className="control-print-header">
+          <div className="control-print-title">
+            <span className="control-print-icon"><Printer size={25} /></span>
+            <h3>IMPRIMIR CONFERÊNCIA DE CAIXA</h3>
+          </div>
+          <button type="button" className="control-print-close" onClick={onClose}><X size={28} /></button>
+        </div>
+
+        <div className="control-print-body">
+          <section className="control-print-section">
+            <div className="control-print-section-title"><Calendar size={20} /><span>DATA DE REFERÊNCIA</span></div>
+            <div className="control-print-date-row">
+              <label className="control-print-field" style={{ flex: 1 }}>
+                <span>DATA</span>
+                <div className="control-print-input">
+                  <input type="date" value={data} onChange={e => setData(e.target.value)} />
+                  <Calendar size={19} />
+                </div>
+              </label>
+            </div>
+          </section>
+
+          <section className="control-print-section">
+            <div className="control-print-section-title">
+              <Calculator size={20} /><span>CAIXAS</span>
+              {(caixas||[]).length > 0 && <em>{selCaixas.length}/{(caixas||[]).length}</em>}
+            </div>
+            <label className={`ranking-seller-check ranking-seller-all ${allSelected ? 'selected' : ''}`}>
+              <input type="checkbox" checked={allSelected} onChange={toggleAll} />
+              <span>Todos os caixas</span>
+            </label>
+            <div className="ranking-seller-list" style={{ maxHeight: 150 }}>
+              {(caixas || []).map(c => (
+                <label key={c.numero} className={`ranking-seller-check ${selCaixas.includes(c.numero) ? 'selected' : ''}`}>
+                  <input type="checkbox" checked={selCaixas.includes(c.numero)} onChange={() => toggleCaixa(c.numero)} />
+                  <span>Caixa {c.numero} — {c.operador}</span>
+                  <small>{c.numero}</small>
+                </label>
+              ))}
+              {(caixas||[]).length === 0 && <div className="ranking-seller-state">Nenhum caixa para esta data.</div>}
+            </div>
+          </section>
+        </div>
+
+        <div className="control-print-footer">
+          <button type="button" className="btn-secondary control-print-cancel" onClick={onClose}><X size={20} /> CANCELAR</button>
+          <button type="button" className="btn-primary control-print-generate" onClick={handleGenerate} disabled={!payload || selCaixas.length === 0}>
+            <Printer size={20} /> GERAR IMPRESSÃO
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ── Papeis Apresentados — Tabbed Modal ────────────────────────────────────────
+const PapeisModal = ({ caixa, data, empresa, onClose }) => {
+  const TABS = [
+    { id: 'prazo',              label: 'Prazo' },
+    { id: 'chequeVista',        label: 'Cheque Vista' },
+    { id: 'chequePre',          label: 'Cheque Pre' },
+    { id: 'cartaoDebito',       label: 'Cartão Débito' },
+    { id: 'cartaoCredito',      label: 'Cartão Crédito' },
+    { id: 'tefDebito',          label: 'TEF Débito' },
+    { id: 'tefCredito',         label: 'TEF Crédito' },
+    { id: 'vales',              label: 'Vales' },
+    { id: 'cartaFrete',         label: 'Carta Frete' },
+    { id: 'vendaPrg',           label: 'Venda PRG' },
+    { id: 'depositoAntecipado', label: 'Depósito Antecipado' },
+  ];
+
+  const [activeTab, setActiveTab] = useState('prazo');
+  const [tabData, setTabData] = useState({});
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [selectedOp, setSelectedOp] = useState(null);
+  const [selectedBand, setSelectedBand] = useState(null);
+
+  useEffect(() => {
+    const fn = e => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', fn);
+    return () => document.removeEventListener('keydown', fn);
+  }, [onClose]);
+
+  useEffect(() => {
+    if (tabData[activeTab]) return;
+    setLoading(true);
+    setError('');
+    const qs = new URLSearchParams({ empresa: String(empresa), data, caixa: String(caixa), tab: activeTab });
+    fetch(`${API_URL}/api/fluxo-caixa/papeis?${qs.toString()}`)
+      .then(r => r.json())
+      .then(json => {
+        if (json.error) throw new Error(json.error);
+        setTabData(prev => ({ ...prev, [activeTab]: json }));
+      })
+      .catch(err => setError(err.message || 'Erro ao carregar.'))
+      .finally(() => setLoading(false));
+  }, [activeTab, caixa, data, empresa, tabData]);
+
+  const currentData = tabData[activeTab];
+
+  const filteredLanc = useMemo(() => {
+    if (!currentData?.lancamentos) return [];
+    let items = currentData.lancamentos;
+    if (selectedOp) items = items.filter(l => l.operadora === selectedOp);
+    else if (selectedBand) items = items.filter(l => l.bandeira === selectedBand);
+    return items;
+  }, [currentData, selectedOp, selectedBand]);
+
+  const handleTabChange = id => {
+    setActiveTab(id);
+    setSelectedOp(null);
+    setSelectedBand(null);
+    setError('');
+  };
+
+  const total = useMemo(() => {
+    if (!currentData) return 0;
+    if (currentData.tipo === 'card')
+      return (currentData.operadoras || []).reduce((s, o) => s + o.valor, 0);
+    return (currentData.rows || []).reduce((s, r) => s + (r.valor || 0), 0);
+  }, [currentData]);
+
+  const renderCard = () => {
+    const { operadoras = [], bandeiras = [] } = currentData || {};
+    return (
+      <div className="papeis-card-layout">
+        <div className="papeis-card-panel">
+          <div className="papeis-panel-header">Operadoras</div>
+          <table className="papeis-panel-table">
+            <thead><tr><th>Cod.</th><th>Operadoras</th><th>Valor Total</th></tr></thead>
+            <tbody>
+              {operadoras.map((op, i) => (
+                <tr key={i}
+                  className={selectedOp === op.nome ? 'selected' : ''}
+                  onClick={() => { setSelectedOp(prev => prev === op.nome ? null : op.nome); setSelectedBand(null); }}>
+                  <td>{i + 1}</td><td>{op.nome}</td><td>{fmtBRL(op.valor)}</td>
+                </tr>
+              ))}
+              {operadoras.length === 0 && <tr><td colSpan={3} className="papeis-empty">Sem registros</td></tr>}
+            </tbody>
+          </table>
+        </div>
+        <div className="papeis-card-panel">
+          <div className="papeis-panel-header">Bandeiras</div>
+          <table className="papeis-panel-table">
+            <thead><tr><th>Descricao</th><th>Valor Total</th></tr></thead>
+            <tbody>
+              {bandeiras.map((b, i) => (
+                <tr key={i}
+                  className={selectedBand === b.descricao ? 'selected' : ''}
+                  onClick={() => { setSelectedBand(prev => prev === b.descricao ? null : b.descricao); setSelectedOp(null); }}>
+                  <td>{b.descricao}</td><td>{fmtBRL(b.valor)}</td>
+                </tr>
+              ))}
+              {bandeiras.length === 0 && <tr><td colSpan={2} className="papeis-empty">Sem registros</td></tr>}
+            </tbody>
+          </table>
+        </div>
+        <div className="papeis-card-panel">
+          <div className="papeis-panel-header">Lançamentos</div>
+          <table className="papeis-panel-table">
+            <thead><tr><th>Valor</th></tr></thead>
+            <tbody>
+              {filteredLanc.map((l, i) => (
+                <tr key={i} className="selected"><td>{fmtBRL(l.valor)}</td></tr>
+              ))}
+              {filteredLanc.length === 0 && <tr><td className="papeis-empty">Sem registros</td></tr>}
+            </tbody>
+          </table>
+          {filteredLanc.length > 0 && (
+            <div className="papeis-panel-footer">
+              Total: {fmtBRL(filteredLanc.reduce((s, l) => s + l.valor, 0))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const renderLista = () => {
+    const { rows = [], subTipo } = currentData || {};
+    if (subTipo === 'cheque') {
+      return (
+        <div style={{ overflowX: 'auto' }}>
+          <table className="cpdv-modal-table">
+            <thead><tr>
+              <th>Codigo</th><th>Responsavel</th><th>Vencimento</th>
+              <th>Valor</th><th>Placa</th><th>Frentista</th><th>Venda</th><th>Conf.</th>
+            </tr></thead>
+            <tbody>
+              {rows.map((r, i) => (
+                <tr key={i}>
+                  <td>{r.codigo}</td><td>{r.responsavel}</td>
+                  <td>{fmtDate(r.vencimento)}</td><td>{fmtBRL(r.valor)}</td>
+                  <td>{r.placa || '—'}</td><td>{r.frentista}</td>
+                  <td>{r.vdaCodigo || '—'}</td>
+                  <td>{r.conferido ? 'Sim' : 'Não'}</td>
+                </tr>
+              ))}
+              {rows.length === 0 && <tr><td colSpan={8} style={{ textAlign: 'center', padding: 20, color: '#475569' }}>Nenhum registro encontrado.</td></tr>}
+            </tbody>
+          </table>
+        </div>
+      );
+    }
+    return (
+      <div style={{ overflowX: 'auto' }}>
+        <table className="cpdv-modal-table">
+          <thead><tr>
+            <th>Codigo</th><th>Documento</th><th>Venda</th>
+            <th>Data</th><th>Cliente</th><th>Valor</th><th>Frentista</th>
+          </tr></thead>
+          <tbody>
+            {rows.map((r, i) => (
+              <tr key={i}>
+                <td>{r.codigo}</td><td>{r.documento}</td><td>{r.venda || '—'}</td>
+                <td>{fmtDateTime(r.data)}</td><td>{r.cliente}</td>
+                <td>{fmtBRL(r.valor)}</td><td>{r.frentista}</td>
+              </tr>
+            ))}
+            {rows.length === 0 && <tr><td colSpan={7} style={{ textAlign: 'center', padding: 20, color: '#475569' }}>Nenhum registro encontrado.</td></tr>}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+
+  return (
+    <div className="cpdv-modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="cpdv-modal papeis-modal">
+        <div className="cpdv-modal-header">
+          <div>
+            <h3>Papeis Apresentados</h3>
+            <small>Caixa {caixa} &bull; {fmtDate(data)}</small>
+          </div>
+          <button className="cpdv-modal-close" onClick={onClose}><X size={18} /></button>
+        </div>
+        <div className="papeis-tab-bar">
+          {TABS.map(t => (
+            <button key={t.id} className={`papeis-tab${activeTab === t.id ? ' active' : ''}`}
+              onClick={() => handleTabChange(t.id)}>{t.label}</button>
+          ))}
+        </div>
+        <div className="cpdv-modal-body papeis-body">
+          {loading && <div className="cpdv-empty">Carregando...</div>}
+          {!loading && error && <div className="cpdv-empty" style={{ color: '#ef4444' }}>{error}</div>}
+          {!loading && !error && currentData && (
+            currentData.tipo === 'card' ? renderCard() : renderLista()
+          )}
+        </div>
+        <div className="cpdv-modal-footer">
+          <span>{TABS.find(t => t.id === activeTab)?.label}</span>
+          <strong>{fmtBRL(total)}</strong>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ── Fluxo de Caixa — PDV Conference Layout ────────────────────────────────────
+const FluxoCaixa = ({ clients, selectedClient, themeMode }) => {
+  const empresa = selectedClient?.codigoEmpresa || selectedClient?.id || 7432;
+  const [data, setData] = useState(todayInput());
+  const [selectedCaixa, setSelectedCaixa] = useState(null);
+  const [payload, setPayload] = useState(null);
+  const [caixaPayload, setCaixaPayload] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [detalheItem, setDetalheItem] = useState(null);
+  const [papeisOpen, setPapeisOpen] = useState(false);
+  const [impressaoOpen, setImpressaoOpen] = useState(false);
+
+  const loadAll = useCallback(() => {
+    setLoading(true);
+    setError('');
+    const qs = new URLSearchParams({ empresa: String(empresa), data });
+    fetch(`${API_URL}/api/fluxo-caixa?${qs.toString()}`)
+      .then(r => r.json())
+      .then(json => {
+        if (json.error) throw new Error(json.error);
+        setPayload(json);
+        if (json.caixas?.length > 0) setSelectedCaixa(prev => prev || json.caixas[0].numero);
+      })
+      .catch(err => { setError(err.message || 'Nao foi possivel carregar o fluxo de caixa.'); setPayload(null); })
+      .finally(() => setLoading(false));
+  }, [empresa, data]);
+
+  useEffect(() => { loadAll(); }, [loadAll]);
+
+  useEffect(() => {
+    if (!selectedCaixa) return;
+    const qs = new URLSearchParams({ empresa: String(empresa), data, caixa: String(selectedCaixa) });
+    fetch(`${API_URL}/api/fluxo-caixa?${qs.toString()}`)
+      .then(r => r.json())
+      .then(json => { if (!json.error) setCaixaPayload(json); })
+      .catch(() => {});
+  }, [empresa, data, selectedCaixa]);
+
+  const caixas = payload?.caixas || [];
+  const active = selectedCaixa && caixaPayload ? caixaPayload : payload;
+  const entradas = active?.entradas || [];
+  const saidas = active?.saidas || [];
+  const timeline = active?.timeline || [];
+  const tanques = active?.tanques || [];
+  const resumo = active?.resumo || {};
+  const currentCaixa = caixas.find(c => c.numero === selectedCaixa) || caixas[0];
+
+  const NON_CLICKABLE = new Set([
+    'trocoInicial', 'trocoFinal', 'dinheiroApresentado',
+    'creditosVendaProg', 'retiradasVendaProg',
+    'acrescimosCadastro', 'acrescimosGerais',
+    'descontosCadastro', 'descontosGerais', 'chequesTroco', 'adiantamentos',
+  ]);
+
+  const openDetalhe = (id, label) => {
+    if (!selectedCaixa) return;
+    if (id === 'papeisApresentados') { setPapeisOpen(true); return; }
+    setDetalheItem({ tipo: id, label });
+  };
+
+  const Row = ({ item }) => {
+    const clickable = !NON_CLICKABLE.has(item.id) && item.valor > 0 && !!selectedCaixa;
+    const Icon = CPDV_ROW_ICONS[item.id];
+    return (
+      <div
+        className={`cpdv-row${clickable ? ' clickable' : ''}`}
+        onClick={clickable ? () => openDetalhe(item.id, item.label) : undefined}
+        title={clickable ? `Ver detalhes: ${item.label}` : undefined}
+      >
+        <span className="cpdv-row-label">
+          {Icon && <Icon size={11} className="cpdv-row-icon" />}
+          {item.label}
+        </span>
+        <span className={`cpdv-row-value${item.valor > 0 ? ' nonzero' : ''}`}>{fmtNum(item.valor, 2)}</span>
+      </div>
+    );
+  };
+
+  return (
+    <div className="cpdv-page">
+      <div className="cpdv-header">
+        <div className="cpdv-header-title">
+          <Wallet size={20} style={{ color: '#ef4444' }} />
+          CONFERÊNCIA DE CAIXA (PDV)
+        </div>
+        <button
+          className="btn-primary control-print-generate cpdv-print-btn"
+          onClick={() => setImpressaoOpen(true)}
+          title="Imprimir Conferência de Caixa"
+        >
+          <Printer size={16} /> IMPRIMIR RELATÓRIO
+        </button>
+      </div>
+
+      <div className="cpdv-caixas-bar">
+        <span className="cpdv-caixas-label">Caixas do Dia</span>
+        {caixas.map(cxa => (
+          <button
+            key={cxa.numero}
+            className={`cpdv-caixa-tab${selectedCaixa === cxa.numero ? ' active' : ''}`}
+            onClick={() => { setSelectedCaixa(cxa.numero); setCaixaPayload(null); }}
+          >
+            Caixa {cxa.numero}
+          </button>
+        ))}
+        <div className="cpdv-date-wrapper" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
+          <Calendar size={14} style={{ color: '#ef4444', flexShrink: 0 }} />
+          <input
+            type="date"
+            className="cpdv-date-input"
+            value={data}
+            onChange={e => { setData(e.target.value); setSelectedCaixa(null); setCaixaPayload(null); setPayload(null); }}
+            style={{ colorScheme: themeMode === 'light' ? 'light' : 'dark' }}
+          />
+        </div>
+        {currentCaixa && (
+          <div className="cpdv-caixas-info">
+            <div className="cpdv-info-item">
+              <div>
+                <div className="cpdv-info-label">Operador</div>
+                <div className="cpdv-info-value">{currentCaixa.operador}</div>
+              </div>
+            </div>
+            {[
+              { label: 'Data Abertura', value: currentCaixa.abertura },
+              { label: 'Data Fechamento', value: currentCaixa.fechamento },
+              { label: 'Data Conferencia', value: currentCaixa.conferidoEm },
+            ].map(({ label, value }) => (
+              <div key={label} className="cpdv-info-item">
+                <Calendar size={11} style={{ color: '#ef4444', flexShrink: 0 }} />
+                <div>
+                  <div className="cpdv-info-label">{label}</div>
+                  <div className="cpdv-info-value">{fmtDateTime(value)}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {error && <div className="api-error-notice"><AlertCircle size={18} /> {error}</div>}
+
+      {/* Resumo rápido */}
+      {payload && (resumo.entradas > 0 || resumo.saidas > 0) && (
+        <div className="cpdv-quick-summary">
+          <div className="cpdv-qs-item">
+            <span className="cpdv-qs-label"><TrendingUp size={11} /> Entradas</span>
+            <span className="cpdv-qs-value green">{fmtBRL(resumo.entradas || 0)}</span>
+          </div>
+          <div className="cpdv-qs-sep" />
+          <div className="cpdv-qs-item">
+            <span className="cpdv-qs-label"><TrendingDown size={11} /> Saídas</span>
+            <span className="cpdv-qs-value red">{fmtBRL(resumo.saidas || 0)}</span>
+          </div>
+          <div className="cpdv-qs-sep" />
+          <div className="cpdv-qs-item">
+            <span className="cpdv-qs-label">Saldo Líquido</span>
+            <span className={`cpdv-qs-value ${((resumo.entradas || 0) - (resumo.saidas || 0)) >= 0 ? 'green' : 'red'}`}>
+              {fmtBRL((resumo.entradas || 0) - (resumo.saidas || 0))}
+            </span>
+          </div>
+          {(resumo.divergencia || 0) > 0 && (
+            <>
+              <div className="cpdv-qs-sep" />
+              <div className="cpdv-qs-item">
+                <span className="cpdv-qs-label"><AlertTriangle size={11} /> Divergência</span>
+                <span className="cpdv-qs-value" style={{ color: '#f59e0b' }}>{fmtBRL(resumo.divergencia)}</span>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      <div className="cpdv-main">
+        <div className="cpdv-left">
+          {loading && !payload && <div className="cpdv-empty">Carregando...</div>}
+          {(!loading || payload) && (
+            <div className="cpdv-columns">
+              <div className="cpdv-col">
+                <div className="cpdv-col-header entradas"><TrendingUp size={12} /> ENTRADAS</div>
+                {entradas.map(item => <Row key={item.id} item={item} />)}
+                <div className="cpdv-total-row entradas">
+                  <span><TrendingUp size={11} style={{ marginRight: 4 }} />TOTAL ENTRADAS</span>
+                  <strong>{fmtBRL(resumo.entradas || 0)}</strong>
+                </div>
+              </div>
+              <div className="cpdv-col">
+                <div className="cpdv-col-header saidas"><TrendingDown size={12} /> SAÍDAS</div>
+                {saidas.map(item => <Row key={item.id} item={item} />)}
+                <div className="cpdv-total-row saidas">
+                  <span><TrendingDown size={11} style={{ marginRight: 4 }} />TOTAL SAÍDAS</span>
+                  <strong>{fmtBRL(resumo.saidas || 0)}</strong>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="cpdv-right">
+          <div className="cpdv-timeline-panel">
+            <div className="cpdv-panel-header">
+              <h4><Activity size={11} /> LINHA DO TEMPO</h4>
+              <span className="cpdv-count">{timeline.length} eventos</span>
+            </div>
+            <div className="cpdv-timeline-list">
+              {timeline.map((ev, i) => (
+                <div key={i} className="cpdv-timeline-event">
+                  <time>{fmtTime(ev.momento)}</time>
+                  <div className={`cpdv-timeline-dot ${ev.tipo}`}>
+                    {ev.tipo === 'abertura' ? <UserCheck size={9} /> : ev.tipo === 'fechamento' ? <Clock size={9} /> : <Activity size={9} />}
+                  </div>
+                  <div className="cpdv-timeline-info">
+                    <strong>
+                      {ev.titulo}
+                      <span style={{ fontWeight: 400, color: '#64748b', fontSize: 10 }}>{ev.detalhe ? ` ${ev.detalhe}` : ''}</span>
+                    </strong>
+                  </div>
+                  {ev.valor > 0 && (
+                    <span className={`cpdv-timeline-value ${ev.tipo === 'entrada' ? 'green' : 'red'}`}>
+                      {ev.tipo !== 'entrada' ? '-' : ''}{fmtBRL(ev.valor)}
+                    </span>
+                  )}
+                </div>
+              ))}
+              {!loading && timeline.length === 0 && <div className="cpdv-empty">Nenhum evento.</div>}
+            </div>
+            {timeline.length > 0 && (
+              <div className="cpdv-timeline-ver-mais">Ver todos os eventos</div>
+            )}
+          </div>
+
+          <div className="cpdv-tanks-panel">
+            <div className="cpdv-panel-header">
+              <h4><Droplet size={11} /> MEDIÇÃO DE TANQUES</h4>
+              <span className="cpdv-count">{tanques.length} tanques</span>
+            </div>
+            <div className="cpdv-tanks-grid">
+              {tanques.map(t => (
+                <div key={t.codigo} className="cpdv-tank-card">
+                  <Droplet size={14} style={{ color: '#ef4444' }} />
+                  <span className="cpdv-tank-name">{t.produto}</span>
+                  <span className="cpdv-tank-value">{fmtNum(t.volume)} L</span>
+                  <div className="cpdv-tank-bar">
+                    <div className="cpdv-tank-fill" style={{ width: `${Math.max(2, Math.min(100, t.percentual || 0))}%` }} />
+                  </div>
+                </div>
+              ))}
+              {!loading && tanques.length === 0 && <div className="cpdv-empty" style={{ gridColumn: '1/-1' }}>Sem medicao cadastrada.</div>}
+            </div>
+            {tanques.length > 0 && (
+              <div className="cpdv-timeline-ver-mais">Ver todos os tanques</div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className={`cpdv-footer${(resumo.divergencia || 0) > 0 ? ' divergencia' : ''}`}>
+        {(resumo.divergencia || 0) > 0 ? (
+          <>
+            <AlertTriangle size={20} style={{ color: '#f59e0b' }} />
+            <span className="cpdv-footer-label">DIVERGÊNCIA</span>
+            <span className="cpdv-footer-value">{fmtBRL(resumo.divergencia)}</span>
+            <span className="cpdv-footer-sub">Conferir caixa</span>
+          </>
+        ) : (
+          <>
+            <UserCheck size={20} style={{ color: '#22c55e' }} />
+            <span className="cpdv-footer-value" style={{ color: '#22c55e', fontSize: 15 }}>Caixa Conferido</span>
+          </>
+        )}
+        {resumo.entradas > 0 || resumo.saidas > 0 ? (
+          <div className="cpdv-footer-saldo">
+            <div className="cpdv-footer-saldo-row">
+              <span className="cpdv-footer-saldo-label"><TrendingUp size={11} /> Entradas</span>
+              <span className="cpdv-footer-saldo-val green">{fmtBRL(resumo.entradas || 0)}</span>
+            </div>
+            <div className="cpdv-footer-saldo-row">
+              <span className="cpdv-footer-saldo-label"><TrendingDown size={11} /> Saídas</span>
+              <span className="cpdv-footer-saldo-val red">{fmtBRL(resumo.saidas || 0)}</span>
+            </div>
+            <div className="cpdv-footer-saldo-bar">
+              <div
+                className="cpdv-footer-saldo-fill"
+                style={{ width: `${Math.min(100, resumo.entradas > 0 ? ((resumo.entradas - resumo.saidas) / resumo.entradas) * 100 : 0)}%` }}
+              />
+            </div>
+            <div className="cpdv-footer-saldo-row" style={{ marginTop: 4 }}>
+              <span className="cpdv-footer-saldo-label">Saldo Líquido</span>
+              <span className={`cpdv-footer-saldo-val ${(resumo.entradas - resumo.saidas) >= 0 ? 'green' : 'red'}`}>
+                {fmtBRL((resumo.entradas || 0) - (resumo.saidas || 0))}
+              </span>
+            </div>
+          </div>
+        ) : null}
+      </div>
+
+      {detalheItem && selectedCaixa && (
+        <CpdvDetalheModal
+          item={detalheItem}
+          caixa={selectedCaixa}
+          data={data}
+          empresa={empresa}
+          onClose={() => setDetalheItem(null)}
+        />
+      )}
+      {papeisOpen && selectedCaixa && (
+        <PapeisModal
+          caixa={selectedCaixa}
+          data={data}
+          empresa={empresa}
+          onClose={() => setPapeisOpen(false)}
+        />
+      )}
+      {impressaoOpen && (
+        <CpdvImpressaoModal
+          caixas={caixas}
+          data={data}
+          setData={setData}
+          empresa={empresa}
+          payload={active}
+          onClose={() => setImpressaoOpen(false)}
+        />
+      )}
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CONTA CORRENTE
+// ─────────────────────────────────────────────────────────────────────────────
+
+const CC_TABS = [
+  { id: 'visao', label: 'VISÃO GERAL' },
+  { id: 'lancamentos', label: 'LANÇAMENTOS' },
+  { id: 'previstos', label: 'LANÇAMENTOS PREVISTOS' },
+  { id: 'conciliacao', label: 'CONCILIAÇÃO' },
+  { id: 'transferencias', label: 'TRANSFERÊNCIAS' },
+  { id: 'extratos', label: 'EXTRATOS' },
+];
+
+function bancoBadge(banco) {
+  if (banco === 'Banco do Brasil') return 'bb';
+  if (banco === 'Santander') return 'santander';
+  if (banco === 'Itaú') return 'itau';
+  if (banco === 'Bradesco') return 'bradesco';
+  if (banco === 'Caixa Econômica') return 'caixa';
+  if (banco === 'Sicoob') return 'sicoob';
+  return 'other';
+}
+
+function bancoAbrev(banco) {
+  if (banco === 'Banco do Brasil') return 'BB';
+  if (banco === 'Santander') return 'SA';
+  if (banco === 'Itaú') return 'IT';
+  if (banco === 'Bradesco') return 'BD';
+  if (banco === 'Caixa Econômica') return 'CE';
+  if (banco === 'Sicoob') return 'SC';
+  return '?';
+}
+
+// ── Visão Geral ──────────────────────────────────────────────────────────────
+const CcFluxoTooltip = ({ active, payload, label }) => {
+  if (!active || !payload || !payload.length) return null;
+  const p = payload[0]?.payload || {};
+  return (
+    <div style={{ background: '#0f172a', border: '1px solid #334155', borderRadius: 8, padding: '10px 14px', fontSize: 12 }}>
+      <div style={{ color: '#94a3b8', marginBottom: 6, fontWeight: 600 }}>{label}{p.previsto ? ' (previsto)' : ''}</div>
+      {payload.map((item, i) => (
+        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', gap: 16, color: item.color, marginBottom: 2 }}>
+          <span>{item.name}</span><strong>{fmtBRL(item.value)}</strong>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+const CcVisaoGeral = ({ empresa }) => {
+  const [dados, setDados] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [selectedDay, setSelectedDay] = useState(null);
+  const [chartExpanded, setChartExpanded] = useState(false);
+
+  const loadDados = useCallback(() => {
+    setLoading(true);
+    fetch(`${API_URL}/api/conta-corrente/visao-geral?empresa=${empresa}`)
+      .then(r => r.json())
+      .then(d => { setDados(d); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, [empresa]);
+
+  useEffect(() => { loadDados(); }, [loadDados]);
+
+  if (loading) return <div className="cc-loading"><Activity size={16} /> Carregando dados...</div>;
+  if (!dados || dados.error) return <div className="cc-loading">Erro ao carregar dados.</div>;
+
+  const { kpis, contas, fluxo, recentes, previstos, alerta, resumo } = dados;
+
+  const chartData = (fluxo || []).map(d => {
+    const s = String(d.data).slice(0, 10);
+    const [, m, day] = s.split('-');
+    return { dia: `${day}/${m}`, entradas: d.entradas, saidas: d.saidas, saldo: d.saldoProjetado, previsto: d.previsto, _date: s };
+  });
+
+  const handleChartClick = (payload) => {
+    if (!payload || !payload.activePayload) return;
+    const item = payload.activePayload[0]?.payload;
+    if (!item) return;
+    setSelectedDay(prev => prev === item._date ? null : item._date);
+  };
+
+  const selData = selectedDay ? (fluxo || []).find(d => String(d.data).slice(0, 10) === selectedDay) : null;
+  const selRecentes = selectedDay ? (recentes || []).filter(r => String(r.data).slice(0, 10) === selectedDay) : [];
+  const selPrevistos = selectedDay ? (previstos || []).filter(p => String(p.vencimento).slice(0, 10) === selectedDay) : [];
+  const selItems = [...selRecentes, ...selPrevistos];
+
+  const interval = Math.max(1, Math.floor(chartData.length / 10));
+
+  return (
+    <div>
+      {/* Cabeçalho visão geral */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+        <div style={{ fontSize: 11, color: '#4b5563', display: 'flex', alignItems: 'center', gap: 6 }}>
+          <Activity size={12} style={{ color: '#ef4444' }} />
+          Dados bancários consolidados em tempo real
+        </div>
+        <button
+          className="cc-btn"
+          onClick={loadDados}
+          title="Atualizar dados"
+          style={{ display: 'flex', alignItems: 'center', gap: 5 }}
+        >
+          <RefreshCw size={12} /> Atualizar
+        </button>
+      </div>
+
+      {alerta && (
+        <div className="cc-alerta">
+          <AlertTriangle size={14} />
+          Atenção: saldo projetado fica negativo em {fmtDate(alerta.data)} ({fmtBRL(alerta.valor)})
+        </div>
+      )}
+
+      {/* KPIs */}
+      <div className="cc-kpi-grid">
+        <div className="cc-kpi-card positive">
+          <div className="cc-kpi-label"><DollarSign size={11} /> Saldo Consolidado</div>
+          <div className={`cc-kpi-value ${kpis.saldoConsolidado >= 0 ? 'green' : 'red'}`}>{fmtBRL(kpis.saldoConsolidado)}</div>
+          <div className="cc-kpi-sub">{contas.length} conta(s)</div>
+        </div>
+        <div className="cc-kpi-card blue">
+          <div className="cc-kpi-label"><TrendingUp size={11} /> Saldo Projetado (30d)</div>
+          <div className={`cc-kpi-value ${kpis.saldoProjetado >= 0 ? 'green' : 'red'}`}>{fmtBRL(kpis.saldoProjetado)}</div>
+          <div className="cc-kpi-sub">entradas - saídas previstas</div>
+        </div>
+        <div className="cc-kpi-card yellow">
+          <div className="cc-kpi-label"><TrendingUp size={11} /> Entradas Previstas</div>
+          <div className="cc-kpi-value blue">{fmtBRL(kpis.entradasPrevistas)}</div>
+          <div className="cc-kpi-sub">próximos 30 dias</div>
+        </div>
+        <div className="cc-kpi-card red">
+          <div className="cc-kpi-label"><TrendingDown size={11} /> Saídas Previstas</div>
+          <div className="cc-kpi-value red">{fmtBRL(kpis.saidasPrevistas)}</div>
+          <div className="cc-kpi-sub">próximos 30 dias</div>
+        </div>
+        <div className="cc-kpi-card cyan">
+          <div className="cc-kpi-label"><Wallet size={11} /> Disponível Bancário</div>
+          <div className="cc-kpi-value green">{fmtBRL(kpis.disponivelBancario)}</div>
+          <div className="cc-kpi-sub">contas com saldo positivo</div>
+        </div>
+        <div className="cc-kpi-card purple">
+          <div className="cc-kpi-label"><FileText size={11} /> Cheques Pendentes</div>
+          <div className="cc-kpi-value">{fmtBRL(kpis.chequesPendentes.total)}</div>
+          <div className="cc-kpi-sub">{kpis.chequesPendentes.qtd} cheque(s)</div>
+        </div>
+      </div>
+
+      {/* Row 2: Contas + Fluxo */}
+      <div className="cc-two-col">
+        <div className="cc-panel">
+          <div className="cc-panel-header">
+            <div className="cc-panel-title"><Building size={13} /> CONTAS BANCÁRIAS</div>
+          </div>
+          <div className="cc-panel-body">
+            <div className="cc-conta-list">
+              {contas.map(c => (
+                <div key={c.codigo} className="cc-conta-item">
+                  <div className={`cc-conta-icon ${bancoBadge(c.banco)}`}>{bancoAbrev(c.banco)}</div>
+                  <div className="cc-conta-info">
+                    <div className="cc-conta-name">{c.descricao}</div>
+                    <div className="cc-conta-bank">{c.banco}</div>
+                  </div>
+                  <div className={`cc-conta-saldo ${c.saldo < 0 ? 'negative' : ''}`}>{fmtBRL(c.saldo)}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="cc-panel cc-chart-panel-expandable" onClick={() => setChartExpanded(true)}>
+          <div className="cc-panel-header">
+            <div className="cc-panel-title"><BarChart2 size={13} /> FLUXO PROJETADO</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 10, color: '#475569' }}>Clique para ampliar</span>
+              <button className="cc-chart-expand-btn" onClick={e => { e.stopPropagation(); setChartExpanded(true); }} title="Ampliar gráfico">
+                <Maximize2 size={12} />
+              </button>
+            </div>
+          </div>
+          <div className="cc-panel-body" style={{ padding: '10px 4px 10px 0' }}>
+            <ResponsiveContainer width="100%" height={260}>
+              <ComposedChart data={chartData} onClick={handleChartClick} style={{ cursor: 'pointer' }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                <XAxis
+                  dataKey="dia"
+                  tick={{ fontSize: 9, fill: '#475569' }}
+                  interval={interval}
+                  tickLine={false}
+                  axisLine={{ stroke: '#1e293b' }}
+                />
+                <YAxis
+                  tick={{ fontSize: 9, fill: '#475569' }}
+                  tickFormatter={v => fmtNum(v / 1000) + 'k'}
+                  tickLine={false}
+                  axisLine={false}
+                  width={38}
+                />
+                <Tooltip content={<CcFluxoTooltip />} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
+                <Bar dataKey="entradas" name="Entradas" radius={[2, 2, 0, 0]} maxBarSize={14}>
+                  {chartData.map((entry, idx) => (
+                    <Cell
+                      key={idx}
+                      fill="#22c55e"
+                      opacity={entry.previsto ? 0.35 : (selectedDay && selectedDay !== entry._date ? 0.4 : 0.85)}
+                      stroke={selectedDay === entry._date ? '#4ade80' : 'none'}
+                      strokeWidth={1}
+                    />
+                  ))}
+                </Bar>
+                <Bar dataKey="saidas" name="Saídas" radius={[2, 2, 0, 0]} maxBarSize={14}>
+                  {chartData.map((entry, idx) => (
+                    <Cell
+                      key={idx}
+                      fill="#ef4444"
+                      opacity={entry.previsto ? 0.35 : (selectedDay && selectedDay !== entry._date ? 0.4 : 0.85)}
+                      stroke={selectedDay === entry._date ? '#f87171' : 'none'}
+                      strokeWidth={1}
+                    />
+                  ))}
+                </Bar>
+                <Line
+                  type="monotone"
+                  dataKey="saldo"
+                  name="Saldo"
+                  stroke="#60a5fa"
+                  dot={false}
+                  strokeWidth={1.5}
+                  strokeDasharray="0"
+                />
+              </ComposedChart>
+            </ResponsiveContainer>
+            <div style={{ display: 'flex', gap: 14, fontSize: 10, color: '#64748b', justifyContent: 'center', paddingBottom: 4 }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><span style={{ width: 8, height: 8, background: '#22c55e', borderRadius: 2, display: 'inline-block' }} /> Entradas</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><span style={{ width: 8, height: 8, background: '#ef4444', borderRadius: 2, display: 'inline-block' }} /> Saídas</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><span style={{ width: 16, height: 2, background: '#60a5fa', display: 'inline-block' }} /> Saldo</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><span style={{ width: 8, height: 8, background: '#475569', borderRadius: 2, display: 'inline-block', opacity: 0.4 }} /> Projetado</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Day detail panel — appears when a bar is clicked */}
+      {selectedDay && (
+        <div className="cc-panel" style={{ marginBottom: 14 }}>
+          <div className="cc-panel-header">
+            <div className="cc-panel-title"><Calendar size={13} /> DETALHAMENTO — {fmtDate(selectedDay)}{selData?.previsto ? ' (projetado)' : ''}</div>
+            <div style={{ display: 'flex', gap: 16, alignItems: 'center', fontSize: 12 }}>
+              {selData && <>
+                <span style={{ color: '#4ade80' }}>Entradas: {fmtBRL(selData.entradas)}</span>
+                <span style={{ color: '#f87171' }}>Saídas: {fmtBRL(selData.saidas)}</span>
+                <span style={{ color: selData.saldoProjetado >= 0 ? '#60a5fa' : '#f87171' }}>Saldo: {fmtBRL(selData.saldoProjetado)}</span>
+              </>}
+              <button onClick={() => setSelectedDay(null)} style={{ background: 'none', border: 'none', color: '#475569', cursor: 'pointer', fontSize: 18, lineHeight: 1 }}>×</button>
+            </div>
+          </div>
+          <div className="cc-panel-body no-pad">
+            {selItems.length === 0 ? (
+              <div style={{ padding: 20, textAlign: 'center', color: '#475569', fontSize: 13 }}>
+                {selData?.previsto
+                  ? 'Sem lançamentos previstos para este dia — os valores são do saldo corrido.'
+                  : 'Sem lançamentos detalhados para este dia no período carregado.'}
+              </div>
+            ) : (
+              <table className="cc-table">
+                <thead>
+                  <tr>
+                    <th>Tipo</th>
+                    <th>Histórico</th>
+                    <th>Documento</th>
+                    <th style={{ textAlign: 'right' }}>Valor</th>
+                    <th>Conta</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {selItems.map((r, i) => {
+                    const isRece = r.vencimento !== undefined;
+                    return (
+                      <tr key={i}>
+                        <td><span className={`cc-badge ${r.tipo}`}>{r.tipo === 'entrada' ? 'Entrada' : 'Saída'}</span></td>
+                        <td>{r.historico}</td>
+                        <td>{r.documento || '—'}</td>
+                        <td className={r.tipo === 'entrada' ? 'amount-pos' : 'amount-neg'} style={{ textAlign: 'right' }}>{fmtBRL(r.valor)}</td>
+                        <td>{isRece ? <span className="cc-badge previsto">Previsto</span> : (r.contaNome || '—')}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Row 3: Lançamentos Recentes + Resumo */}
+      <div className="cc-three-col">
+        <div className="cc-panel" style={{ gridColumn: 'span 2' }}>
+          <div className="cc-panel-header">
+            <div className="cc-panel-title"><Clock size={13} /> LANÇAMENTOS RECENTES</div>
+          </div>
+          <div className="cc-panel-body no-pad" style={{ maxHeight: 280, overflow: 'auto' }}>
+            <div className="cc-timeline" style={{ padding: '10px 16px' }}>
+              {(recentes || []).slice(0, 12).map((r, i) => (
+                <div key={i} className="cc-timeline-item">
+                  <div className="cc-tl-dot-col">
+                    <div className={`cc-tl-dot ${r.tipo}`} />
+                    <div className="cc-tl-line" />
+                  </div>
+                  <div className="cc-tl-body">
+                    <div className="cc-tl-hist">{r.historico}</div>
+                    <div className="cc-tl-meta">{fmtDate(r.data)} · {r.contaNome}</div>
+                  </div>
+                  <div className={`cc-tl-val ${r.tipo}`}>{r.tipo === 'entrada' ? '+' : '-'}{fmtBRL(r.valor)}</div>
+                </div>
+              ))}
+              {(!recentes || recentes.length === 0) && <div style={{ color: '#475569', fontSize: 12 }}>Nenhum lançamento recente.</div>}
+            </div>
+          </div>
+        </div>
+
+        <div className="cc-panel">
+          <div className="cc-panel-header">
+            <div className="cc-panel-title"><BarChart2 size={13} /> RESUMO FINANCEIRO</div>
+          </div>
+          <div className="cc-panel-body">
+            <div className="cc-resumo-grid">
+              <div className="cc-resumo-item">
+                <div className="cc-resumo-label">Maior Saldo</div>
+                <div className="cc-resumo-value green">{fmtBRL(resumo?.maiorSaldo)}</div>
+              </div>
+              <div className="cc-resumo-item">
+                <div className="cc-resumo-label">Menor Saldo</div>
+                <div className={`cc-resumo-value ${(resumo?.menorSaldo || 0) < 0 ? 'red' : ''}`}>{fmtBRL(resumo?.menorSaldo)}</div>
+              </div>
+              <div className="cc-resumo-item">
+                <div className="cc-resumo-label">Total Entradas</div>
+                <div className="cc-resumo-value green">{fmtBRL(resumo?.totalEntradasPeriodo)}</div>
+              </div>
+              <div className="cc-resumo-item">
+                <div className="cc-resumo-label">Total Saídas</div>
+                <div className="cc-resumo-value red">{fmtBRL(resumo?.totalSaidasPeriodo)}</div>
+              </div>
+            </div>
+            <div style={{ marginTop: 14, borderTop: '1px solid #1e293b', paddingTop: 14 }}>
+              <div style={{ fontSize: 10, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 8 }}>Próximos Vencimentos</div>
+              {(previstos || []).slice(0, 5).map((p, i) => (
+                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6, fontSize: 11 }}>
+                  <span style={{ color: '#94a3b8' }}>{fmtDate(p.vencimento)} <span style={{ color: '#475569' }}>{p.historico?.substring(0, 18)}</span></span>
+                  <span style={{ color: p.tipo === 'entrada' ? '#4ade80' : '#f87171', fontWeight: 600 }}>{fmtBRL(p.valor)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Modal gráfico ampliado */}
+      {chartExpanded && (
+        <div className="cc-chart-overlay" onClick={() => setChartExpanded(false)}>
+          <div className="cc-chart-modal" onClick={e => e.stopPropagation()}>
+            <div className="cc-chart-modal-header">
+              <div className="cc-panel-title"><BarChart2 size={14} /> FLUXO PROJETADO — 30 dias</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ display: 'flex', gap: 14, fontSize: 11, color: '#64748b' }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><span style={{ width: 9, height: 9, background: '#22c55e', borderRadius: 2, display: 'inline-block' }} /> Entradas</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><span style={{ width: 9, height: 9, background: '#ef4444', borderRadius: 2, display: 'inline-block' }} /> Saídas</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><span style={{ width: 18, height: 2, background: '#60a5fa', display: 'inline-block' }} /> Saldo</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><span style={{ width: 9, height: 9, background: '#475569', borderRadius: 2, display: 'inline-block', opacity: 0.4 }} /> Projetado</span>
+                </div>
+                <button className="cc-chart-close-btn" onClick={() => setChartExpanded(false)} title="Fechar">
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+            <div style={{ padding: '16px 12px 16px 0', flex: 1 }}>
+              <ResponsiveContainer width="100%" height={460}>
+                <ComposedChart data={chartData} onClick={handleChartClick} style={{ cursor: 'pointer' }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                  <XAxis
+                    dataKey="dia"
+                    tick={{ fontSize: 11, fill: '#475569' }}
+                    interval={Math.max(0, Math.floor(chartData.length / 15))}
+                    tickLine={false}
+                    axisLine={{ stroke: '#1e293b' }}
+                  />
+                  <YAxis
+                    tick={{ fontSize: 11, fill: '#475569' }}
+                    tickFormatter={v => fmtNum(v / 1000) + 'k'}
+                    tickLine={false}
+                    axisLine={false}
+                    width={52}
+                  />
+                  <Tooltip content={<CcFluxoTooltip />} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
+                  <Bar dataKey="entradas" name="Entradas" radius={[3, 3, 0, 0]} maxBarSize={20}>
+                    {chartData.map((entry, idx) => (
+                      <Cell
+                        key={idx}
+                        fill="#22c55e"
+                        opacity={entry.previsto ? 0.35 : (selectedDay && selectedDay !== entry._date ? 0.4 : 0.9)}
+                        stroke={selectedDay === entry._date ? '#4ade80' : 'none'}
+                        strokeWidth={1.5}
+                      />
+                    ))}
+                  </Bar>
+                  <Bar dataKey="saidas" name="Saídas" radius={[3, 3, 0, 0]} maxBarSize={20}>
+                    {chartData.map((entry, idx) => (
+                      <Cell
+                        key={idx}
+                        fill="#ef4444"
+                        opacity={entry.previsto ? 0.35 : (selectedDay && selectedDay !== entry._date ? 0.4 : 0.9)}
+                        stroke={selectedDay === entry._date ? '#f87171' : 'none'}
+                        strokeWidth={1.5}
+                      />
+                    ))}
+                  </Bar>
+                  <Line
+                    type="monotone"
+                    dataKey="saldo"
+                    name="Saldo"
+                    stroke="#60a5fa"
+                    dot={false}
+                    strokeWidth={2}
+                  />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+            {selectedDay && (
+              <div style={{ padding: '0 20px 14px', fontSize: 12, color: '#94a3b8' }}>
+                Dia selecionado: <strong style={{ color: '#e2e8f0' }}>{selectedDay}</strong>
+                <button onClick={() => setSelectedDay(null)} style={{ background: 'none', border: 'none', color: '#475569', cursor: 'pointer', marginLeft: 8, fontSize: 14 }}>×</button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ── Lançamentos ──────────────────────────────────────────────────────────────
+const CcLancamentos = ({ empresa }) => {
+  const today = new Date().toISOString().slice(0, 10);
+  const thirtyAgo = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
+  const [dataIni, setDataIni] = useState(thirtyAgo);
+  const [dataFim, setDataFim] = useState(today);
+  const [tipo, setTipo] = useState('todos');
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [offset, setOffset] = useState(0);
+  const limit = 50;
+
+  const load = useCallback((off = 0) => {
+    setLoading(true);
+    fetch(`${API_URL}/api/conta-corrente/lancamentos?empresa=${empresa}&dataIni=${dataIni}&dataFim=${dataFim}&tipo=${tipo}&limit=${limit}&offset=${off}`)
+      .then(r => r.json())
+      .then(d => { setRows(d.lancamentos || []); setOffset(off); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, [empresa, dataIni, dataFim, tipo]);
+
+  useEffect(() => { load(0); }, [load]);
+
+  return (
+    <div className="cc-panel" style={{ minHeight: 400 }}>
+      <div className="cc-panel-header">
+        <div className="cc-panel-title"><FileText size={13} /> LANÇAMENTOS</div>
+      </div>
+      <div className="cc-filter-bar">
+        <div className="cc-toolbar">
+          <span className="cc-toolbar-label">De</span>
+          <input type="date" className="cc-input" value={dataIni} onChange={e => setDataIni(e.target.value)} />
+          <span className="cc-toolbar-label">Até</span>
+          <input type="date" className="cc-input" value={dataFim} onChange={e => setDataFim(e.target.value)} />
+          <select className="cc-select" value={tipo} onChange={e => setTipo(e.target.value)}>
+            <option value="todos">Todos</option>
+            <option value="entradas">Entradas</option>
+            <option value="saidas">Saídas</option>
+          </select>
+          <button className="cc-btn primary" onClick={() => load(0)}>Filtrar</button>
+        </div>
+      </div>
+      <div className="cc-panel-body no-pad">
+        {loading ? (
+          <div className="cc-loading"><Activity size={14} /> Carregando...</div>
+        ) : (
+          <table className="cc-table">
+            <thead>
+              <tr>
+                <th>Data</th>
+                <th>Tipo</th>
+                <th>Histórico</th>
+                <th>Documento</th>
+                <th style={{ textAlign: 'right' }}>Débito</th>
+                <th style={{ textAlign: 'right' }}>Crédito</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r, i) => (
+                <tr key={i}>
+                  <td>{fmtDate(r.data)}</td>
+                  <td><span className={`cc-badge ${r.tipo}`}>{r.tipo === 'entrada' ? 'Entrada' : 'Saída'}</span></td>
+                  <td>{r.historico}</td>
+                  <td>{r.documento || '—'}</td>
+                  <td className="amount-neg" style={{ textAlign: 'right' }}>{r.debito > 0 ? fmtBRL(r.debito) : '—'}</td>
+                  <td className="amount-pos" style={{ textAlign: 'right' }}>{r.credito > 0 ? fmtBRL(r.credito) : '—'}</td>
+                  <td><span className="cc-badge concluido">{r.status}</span></td>
+                </tr>
+              ))}
+              {rows.length === 0 && (
+                <tr><td colSpan={7} style={{ textAlign: 'center', color: '#475569', padding: 24 }}>Nenhum lançamento encontrado.</td></tr>
+              )}
+            </tbody>
+          </table>
+        )}
+      </div>
+      <div className="cc-pagination">
+        <button className="cc-btn" disabled={offset === 0} onClick={() => load(Math.max(0, offset - limit))}>
+          <ChevronLeft size={14} />
+        </button>
+        <span>Página {Math.floor(offset / limit) + 1} · {rows.length} registros</span>
+        <button className="cc-btn" disabled={rows.length < limit} onClick={() => load(offset + limit)}>
+          <ChevronRight size={14} />
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// ── Lançamentos Previstos ─────────────────────────────────────────────────────
+const CcPrevistos = ({ empresa }) => {
+  const today = new Date().toISOString().slice(0, 10);
+  const future = new Date(Date.now() + 60 * 86400000).toISOString().slice(0, 10);
+  const [dataIni, setDataIni] = useState(today);
+  const [dataFim, setDataFim] = useState(future);
+  const [subTab, setSubTab] = useState('todos');
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  const load = useCallback(() => {
+    setLoading(true);
+    fetch(`${API_URL}/api/conta-corrente/previstos?empresa=${empresa}&dataIni=${dataIni}&dataFim=${dataFim}&tipo=${subTab}&limit=100`)
+      .then(r => r.json())
+      .then(d => { setRows(d.previstos || []); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, [empresa, dataIni, dataFim, subTab]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const totalEnt = rows.filter(r => r.tipo === 'entrada').reduce((s, r) => s + (r.valor || 0), 0);
+  const totalSai = rows.filter(r => r.tipo === 'saida').reduce((s, r) => s + (r.valor || 0), 0);
+
+  return (
+    <div className="cc-panel" style={{ minHeight: 400 }}>
+      <div className="cc-panel-header">
+        <div className="cc-panel-title"><Calendar size={13} /> LANÇAMENTOS PREVISTOS</div>
+        <div style={{ display: 'flex', gap: 12, fontSize: 11 }}>
+          <span style={{ color: '#4ade80' }}>Entradas: {fmtBRL(totalEnt)}</span>
+          <span style={{ color: '#f87171' }}>Saídas: {fmtBRL(totalSai)}</span>
+        </div>
+      </div>
+      <div className="cc-sub-tabs">
+        {['todos', 'entradas', 'saidas'].map(t => (
+          <button key={t} className={`cc-sub-tab ${subTab === t ? 'active' : ''}`} onClick={() => setSubTab(t)}>
+            {t === 'todos' ? 'Todos' : t === 'entradas' ? 'Entradas' : 'Saídas'}
+          </button>
+        ))}
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
+          <span className="cc-toolbar-label">De</span>
+          <input type="date" className="cc-input" value={dataIni} onChange={e => setDataIni(e.target.value)} />
+          <span className="cc-toolbar-label">Até</span>
+          <input type="date" className="cc-input" value={dataFim} onChange={e => setDataFim(e.target.value)} />
+          <button className="cc-btn primary" onClick={load}>Filtrar</button>
+        </div>
+      </div>
+      <div className="cc-panel-body no-pad">
+        {loading ? (
+          <div className="cc-loading"><Activity size={14} /> Carregando...</div>
+        ) : (
+          <table className="cc-table">
+            <thead>
+              <tr>
+                <th>Vencimento</th>
+                <th>Tipo</th>
+                <th>Histórico</th>
+                <th>Documento</th>
+                <th style={{ textAlign: 'right' }}>Débito</th>
+                <th style={{ textAlign: 'right' }}>Crédito</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r, i) => (
+                <tr key={i}>
+                  <td>{fmtDate(r.vencimento)}</td>
+                  <td><span className={`cc-badge ${r.tipo}`}>{r.tipo === 'entrada' ? 'Entrada' : 'Saída'}</span></td>
+                  <td>{r.historico}</td>
+                  <td>{r.documento || '—'}</td>
+                  <td className="amount-neg" style={{ textAlign: 'right' }}>{r.debito > 0 ? fmtBRL(r.debito) : '—'}</td>
+                  <td className="amount-pos" style={{ textAlign: 'right' }}>{r.credito > 0 ? fmtBRL(r.credito) : '—'}</td>
+                  <td><span className={`cc-badge ${r.status === 'Vencido' ? 'vencido' : 'previsto'}`}>{r.status}</span></td>
+                </tr>
+              ))}
+              {rows.length === 0 && (
+                <tr><td colSpan={7} style={{ textAlign: 'center', color: '#475569', padding: 24 }}>Nenhum lançamento previsto.</td></tr>
+              )}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ── Conciliação ───────────────────────────────────────────────────────────────
+const CcConciliacao = ({ empresa }) => {
+  const hoje = new Date().toISOString().slice(0, 10);
+  const [dataIni, setDataIni] = useState(new Date(Date.now() - 30*86400000).toISOString().slice(0,10));
+  const [dataFim, setDataFim] = useState(hoje);
+  const [dados, setDados] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [aba, setAba] = useState('rece'); // rece | paga
+
+  const load = useCallback(() => {
+    setLoading(true);
+    fetch(`${API_URL}/api/conta-corrente/conciliacao?empresa=${empresa}&dataIni=${dataIni}&dataFim=${dataFim}`)
+      .then(r => r.json())
+      .then(d => { setDados(d); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, [empresa, dataIni, dataFim]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const statusColor = s => s === 'conciliado' ? '#4ade80' : s === 'vencido' ? '#f87171' : '#facc15';
+  const statusBg = s => s === 'conciliado' ? 'rgba(34,197,94,0.12)' : s === 'vencido' ? 'rgba(239,68,68,0.12)' : 'rgba(250,204,21,0.12)';
+  const rows = aba === 'rece' ? (dados?.rece || []) : (dados?.paga || []);
+  const resumo = dados?.resumo;
+
+  return (
+    <div>
+      {/* KPIs */}
+      {resumo && (
+        <div className="cc-kpi-grid" style={{ gridTemplateColumns: 'repeat(3,1fr)', marginBottom: 14 }}>
+          <div className="cc-kpi-card positive">
+            <div className="cc-kpi-label">Recebíveis Previstos</div>
+            <div className="cc-kpi-value">{fmtBRL(resumo.recePrevisto)}</div>
+            <div className="cc-kpi-sub">Conciliado: {fmtBRL(resumo.receConciliado)}</div>
+          </div>
+          <div className="cc-kpi-card red">
+            <div className="cc-kpi-label">A Pagar Previsto</div>
+            <div className="cc-kpi-value">{fmtBRL(resumo.pagaPrevisto)}</div>
+            <div className="cc-kpi-sub">Conciliado: {fmtBRL(resumo.pagaConciliado)}</div>
+          </div>
+          <div className="cc-kpi-card yellow">
+            <div className="cc-kpi-label">Vencidos — Receber</div>
+            <div className="cc-kpi-value red">{fmtBRL(resumo.receVencido)}</div>
+            <div className="cc-kpi-sub">A pagar vencido: {fmtBRL(resumo.pagaVencido)}</div>
+          </div>
+        </div>
+      )}
+
+      <div className="cc-panel">
+        <div className="cc-panel-header">
+          <div className="cc-panel-title"><RefreshCw size={13} /> CONCILIAÇÃO BANCÁRIA</div>
+        </div>
+        <div className="cc-sub-tabs">
+          <button className={`cc-sub-tab ${aba === 'rece' ? 'active' : ''}`} onClick={() => setAba('rece')}>Contas a Receber</button>
+          <button className={`cc-sub-tab ${aba === 'paga' ? 'active' : ''}`} onClick={() => setAba('paga')}>Contas a Pagar</button>
+          <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
+            <span className="cc-toolbar-label">De</span>
+            <input type="date" className="cc-input" value={dataIni} onChange={e => setDataIni(e.target.value)} />
+            <span className="cc-toolbar-label">Até</span>
+            <input type="date" className="cc-input" value={dataFim} onChange={e => setDataFim(e.target.value)} />
+            <button className="cc-btn primary" onClick={load}>Filtrar</button>
+          </div>
+        </div>
+        <div className="cc-panel-body no-pad">
+          {loading ? <div className="cc-loading"><Activity size={14} /> Carregando...</div> : (
+            <table className="cc-table">
+              <thead>
+                <tr>
+                  <th>Data Vencimento</th>
+                  <th>Histórico</th>
+                  <th>Documento</th>
+                  <th style={{ textAlign: 'right' }}>Valor</th>
+                  <th style={{ textAlign: 'center' }}>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r, i) => (
+                  <tr key={i}>
+                    <td>{fmtDate(r.data)}</td>
+                    <td>{r.historico}</td>
+                    <td style={{ color: '#4b5563' }}>{r.documento || '—'}</td>
+                    <td className={aba === 'rece' ? 'amount-pos' : 'amount-neg'} style={{ textAlign: 'right' }}>{fmtBRL(r.valor)}</td>
+                    <td style={{ textAlign: 'center' }}>
+                      <span style={{ display: 'inline-block', padding: '2px 10px', borderRadius: 4, fontSize: 10, fontWeight: 700, background: statusBg(r.status), color: statusColor(r.status) }}>
+                        {r.status === 'conciliado' ? 'Conciliado' : r.status === 'vencido' ? 'Vencido' : 'Pendente'}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+                {rows.length === 0 && (
+                  <tr><td colSpan={5} style={{ textAlign: 'center', color: '#374151', padding: 24 }}>Nenhum registro no período.</td></tr>
+                )}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ── Transferências ────────────────────────────────────────────────────────────
+const CcTransferencias = ({ empresa }) => {
+  const [dataIni, setDataIni] = useState(new Date(Date.now()-30*86400000).toISOString().slice(0,10));
+  const [dataFim, setDataFim] = useState(new Date().toISOString().slice(0,10));
+  const [dados, setDados] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const load = useCallback(() => {
+    setLoading(true);
+    fetch(`${API_URL}/api/conta-corrente/transferencias?empresa=${empresa}&dataIni=${dataIni}&dataFim=${dataFim}`)
+      .then(r => r.json())
+      .then(d => { setDados(d); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, [empresa, dataIni, dataFim]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const contas = dados?.contas || [];
+  const totalEnt = contas.reduce((s, c) => s + c.entradas.total, 0);
+  const totalSai = contas.reduce((s, c) => s + c.saidas.total, 0);
+
+  return (
+    <div>
+      <div className="cc-kpi-grid" style={{ gridTemplateColumns: 'repeat(3,1fr)', marginBottom: 14 }}>
+        <div className="cc-kpi-card positive">
+          <div className="cc-kpi-label">Total Entradas no Período</div>
+          <div className="cc-kpi-value green">{fmtBRL(totalEnt)}</div>
+          <div className="cc-kpi-sub">em {contas.length} conta(s)</div>
+        </div>
+        <div className="cc-kpi-card red">
+          <div className="cc-kpi-label">Total Saídas no Período</div>
+          <div className="cc-kpi-value red">{fmtBRL(totalSai)}</div>
+          <div className="cc-kpi-sub">em {contas.length} conta(s)</div>
+        </div>
+        <div className="cc-kpi-card blue">
+          <div className="cc-kpi-label">Saldo Movimento</div>
+          <div className={`cc-kpi-value ${totalEnt-totalSai >= 0 ? 'green' : 'red'}`}>{fmtBRL(totalEnt-totalSai)}</div>
+          <div className="cc-kpi-sub">entradas — saídas</div>
+        </div>
+      </div>
+
+      <div className="cc-panel">
+        <div className="cc-panel-header">
+          <div className="cc-panel-title"><TrendingUp size={13} /> MOVIMENTAÇÃO POR CONTA</div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <span className="cc-toolbar-label">De</span>
+            <input type="date" className="cc-input" value={dataIni} onChange={e => setDataIni(e.target.value)} />
+            <span className="cc-toolbar-label">Até</span>
+            <input type="date" className="cc-input" value={dataFim} onChange={e => setDataFim(e.target.value)} />
+            <button className="cc-btn primary" onClick={load}>Filtrar</button>
+          </div>
+        </div>
+        <div className="cc-panel-body no-pad">
+          {loading ? <div className="cc-loading"><Activity size={14} /> Carregando...</div> : (
+            <table className="cc-table">
+              <thead>
+                <tr>
+                  <th>Conta</th>
+                  <th>Banco</th>
+                  <th style={{ textAlign: 'right' }}>Entradas</th>
+                  <th style={{ textAlign: 'center' }}>Qtd Ent.</th>
+                  <th style={{ textAlign: 'right' }}>Saídas</th>
+                  <th style={{ textAlign: 'center' }}>Qtd Saí.</th>
+                  <th style={{ textAlign: 'right' }}>Movimento</th>
+                  <th style={{ textAlign: 'right' }}>Saldo Atual</th>
+                </tr>
+              </thead>
+              <tbody>
+                {contas.map((c, i) => (
+                  <tr key={i}>
+                    <td style={{ fontWeight: 600, color: '#d1d5db' }}>{c.descricao}</td>
+                    <td style={{ color: '#4b5563' }}>{bancoBadge ? (() => { const b = c.descricao?.toUpperCase(); if(b?.includes('BB')||b?.includes('BRASIL'))return'Banco do Brasil'; if(b?.includes('SANT'))return'Santander'; return 'Conta Interna'; })() : '—'}</td>
+                    <td className="amount-pos" style={{ textAlign: 'right' }}>{fmtBRL(c.entradas.total)}</td>
+                    <td style={{ textAlign: 'center', color: '#4b5563' }}>{c.entradas.qtd}</td>
+                    <td className="amount-neg" style={{ textAlign: 'right' }}>{fmtBRL(c.saidas.total)}</td>
+                    <td style={{ textAlign: 'center', color: '#4b5563' }}>{c.saidas.qtd}</td>
+                    <td className={c.movimento >= 0 ? 'amount-pos' : 'amount-neg'} style={{ textAlign: 'right', fontWeight: 700 }}>{fmtBRL(c.movimento)}</td>
+                    <td className={c.saldo >= 0 ? 'amount-pos' : 'amount-neg'} style={{ textAlign: 'right' }}>{fmtBRL(c.saldo)}</td>
+                  </tr>
+                ))}
+                {contas.length === 0 && (
+                  <tr><td colSpan={8} style={{ textAlign: 'center', color: '#374151', padding: 24 }}>Nenhuma movimentação no período.</td></tr>
+                )}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ── Extratos ──────────────────────────────────────────────────────────────────
+const CcExtratos = ({ empresa }) => {
+  const [dataIni, setDataIni] = useState(new Date(Date.now()-30*86400000).toISOString().slice(0,10));
+  const [dataFim, setDataFim] = useState(new Date().toISOString().slice(0,10));
+  const [dados, setDados] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [contaSel, setContaSel] = useState('');
+
+  const load = useCallback((cid) => {
+    const c = cid || contaSel;
+    setLoading(true);
+    fetch(`${API_URL}/api/conta-corrente/extratos?empresa=${empresa}&dataIni=${dataIni}&dataFim=${dataFim}${c ? `&conta=${c}` : ''}`)
+      .then(r => r.json())
+      .then(d => {
+        setDados(d);
+        if (!contaSel && d.contaId) setContaSel(String(d.contaId));
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, [empresa, dataIni, dataFim, contaSel]);
+
+  useEffect(() => { load(); }, [empresa]); // eslint-disable-line
+
+  const mov = dados?.movimentos || [];
+  const totalEnt = mov.filter(m => m.tipo === 'entrada').reduce((s, m) => s + m.valor, 0);
+  const totalSai = mov.filter(m => m.tipo === 'saida').reduce((s, m) => s + m.valor, 0);
+
+  return (
+    <div>
+      <div className="cc-panel">
+        <div className="cc-panel-header">
+          <div className="cc-panel-title"><FileText size={13} /> EXTRATO BANCÁRIO</div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <select className="cc-select" value={contaSel} onChange={e => { setContaSel(e.target.value); }}>
+              {(dados?.contas || []).map(c => (
+                <option key={c.codigo} value={c.codigo}>{c.descricao}</option>
+              ))}
+            </select>
+            <span className="cc-toolbar-label">De</span>
+            <input type="date" className="cc-input" value={dataIni} onChange={e => setDataIni(e.target.value)} />
+            <span className="cc-toolbar-label">Até</span>
+            <input type="date" className="cc-input" value={dataFim} onChange={e => setDataFim(e.target.value)} />
+            <button className="cc-btn primary" onClick={() => load(contaSel)}>Filtrar</button>
+          </div>
+        </div>
+
+        {/* Summary bar */}
+        <div className="cc-extratos-summary">
+          <span className="cc-extratos-summary-item">Saldo Inicial: <strong>{fmtBRL(dados?.saldoInicial || 0)}</strong></span>
+          <span className="cc-extratos-summary-item" style={{ color: '#4ade80' }}>Entradas: <strong>{fmtBRL(totalEnt)}</strong></span>
+          <span className="cc-extratos-summary-item" style={{ color: '#f87171' }}>Saídas: <strong>{fmtBRL(totalSai)}</strong></span>
+          <span className="cc-extratos-summary-item right" style={{ color: (dados?.saldoFinal || 0) >= 0 ? '#4ade80' : '#f87171', fontWeight: 700 }}>Saldo Final: {fmtBRL(dados?.saldoFinal || 0)}</span>
+        </div>
+
+        <div className="cc-panel-body no-pad" style={{ maxHeight: 520, overflow: 'auto' }}>
+          {loading ? <div className="cc-loading"><Activity size={14} /> Carregando...</div> : (
+            <table className="cc-table">
+              <thead>
+                <tr>
+                  <th>Data</th>
+                  <th>Tipo</th>
+                  <th>Histórico</th>
+                  <th>Documento</th>
+                  <th style={{ textAlign: 'right' }}>Débito</th>
+                  <th style={{ textAlign: 'right' }}>Crédito</th>
+                  <th style={{ textAlign: 'right' }}>Saldo</th>
+                </tr>
+              </thead>
+              <tbody>
+                {mov.map((m, i) => (
+                  <tr key={i}>
+                    <td>{fmtDate(m.data)}</td>
+                    <td><span className={`cc-badge ${m.tipo}`}>{m.tipo === 'entrada' ? 'Entrada' : 'Saída'}</span></td>
+                    <td>{m.historico}</td>
+                    <td style={{ color: '#4b5563' }}>{m.documento || '—'}</td>
+                    <td className="amount-neg" style={{ textAlign: 'right' }}>{m.debito > 0 ? fmtBRL(m.debito) : '—'}</td>
+                    <td className="amount-pos" style={{ textAlign: 'right' }}>{m.credito > 0 ? fmtBRL(m.credito) : '—'}</td>
+                    <td style={{ textAlign: 'right', fontWeight: 700, color: m.saldo >= 0 ? '#4ade80' : '#f87171' }}>{fmtBRL(m.saldo)}</td>
+                  </tr>
+                ))}
+                {mov.length === 0 && (
+                  <tr><td colSpan={7} style={{ textAlign: 'center', color: '#374151', padding: 24 }}>Nenhum movimento para esta conta no período.</td></tr>
+                )}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ── ContaCorrente root ───────────────────────────────────────────────────────
+const ContaCorrente = ({ clients, selectedClient }) => {
+  const empresa = selectedClient?.codigoEmpresa || selectedClient?.id || 7432;
+  const [tab, setTab] = useState('visao');
+
+  return (
+    <div className="cc-wrapper">
+      <div className="cc-tab-bar">
+        {CC_TABS.map(t => (
+          <button key={t.id} className={`cc-tab ${tab === t.id ? 'active' : ''}`} onClick={() => setTab(t.id)}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+      <div className="cc-tab-content">
+        {tab === 'visao'         && <CcVisaoGeral empresa={empresa} />}
+        {tab === 'lancamentos'   && <CcLancamentos empresa={empresa} />}
+        {tab === 'previstos'     && <CcPrevistos empresa={empresa} />}
+        {tab === 'conciliacao'   && <CcConciliacao empresa={empresa} />}
+        {tab === 'transferencias'&& <CcTransferencias empresa={empresa} />}
+        {tab === 'extratos'      && <CcExtratos empresa={empresa} />}
+      </div>
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+const Financeiro = ({ clients, selectedClient, themeMode }) => {
   const [tab, setTab] = useState('receber');
   return (
     <div>
@@ -3753,10 +5496,24 @@ const Financeiro = ({ clients, selectedClient }) => {
         >
           💳 Cartões
         </button>
+        <button
+          className={`vp-period-btn vp-secao-btn${tab === 'fluxo' ? ' active' : ''}`}
+          onClick={() => setTab('fluxo')}
+        >
+          <Wallet size={15} /> Fluxo de Caixa
+        </button>
+        <button
+          className={`vp-period-btn vp-secao-btn${tab === 'conta' ? ' active' : ''}`}
+          onClick={() => setTab('conta')}
+        >
+          <Building2 size={15} /> Conta Corrente
+        </button>
       </div>
-      {tab === 'receber' ? <ContasReceber clients={clients} selectedClient={selectedClient} />
-      : tab === 'pagar'  ? <ContasPagar   clients={clients} selectedClient={selectedClient} />
-      : <ControleCartoes />}
+      {tab === 'receber' && <ContasReceber clients={clients} selectedClient={selectedClient} />}
+      {tab === 'pagar' && <ContasPagar clients={clients} selectedClient={selectedClient} />}
+      {tab === 'cartoes' && <ControleCartoes />}
+      {tab === 'fluxo' && <FluxoCaixa clients={clients} selectedClient={selectedClient} themeMode={themeMode} />}
+      {tab === 'conta' && <ContaCorrente clients={clients} selectedClient={selectedClient} themeMode={themeMode} />}
     </div>
   );
 };
@@ -12321,6 +14078,568 @@ const GoalManager = ({ themeMode = 'dark' }) => {
             </div>
           </form>
         </div>
+      </div>
+    </div>
+  );
+};
+
+// ── Auditoria ──────────────────────────────────────────────────────────────
+function auditFmtBRL(v) {
+  if (v == null) return '—';
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
+}
+
+function todayISO() { return new Date().toISOString().slice(0, 10); }
+
+const MODULO_BADGE = { CAIXA: 'mod-caixa', VENDA: 'mod-venda', FISCAL: 'mod-fiscal' };
+const ACAO_BADGE = { 'INCLUSÃO': 'acao-inclusao', 'ALTERAÇÃO': 'acao-alteracao', 'EXCLUSÃO': 'acao-exclusao', 'CANCELAMENTO': 'acao-cancelamento' };
+const OP_BADGE = {
+  'SANGRIA':            'op-sangria',
+  'SUPRIMENTO':         'op-suprimento',
+  'PAGAMENTO':          'op-pagamento',
+  'EMPRÉSTIMO':         'op-emprestimo',
+  'CANCELAMENTO':       'op-cancelamento',
+  'LIBERAÇÃO DE VENDA': 'op-liberacao',
+  'VENDA SEM FISCAL':   'op-semfiscal',
+  'OUTRA ENTRADA':      'op-outra-entrada',
+  'OUTRA SAÍDA':        'op-outra-saida',
+};
+const KPI_CLASS = (m, o) => {
+  if (m === 'CAIXA') {
+    if (o === 'SANGRIA')     return 'caixa-sangria';
+    if (o === 'SUPRIMENTO')  return 'caixa-suprimento';
+    if (o === 'PAGAMENTO')   return 'caixa-pagamento';
+    return 'default';
+  }
+  if (m === 'VENDA') {
+    if (o.includes('LIBERAL')) return 'venda-liberacao';
+    if (o === 'CANCELAMENTO')  return 'venda-cancelamento';
+    return 'default';
+  }
+  if (m === 'FISCAL') return 'fiscal';
+  return 'default';
+};
+
+const Auditoria = ({ themeMode }) => {
+  const today = todayISO();
+  const [tab, setTab]             = useState('log');
+  const [dataIni, setDataIni]     = useState(today);
+  const [dataFim, setDataFim]     = useState(today);
+  const [usuario, setUsuario]     = useState('');
+  const [modulo, setModulo]       = useState('');
+  const [tipoAcao, setTipoAcao]   = useState('');
+  const [search, setSearch]       = useState('');
+  const [page, setPage]           = useState(1);
+  const [loading, setLoading]     = useState(false);
+  const [data, setData]           = useState(null);
+  const [expandedId, setExpandedId] = useState(null);
+  const searchTimer = useRef(null);
+
+  // Alertas state
+  const [alertasLoading, setAlertasLoading] = useState(false);
+  const [alertas, setAlertas]               = useState(null);
+  const [horaInicio, setHoraInicio]         = useState(6);
+  const [horaFim, setHoraFim]               = useState(23);
+  const [limiteLib, setLimiteLib]           = useState(500);
+  const [limiteDesc, setLimiteDesc]         = useState(100);
+
+  const fetchData = useCallback((p = page) => {
+    setLoading(true);
+    const params = new URLSearchParams({
+      data_ini: dataIni, data_fim: dataFim, page: p, limit: 50,
+    });
+    if (usuario)  params.set('usuario', usuario);
+    if (modulo)   params.set('modulo', modulo);
+    if (tipoAcao) params.set('tipo_acao', tipoAcao);
+    if (search)   params.set('search', search);
+    fetch(`${API_URL}/api/auditoria?${params}`)
+      .then(r => r.json())
+      .then(d => { setData(d); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, [dataIni, dataFim, usuario, modulo, tipoAcao, search, page]);
+
+  const fetchAlertas = useCallback(() => {
+    setAlertasLoading(true);
+    const params = new URLSearchParams({
+      data_ini: dataIni, data_fim: dataFim,
+      hora_inicio: horaInicio, hora_fim: horaFim,
+      limite_liberacao: limiteLib, limite_desconto: limiteDesc,
+    });
+    fetch(`${API_URL}/api/auditoria/alertas?${params}`)
+      .then(r => r.json())
+      .then(d => { setAlertas(d); setAlertasLoading(false); })
+      .catch(() => setAlertasLoading(false));
+  }, [dataIni, dataFim, horaInicio, horaFim, limiteLib, limiteDesc]);
+
+  useEffect(() => { fetchData(1); setPage(1); }, [dataIni, dataFim, usuario, modulo, tipoAcao]);
+  useEffect(() => { if (tab === 'alertas') fetchAlertas(); }, [tab, dataIni, dataFim]);
+
+  const handleSearchChange = (v) => {
+    setSearch(v);
+    clearTimeout(searchTimer.current);
+    searchTimer.current = setTimeout(() => { setPage(1); fetchData(1); }, 400);
+  };
+
+  const goPage = (p) => { setPage(p); fetchData(p); };
+
+  const exportCSV = () => {
+    if (!data?.items?.length) return;
+    const cols = ['dataHoraFmt','usuario','tipoAcao','modulo','operacao','direcao','valor','referencia','detalhe'];
+    const header = ['Data/Hora','Usuário','Tipo de Ação','Módulo','Operação','Direção','Valor','Referência','Detalhe'];
+    const rows = data.items.map(r => cols.map(c => {
+      const v = r[c];
+      if (v == null) return '';
+      if (c === 'valor') return String(v).replace('.', ',');
+      return `"${String(v).replace(/"/g, '""')}"`;
+    }).join(';'));
+    const csv = [header.join(';'), ...rows].join('\n');
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url;
+    a.download = `auditoria_${dataIni}_${dataFim}.csv`; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const { items = [], pagination = {}, stats = [], usuarios = [] } = data || {};
+  const { total = 0, pages = 1 } = pagination;
+
+  const pagesArray = () => {
+    const arr = [];
+    const p = page, max = pages;
+    if (max <= 7) for (let i = 1; i <= max; i++) arr.push(i);
+    else {
+      arr.push(1);
+      if (p > 3) arr.push('...');
+      for (let i = Math.max(2, p - 1); i <= Math.min(max - 1, p + 1); i++) arr.push(i);
+      if (p < max - 2) arr.push('...');
+      arr.push(max);
+    }
+    return arr;
+  };
+
+  return (
+    <div className="audit-wrap">
+      {/* Header */}
+      <div className="audit-header">
+        <div className="audit-header-left">
+          <ShieldCheck size={22} color="#60a5fa" />
+          <div>
+            <div className="audit-title">Auditoria de Ações</div>
+            <div className="audit-subtitle">Rastreamento completo de movimentos e operações do sistema</div>
+          </div>
+        </div>
+        <div className="audit-header-actions">
+          {tab === 'log' && <>
+            <button className={`audit-refresh-btn${loading ? ' spinning' : ''}`} onClick={() => { setPage(1); fetchData(1); }}>
+              <RefreshCw size={13} /> Atualizar
+            </button>
+            <button className="audit-export-btn" onClick={exportCSV}>
+              <Download size={13} /> Exportar CSV
+            </button>
+          </>}
+          {tab === 'alertas' && (
+            <button className={`audit-refresh-btn${alertasLoading ? ' spinning' : ''}`} onClick={fetchAlertas}>
+              <RefreshCw size={13} /> Atualizar
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="audit-tabs">
+        <button className={`audit-tab${tab === 'log' ? ' active' : ''}`} onClick={() => setTab('log')}>
+          <Database size={14} /> Log de Ações
+        </button>
+        <button className={`audit-tab${tab === 'alertas' ? ' active' : ''}`} onClick={() => setTab('alertas')}>
+          <AlertTriangle size={14} /> Alertas & Anomalias
+          {alertas && (alertas.fora_horario?.length + alertas.liberacoes_altas?.length) > 0 && (
+            <span className="audit-tab-badge">
+              {alertas.fora_horario.length + alertas.liberacoes_altas.length}
+            </span>
+          )}
+        </button>
+      </div>
+
+      {/* Filters (shared) */}
+      <div className="audit-filters">
+        <div className="audit-filter-group">
+          <span className="audit-filter-label">De</span>
+          <input type="date" className="audit-filter-input" value={dataIni}
+            onChange={e => { setDataIni(e.target.value); setPage(1); }} />
+        </div>
+        <div className="audit-filter-group">
+          <span className="audit-filter-label">Até</span>
+          <input type="date" className="audit-filter-input" value={dataFim}
+            onChange={e => { setDataFim(e.target.value); setPage(1); }} />
+        </div>
+        <div className="audit-filter-divider" />
+        <div className="audit-filter-group">
+          <UserCheck size={13} color="#64748b" />
+          <select className="audit-filter-select" value={usuario}
+            onChange={e => { setUsuario(e.target.value); setPage(1); }}>
+            <option value="">Todos usuários</option>
+            {usuarios.map(u => <option key={u} value={u}>{u}</option>)}
+          </select>
+        </div>
+        <div className="audit-filter-group">
+          <Tag size={13} color="#64748b" />
+          <select className="audit-filter-select" value={modulo}
+            onChange={e => { setModulo(e.target.value); setPage(1); }}>
+            <option value="">Todos módulos</option>
+            <option value="CAIXA">Caixa</option>
+            <option value="VENDA">Venda</option>
+            <option value="FISCAL">Fiscal</option>
+          </select>
+        </div>
+        <div className="audit-filter-group">
+          <Activity size={13} color="#64748b" />
+          <select className="audit-filter-select" value={tipoAcao}
+            onChange={e => { setTipoAcao(e.target.value); setPage(1); }}>
+            <option value="">Todas as ações</option>
+            <option value="INCLUSÃO">Inclusão</option>
+            <option value="CANCELAMENTO">Cancelamento</option>
+            <option value="ALTERAÇÃO">Alteração</option>
+          </select>
+        </div>
+        <div className="audit-filter-divider" />
+        <div className="audit-filter-group">
+          <Search size={13} color="#64748b" />
+          <input type="search" className="audit-filter-input" placeholder="Buscar usuário, detalhe..."
+            value={search} onChange={e => handleSearchChange(e.target.value)} />
+        </div>
+      </div>
+
+      {tab === 'log' && <>
+      {/* KPI summary */}
+      {stats.length > 0 && (
+        <div className="audit-kpis">
+          {stats.map(s => (
+            <div key={`${s.modulo}-${s.operacao}`} className={`audit-kpi ${KPI_CLASS(s.modulo, s.operacao)}`}>
+              <div className="audit-kpi-label">{s.modulo} · {s.operacao}</div>
+              <div className="audit-kpi-value">{s.qtd.toLocaleString('pt-BR')}</div>
+              <div className="audit-kpi-sub">
+                {s.totalValor > 0 ? auditFmtBRL(s.totalValor) : 'sem valor'}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Table */}
+      <div className="audit-table-wrap">
+        <div className="audit-table-header-bar">
+          <span className="audit-table-info">
+            {loading ? 'Carregando...' : (
+              <>Exibindo <strong>{items.length}</strong> de <strong>{total.toLocaleString('pt-BR')}</strong> registros</>
+            )}
+          </span>
+          <span className="audit-table-info" style={{ fontSize: 11 }}>
+            Clique em uma linha para ver detalhes
+          </span>
+        </div>
+
+        {loading && items.length === 0 ? (
+          <div className="audit-loading-overlay">
+            <RefreshCw size={16} style={{ animation: 'spin .7s linear infinite' }} />
+            Carregando registros...
+          </div>
+        ) : items.length === 0 ? (
+          <div className="audit-empty">
+            <ShieldCheck size={40} className="audit-empty-icon" />
+            <div className="audit-empty-text">Nenhum registro encontrado para o período e filtros selecionados.</div>
+          </div>
+        ) : (
+          <div className="audit-table-scroll">
+            <table className="audit-table">
+              <thead>
+                <tr>
+                  <th style={{ width: 24 }} />
+                  <th>Data / Hora</th>
+                  <th>Usuário</th>
+                  <th>Ação</th>
+                  <th>Módulo</th>
+                  <th>Operação</th>
+                  <th>Referência</th>
+                  <th>Detalhe</th>
+                  <th>Valor</th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map(item => {
+                  const isExp = expandedId === item.id;
+                  const [datePart, timePart] = (item.dataHoraFmt || '').split(' ');
+                  const isEntrada = item.direcao === 'ENTRADA';
+                  const opKey = item.operacao?.toUpperCase();
+                  const opBadge = OP_BADGE[opKey] || 'op-default';
+                  const modBadge = MODULO_BADGE[item.modulo] || 'mod-sistema';
+                  const acaoBadge = ACAO_BADGE[item.tipoAcao] || 'acao-inclusao';
+                  return (
+                    <React.Fragment key={`${item.id}-${item.dataHora}`}>
+                      <tr
+                        className={isExp ? 'expanded' : ''}
+                        onClick={() => setExpandedId(isExp ? null : item.id)}
+                      >
+                        <td style={{ textAlign: 'center', paddingRight: 4 }}>
+                          <span className={`audit-expand-arrow${isExp ? ' open' : ''}`}>
+                            <ChevronDown size={12} />
+                          </span>
+                        </td>
+                        <td>
+                          <div className="audit-dt">
+                            <span className="audit-dt-date">{datePart}</span>
+                            <span className="audit-dt-time">{timePart}</span>
+                          </div>
+                        </td>
+                        <td><span className="audit-user">{item.usuario}</span></td>
+                        <td><span className={`audit-badge ${acaoBadge}`}>{item.tipoAcao || '—'}</span></td>
+                        <td><span className={`audit-badge ${modBadge}`}>{item.modulo}</span></td>
+                        <td><span className={`audit-badge ${opBadge}`}>{item.operacao}</span></td>
+                        <td style={{ fontSize: 12, color: '#64748b' }}>{item.referencia || '—'}</td>
+                        <td className="audit-detalhe">
+                          <div className="audit-detalhe-clamp">{item.detalhe || '—'}</div>
+                        </td>
+                        <td className={`audit-valor ${item.valor == null ? 'neutro' : isEntrada ? 'positivo' : 'negativo'}`}>
+                          {item.valor != null ? auditFmtBRL(item.valor) : '—'}
+                        </td>
+                      </tr>
+                      {isExp && (
+                        <tr className="detail-row" style={{ display: 'table-row' }}>
+                          <td colSpan={9}>
+                            <div className="detail-content">
+                              <strong>Tipo de Ação:</strong> <span className={`audit-badge ${acaoBadge}`} style={{ fontSize: 11 }}>{item.tipoAcao || '—'}</span> &nbsp;|&nbsp;
+                              <strong>Módulo:</strong> {item.modulo} &nbsp;|&nbsp;
+                              <strong>Operação:</strong> {item.operacao} &nbsp;|&nbsp;
+                              <strong>Direção:</strong> {item.direcao} &nbsp;|&nbsp;
+                              <strong>Referência:</strong> {item.referencia || '—'}<br />
+                              <strong>Usuário:</strong> {item.usuario} &nbsp;|&nbsp;
+                              <strong>Terminal:</strong> {item.terminal || '—'} &nbsp;|&nbsp;
+                              <strong>ID:</strong> {item.id}<br />
+                              <strong>Detalhe:</strong> {item.detalhe || '—'}<br />
+                              {item.valor != null && (
+                                <><strong>Valor:</strong> {auditFmtBRL(item.valor)}</>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Pagination */}
+        {pages > 1 && (
+          <div className="audit-pagination">
+            <span className="audit-pag-info">
+              Página {page} de {pages.toLocaleString('pt-BR')} · {total.toLocaleString('pt-BR')} registros
+            </span>
+            <div className="audit-pag-btns">
+              <button className="audit-pag-btn" onClick={() => goPage(1)} disabled={page === 1}>«</button>
+              <button className="audit-pag-btn" onClick={() => goPage(page - 1)} disabled={page === 1}>‹</button>
+              {pagesArray().map((p, i) =>
+                p === '...'
+                  ? <span key={`e${i}`} className="audit-pag-btn" style={{ border: 'none', background: 'none', cursor: 'default' }}>…</span>
+                  : <button key={p} className={`audit-pag-btn${page === p ? ' active' : ''}`} onClick={() => goPage(p)}>{p}</button>
+              )}
+              <button className="audit-pag-btn" onClick={() => goPage(page + 1)} disabled={page === pages}>›</button>
+              <button className="audit-pag-btn" onClick={() => goPage(pages)} disabled={page === pages}>»</button>
+            </div>
+          </div>
+        )}
+      </div>
+      </>}
+
+      {tab === 'alertas' && (
+        <div>
+          {/* Alertas config */}
+          <div className="alerta-config">
+            <span className="alerta-config-label">Horário comercial</span>
+            <input type="number" className="alerta-config-input" value={horaInicio} min={0} max={12}
+              onChange={e => setHoraInicio(Number(e.target.value))} style={{ width: 55 }} />
+            <span style={{ color: '#64748b', fontSize: 12 }}>h às</span>
+            <input type="number" className="alerta-config-input" value={horaFim} min={12} max={23}
+              onChange={e => setHoraFim(Number(e.target.value))} style={{ width: 55 }} />
+            <span style={{ color: '#64748b', fontSize: 12 }}>h</span>
+            <span className="alerta-config-label" style={{ marginLeft: 12 }}>Alerta liberação acima de</span>
+            <input type="number" className="alerta-config-input" value={limiteLib} min={0}
+              onChange={e => setLimiteLib(Number(e.target.value))} />
+            <span style={{ color: '#64748b', fontSize: 12 }}>R$</span>
+            <span className="alerta-config-label" style={{ marginLeft: 12 }}>Alerta desconto acima de</span>
+            <input type="number" className="alerta-config-input" value={limiteDesc} min={0}
+              onChange={e => setLimiteDesc(Number(e.target.value))} />
+            <span style={{ color: '#64748b', fontSize: 12 }}>R$</span>
+            <button className={`audit-refresh-btn${alertasLoading ? ' spinning' : ''}`} style={{ marginLeft: 8 }}
+              onClick={fetchAlertas}>
+              <RefreshCw size={12} /> Aplicar
+            </button>
+          </div>
+
+          {alertasLoading && (
+            <div className="audit-loading-overlay">
+              <RefreshCw size={16} style={{ animation: 'spin .7s linear infinite' }} /> Analisando anomalias...
+            </div>
+          )}
+
+          {alertas && !alertasLoading && (() => {
+            const fora    = alertas.fora_horario || [];
+            const libAlta = alertas.liberacoes_altas || [];
+            const cancRk  = alertas.cancelamentos_ranking || [];
+            const libRk   = alertas.liberacoes_ranking || [];
+            const recjD   = alertas.recj_descontos || [];
+            return (
+              <div className="alertas-grid">
+
+                {/* Operações fora do horário */}
+                <div className="alerta-card">
+                  <div className="alerta-card-header">
+                    <div className="alerta-card-title" style={{ color: '#f87171' }}>
+                      <span className="alerta-severity-dot alto" />
+                      <Clock size={14} /> Operações fora do horário
+                    </div>
+                    <span className="alerta-card-count">{fora.length} ocorrências</span>
+                  </div>
+                  <div className="alerta-card-body">
+                    {fora.length === 0
+                      ? <div className="alerta-empty">Nenhuma operação fora do horário</div>
+                      : fora.map(r => (
+                        <div className="alerta-row" key={r.id}>
+                          <div className="alerta-row-left">
+                            <div className="alerta-row-main">{r.usuario} — {r.operacao}</div>
+                            <div className="alerta-row-sub">{r.dataHoraFmt} · Caixa {r.caixa || '—'}</div>
+                          </div>
+                          <div className="alerta-row-right">
+                            <div className="alerta-row-valor vermelho">{r.valor != null ? auditFmtBRL(r.valor) : '—'}</div>
+                            <div className="alerta-row-hora">{String(r.hora).padStart(2,'0')}h</div>
+                          </div>
+                        </div>
+                      ))
+                    }
+                  </div>
+                </div>
+
+                {/* Liberações de alto valor */}
+                <div className="alerta-card">
+                  <div className="alerta-card-header">
+                    <div className="alerta-card-title" style={{ color: '#fb923c' }}>
+                      <span className="alerta-severity-dot medio" />
+                      <TrendingUp size={14} /> Liberações de alto valor
+                    </div>
+                    <span className="alerta-card-count">{libAlta.length} ocorrências</span>
+                  </div>
+                  <div className="alerta-card-body">
+                    {libAlta.length === 0
+                      ? <div className="alerta-empty">Nenhuma liberação acima do limite</div>
+                      : libAlta.map(r => (
+                        <div className="alerta-row" key={r.id}>
+                          <div className="alerta-row-left">
+                            <div className="alerta-row-main">{r.usuario} · {r.referencia}</div>
+                            <div className="alerta-row-sub">{r.dataHoraFmt} · {r.motivo}</div>
+                          </div>
+                          <div className="alerta-row-right">
+                            <div className="alerta-row-valor laranja">{auditFmtBRL(r.valor)}</div>
+                          </div>
+                        </div>
+                      ))
+                    }
+                  </div>
+                </div>
+
+                {/* Ranking cancelamentos */}
+                <div className="alerta-card">
+                  <div className="alerta-card-header">
+                    <div className="alerta-card-title" style={{ color: '#fbbf24' }}>
+                      <span className="alerta-severity-dot baixo" />
+                      <X size={14} /> Cancelamentos por usuário
+                    </div>
+                    <span className="alerta-card-count">{cancRk.reduce((s,r)=>s+r.qtd,0)} total</span>
+                  </div>
+                  <div className="alerta-card-body">
+                    {cancRk.length === 0
+                      ? <div className="alerta-empty">Nenhum cancelamento no período</div>
+                      : cancRk.map(r => (
+                        <div className="alerta-row" key={r.usuario}>
+                          <div className="alerta-row-left">
+                            <div className="alerta-row-main">{r.usuario}</div>
+                            <div className="alerta-row-sub">{r.qtd} cancelamento{r.qtd !== 1 ? 's' : ''}</div>
+                          </div>
+                          <div className="alerta-row-right">
+                            <div className="alerta-row-valor amarelo">{r.qtd} ×</div>
+                          </div>
+                        </div>
+                      ))
+                    }
+                  </div>
+                </div>
+
+                {/* Ranking liberações por usuário */}
+                <div className="alerta-card">
+                  <div className="alerta-card-header">
+                    <div className="alerta-card-title" style={{ color: '#a78bfa' }}>
+                      <span className="alerta-severity-dot" style={{ background:'#a78bfa' }} />
+                      <Unlock size={14} /> Liberações por usuário
+                    </div>
+                    <span className="alerta-card-count">{libRk.reduce((s,r)=>s+r.qtd,0)} total</span>
+                  </div>
+                  <div className="alerta-card-body">
+                    {libRk.length === 0
+                      ? <div className="alerta-empty">Nenhuma liberação no período</div>
+                      : libRk.map(r => (
+                        <div className="alerta-row" key={r.usuario}>
+                          <div className="alerta-row-left">
+                            <div className="alerta-row-main">{r.usuario}</div>
+                            <div className="alerta-row-sub">{r.qtd} liberações · maior: {auditFmtBRL(r.maiorValor)}</div>
+                          </div>
+                          <div className="alerta-row-right">
+                            <div className="alerta-row-valor" style={{ color:'#c4b5fd' }}>{auditFmtBRL(r.totalValor)}</div>
+                          </div>
+                        </div>
+                      ))
+                    }
+                  </div>
+                </div>
+
+                {/* Descontos em recebíveis */}
+                <div className="alerta-card" style={{ gridColumn: 'span 2' }}>
+                  <div className="alerta-card-header">
+                    <div className="alerta-card-title" style={{ color: '#34d399' }}>
+                      <span className="alerta-severity-dot" style={{ background:'#34d399' }} />
+                      <PiggyBank size={14} /> Descontos em contas a receber
+                    </div>
+                    <span className="alerta-card-count">{recjD.length} registros</span>
+                  </div>
+                  <div className="alerta-card-body">
+                    {recjD.length === 0
+                      ? <div className="alerta-empty">Nenhum desconto acima do limite no período</div>
+                      : recjD.map(r => (
+                        <div className="alerta-row" key={r.id}>
+                          <div className="alerta-row-left">
+                            <div className="alerta-row-main">Doc {r.documento}</div>
+                            <div className="alerta-row-sub">Original: {auditFmtBRL(r.valorOriginal)} · Fechamento: {r.fechamento}</div>
+                          </div>
+                          <div className="alerta-row-right">
+                            <div className="alerta-row-valor verde">-{auditFmtBRL(r.desconto)}</div>
+                            <div className="alerta-row-hora">{r.pctDesconto}%</div>
+                          </div>
+                        </div>
+                      ))
+                    }
+                  </div>
+                </div>
+
+              </div>
+            );
+          })()}
+
+          {!alertas && !alertasLoading && (
+            <div className="audit-empty">
+              <AlertTriangle size={40} className="audit-empty-icon" />
+              <div className="audit-empty-text">Clique em "Atualizar" para carregar os alertas do período.</div>
+            </div>
+          )}
+        </div>
       )}
     </div>
   );
@@ -12491,9 +14810,11 @@ export default function App() {
       case 'stock':
         return <EstoqueManager estoques={apiData.estoques} projecao={apiData.projecao} loading={apiData.loading} selectedClient={selectedClient} clients={clients} themeMode={themeMode} />;
       case 'receber':
-        return <Financeiro clients={clients} selectedClient={selectedClient} />;
+        return <Financeiro clients={clients} selectedClient={selectedClient} themeMode={themeMode} />;
       case 'goals':
         return <GoalManager themeMode={themeMode} />;
+      case 'auditoria':
+        return <Auditoria themeMode={themeMode} />;
       case 'users':
         return <Users adminUsers={adminUsers} setAdminUsers={setAdminUsers} isAdmin={isAdmin} />;
       case 'params':
