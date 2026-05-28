@@ -5473,7 +5473,7 @@ const ContaCorrente = ({ clients, selectedClient }) => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-const Financeiro = ({ clients, selectedClient, themeMode }) => {
+const Financeiro = ({ clients, selectedClient }) => {
   const [tab, setTab] = useState('receber');
   return (
     <div>
