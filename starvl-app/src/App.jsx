@@ -10044,15 +10044,23 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
       const combFilt = showComb ? sortItems(filtrarItems(combustiveis)) : [];
       const convFilt = showConv ? sortItems(filtrarItems(convenio))     : [];
 
-      const fB  = v => 'R$ ' + Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
-      const fP  = (v,d=2) => Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:d});
+      const fB   = v => 'R$ ' + Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+      const fP   = (v,d=2) => Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:d});
       const mCor = m => m >= 20 ? '#15803d' : m >= 10 ? '#b45309' : '#b91c1c';
-      const sitCor = s => s === 'ATIVO' ? '#15803d' : '#6b7280';
+      const sitCor = s => s === 'ATIVO' ? '#15803d' : '#94a3b8';
       const now = new Date().toLocaleDateString('pt-BR');
       const ordemLabel = { nome:'Nome A–Z', estoque:'Estoque (maior)', situacao:'Situação' }[ordenacao] || '';
 
-      const trComb = combFilt.map(p => `
-        <tr>
+      // KPI totais
+      const totalComb = combFilt.length;
+      const totalConv = convFilt.length;
+      const totalAtivos = [...combFilt, ...convFilt].filter(p => p.situacao === 'ATIVO').length;
+      const totalInativos = [...combFilt, ...convFilt].filter(p => p.situacao === 'INATIVO').length;
+      const margemMediaComb = combFilt.length ? combFilt.reduce((s,p)=>s+(p.margem||0),0)/combFilt.length : 0;
+      const margemMediaConv = convFilt.length ? convFilt.reduce((s,p)=>s+(p.margem||0),0)/convFilt.length : 0;
+
+      const trComb = combFilt.map((p, i) => `
+        <tr style="background:${i%2===0?'#fff':'#f9fafb'}">
           <td class="mono">${p.cod}</td>
           <td>${p.descricao}</td>
           <td class="mono c">${p.anp || '—'}</td>
@@ -10063,10 +10071,10 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
           <td class="c" style="color:${sitCor(p.situacao)};font-weight:700">${p.situacao}</td>
         </tr>`).join('');
 
-      const trConv = convFilt.map(p => `
-        <tr>
+      const trConv = convFilt.map((p, i) => `
+        <tr style="background:${i%2===0?'#fff':'#f9fafb'}">
           <td class="mono">${p.cod}</td>
-          ${exibirCodBarras ? `<td class="mono" style="font-size:9px">${p.codBarra || '—'}</td>` : ''}
+          ${exibirCodBarras ? `<td class="mono" style="font-size:8.5px">${p.codBarra || '—'}</td>` : ''}
           <td>${p.descricao}</td>
           <td>${p.secao}</td>
           <td>${p.grupo || '—'}</td>
@@ -10077,76 +10085,141 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
           <td class="c" style="color:${sitCor(p.situacao)};font-weight:700">${p.situacao}</td>
         </tr>`).join('');
 
-      const html = `<!DOCTYPE html><html lang="pt-BR"><head>
-        <meta charset="utf-8"/>
-        <title>REL 11 — Cadastro de Produtos</title>
-        <style>
-          @page{size:A4 landscape;margin:10mm}
-          *{box-sizing:border-box}
-          body{margin:0;font-family:Arial,sans-serif;font-size:10px;color:#111;background:#fff}
-          h1{margin:0 0 2px;font-size:16px;font-weight:800}
-          .sub{font-size:10px;color:#555}
-          .hd{display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid #E31E24;padding-bottom:8px;margin-bottom:14px}
-          img.logo{width:110px;height:auto;object-fit:contain}
-          section{margin-bottom:20px}
-          h2{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#E31E24;margin:0 0 6px;display:flex;align-items:center;gap:6px}
-          h2 span{background:#E31E24;color:#fff;border-radius:4px;padding:1px 7px;font-size:10px}
-          table{width:100%;border-collapse:collapse}
-          th{background:#f3f4f6;font-size:9px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:5px 6px;border-bottom:1px solid #d1d5db;text-align:left}
-          td{padding:4px 6px;border-bottom:1px solid #f3f4f6;font-size:9.5px;vertical-align:middle}
-          tr:nth-child(even) td{background:#fafafa}
-          .r{text-align:right}.c{text-align:center}.mono{font-family:monospace}
-          .empty{text-align:center;color:#888;padding:16px;font-style:italic}
-          .footer{margin-top:10px;font-size:9px;color:#888;text-align:right;border-top:1px solid #e5e7eb;padding-top:4px}
-          .kpi-row{display:flex;gap:16px;margin-bottom:12px}
-          .kpi{background:#f8f9fa;border:1px solid #e5e7eb;border-radius:6px;padding:8px 14px;min-width:120px}
-          .kpi-lbl{font-size:9px;color:#666;text-transform:uppercase;letter-spacing:.04em}
-          .kpi-val{font-size:14px;font-weight:800;color:#111;margin-top:2px}
-          @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact!important}}
-        </style>
-      </head><body>
-        <div class="hd">
-          <div>
-            <img class="logo" src="/logo-starvl.png" alt="STARVL" />
-            <h1 style="margin-top:4px">REL 11 — Cadastro de Produtos e Combustíveis</h1>
-            <div class="sub">${selectedClient || ''} &nbsp;|&nbsp; Emitido em ${now} &nbsp;|&nbsp; Ordenado por: ${ordemLabel}</div>
-          </div>
-          <div style="text-align:right;font-size:10px;color:#888">
-            ${combFilt.length} combustível(is) &nbsp;|&nbsp; ${convFilt.length} produto(s) de conveniência
-          </div>
-        </div>
+      const html = `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>REL 11 — Cadastro de Produtos e Combustíveis</title>
+  <style>
+    @page { size: A4 landscape; margin: 10mm; }
+    * { box-sizing: border-box; }
+    html, body, .report, .header, .panel, table, th, td, tfoot td {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+      color-adjust: exact !important;
+    }
+    body { margin: 0; font-family: Arial, Helvetica, sans-serif; color: #111827; background: #fff; }
+    .report { min-height: 100vh; padding: 16px; background: #fff; }
+    .header { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 14px 18px; border: 1px solid #e5e7eb; border-bottom: 3px solid #e31e24; border-radius: 8px; background: #fff; margin-bottom: 12px; }
+    .header-left { display: flex; align-items: center; gap: 14px; min-width: 0; }
+    .header-right { text-align: right; color: #667085; font-size: 10px; line-height: 1.55; flex-shrink: 0; }
+    h1 { margin: 0 0 3px; font-size: 18px; font-weight: 800; line-height: 1.15; }
+    .sub { color: #667085; font-size: 10px; }
+    .kpi-strip { display: flex; gap: 10px; margin-bottom: 12px; }
+    .kpi { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px 14px; flex: 1; }
+    .kpi span { display: block; color: #667085; font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 4px; }
+    .kpi strong { display: block; color: #111827; font-size: 18px; font-weight: 900; }
+    .panel { border: 1px solid #e5e7eb; border-radius: 8px; background: #fff; padding: 14px; margin-bottom: 12px; }
+    .panel-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .panel-title { margin: 0; font-size: 12px; font-weight: 800; color: #111827; display: flex; align-items: center; gap: 8px; }
+    .pill { border: 1px solid #d0d5dd; border-radius: 8px; color: #344054; padding: 5px 10px; font-size: 9px; font-weight: 800; background: #f9fafb; }
+    table { width: 100%; border-collapse: collapse; font-size: 9px; }
+    th, td { border: 1px solid #d0d5dd; padding: 5px 7px; word-break: break-word; }
+    th { background: #e31e24 !important; color: #fff; text-align: left; font-size: 8.5px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; }
+    td { color: #111827; }
+    .r { text-align: right; } .c { text-align: center; } .mono { font-family: monospace; }
+    tfoot td { background: #f3f4f6 !important; font-weight: 900; }
+    .footer { margin-top: 10px; color: #667085; font-size: 9px; text-align: right; border-top: 1px solid #e5e7eb; padding-top: 6px; }
+    @media screen {
+      body { background: #f3f4f6; padding: 18px; }
+      .report { max-width: 1180px; min-height: auto; margin: 0 auto; box-shadow: 0 18px 50px rgba(15,23,42,.12); }
+    }
+    @media print {
+      .panel, .header, tr { break-inside: avoid; page-break-inside: avoid; }
+      body { background: #fff !important; }
+      .report { background: #fff !important; box-shadow: none !important; }
+      th { background: #e31e24 !important; color: #fff !important; }
+    }
+  </style>
+</head>
+<body>
+<main class="report">
 
-        ${showComb ? `
-        <section>
-          <h2>🔴 Combustíveis <span>${combFilt.length}</span></h2>
-          ${combFilt.length === 0 ? '<div class="empty">Nenhum combustível encontrado.</div>' : `
-          <table>
-            <thead><tr>
-              <th>Cód.</th><th>Descrição</th><th>Cód. ANP</th>
-              <th class="r">Preço V1</th><th class="r">Preço V2</th>
-              <th class="r">Custo</th><th class="r">Margem</th><th class="c">Situação</th>
-            </tr></thead>
-            <tbody>${trComb || '<tr><td colspan="8" class="empty">—</td></tr>'}</tbody>
-          </table>`}
-        </section>` : ''}
+  <section class="header">
+    <div class="header-left">
+      <img src="/logo-starvl.png" alt="STARVL" style="width:100px;height:auto;object-fit:contain;flex-shrink:0" />
+      <div>
+        <h1>REL 11 — Cadastro de Produtos e Combustíveis</h1>
+        <div class="sub">${selectedClient || ''} &nbsp;|&nbsp; Ordenado por: ${ordemLabel} &nbsp;|&nbsp; Emitido em ${now}</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <div style="font-size:11px;font-weight:700;color:#111827">${totalComb + totalConv} produtos</div>
+      <div>${totalAtivos} ativo(s) &nbsp;·&nbsp; ${totalInativos} inativo(s)</div>
+      <div>Gerado em ${now}</div>
+    </div>
+  </section>
 
-        ${showConv ? `
-        <section>
-          <h2>📦 Conveniência <span>${convFilt.length}</span></h2>
-          ${convFilt.length === 0 ? '<div class="empty">Nenhum produto encontrado.</div>' : `
-          <table>
-            <thead><tr>
-              <th>Cód.</th>${exibirCodBarras ? '<th>Cód. Barras</th>' : ''}<th>Descrição</th>
-              <th>Seção</th><th>Grupo</th>
-              <th class="r">Preço V1</th><th class="r">Custo</th>
-              <th class="r">Margem</th><th class="r">Estoque</th><th class="c">Situação</th>
-            </tr></thead>
-            <tbody>${trConv || `<tr><td colspan="${exibirCodBarras ? 10 : 9}" class="empty">—</td></tr>`}</tbody>
-          </table>`}
-        </section>` : ''}
+  <div class="kpi-strip">
+    <div class="kpi"><span>Combustíveis</span><strong>${totalComb}</strong></div>
+    <div class="kpi"><span>Conveniência</span><strong>${totalConv}</strong></div>
+    <div class="kpi"><span>Ativos</span><strong style="color:#15803d">${totalAtivos}</strong></div>
+    <div class="kpi"><span>Inativos</span><strong style="color:#94a3b8">${totalInativos}</strong></div>
+    ${showComb ? `<div class="kpi"><span>Margem Média Comb.</span><strong style="color:${mCor(margemMediaComb)}">${fP(margemMediaComb,1)}%</strong></div>` : ''}
+    ${showConv ? `<div class="kpi"><span>Margem Média Conv.</span><strong style="color:${mCor(margemMediaConv)}">${fP(margemMediaConv,1)}%</strong></div>` : ''}
+  </div>
 
-        <div class="footer">STARVL | REL 11 — Cadastro de Produtos e Combustíveis | ${now}</div>
-      </body></html>`;
+  ${showComb ? `
+  <section class="panel">
+    <div class="panel-head">
+      <h2 class="panel-title">🔴 COMBUSTÍVEIS <span style="background:#e31e24;color:#fff;border-radius:4px;padding:1px 8px;font-size:9px;margin-left:6px">${combFilt.length}</span></h2>
+      <div class="pill">Margem média: ${fP(margemMediaComb,1)}%</div>
+    </div>
+    ${combFilt.length === 0 ? '<div style="text-align:center;color:#888;padding:16px;font-style:italic">Nenhum combustível encontrado.</div>' : `
+    <table>
+      <thead><tr>
+        <th style="width:48px">Cód.</th>
+        <th>Descrição</th>
+        <th class="c" style="width:90px">Cód. ANP</th>
+        <th class="r" style="width:82px">Preço V1</th>
+        <th class="r" style="width:82px">Preço V2</th>
+        <th class="r" style="width:80px">Custo</th>
+        <th class="r" style="width:62px">Margem</th>
+        <th class="c" style="width:66px">Situação</th>
+      </tr></thead>
+      <tbody>${trComb}</tbody>
+      <tfoot><tr>
+        <td colspan="6" style="text-align:right;font-weight:700">Total de combustíveis:</td>
+        <td class="c" style="font-weight:900">${combFilt.length}</td>
+        <td></td>
+      </tr></tfoot>
+    </table>`}
+  </section>` : ''}
+
+  ${showConv ? `
+  <section class="panel">
+    <div class="panel-head">
+      <h2 class="panel-title">📦 CONVENIÊNCIA <span style="background:#e31e24;color:#fff;border-radius:4px;padding:1px 8px;font-size:9px;margin-left:6px">${convFilt.length}</span></h2>
+      <div class="pill">Margem média: ${fP(margemMediaConv,1)}%</div>
+    </div>
+    ${convFilt.length === 0 ? '<div style="text-align:center;color:#888;padding:16px;font-style:italic">Nenhum produto encontrado.</div>' : `
+    <table>
+      <thead><tr>
+        <th style="width:48px">Cód.</th>
+        ${exibirCodBarras ? '<th style="width:90px">Cód. Barras</th>' : ''}
+        <th>Descrição</th>
+        <th style="width:90px">Seção</th>
+        <th style="width:80px">Grupo</th>
+        <th class="r" style="width:82px">Preço V1</th>
+        <th class="r" style="width:80px">Custo</th>
+        <th class="r" style="width:62px">Margem</th>
+        <th class="r" style="width:62px">Estoque</th>
+        <th class="c" style="width:66px">Situação</th>
+      </tr></thead>
+      <tbody>${trConv}</tbody>
+      <tfoot><tr>
+        <td colspan="${exibirCodBarras ? 8 : 7}" style="text-align:right;font-weight:700">Total de produtos:</td>
+        <td class="c" style="font-weight:900">${convFilt.length}</td>
+        <td></td>
+      </tr></tfoot>
+    </table>`}
+  </section>` : ''}
+
+  <div class="footer">STARVL SISTEMAS &nbsp;|&nbsp; REL 11 — Cadastro de Produtos e Combustíveis &nbsp;|&nbsp; ${now}</div>
+
+</main>
+</body>
+</html>`;
 
       const win = window.open('', '_blank');
       if (!win) { toast('Permita pop-ups no navegador para gerar o relatório.', 'warn'); return; }
@@ -10349,133 +10422,12 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
       )}
 
       {showCadastroPanel && (
-        <div className="modal-overlay control-print-overlay">
-          <div className="control-print-panel ranking-filter-panel" style={{ maxWidth:720, width:'95%' }}>
-            <div className="ranking-filter-header">
-              <div>
-                <div style={{ fontSize:17, fontWeight:800 }}>REL 11 — Cadastro de Produtos</div>
-                <div style={{ fontSize:12, color:'#64748b', marginTop:3 }}>Relação de produtos e combustíveis cadastrados</div>
-              </div>
-              <button onClick={() => setShowCadastroPanel(false)} className="ranking-close-btn">✕</button>
-            </div>
-
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginTop:18 }}>
-              {/* Coluna esquerda */}
-              <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
-                <div>
-                  <label style={{ fontSize:11, fontWeight:700, color:'#64748b', textTransform:'uppercase', letterSpacing:'.06em', display:'block', marginBottom:6 }}>Tipo de Produto</label>
-                  <div style={{ display:'flex', gap:8 }}>
-                    {[['todos','Todos'],['combustiveis','Combustíveis'],['convenio','Conveniência']].map(([v,l]) => (
-                      <button key={v} onClick={() => setCadastroFilters(f => ({...f, tipo:v}))}
-                        style={{ flex:1, padding:'8px 4px', borderRadius:7, fontSize:12, fontWeight:700, cursor:'pointer', border:'none',
-                          background: cadastroFilters.tipo===v ? '#E31E24' : '#1f2937',
-                          color: cadastroFilters.tipo===v ? '#fff' : '#94a3b8' }}>
-                        {l}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <label style={{ fontSize:11, fontWeight:700, color:'#64748b', textTransform:'uppercase', letterSpacing:'.06em', display:'block', marginBottom:6 }}>Situação</label>
-                  <div style={{ display:'flex', gap:8 }}>
-                    {[['todos','Todos'],['ativo','Somente Ativos'],['inativo','Somente Inativos']].map(([v,l]) => (
-                      <button key={v} onClick={() => setCadastroFilters(f => ({...f, situacao:v}))}
-                        style={{ flex:1, padding:'8px 4px', borderRadius:7, fontSize:11, fontWeight:700, cursor:'pointer', border:'none',
-                          background: cadastroFilters.situacao===v ? '#E31E24' : '#1f2937',
-                          color: cadastroFilters.situacao===v ? '#fff' : '#94a3b8' }}>
-                        {l}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <label style={{ fontSize:11, fontWeight:700, color:'#64748b', textTransform:'uppercase', letterSpacing:'.06em', display:'block', marginBottom:6 }}>Buscar por nome ou código de barras</label>
-                  <input
-                    value={cadastroFilters.busca}
-                    onChange={e => setCadastroFilters(f => ({...f, busca:e.target.value}))}
-                    placeholder="Descrição ou cód. de barras..."
-                    style={{ width:'100%', boxSizing:'border-box', padding:'9px 12px', borderRadius:8, border:'1px solid #2a2a2a', background:'#111', color:'#f8fafc', fontSize:13, outline:'none' }}
-                  />
-                </div>
-              </div>
-
-              {/* Coluna direita */}
-              <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
-                <div>
-                  <label style={{ fontSize:11, fontWeight:700, color:'#64748b', textTransform:'uppercase', letterSpacing:'.06em', display:'block', marginBottom:6 }}>Ordenar por</label>
-                  <div style={{ display:'flex', gap:8 }}>
-                    {[['nome','Nome A–Z'],['estoque','Estoque'],['situacao','Situação']].map(([v,l]) => (
-                      <button key={v} onClick={() => setCadastroFilters(f => ({...f, ordenacao:v}))}
-                        style={{ flex:1, padding:'8px 4px', borderRadius:7, fontSize:12, fontWeight:700, cursor:'pointer', border:'none',
-                          background: cadastroFilters.ordenacao===v ? '#E31E24' : '#1f2937',
-                          color: cadastroFilters.ordenacao===v ? '#fff' : '#94a3b8' }}>
-                        {l}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <label style={{ fontSize:11, fontWeight:700, color:'#64748b', textTransform:'uppercase', letterSpacing:'.06em', display:'block', marginBottom:10 }}>Opções de Exibição</label>
-                  <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-                    {/* Toggle código de barras */}
-                    <label style={{ display:'flex', alignItems:'center', gap:10, cursor:'pointer', userSelect:'none' }}>
-                      <div
-                        onClick={() => setCadastroFilters(f => ({...f, exibirCodBarras:!f.exibirCodBarras}))}
-                        style={{
-                          width:40, height:22, borderRadius:11, position:'relative', flexShrink:0, cursor:'pointer',
-                          background: cadastroFilters.exibirCodBarras ? '#E31E24' : '#374151',
-                          transition:'background .2s',
-                        }}
-                      >
-                        <div style={{
-                          position:'absolute', top:3, left: cadastroFilters.exibirCodBarras ? 21 : 3,
-                          width:16, height:16, borderRadius:'50%', background:'#fff',
-                          transition:'left .2s', boxShadow:'0 1px 3px rgba(0,0,0,.3)',
-                        }} />
-                      </div>
-                      <span style={{ fontSize:13, color: cadastroFilters.exibirCodBarras ? '#f8fafc' : '#64748b', fontWeight:600 }}>
-                        Exibir Código de Barras
-                      </span>
-                    </label>
-                  </div>
-                </div>
-
-                {/* Preview resumo */}
-                <div style={{ marginTop:'auto', background:'#0f172a', border:'1px solid #1e293b', borderRadius:8, padding:'12px 14px' }}>
-                  <div style={{ fontSize:10, color:'#475569', fontWeight:700, textTransform:'uppercase', letterSpacing:'.06em', marginBottom:8 }}>Resumo da Seleção</div>
-                  <div style={{ fontSize:12, color:'#94a3b8', lineHeight:1.7 }}>
-                    <div>Tipo: <span style={{ color:'#e2e8f0', fontWeight:600 }}>
-                      {cadastroFilters.tipo === 'todos' ? 'Todos' : cadastroFilters.tipo === 'combustiveis' ? 'Combustíveis' : 'Conveniência'}
-                    </span></div>
-                    <div>Situação: <span style={{ color:'#e2e8f0', fontWeight:600 }}>
-                      {cadastroFilters.situacao === 'todos' ? 'Todos' : cadastroFilters.situacao === 'ativo' ? 'Somente Ativos' : 'Somente Inativos'}
-                    </span></div>
-                    <div>Ordenação: <span style={{ color:'#e2e8f0', fontWeight:600 }}>
-                      {cadastroFilters.ordenacao === 'nome' ? 'Nome A–Z' : cadastroFilters.ordenacao === 'estoque' ? 'Estoque (maior)' : 'Situação'}
-                    </span></div>
-                    <div>Cód. Barras: <span style={{ color: cadastroFilters.exibirCodBarras ? '#4ade80' : '#f87171', fontWeight:600 }}>
-                      {cadastroFilters.exibirCodBarras ? 'Visível' : 'Oculto'}
-                    </span></div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div style={{ display:'flex', gap:10, marginTop:22 }}>
-              <button onClick={() => setShowCadastroPanel(false)}
-                style={{ flex:1, padding:'11px 0', background:'#1f2937', color:'#94a3b8', border:'1px solid #374151', borderRadius:8, fontWeight:600, fontSize:13, cursor:'pointer' }}>
-                Cancelar
-              </button>
-              <button onClick={handleGenerateCadastroReport}
-                style={{ flex:2, padding:'11px 0', background:'linear-gradient(135deg,#E31E24,#b91c1c)', color:'#fff', border:'none', borderRadius:8, fontWeight:700, fontSize:14, cursor:'pointer' }}>
-                📄 Gerar Relatório PDF
-              </button>
-            </div>
-          </div>
-        </div>
+        <CadastroFilterPanel
+          filters={cadastroFilters}
+          setFilters={setCadastroFilters}
+          onClose={() => setShowCadastroPanel(false)}
+          onGenerate={handleGenerateCadastroReport}
+        />
       )}
 
     </div>
@@ -10801,6 +10753,109 @@ const RankingSalesFilterPanel = ({ vendedores, filters, setFilters, loading, loa
           <button type="button" className="btn-primary control-print-generate" onClick={onGenerate} disabled={loading || loadingVendedores}>
             <Printer size={20} />
             {loading ? 'GERANDO...' : 'GERAR IMPRESSAO'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ── CadastroFilterPanel ───────────────────────────────────────────────────────
+const CadastroFilterPanel = ({ filters, setFilters, onClose, onGenerate }) => {
+  const upd = (field, val) => setFilters(f => ({ ...f, [field]: val }));
+
+  const tipoOpts    = [['todos','Todos','Combustíveis e Conveniência'],['combustiveis','Combustíveis','prodtipo = 1'],['convenio','Conveniência','prodtipo ≠ 1']];
+  const situOpts    = [['todos','Todos','Ativos e Inativos'],['ativo','Somente Ativos','Situação = ATIVO'],['inativo','Somente Inativos','Situação = INATIVO']];
+  const ordenOpts   = [['nome','Nome A–Z','Ordem alfabética'],['estoque','Estoque','Maior estoque primeiro'],['situacao','Situação','Ativos antes dos inativos']];
+
+  return (
+    <div className="modal-overlay control-print-overlay" onClick={onClose}>
+      <div className="control-print-panel ranking-filter-panel" onClick={e => e.stopPropagation()}>
+        <div className="control-print-header">
+          <div className="control-print-title">
+            <span className="control-print-icon"><Database size={25} /></span>
+            <h3>FILTROS — CADASTRO DE PRODUTOS</h3>
+          </div>
+          <button type="button" className="control-print-close" onClick={onClose} aria-label="Fechar">
+            <X size={28} />
+          </button>
+        </div>
+
+        <div className="control-print-body">
+          <div className="control-print-grid ranking-filter-grid">
+
+            {/* TIPO DE PRODUTO */}
+            <section className="control-print-section">
+              <div className="control-print-section-title"><Package size={20} /><span>TIPO DE PRODUTO</span></div>
+              {tipoOpts.map(([v, label, sub]) => (
+                <label key={v} className={`control-print-option ${filters.tipo === v ? 'selected' : ''}`} onClick={() => upd('tipo', v)} style={{ cursor:'pointer' }}>
+                  <Package size={26} />
+                  <div><strong>{label}</strong><span>{sub}</span></div>
+                  <input type="radio" name="cadastroTipo" value={v} checked={filters.tipo === v} onChange={() => upd('tipo', v)} />
+                </label>
+              ))}
+            </section>
+
+            {/* SITUAÇÃO */}
+            <section className="control-print-section">
+              <div className="control-print-section-title"><Filter size={20} /><span>SITUAÇÃO</span></div>
+              {situOpts.map(([v, label, sub]) => (
+                <label key={v} className={`control-print-option ${filters.situacao === v ? 'selected' : ''}`} onClick={() => upd('situacao', v)} style={{ cursor:'pointer' }}>
+                  <CheckCircle size={26} />
+                  <div><strong>{label}</strong><span>{sub}</span></div>
+                  <input type="radio" name="cadastroSitu" value={v} checked={filters.situacao === v} onChange={() => upd('situacao', v)} />
+                </label>
+              ))}
+            </section>
+          </div>
+
+          {/* ORDENAÇÃO + BUSCA + OPÇÕES */}
+          <section className="control-print-section ranking-sellers-section">
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:24 }}>
+
+              {/* Ordenação */}
+              <div>
+                <div className="control-print-section-title" style={{ marginBottom:14 }}><TrendingUp size={20} /><span>ORDENAR POR</span></div>
+                {ordenOpts.map(([v, label, sub]) => (
+                  <label key={v} className={`control-print-option ${filters.ordenacao === v ? 'selected' : ''}`} onClick={() => upd('ordenacao', v)} style={{ cursor:'pointer', minHeight:56 }}>
+                    <TrendingUp size={22} />
+                    <div><strong>{label}</strong><span>{sub}</span></div>
+                    <input type="radio" name="cadastroOrdem" value={v} checked={filters.ordenacao === v} onChange={() => upd('ordenacao', v)} />
+                  </label>
+                ))}
+              </div>
+
+              {/* Busca + Toggle */}
+              <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
+                <div>
+                  <div className="control-print-section-title" style={{ marginBottom:14 }}><Search size={20} /><span>BUSCAR</span></div>
+                  <input
+                    value={filters.busca}
+                    onChange={e => upd('busca', e.target.value)}
+                    placeholder="Descrição ou código de barras..."
+                    style={{ width:'100%', padding:'10px 14px', borderRadius:8, border:'1px solid #23282d', background:'#0b0e11', color:'#f8fafc', fontSize:13, outline:'none', boxSizing:'border-box' }}
+                  />
+                </div>
+
+                <div>
+                  <div className="control-print-section-title" style={{ marginBottom:14 }}><Package size={20} /><span>OPÇÕES DE EXIBIÇÃO</span></div>
+                  <label className={`control-print-option ${filters.exibirCodBarras ? 'selected' : ''}`} onClick={() => upd('exibirCodBarras', !filters.exibirCodBarras)} style={{ cursor:'pointer', minHeight:56 }}>
+                    <Database size={22} />
+                    <div><strong>Código de Barras</strong><span>{filters.exibirCodBarras ? 'Visível no relatório' : 'Oculto no relatório'}</span></div>
+                    <input type="checkbox" checked={!!filters.exibirCodBarras} onChange={() => upd('exibirCodBarras', !filters.exibirCodBarras)} style={{ width:21, height:21, accentColor:'#E31E24' }} />
+                  </label>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <div className="control-print-footer">
+          <button type="button" className="btn-secondary control-print-cancel" onClick={onClose}>
+            <X size={20} /> CANCELAR
+          </button>
+          <button type="button" className="btn-primary control-print-generate" onClick={onGenerate}>
+            <Printer size={20} /> GERAR IMPRESSÃO
           </button>
         </div>
       </div>
