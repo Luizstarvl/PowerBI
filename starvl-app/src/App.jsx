@@ -10114,9 +10114,12 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
     .panel-title { margin: 0; font-size: 12px; font-weight: 800; color: #111827; display: flex; align-items: center; gap: 8px; }
     .pill { border: 1px solid #d0d5dd; border-radius: 8px; color: #344054; padding: 5px 10px; font-size: 9px; font-weight: 800; background: #f9fafb; }
     table { width: 100%; border-collapse: collapse; font-size: 9px; }
+    thead { display: table-header-group; }
+    tfoot { display: table-footer-group; }
     th, td { border: 1px solid #d0d5dd; padding: 5px 7px; word-break: break-word; }
     th { background: #e31e24 !important; color: #fff; text-align: left; font-size: 8.5px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; }
     td { color: #111827; }
+    tr { page-break-inside: avoid; break-inside: avoid; }
     .r { text-align: right; } .c { text-align: center; } .mono { font-family: monospace; }
     tfoot td { background: #f3f4f6 !important; font-weight: 900; }
     .footer { margin-top: 10px; color: #667085; font-size: 9px; text-align: right; border-top: 1px solid #e5e7eb; padding-top: 6px; }
@@ -10125,7 +10128,10 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
       .report { max-width: 1180px; min-height: auto; margin: 0 auto; box-shadow: 0 18px 50px rgba(15,23,42,.12); }
     }
     @media print {
-      .panel, .header, tr { break-inside: avoid; page-break-inside: avoid; }
+      .header { break-inside: avoid; page-break-inside: avoid; }
+      .kpi-strip { break-inside: avoid; page-break-inside: avoid; }
+      .panel-head { break-inside: avoid; page-break-inside: avoid; }
+      .panel { break-before: auto; page-break-before: auto; }
       body { background: #fff !important; }
       .report { background: #fff !important; box-shadow: none !important; }
       th { background: #e31e24 !important; color: #fff !important; }
