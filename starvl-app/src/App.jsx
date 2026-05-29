@@ -12734,7 +12734,7 @@ const ConvenienciaManager = ({ themeMode, selectedClient, clients }) => {
                     }
                   </div>
                   <p className="pm-edit-img-hint">Formatos aceitos: JPG, PNG, WEBP<br />Tamanho máximo: 2 MB</p>
-                  <div className="pm-edit-img-btns">
+                  <div className="pm-edit-img-btns" style={{ flexWrap: 'wrap' }}>
                     <button className="pm-edit-img-btn"
                       style={{ background: '#1a1a1a', border: '1px solid #3a3a3a', color: '#94a3b8' }}
                       onClick={() => imgInputRef.current?.click()}>
@@ -12746,7 +12746,7 @@ const ConvenienciaManager = ({ themeMode, selectedClient, clients }) => {
                       <Trash2 size={11} /> REMOVER
                     </button>
                     <button className="pm-edit-img-btn"
-                      style={{ background: '#0f1f3a', border: '1px solid #1e3a5f', color: '#60a5fa', marginTop: 4 }}
+                      style={{ background: '#0f1f3a', border: '1px solid #1e3a5f', color: '#60a5fa', flex: '0 0 100%' }}
                       onClick={openRepoPicker}>
                       <FolderOpen size={11} /> REPOSITÓRIO
                     </button>
@@ -13889,9 +13889,14 @@ const Parameters = ({ clients, setClients, isAdmin }) => {
 
   return (
     <div className="page-content">
-      <div className="page-header">
-        <h2>CADASTRO DE EMPRESAS</h2>
-      </div>
+
+      {/* ── Seção 1: Dados da Empresa ──────────────────────────────────────── */}
+      <div className="params-section-block">
+        <div className="params-section-header">
+          <Building2 size={17} className="params-section-icon" />
+          <span>DADOS DA EMPRESA</span>
+          <div className="params-section-line" />
+        </div>
 
       <form className="params-form" onSubmit={handleSave}>
         <div className="params-grid">
@@ -14008,16 +14013,16 @@ const Parameters = ({ clients, setClients, isAdmin }) => {
           </button>
         </div>
       </form>
+      </div>{/* fim params-section-block Dados */}
 
-      {/* ── Repositório de Imagens ─────────────────────────────────────── */}
-      <div style={{ marginTop: 32 }}>
-        <div className="page-header" style={{ marginBottom: 0 }}>
-          <h2 style={{ display:'flex', alignItems:'center', gap:8 }}>
-            <FolderOpen size={18} color="#E31E24" />
-            REPOSITÓRIO DE IMAGENS
-          </h2>
+      {/* ── Seção 2: Repositório de Imagens ────────────────────────────── */}
+      <div className="params-section-block" style={{ marginTop: 28 }}>
+        <div className="params-section-header">
+          <FolderOpen size={17} className="params-section-icon" />
+          <span>REPOSITÓRIO DE IMAGENS</span>
+          <div className="params-section-line" />
         </div>
-        <p style={{ fontSize:12, color:'#64748b', marginBottom:16, marginTop:6 }}>
+        <p style={{ fontSize:12, color:'#64748b', marginBottom:16, marginTop:0 }}>
           Faça upload de imagens para o servidor. Elas poderão ser usadas nos cadastros de produtos de conveniência.
         </p>
 
@@ -14074,14 +14079,18 @@ const Parameters = ({ clients, setClients, isAdmin }) => {
             ))}
           </div>
         )}
-      </div>
+      </div>{/* fim params-section-block Repositório */}
 
       {isAdmin && (
-        <div className="params-admin-section">
-          <div className="page-header params-admin-header">
-            <h2>CLIENTES / POSTOS</h2>
+        <div className="params-section-block" style={{ marginTop: 28 }}>
+          <div className="params-section-header">
+            <UsersIcon size={17} className="params-section-icon" />
+            <span>CLIENTES / POSTOS</span>
+            <div className="params-section-line" />
           </div>
-          <AdminPanel clients={clients} setClients={setClients} />
+          <div className="params-admin-section">
+            <AdminPanel clients={clients} setClients={setClients} />
+          </div>
         </div>
       )}
     </div>

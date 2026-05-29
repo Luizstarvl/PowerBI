@@ -2234,10 +2234,10 @@ body.theme-light-body {
 
 /* PARAMETERS */
 .params-form {
-  background: #121212;
-  border: 1px solid #2a2a2a;
-  border-radius: 12px;
-  padding: 32px;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
 }
 
 .params-grid {
@@ -2332,16 +2332,71 @@ body.theme-light-body {
   display: flex;
   justify-content: flex-end;
   gap: 12px;
-  padding-top: 8px;
+  padding-top: 16px;
+  margin-top: 8px;
   border-top: 1px solid #2a2a2a;
 }
 
+.theme-light .params-actions {
+  border-top-color: #e2e8f0;
+}
+
 .params-admin-section {
-  margin-top: 28px;
+  margin-top: 0;
 }
 
 .params-admin-header {
   margin-bottom: 14px;
+}
+
+/* Section block wrapper */
+.params-section-block {
+  background: #121212;
+  border: 1px solid #2a2a2a;
+  border-radius: 12px;
+  padding: 24px 28px 28px;
+}
+
+/* Section header row: icon + title + line */
+.params-section-header {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 22px;
+}
+
+.params-section-header span {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.4px;
+  color: #94a3b8;
+  white-space: nowrap;
+}
+
+.params-section-icon {
+  color: #E31E24;
+  flex-shrink: 0;
+}
+
+.params-section-line {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(to right, #2a2a2a, transparent);
+  margin-left: 4px;
+}
+
+/* Light theme overrides for section blocks */
+.theme-light .params-section-block {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+
+.theme-light .params-section-header span {
+  color: #64748b;
+}
+
+.theme-light .params-section-line {
+  background: linear-gradient(to right, #cbd5e1, transparent);
 }
 
 .admin-panel-content {
@@ -5437,7 +5492,6 @@ body.theme-light-body {
 
 .theme-light .chart-card,
 .theme-light .kpi-card,
-.theme-light .params-form,
 .theme-light .stat-card,
 .theme-light .modal-content,
 .theme-light .admin-card,
