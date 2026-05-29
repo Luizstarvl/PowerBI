@@ -9193,8 +9193,11 @@ const ClientesFilterPanel = ({ filters, setFilters, onClose, onGenerate }) => {
             <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
               {['Todas',..._CLIENTES_SLOTS].map(s => (
                 <button key={s} type="button"
-                  className={`control-print-option${filters.faixa===s?' selected':''}`}
-                  style={{fontSize:11,padding:'4px 10px'}}
+                  style={{fontSize:11,padding:'5px 11px',minHeight:'auto',borderRadius:7,
+                    border:`1px solid ${filters.faixa===s?'rgba(227,30,36,0.8)':'#3d4552'}`,
+                    background:filters.faixa===s?'rgba(227,30,36,0.12)':'#1e2430',
+                    color:filters.faixa===s?'#e31e24':'#cbd5e1',
+                    fontWeight:filters.faixa===s?700:400,cursor:'pointer',transition:'all 0.2s'}}
                   onClick={() => setFilters(f => ({...f, faixa:s}))}>
                   {s}
                 </button>
@@ -9208,8 +9211,11 @@ const ClientesFilterPanel = ({ filters, setFilters, onClose, onGenerate }) => {
             <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
               {['Todos','Dias Úteis','FDS',..._CLIENTES_DIAS].map(d => (
                 <button key={d} type="button"
-                  className={`control-print-option${filters.dia===d?' selected':''}`}
-                  style={{fontSize:11,padding:'4px 10px'}}
+                  style={{fontSize:11,padding:'5px 11px',minHeight:'auto',borderRadius:7,
+                    border:`1px solid ${filters.dia===d?'rgba(227,30,36,0.8)':'#3d4552'}`,
+                    background:filters.dia===d?'rgba(227,30,36,0.12)':'#1e2430',
+                    color:filters.dia===d?'#e31e24':'#cbd5e1',
+                    fontWeight:filters.dia===d?700:400,cursor:'pointer',transition:'all 0.2s'}}
                   onClick={() => setFilters(f => ({...f, dia:d}))}>
                   {d}
                 </button>
