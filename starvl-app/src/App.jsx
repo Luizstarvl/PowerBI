@@ -3,7 +3,7 @@ import logoStarvl from './logo-starvl.png';
 import logoStarvlBlack from './logo-starvl-black.png';
 import * as XLSX from 'xlsx';
 import { LineChart, Line, BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Area, AreaChart, LabelList, ComposedChart, ReferenceLine, PieChart, Pie } from 'recharts';
-import { Home, FileText, Users as UsersIcon, BookOpen, Package, LogOut, Eye, Search, Plus, Edit2, Trash2, X, Calendar, TrendingUp, TrendingDown, Droplet, DollarSign, Calculator, Bell, ChevronDown, ChevronUp, Activity, Settings, Building2, Phone, Mail, MapPin, Hash, Clock, BarChart2, Layers, CircleDollarSign, UserCheck, UserPlus, AlertCircle, Globe, Camera, Building, Tag, RefreshCw, Database, ChevronRight, ChevronLeft, Filter, Printer, Moon, Sun, Trophy, Lock, Unlock, Wallet, Download, CreditCard, AlertTriangle, Save, PiggyBank, Target, CheckCircle, Flag, Upload, Maximize2, Minimize2, ShieldCheck } from 'lucide-react';
+import { Home, FileText, Users as UsersIcon, BookOpen, Package, LogOut, Eye, Search, Plus, Edit2, Trash2, X, Calendar, TrendingUp, TrendingDown, Droplet, DollarSign, Calculator, Bell, ChevronDown, ChevronUp, Activity, Settings, Building2, Phone, Mail, MapPin, Hash, Clock, BarChart2, Layers, CircleDollarSign, UserCheck, UserPlus, AlertCircle, Globe, Camera, Building, Tag, RefreshCw, Database, ChevronRight, ChevronLeft, Filter, Printer, Moon, Sun, Trophy, Lock, Unlock, Wallet, Download, CreditCard, AlertTriangle, Save, PiggyBank, Target, CheckCircle, Flag, Upload, Maximize2, Minimize2, ShieldCheck, FolderOpen, ImagePlus } from 'lucide-react';
 import './App.css';
 import './cr-styles.css';
 import './cp-styles.css';
@@ -11761,6 +11761,23 @@ const ConvenienciaManager = ({ themeMode, selectedClient, clients }) => {
   const imgInputRef = useRef(null);
   const LIMIT = 7;
 
+  // Repositório de imagens — picker no edit de produto
+  const [repoPickerOpen, setRepoPickerOpen]     = useState(false);
+  const [repoPickerImages, setRepoPickerImages] = useState({});
+  const [repoPickerLoading, setRepoPickerLoading] = useState(false);
+  const [repoPickerSearch, setRepoPickerSearch] = useState('');
+
+  const openRepoPicker = async () => {
+    setRepoPickerOpen(true);
+    setRepoPickerSearch('');
+    setRepoPickerLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/api/imagens/repositorio`);
+      if (res.ok) setRepoPickerImages(await res.json());
+    } catch { /* silently ignore */ }
+    setRepoPickerLoading(false);
+  };
+
 
   // Resolve empresa a partir do cliente selecionado
   const empresa = useMemo(() => {
@@ -12274,6 +12291,11 @@ const ConvenienciaManager = ({ themeMode, selectedClient, clients }) => {
                       onClick={() => setEditImg(null)}>
                       <Trash2 size={11} /> REMOVER
                     </button>
+                    <button className="pm-edit-img-btn"
+                      style={{ background: '#0f1f3a', border: '1px solid #1e3a5f', color: '#60a5fa', marginTop: 4 }}
+                      onClick={openRepoPicker}>
+                      <FolderOpen size={11} /> REPOSITÓRIO
+                    </button>
                   </div>
                 </div>
                 <div className="pm-edit-panel" style={{ textAlign: 'center' }}>
@@ -12483,6 +12505,77 @@ const ConvenienciaManager = ({ themeMode, selectedClient, clients }) => {
             </div>
           </div>{/* end body */}
           </div>{/* end pm-edit-modal */}
+        </div>
+      )}
+
+      {/* ─── REPO PICKER MODAL ─── */}
+      {repoPickerOpen && (
+        <div
+          style={{ position:'fixed', inset:0, zIndex:9999, background:'rgba(0,0,0,0.75)', display:'flex', alignItems:'center', justifyContent:'center', padding:24 }}
+          onClick={() => setRepoPickerOpen(false)}
+        >
+          <div
+            style={{ background:'#141414', border:'1px solid #2a2a2a', borderRadius:16, width:'100%', maxWidth:760, maxHeight:'80vh', display:'flex', flexDirection:'column', overflow:'hidden' }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'16px 20px', borderBottom:'1px solid #222' }}>
+              <div style={{ display:'flex', alignItems:'center', gap:8, fontWeight:700, fontSize:13, color:'#e2e8f0', letterSpacing:1 }}>
+                <FolderOpen size={15} color="#60a5fa" />
+                REPOSITÓRIO DE IMAGENS
+              </div>
+              <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                <input
+                  value={repoPickerSearch}
+                  onChange={e => setRepoPickerSearch(e.target.value)}
+                  placeholder="Buscar imagem..."
+                  style={{ background:'#1e1e1e', border:'1px solid #333', borderRadius:8, padding:'6px 12px', color:'#e2e8f0', fontSize:12, outline:'none', width:180 }}
+                />
+                <button onClick={() => setRepoPickerOpen(false)} style={{ background:'transparent', border:'none', cursor:'pointer', color:'#64748b', display:'flex', alignItems:'center' }}>
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+
+            {/* Body */}
+            <div style={{ overflowY:'auto', padding:20, flex:1 }}>
+              {repoPickerLoading ? (
+                <div style={{ textAlign:'center', color:'#475569', padding:40, fontSize:13 }}>⏳ Carregando repositório...</div>
+              ) : Object.keys(repoPickerImages).length === 0 ? (
+                <div style={{ textAlign:'center', color:'#475569', padding:40, fontSize:13 }}>
+                  Nenhuma imagem no repositório.<br />
+                  <span style={{ fontSize:11 }}>Acesse Configurações → Repositório de Imagens para adicionar.</span>
+                </div>
+              ) : (() => {
+                const keys = Object.keys(repoPickerImages).filter(k =>
+                  !repoPickerSearch || k.toLowerCase().includes(repoPickerSearch.toLowerCase())
+                );
+                if (keys.length === 0) return (
+                  <div style={{ textAlign:'center', color:'#475569', padding:40, fontSize:13 }}>Nenhuma imagem encontrada para "{repoPickerSearch}".</div>
+                );
+                return (
+                  <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(120px, 1fr))', gap:14 }}>
+                    {keys.map(name => (
+                      <div
+                        key={name}
+                        onClick={() => { setEditImg(repoPickerImages[name]); setRepoPickerOpen(false); toast('Imagem selecionada do repositório!', 'success'); }}
+                        style={{ cursor:'pointer', borderRadius:10, border:'2px solid #2a2a2a', overflow:'hidden', background:'#1a1a1a', transition:'border-color 0.15s' }}
+                        onMouseEnter={e => e.currentTarget.style.borderColor = '#60a5fa'}
+                        onMouseLeave={e => e.currentTarget.style.borderColor = '#2a2a2a'}
+                      >
+                        <div style={{ width:'100%', aspectRatio:'1/1', overflow:'hidden', background:'#111' }}>
+                          <img src={repoPickerImages[name]} alt={name} style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }} />
+                        </div>
+                        <div style={{ padding:'6px 8px', fontSize:10, color:'#94a3b8', textAlign:'center', wordBreak:'break-all', lineHeight:1.3 }}>
+                          {name}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
         </div>
       )}
 
@@ -13285,6 +13378,61 @@ const Parameters = ({ clients, setClients, isAdmin }) => {
 
   const update = (field) => (e) => setForm({ ...form, [field]: e.target.value });
 
+  // ── Repositório de Imagens ────────────────────────────────────────────────
+  const [repoImgs, setRepoImgs]         = useState({});
+  const [repoLoading, setRepoLoading]   = useState(false);
+  const [repoUploading, setRepoUploading] = useState(false);
+  const [repoNewName, setRepoNewName]   = useState('');
+  const [repoDeleting, setRepoDeleting] = useState(null);
+  const repoFileRef = useRef(null);
+
+  useEffect(() => {
+    setRepoLoading(true);
+    fetch(`${API_URL}/api/imagens/repositorio`)
+      .then(r => r.ok ? r.json() : {})
+      .then(data => setRepoImgs(data))
+      .catch(() => {})
+      .finally(() => setRepoLoading(false));
+  }, []);
+
+  const handleRepoUpload = async (e) => {
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    const name = (repoNewName.trim() || file.name.replace(/\.[^.]+$/, '')).replace(/\s+/g, '_').toLowerCase();
+    setRepoUploading(true);
+    try {
+      const reader = new FileReader();
+      const raw = await new Promise((res, rej) => { reader.onload = ev => res(ev.target.result); reader.onerror = rej; reader.readAsDataURL(file); });
+      const compressed = await compressImage(raw, 900, 0.82);
+      const res = await fetch(`${API_URL}/api/imagens/repositorio/${encodeURIComponent(name)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dados: compressed }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      setRepoImgs(prev => ({ ...prev, [name]: compressed }));
+      setRepoNewName('');
+      toast(`Imagem "${name}" adicionada ao repositório!`, 'success');
+    } catch (err) {
+      toast(`Erro ao enviar imagem: ${err.message}`, 'error');
+    }
+    setRepoUploading(false);
+  };
+
+  const handleRepoDelete = async (name) => {
+    setRepoDeleting(name);
+    try {
+      const res = await fetch(`${API_URL}/api/imagens/repositorio/${encodeURIComponent(name)}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      setRepoImgs(prev => { const n = { ...prev }; delete n[name]; return n; });
+      toast(`Imagem "${name}" removida.`, 'success');
+    } catch (err) {
+      toast(`Erro ao remover: ${err.message}`, 'error');
+    }
+    setRepoDeleting(null);
+  };
+
   return (
     <div className="page-content">
       <div className="page-header">
@@ -13406,6 +13554,73 @@ const Parameters = ({ clients, setClients, isAdmin }) => {
           </button>
         </div>
       </form>
+
+      {/* ── Repositório de Imagens ─────────────────────────────────────── */}
+      <div style={{ marginTop: 32 }}>
+        <div className="page-header" style={{ marginBottom: 0 }}>
+          <h2 style={{ display:'flex', alignItems:'center', gap:8 }}>
+            <FolderOpen size={18} color="#E31E24" />
+            REPOSITÓRIO DE IMAGENS
+          </h2>
+        </div>
+        <p style={{ fontSize:12, color:'#64748b', marginBottom:16, marginTop:6 }}>
+          Faça upload de imagens para o servidor. Elas poderão ser usadas nos cadastros de produtos de conveniência.
+        </p>
+
+        {/* Upload row */}
+        <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:20, flexWrap:'wrap' }}>
+          <input
+            type="text"
+            value={repoNewName}
+            onChange={e => setRepoNewName(e.target.value)}
+            placeholder="Nome da imagem (opcional)"
+            style={{ background:'#1a1a1a', border:'1px solid #2a2a2a', borderRadius:8, padding:'9px 14px', color:'#e2e8f0', fontSize:13, outline:'none', flex:'1', minWidth:160 }}
+          />
+          <input ref={repoFileRef} type="file" accept="image/*" style={{ display:'none' }} onChange={handleRepoUpload} />
+          <button
+            type="button"
+            className="btn-primary"
+            style={{ display:'flex', alignItems:'center', gap:6, padding:'9px 18px', fontSize:13 }}
+            onClick={() => repoFileRef.current?.click()}
+            disabled={repoUploading}
+          >
+            <ImagePlus size={15} />
+            {repoUploading ? 'ENVIANDO...' : 'ADICIONAR IMAGEM'}
+          </button>
+        </div>
+
+        {/* Image grid */}
+        {repoLoading ? (
+          <div style={{ textAlign:'center', color:'#475569', padding:40, fontSize:13 }}>⏳ Carregando repositório...</div>
+        ) : Object.keys(repoImgs).length === 0 ? (
+          <div style={{ textAlign:'center', color:'#334155', padding:40, fontSize:13, border:'1px dashed #2a2a2a', borderRadius:12 }}>
+            Nenhuma imagem no repositório ainda.<br />
+            <span style={{ fontSize:11 }}>Use o botão acima para adicionar a primeira imagem.</span>
+          </div>
+        ) : (
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(130px, 1fr))', gap:14 }}>
+            {Object.entries(repoImgs).map(([name, dataUrl]) => (
+              <div key={name} style={{ borderRadius:10, border:'1px solid #2a2a2a', overflow:'hidden', background:'#141414', position:'relative' }}>
+                <div style={{ width:'100%', aspectRatio:'1/1', overflow:'hidden', background:'#0a0a0a' }}>
+                  <img src={dataUrl} alt={name} style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }} />
+                </div>
+                <div style={{ padding:'7px 8px 6px', display:'flex', alignItems:'center', justifyContent:'space-between', gap:4 }}>
+                  <span style={{ fontSize:10, color:'#94a3b8', wordBreak:'break-all', lineHeight:1.3, flex:1 }}>{name}</span>
+                  <button
+                    type="button"
+                    onClick={() => handleRepoDelete(name)}
+                    disabled={repoDeleting === name}
+                    style={{ background:'transparent', border:'none', cursor:'pointer', color:repoDeleting === name ? '#475569' : '#ef4444', padding:'2px', display:'flex', flexShrink:0 }}
+                    title={`Remover "${name}"`}
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       {isAdmin && (
         <div className="params-admin-section">
