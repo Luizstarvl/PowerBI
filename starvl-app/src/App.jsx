@@ -8927,7 +8927,7 @@ const FluxoFilterPanel = ({ filters, setFilters, onClose, onGenerate }) => (
             </div>
           </section>
         </div>
-        <div className="control-print-section" style={{background:'#1a2535',borderRadius:6,padding:'10px 14px'}}>
+        <div className="control-print-section" style={{background:'#23272f',borderRadius:6,padding:'10px 14px'}}>
           <div style={{fontSize:11,color:'#94a3b8',marginBottom:8}}>Pré-visualização</div>
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
             <div style={{textAlign:'center'}}>
