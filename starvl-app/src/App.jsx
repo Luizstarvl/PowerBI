@@ -11622,8 +11622,6 @@ const ConvenienciaManager = ({ themeMode, selectedClient, clients }) => {
     setEditProd(merged);
     setEditImg(productImages[p.id] || null);
     setEditForm({
-      custo:       String(merged.custo),
-      preco:       String(merged.preco),
       local:       merged.local  || '',
       marca:       merged.marca  || merged.sub || '',
       desc:        merged.desc   || '',
@@ -11642,8 +11640,6 @@ const ConvenienciaManager = ({ themeMode, selectedClient, clients }) => {
     setLocalEdits(prev => ({
       ...prev,
       [editProd.id]: {
-        custo:       parseFloat(editForm.custo)   || editProd.custo,
-        preco:       parseFloat(editForm.preco)   || editProd.preco,
         local:       editForm.local,
         marca:       editForm.marca,
         desc:        editForm.desc,
@@ -12120,19 +12116,27 @@ const ConvenienciaManager = ({ themeMode, selectedClient, clients }) => {
                   <div className="pm-edit-panel-title"><DollarSign size={12} /> PREÇOS E MARGEM</div>
                   <div className="pm-edit-fg2">
                     <div className="pm-edit-field">
-                      <label className="pm-edit-label">Custo Médio (R$) <span className="req">*</span></label>
-                      <input className="pm-edit-input" type="number" step="0.01" min="0" value={editForm.custo}
-                        onChange={e => setEditForm(f => ({ ...f, custo: e.target.value }))} />
+                      <label className="pm-edit-label" style={{ display:'flex', alignItems:'center', gap:5 }}>
+                        Custo Médio (R$)
+                        <span style={{ fontSize:10, color:'#475569', fontWeight:400 }}>(sistema)</span>
+                        <Lock size={10} color="#475569" />
+                      </label>
+                      <input className="pm-edit-input" readOnly value={fmtBRL(editProd.custo)}
+                        style={{ background:'#0a0f1a', color:'#475569', cursor:'not-allowed' }} />
                     </div>
                     <div className="pm-edit-field">
-                      <label className="pm-edit-label">Preço de Venda (R$) <span className="req">*</span></label>
-                      <input className="pm-edit-input" type="number" step="0.01" min="0" value={editForm.preco}
-                        onChange={e => setEditForm(f => ({ ...f, preco: e.target.value }))} />
+                      <label className="pm-edit-label" style={{ display:'flex', alignItems:'center', gap:5 }}>
+                        Preço de Venda (R$)
+                        <span style={{ fontSize:10, color:'#475569', fontWeight:400 }}>(sistema)</span>
+                        <Lock size={10} color="#475569" />
+                      </label>
+                      <input className="pm-edit-input" readOnly value={fmtBRL(editProd.preco)}
+                        style={{ background:'#0a0f1a', color:'#475569', cursor:'not-allowed' }} />
                     </div>
                   </div>
                   {(() => {
-                    const c = parseFloat(editForm.custo) || 0;
-                    const v = parseFloat(editForm.preco) || 0.01;
+                    const c = editProd.custo || 0;
+                    const v = editProd.preco  || 0.01;
                     const margem = ((v - c) / v * 100);
                     const cPct   = Math.min(c / v * 100, 100);
                     const mColor = margem >= 20 ? '#22c55e' : margem >= 10 ? '#f59e0b' : '#ef4444';
@@ -12189,47 +12193,6 @@ const ConvenienciaManager = ({ themeMode, selectedClient, clients }) => {
                   </div>
                 </div>
 
-                {/* Painel: Vencimento e Lote */}
-                <div className="pm-edit-panel">
-                  <div className="pm-edit-panel-title"><Calendar size={12} /> VENCIMENTO E LOTE</div>
-                  <div className="pm-toggle-wrap" style={{ marginBottom: 14 }}>
-                    <label className="pm-toggle">
-                      <input type="checkbox" checked={!!editForm.controlVenc}
-                        onChange={e => setEditForm(f => ({ ...f, controlVenc: e.target.checked }))} />
-                      <span className="pm-toggle-slider" />
-                    </label>
-                    <span className="pm-toggle-lbl">Controle de Vencimento</span>
-                  </div>
-                  {editForm.controlVenc && (
-                    <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
-                      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
-                        <div className="pm-edit-field">
-                          <label className="pm-edit-label">Dt. Fabricação</label>
-                          <input className="pm-edit-input" type="date" value={editForm.dtFab}
-                            onChange={e => setEditForm(f => ({ ...f, dtFab: e.target.value }))} />
-                        </div>
-                        <div className="pm-edit-field">
-                          <label className="pm-edit-label">Dt. Vencimento</label>
-                          <input className="pm-edit-input" type="date" value={editForm.venc}
-                            onChange={e => setEditForm(f => ({ ...f, venc: e.target.value }))} />
-                        </div>
-                      </div>
-                      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
-                        <div className="pm-edit-field">
-                          <label className="pm-edit-label">Nº do Lote</label>
-                          <input className="pm-edit-input" value={editForm.lote} placeholder="Ex: LOT-001"
-                            onChange={e => setEditForm(f => ({ ...f, lote: e.target.value }))} />
-                        </div>
-                        <div className="pm-edit-field">
-                          <label className="pm-edit-label">Qtd. do Lote</label>
-                          <input className="pm-edit-input" type="number" min="0" value={editForm.qtdLote} placeholder="0"
-                            onChange={e => setEditForm(f => ({ ...f, qtdLote: e.target.value }))} />
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
                 <div className="pm-edit-panel">
                   <div className="pm-edit-panel-title"><TrendingUp size={12} /> VENDAS DO MÊS</div>
                   {(() => {
@@ -12251,6 +12214,50 @@ const ConvenienciaManager = ({ themeMode, selectedClient, clients }) => {
                 </div>
               </div>
             </div>{/* end grid */}
+
+            {/* ── Vencimento e Lote (full-width) ─────────────────────────── */}
+            <div className="pm-edit-panel" style={{ marginTop:16 }}>
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:12 }}>
+                <div className="pm-edit-panel-title" style={{ margin:0 }}><Calendar size={12} /> VENCIMENTO E CONTROLE DE LOTE</div>
+                <div className="pm-toggle-wrap" style={{ margin:0 }}>
+                  <label className="pm-toggle">
+                    <input type="checkbox" checked={!!editForm.controlVenc}
+                      onChange={e => setEditForm(f => ({ ...f, controlVenc: e.target.checked }))} />
+                    <span className="pm-toggle-slider" />
+                  </label>
+                  <span className="pm-toggle-lbl">Ativar controle de vencimento e lote</span>
+                </div>
+              </div>
+
+              {editForm.controlVenc ? (
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(160px, 1fr))', gap:14, marginTop:16 }}>
+                  <div className="pm-edit-field">
+                    <label className="pm-edit-label">Data de Fabricação</label>
+                    <input className="pm-edit-input" type="date" value={editForm.dtFab}
+                      onChange={e => setEditForm(f => ({ ...f, dtFab: e.target.value }))} />
+                  </div>
+                  <div className="pm-edit-field">
+                    <label className="pm-edit-label">Data de Vencimento</label>
+                    <input className="pm-edit-input" type="date" value={editForm.venc}
+                      onChange={e => setEditForm(f => ({ ...f, venc: e.target.value }))} />
+                  </div>
+                  <div className="pm-edit-field">
+                    <label className="pm-edit-label">Nº do Lote</label>
+                    <input className="pm-edit-input" value={editForm.lote} placeholder="Ex: LOT-2026-001"
+                      onChange={e => setEditForm(f => ({ ...f, lote: e.target.value }))} />
+                  </div>
+                  <div className="pm-edit-field">
+                    <label className="pm-edit-label">Qtd. do Lote</label>
+                    <input className="pm-edit-input" type="number" min="0" value={editForm.qtdLote} placeholder="0"
+                      onChange={e => setEditForm(f => ({ ...f, qtdLote: e.target.value }))} />
+                  </div>
+                </div>
+              ) : (
+                <p style={{ marginTop:12, fontSize:12, color:'#475569' }}>
+                  Ative o controle para registrar datas de fabricação/vencimento e número de lote.
+                </p>
+              )}
+            </div>
 
             {/* Additional info bar */}
             <div className="pm-edit-addl">
