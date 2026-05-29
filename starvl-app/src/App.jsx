@@ -12116,18 +12116,16 @@ const ConvenienciaManager = ({ themeMode, selectedClient, clients }) => {
                   <div className="pm-edit-panel-title"><DollarSign size={12} /> PREÇOS E MARGEM</div>
                   <div className="pm-edit-fg2">
                     <div className="pm-edit-field">
-                      <label className="pm-edit-label">Custo Médio (R$)</label>
+                      <label className="pm-edit-label" style={{ display:'flex', alignItems:'center', gap:4 }}>
+                        Custo Médio (R$) <Lock size={9} color="#475569" />
+                      </label>
                       <input className="pm-edit-input" readOnly value={fmtBRL(editProd.custo)} />
-                      <span className="pm-edit-hint" style={{ display:'flex', alignItems:'center', gap:3 }}>
-                        <Lock size={9} color="#475569" /> Valor do sistema (e_prodcusto)
-                      </span>
                     </div>
                     <div className="pm-edit-field">
-                      <label className="pm-edit-label">Preço de Venda (R$)</label>
+                      <label className="pm-edit-label" style={{ display:'flex', alignItems:'center', gap:4 }}>
+                        Preço de Venda (R$) <Lock size={9} color="#475569" />
+                      </label>
                       <input className="pm-edit-input" readOnly value={fmtBRL(editProd.preco)} />
-                      <span className="pm-edit-hint" style={{ display:'flex', alignItems:'center', gap:3 }}>
-                        <Lock size={9} color="#475569" /> Valor do sistema (e_prodv1)
-                      </span>
                     </div>
                   </div>
                   {(() => {
@@ -12164,18 +12162,16 @@ const ConvenienciaManager = ({ themeMode, selectedClient, clients }) => {
                   <div className="pm-edit-panel-title"><Database size={12} /> DADOS DE ESTOQUE</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                     <div className="pm-edit-field">
-                      <label className="pm-edit-label">Estoque Atual</label>
+                      <label className="pm-edit-label" style={{ display:'flex', alignItems:'center', gap:4 }}>
+                        Estoque Atual <Lock size={9} color="#475569" />
+                      </label>
                       <input className="pm-edit-input" readOnly value={`${editProd.estoque} un.`} />
-                      <span className="pm-edit-hint" style={{ display:'flex', alignItems:'center', gap:3 }}>
-                        <Lock size={9} color="#475569" /> Valor do sistema
-                      </span>
                     </div>
                     <div className="pm-edit-field">
-                      <label className="pm-edit-label">Estoque Mínimo</label>
+                      <label className="pm-edit-label" style={{ display:'flex', alignItems:'center', gap:4 }}>
+                        Estoque Mínimo <Lock size={9} color="#475569" />
+                      </label>
                       <input className="pm-edit-input" readOnly value={`${editProd.estMin ?? 5} un.`} />
-                      <span className="pm-edit-hint" style={{ display:'flex', alignItems:'center', gap:3 }}>
-                        <Lock size={9} color="#475569" /> Valor do sistema
-                      </span>
                     </div>
                   </div>
                   <div className="pm-edit-field" style={{ marginTop: 12 }}>
