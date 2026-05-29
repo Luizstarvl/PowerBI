@@ -3146,7 +3146,8 @@ const AdquirenteLogo = ({ adquirente }) => {
   );
 };
 
-const ControleCartoes = () => {
+const ControleCartoes = ({ themeMode }) => {
+  const isLight = themeMode === 'light';
   const [search,        setSearch]        = useState('');
   const [statusFiltro,  setStatusFiltro]  = useState('todos');
   const [bandFiltro,    setBandFiltro]    = useState('todos');
@@ -3529,6 +3530,12 @@ const ControleCartoes = () => {
         const totalLiquido = lancs.filter(l => l.bruto > 0).reduce((s, l) => s + l.liquido, 0);
         const statusColor  = { Pendente:'#fbbf24', Liquidado:'#22c55e', Antecipado:'#60a5fa', Estornado:'#ef4444' };
         const closeLanc    = () => { setLancamentosModal(null); setLancTab('Todos'); };
+        const bd  = isLight ? '#f1f5f9' : '#1e2430';   // border
+        const bg1 = isLight ? '#f8fafc' : '#0e1318';   // kpi / thead bg
+        const bg2 = isLight ? '#f1f5f9' : '#131820';   // tab / row hover bg
+        const tx1 = isLight ? '#111827' : '#e2e8f0';   // primary text
+        const tx2 = isLight ? '#6b7280' : '#94a3b8';   // secondary text
+        const tx3 = isLight ? '#6b7280' : '#475569';   // th text
         return (
           <div className="ct-modal-overlay" onClick={closeLanc}>
             <div className="ct-modal" style={{maxWidth:880,width:'95vw'}} onClick={e => e.stopPropagation()}>
@@ -3545,7 +3552,7 @@ const ControleCartoes = () => {
                     <h3 style={{margin:0,fontSize:16,display:'flex',alignItems:'center',gap:6}}>
                       <CreditCard size={16} color="#E31E24"/>{lancamentosModal.nome}
                     </h3>
-                    <span style={{fontSize:11,color:'#64748b'}}>
+                    <span style={{fontSize:11,color:tx2}}>
                       SN: {lancamentosModal.sn} &nbsp;|&nbsp; {lancamentosModal.local} &nbsp;|&nbsp; {lancamentosModal.adquirente} &nbsp;|&nbsp; Taxa: {fmtPct(lancamentosModal.taxa)}
                     </span>
                   </div>
@@ -3553,27 +3560,27 @@ const ControleCartoes = () => {
                 <button className="ct-modal-close" onClick={closeLanc}><X size={18}/></button>
               </div>
               {/* KPIs */}
-              <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10,padding:'12px 20px',borderBottom:'1px solid #1e2430'}}>
+              <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10,padding:'12px 20px',borderBottom:`1px solid ${bd}`}}>
                 {[
-                  {label:'Total Bruto',   value:fmtBRL(totalBruto),   color:'#e2e8f0'},
+                  {label:'Total Bruto',   value:fmtBRL(totalBruto),   color:tx1},
                   {label:'Total Taxa',    value:fmtBRL(totalTaxa),    color:'#ef4444'},
                   {label:'Total Líquido', value:fmtBRL(totalLiquido), color:'#22c55e'},
                   {label:'Transações',    value:String(lancs.filter(l=>l.bruto>0).length), color:'#60a5fa'},
                 ].map(k => (
-                  <div key={k.label} style={{textAlign:'center',padding:'8px',background:'#0e1318',borderRadius:8,border:'1px solid #1e2430'}}>
-                    <div style={{fontSize:10,color:'#64748b',marginBottom:4}}>{k.label}</div>
+                  <div key={k.label} style={{textAlign:'center',padding:'8px',background:bg1,borderRadius:8,border:`1px solid ${bd}`}}>
+                    <div style={{fontSize:10,color:tx2,marginBottom:4}}>{k.label}</div>
                     <div style={{fontSize:15,fontWeight:700,color:k.color}}>{k.value}</div>
                   </div>
                 ))}
               </div>
               {/* Filter tabs */}
-              <div style={{display:'flex',gap:6,padding:'10px 20px',borderBottom:'1px solid #1e2430',flexWrap:'wrap'}}>
+              <div style={{display:'flex',gap:6,padding:'10px 20px',borderBottom:`1px solid ${bd}`,flexWrap:'wrap'}}>
                 {['Todos','Pendente','Liquidado','Antecipado','Estornado'].map(t => (
                   <button key={t} type="button"
                     style={{fontSize:11,padding:'4px 12px',borderRadius:6,cursor:'pointer',transition:'all 0.15s',
-                      border:`1px solid ${lancTab===t?'rgba(227,30,36,0.8)':'#2a3040'}`,
-                      background:lancTab===t?'rgba(227,30,36,0.12)':'#131820',
-                      color:lancTab===t?'#e31e24':'#94a3b8',fontWeight:lancTab===t?700:400}}
+                      border:`1px solid ${lancTab===t?'rgba(227,30,36,0.8)':bd}`,
+                      background:lancTab===t?'rgba(227,30,36,0.12)':bg2,
+                      color:lancTab===t?'#e31e24':tx2,fontWeight:lancTab===t?700:400}}
                     onClick={() => setLancTab(t)}>{t}
                   </button>
                 ))}
@@ -3582,27 +3589,27 @@ const ControleCartoes = () => {
               <div className="ct-modal-body" style={{padding:0,maxHeight:'52vh',overflowY:'auto'}}>
                 <table style={{width:'100%',borderCollapse:'collapse',fontSize:12}}>
                   <thead>
-                    <tr style={{background:'#0b0f16',position:'sticky',top:0,zIndex:1}}>
+                    <tr style={{background:bg1,position:'sticky',top:0,zIndex:1}}>
                       {['Data','Descrição','Bruto','Taxa','Líquido','Parcela','Status'].map(h => (
                         <th key={h} style={{padding:'9px 12px',textAlign:['Bruto','Taxa','Líquido'].includes(h)?'right':'left',
-                          color:'#475569',fontSize:10,fontWeight:700,borderBottom:'1px solid #1e2430',whiteSpace:'nowrap'}}>{h}</th>
+                          color:tx3,fontSize:10,fontWeight:700,borderBottom:`1px solid ${bd}`,whiteSpace:'nowrap'}}>{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
                     {filtradas.length === 0 && (
-                      <tr><td colSpan={7} style={{textAlign:'center',padding:32,color:'#475569',fontSize:13}}>Nenhum lançamento encontrado.</td></tr>
+                      <tr><td colSpan={7} style={{textAlign:'center',padding:32,color:tx2,fontSize:13}}>Nenhum lançamento encontrado.</td></tr>
                     )}
                     {filtradas.map(l => (
-                      <tr key={l.id} style={{borderBottom:'1px solid #131820',transition:'background 0.15s'}}
-                        onMouseEnter={e=>e.currentTarget.style.background='#131820'}
+                      <tr key={l.id} style={{borderBottom:`1px solid ${bd}`,transition:'background 0.15s'}}
+                        onMouseEnter={e=>e.currentTarget.style.background=bg2}
                         onMouseLeave={e=>e.currentTarget.style.background=''}>
-                        <td style={{padding:'8px 12px',color:'#94a3b8',whiteSpace:'nowrap'}}>{l.data.split('-').reverse().join('/')}</td>
-                        <td style={{padding:'8px 12px',color:'#e2e8f0'}}>{l.desc}</td>
-                        <td style={{padding:'8px 12px',textAlign:'right',color:l.bruto<0?'#ef4444':'#e2e8f0',whiteSpace:'nowrap'}}>{fmtBRL(l.bruto)}</td>
+                        <td style={{padding:'8px 12px',color:tx2,whiteSpace:'nowrap'}}>{l.data.split('-').reverse().join('/')}</td>
+                        <td style={{padding:'8px 12px',color:tx1}}>{l.desc}</td>
+                        <td style={{padding:'8px 12px',textAlign:'right',color:l.bruto<0?'#ef4444':tx1,whiteSpace:'nowrap'}}>{fmtBRL(l.bruto)}</td>
                         <td style={{padding:'8px 12px',textAlign:'right',color:'#ef4444',whiteSpace:'nowrap'}}>{l.bruto>0?fmtBRL(l.taxa_val):'—'}</td>
                         <td style={{padding:'8px 12px',textAlign:'right',color:'#22c55e',whiteSpace:'nowrap'}}>{l.bruto>0?fmtBRL(l.liquido):'—'}</td>
-                        <td style={{padding:'8px 12px',color:'#64748b',textAlign:'center'}}>{l.parcela}</td>
+                        <td style={{padding:'8px 12px',color:tx2,textAlign:'center'}}>{l.parcela}</td>
                         <td style={{padding:'8px 12px'}}>
                           <span style={{display:'inline-flex',alignItems:'center',gap:5,padding:'2px 9px',borderRadius:12,
                             background:`${statusColor[l.status]}18`,border:`1px solid ${statusColor[l.status]}44`,
@@ -5553,7 +5560,7 @@ const ContaCorrente = ({ clients, selectedClient }) => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-const Financeiro = ({ clients, selectedClient }) => {
+const Financeiro = ({ clients, selectedClient, themeMode }) => {
   const [tab, setTab] = useState('receber');
   return (
     <div>
@@ -5579,7 +5586,7 @@ const Financeiro = ({ clients, selectedClient }) => {
       </div>
       {tab === 'receber' && <ContasReceber clients={clients} selectedClient={selectedClient} />}
       {tab === 'pagar' && <ContasPagar clients={clients} selectedClient={selectedClient} />}
-      {tab === 'cartoes' && <ControleCartoes />}
+      {tab === 'cartoes' && <ControleCartoes themeMode={themeMode} />}
     </div>
   );
 };
