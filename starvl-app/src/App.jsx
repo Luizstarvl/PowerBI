@@ -14674,68 +14674,89 @@ const Parameters = ({ clients, setClients, isAdmin }) => {
           {foldersLoading ? (
             <div style={{ color:'#475569', fontSize:12, padding:'8px 0' }}>⏳ Carregando pastas...</div>
           ) : (
-            <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginBottom:20, alignItems:'center' }}>
-              {repoFolders.map(f => (
-                <div key={f.id} style={{ position:'relative', display:'inline-flex' }}
-                  onMouseEnter={e => { const btns = e.currentTarget.querySelector('.folder-actions'); if (btns) btns.style.opacity='1'; }}
-                  onMouseLeave={e => { const btns = e.currentTarget.querySelector('.folder-actions'); if (btns) btns.style.opacity='0'; }}
+            <div style={{ marginBottom:20 }}>
+              {/* Linha de header: título + botão Nova Pasta */}
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10 }}>
+                <span style={{ fontSize:11, fontWeight:700, color:'#64748b', letterSpacing:'1px', textTransform:'uppercase' }}>
+                  Pastas ({repoFolders.length})
+                </span>
+                <button type="button"
+                  onClick={() => { setFolderForm({ label:'', emoji:'📦' }); setFolderModal({ mode:'create' }); }}
+                  style={{
+                    display:'flex', alignItems:'center', gap:6, padding:'7px 14px',
+                    borderRadius:8, cursor:'pointer', fontSize:12, fontWeight:600,
+                    border:'1px solid rgba(227,30,36,0.5)', background:'rgba(227,30,36,0.08)',
+                    color:'#E31E24', transition:'all 0.18s',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background='rgba(227,30,36,0.18)'; e.currentTarget.style.borderColor='#E31E24'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background='rgba(227,30,36,0.08)'; e.currentTarget.style.borderColor='rgba(227,30,36,0.5)'; }}
                 >
-                  <button type="button" onClick={() => setRepoFolder(f.id)}
-                    style={{
-                      display:'flex', alignItems:'center', gap:7,
-                      padding:'8px 14px 8px 14px', borderRadius:9, cursor:'pointer',
-                      fontSize:12, fontWeight: repoFolder===f.id ? 700 : 400,
-                      border: repoFolder===f.id ? '1px solid rgba(227,30,36,0.6)' : '1px solid #2a2a2a',
-                      background: repoFolder===f.id ? 'rgba(227,30,36,0.1)' : '#1a1a1a',
-                      color: repoFolder===f.id ? '#E31E24' : '#94a3b8',
-                      transition:'all 0.18s', paddingRight: repoFolder===f.id ? 38 : 14,
-                    }}>
-                    <span style={{ fontSize:15 }}>{f.emoji}</span>
-                    {f.label}
-                    {repoImgs[f.id] !== undefined && (
-                      <span style={{
-                        fontSize:10, fontWeight:700,
-                        background: repoFolder===f.id ? 'rgba(227,30,36,0.2)' : '#252525',
-                        color: repoFolder===f.id ? '#E31E24' : '#64748b',
-                        borderRadius:10, padding:'1px 6px',
-                      }}>{Object.keys(repoImgs[f.id]).length}</span>
-                    )}
-                  </button>
-                  {/* Botões editar/excluir — aparecem no hover */}
-                  <div className="folder-actions" style={{
-                    position:'absolute', right:4, top:'50%', transform:'translateY(-50%)',
-                    display:'flex', gap:2, opacity:0, transition:'opacity 0.15s',
+                  <Plus size={14} /> Nova Pasta
+                </button>
+              </div>
+
+              {/* Pills das pastas */}
+              <div style={{ display:'flex', gap:8, flexWrap:'wrap', alignItems:'center' }}>
+                {repoFolders.map(f => (
+                  <div key={f.id} style={{
+                    display:'inline-flex', alignItems:'center',
+                    borderRadius:9,
+                    border: repoFolder===f.id ? '1px solid rgba(227,30,36,0.6)' : '1px solid #2a2a2a',
+                    background: repoFolder===f.id ? 'rgba(227,30,36,0.1)' : '#1a1a1a',
+                    overflow:'hidden', transition:'all 0.18s',
                   }}>
+                    {/* Área clicável da pasta */}
+                    <button type="button" onClick={() => setRepoFolder(f.id)}
+                      style={{
+                        display:'flex', alignItems:'center', gap:7,
+                        padding:'8px 10px 8px 12px', cursor:'pointer',
+                        fontSize:12, fontWeight: repoFolder===f.id ? 700 : 400,
+                        background:'transparent', border:'none',
+                        color: repoFolder===f.id ? '#E31E24' : '#94a3b8',
+                        transition:'color 0.18s',
+                      }}>
+                      <span style={{ fontSize:15 }}>{f.emoji}</span>
+                      {f.label}
+                      {repoImgs[f.id] !== undefined && (
+                        <span style={{
+                          fontSize:10, fontWeight:700,
+                          background: repoFolder===f.id ? 'rgba(227,30,36,0.2)' : '#252525',
+                          color: repoFolder===f.id ? '#E31E24' : '#64748b',
+                          borderRadius:10, padding:'1px 6px',
+                        }}>{Object.keys(repoImgs[f.id]).length}</span>
+                      )}
+                    </button>
+                    {/* Separador */}
+                    <div style={{ width:1, height:20, background: repoFolder===f.id ? 'rgba(227,30,36,0.3)' : '#2a2a2a' }} />
+                    {/* Botão editar */}
                     <button type="button"
                       onClick={e => { e.stopPropagation(); setFolderForm({ label:f.label, emoji:f.emoji }); setFolderModal({ mode:'edit', folder:f }); }}
-                      style={{ background:'rgba(30,36,48,0.9)', border:'none', borderRadius:5, padding:'3px 5px', cursor:'pointer', color:'#94a3b8', display:'flex', alignItems:'center' }}
-                      title="Editar pasta">
-                      <Edit2 size={11} />
+                      title="Editar pasta"
+                      style={{ background:'transparent', border:'none', padding:'6px 7px', cursor:'pointer', color:'#64748b', display:'flex', alignItems:'center', transition:'color 0.15s' }}
+                      onMouseEnter={e => { e.currentTarget.style.color='#94a3b8'; }}
+                      onMouseLeave={e => { e.currentTarget.style.color='#64748b'; }}
+                    >
+                      <Edit2 size={12} />
                     </button>
+                    {/* Botão excluir */}
                     <button type="button"
                       onClick={e => { e.stopPropagation(); setDeleteConfirm(f); }}
-                      style={{ background:'rgba(30,36,48,0.9)', border:'none', borderRadius:5, padding:'3px 5px', cursor:'pointer', color:'#ef4444', display:'flex', alignItems:'center' }}
-                      title="Excluir pasta">
-                      <Trash2 size={11} />
+                      title="Excluir pasta"
+                      style={{ background:'transparent', border:'none', padding:'6px 7px', cursor:'pointer', color:'#64748b', display:'flex', alignItems:'center', transition:'color 0.15s' }}
+                      onMouseEnter={e => { e.currentTarget.style.color='#ef4444'; }}
+                      onMouseLeave={e => { e.currentTarget.style.color='#64748b'; }}
+                    >
+                      <Trash2 size={12} />
                     </button>
                   </div>
-                </div>
-              ))}
+                ))}
 
-              {/* Botão nova pasta */}
-              <button type="button"
-                onClick={() => { setFolderForm({ label:'', emoji:'📦' }); setFolderModal({ mode:'create' }); }}
-                style={{
-                  display:'flex', alignItems:'center', gap:6, padding:'8px 14px',
-                  borderRadius:9, cursor:'pointer', fontSize:12,
-                  border:'1px dashed #3a3a3a', background:'transparent',
-                  color:'#64748b', transition:'all 0.18s',
-                }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor='#E31E24'; e.currentTarget.style.color='#E31E24'; }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor='#3a3a3a'; e.currentTarget.style.color='#64748b'; }}
-              >
-                <Plus size={13} /> Nova Pasta
-              </button>
+                {repoFolders.length === 0 && (
+                  <span style={{ fontSize:12, color:'#334155', fontStyle:'italic' }}>
+                    Nenhuma pasta criada. Clique em "Nova Pasta" para começar.
+                  </span>
+                )}
+              </div>
             </div>
           )}
 
@@ -14771,7 +14792,7 @@ const Parameters = ({ clients, setClients, isAdmin }) => {
           {!activeFolder ? (
             <div style={{ textAlign:'center', color:'#334155', padding:48, fontSize:13, border:'1px dashed #2a2a2a', borderRadius:12 }}>
               Nenhuma pasta criada ainda.<br />
-              <span style={{ fontSize:11 }}>Clique em "+ Nova Pasta" para começar.</span>
+              <span style={{ fontSize:11 }}>Clique em "Nova Pasta" acima para começar.</span>
             </div>
           ) : folderImgs === null || repoLoading ? (
             <div style={{ textAlign:'center', color:'#475569', padding:48, fontSize:13 }}>⏳ Carregando...</div>
