@@ -3,7 +3,7 @@ import logoStarvl from './logo-starvl.png';
 import logoStarvlBlack from './logo-starvl-black.png';
 import * as XLSX from 'xlsx';
 import { LineChart, Line, BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Area, AreaChart, LabelList, ComposedChart, ReferenceLine, PieChart, Pie } from 'recharts';
-import { Home, FileText, Users as UsersIcon, BookOpen, Package, LogOut, Eye, Search, Plus, Edit2, Trash2, X, Calendar, TrendingUp, TrendingDown, Droplet, DollarSign, Calculator, Bell, ChevronDown, ChevronUp, Activity, Settings, Building2, Phone, Mail, MapPin, Hash, Clock, BarChart2, Layers, CircleDollarSign, UserCheck, UserPlus, AlertCircle, Globe, Camera, Building, Tag, RefreshCw, Database, ChevronRight, ChevronLeft, Filter, Printer, Moon, Sun, Trophy, Lock, Unlock, Wallet, Download, CreditCard, AlertTriangle, Save, PiggyBank, Target, CheckCircle, Flag, Upload, Maximize2, Minimize2, ShieldCheck, FolderOpen, ImagePlus } from 'lucide-react';
+import { Home, FileText, Users as UsersIcon, BookOpen, Package, LogOut, Eye, Search, Plus, Edit2, Trash2, X, Calendar, TrendingUp, TrendingDown, Droplet, DollarSign, Calculator, Bell, ChevronDown, ChevronUp, Activity, Settings, Building2, Phone, Mail, MapPin, Hash, Clock, BarChart2, Layers, CircleDollarSign, UserCheck, UserPlus, AlertCircle, Globe, Camera, Building, Tag, RefreshCw, Database, ChevronRight, ChevronLeft, Filter, Printer, Moon, Sun, Trophy, Lock, Unlock, Wallet, Download, CreditCard, AlertTriangle, Save, PiggyBank, Target, CheckCircle, Flag, Upload, Maximize2, Minimize2, ShieldCheck, FolderOpen, ImagePlus, Zap } from 'lucide-react';
 import './App.css';
 import './cr-styles.css';
 import './cp-styles.css';
@@ -9594,6 +9594,10 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
   const [comprasFilters, setComprasFilters]  = useState({ fornecedor:'Todos', produto:'Todos', dataInicial:'', dataFinal:'' });
   const [showCadastroPanel,     setShowCadastroPanel]     = useState(false);
   const [cadastroFilters, setCadastroFilters] = useState({ tipo:'todos', situacao:'todos', busca:'', ordenacao:'nome', exibirCodBarras:true });
+  const [showDrePanel,          setShowDrePanel]          = useState(false);
+  const [dreFilters,      setDreFilters]      = useState({ visao:'Sintética', dataInicial:'', dataFinal:'' });
+  const [showDrefPanel,         setShowDrefPanel]         = useState(false);
+  const [drefFilters,     setDrefFilters]     = useState({ modalidade:'Todos', dataInicial:'', dataFinal:'' });
   const [vendedores, setVendedores] = useState([]);
   const [rankingFilters, setRankingFilters] = useState({
     dataInicial: '',
@@ -10556,6 +10560,384 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
     }
   };
 
+  // ── REL 11 — DRE ─────────────────────────────────────────────────────────────
+  const handleGenerateDreReport = () => {
+    try {
+      const fmt = v => Number(v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+      const fmtD = d => d ? d.split('-').reverse().join('/') : '—';
+      const now = new Date().toLocaleString('pt-BR');
+      const { visao, dataInicial, dataFinal } = dreFilters;
+      const periodo = (dataInicial && dataFinal) ? `${fmtD(dataInicial)} a ${fmtD(dataFinal)}` : 'Período Geral';
+
+      // ── Dados de exemplo ────────────────────────────────────────────────────
+      const rb_comb = 1250000, rb_conv = 125000, rb_serv = 38000;
+      const rb_total = rb_comb + rb_conv + rb_serv;
+      const ded_imp = 98910, ded_dev = 4200;
+      const ded_total = ded_imp + ded_dev;
+      const rl = rb_total - ded_total;
+      const cmv_comb = 937500, cmv_conv = 68000;
+      const cmv_total = cmv_comb + cmv_conv;
+      const lucro_bruto = rl - cmv_total;
+      const desp_pes = 89500, desp_alug = 28000, desp_en = 12400, desp_mkt = 3200, desp_man = 8700, desp_out = 5100;
+      const desp_total = desp_pes + desp_alug + desp_en + desp_mkt + desp_man + desp_out;
+      const ebitda = lucro_bruto - desp_total;
+      const rf_rec = 2100, rf_desp = 8400;
+      const rf_liq = rf_rec - rf_desp;
+      const lair = ebitda + rf_liq;
+      const ir = 38155;
+      const ll = lair - ir;
+
+      const corPos = '#16a34a', corNeg = '#dc2626', corTotal = '#e2e8f0', corSub = '#94a3b8';
+
+      const linhaSimples = (desc, valor, cor='', indent=0, bold=false, bg='') =>
+        `<tr style="${bg?`background:${bg};`:''}">
+          <td style="padding:6px 16px 6px ${16+indent*20}px;font-size:12.5px;color:${bold?corTotal:corSub};${bold?'font-weight:700;':''}">${desc}</td>
+          <td style="text-align:right;padding:6px 20px 6px 0;font-size:12.5px;font-weight:${bold?700:400};color:${cor||corSub};white-space:nowrap">${fmt(valor)}</td>
+        </tr>`;
+
+      const linhaSep = (label='') =>
+        `<tr><td colspan="2" style="padding:0;border-top:1px solid #2a2a2a;"><div style="font-size:10px;color:#475569;padding:3px 16px;background:#0d1117;letter-spacing:1px">${label}</div></td></tr>`;
+
+      const linhaTotal = (desc, valor, cor='') =>
+        `<tr style="background:#101720;">
+          <td style="padding:8px 16px;font-size:13px;font-weight:700;color:${cor||corTotal};border-top:2px solid #1e293b">${desc}</td>
+          <td style="text-align:right;padding:8px 20px 8px 0;font-size:14px;font-weight:700;color:${cor||corTotal};border-top:2px solid #1e293b;white-space:nowrap">${fmt(valor)}</td>
+        </tr>`;
+
+      const isAnalitica = visao === 'Analítica';
+
+      const html = `<!DOCTYPE html><html><head><meta charset="utf-8"/>
+<title>REL 11 — DRE</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:#0a0d11;color:#e2e8f0;font-family:'Segoe UI',Arial,sans-serif;padding:32px 24px;}
+  .header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:28px;padding-bottom:18px;border-bottom:2px solid #1e293b;}
+  .header-left h1{font-size:17px;font-weight:700;letter-spacing:1.5px;color:#f1f5f9;margin-bottom:4px;}
+  .header-left p{font-size:11px;color:#64748b;margin-top:2px;}
+  .badge{display:inline-block;padding:3px 12px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:1px;}
+  .badge-verde{background:rgba(22,163,74,0.15);color:#4ade80;border:1px solid rgba(22,163,74,0.3);}
+  .badge-red{background:rgba(220,38,38,0.15);color:#f87171;border:1px solid rgba(220,38,38,0.3);}
+  table{width:100%;border-collapse:collapse;}
+  .dre-block{background:#111827;border:1px solid #1e293b;border-radius:10px;margin-bottom:16px;overflow:hidden;}
+  .dre-block-title{background:#0d1117;padding:10px 16px;font-size:10px;font-weight:700;letter-spacing:1.5px;color:#475569;border-bottom:1px solid #1e293b;}
+  .footer{margin-top:28px;padding-top:14px;border-top:1px solid #1e293b;font-size:10px;color:#334155;display:flex;justify-content:space-between;}
+  @media print{body{background:#fff!important;color:#111!important;padding:16px!important;}
+    .dre-block{background:#fff!important;border-color:#e5e7eb!important;}
+    .dre-block-title{background:#f8fafc!important;color:#374151!important;border-color:#e5e7eb!important;}
+    table tr{background:#fff!important;}
+    td{color:#111!important;border-color:#e5e7eb!important;}
+  }
+</style>
+</head><body>
+<div class="report">
+  <div class="header">
+    <div class="header-left">
+      <h1>DEMONSTRAÇÃO DO RESULTADO DO EXERCÍCIO</h1>
+      <p>${selectedClient || 'STARVL SISTEMAS'} &nbsp;|&nbsp; ${periodo} &nbsp;|&nbsp; Visão: ${visao} &nbsp;|&nbsp; Emitido em ${now}</p>
+    </div>
+    <div>
+      <span class="badge ${ll>=0?'badge-verde':'badge-red'}">${ll>=0?'LUCRO':'PREJUÍZO'}: ${fmt(Math.abs(ll))}</span>
+    </div>
+  </div>
+
+  <!-- 1. RECEITA BRUTA -->
+  <div class="dre-block">
+    <div class="dre-block-title">1 · RECEITA BRUTA DE VENDAS</div>
+    <table>
+      ${isAnalitica ? `
+        ${linhaSimples('Combustíveis', rb_comb, corPos, 1)}
+        ${linhaSimples('Produtos de Conveniência', rb_conv, corPos, 1)}
+        ${linhaSimples('Serviços (Lubrificação / Lavagem)', rb_serv, corPos, 1)}
+      ` : ''}
+      ${linhaTotal('TOTAL RECEITA BRUTA', rb_total, corPos)}
+    </table>
+  </div>
+
+  <!-- 2. DEDUÇÕES -->
+  <div class="dre-block">
+    <div class="dre-block-title">2 · DEDUÇÕES DA RECEITA BRUTA</div>
+    <table>
+      ${isAnalitica ? `
+        ${linhaSimples('(–) Impostos sobre Vendas (PIS / COFINS / ISS)', -ded_imp, corNeg, 1)}
+        ${linhaSimples('(–) Devoluções e Cancelamentos', -ded_dev, corNeg, 1)}
+      ` : ''}
+      ${linhaTotal('TOTAL DEDUÇÕES', -ded_total, corNeg)}
+      ${linhaSep('= RESULTADO')}
+      ${linhaTotal('RECEITA LÍQUIDA DE VENDAS', rl, rl>=0?corPos:corNeg)}
+    </table>
+  </div>
+
+  <!-- 3. CMV -->
+  <div class="dre-block">
+    <div class="dre-block-title">3 · CUSTO DAS MERCADORIAS VENDIDAS (CMV / CPV)</div>
+    <table>
+      ${isAnalitica ? `
+        ${linhaSimples('(–) CMV — Combustíveis (custo direto)', -cmv_comb, corNeg, 1)}
+        ${linhaSimples('(–) CMV — Produtos de Conveniência', -cmv_conv, corNeg, 1)}
+      ` : ''}
+      ${linhaTotal('TOTAL CMV / CPV', -cmv_total, corNeg)}
+      ${linhaSep('= RESULTADO')}
+      ${linhaTotal('LUCRO BRUTO', lucro_bruto, lucro_bruto>=0?corPos:corNeg)}
+    </table>
+  </div>
+
+  <!-- 4. DESPESAS OPERACIONAIS -->
+  <div class="dre-block">
+    <div class="dre-block-title">4 · DESPESAS OPERACIONAIS</div>
+    <table>
+      ${isAnalitica ? `
+        ${linhaSimples('(–) Pessoal e Encargos Sociais', -desp_pes, corNeg, 1)}
+        ${linhaSimples('(–) Aluguel e Ocupação', -desp_alug, corNeg, 1)}
+        ${linhaSimples('(–) Energia Elétrica e Utilidades', -desp_en, corNeg, 1)}
+        ${linhaSimples('(–) Marketing e Publicidade', -desp_mkt, corNeg, 1)}
+        ${linhaSimples('(–) Manutenção e Conservação', -desp_man, corNeg, 1)}
+        ${linhaSimples('(–) Outras Despesas Operacionais', -desp_out, corNeg, 1)}
+      ` : ''}
+      ${linhaTotal('TOTAL DESPESAS OPERACIONAIS', -desp_total, corNeg)}
+      ${linhaSep('= RESULTADO')}
+      ${linhaTotal('EBITDA / RESULTADO OPERACIONAL', ebitda, ebitda>=0?corPos:corNeg)}
+    </table>
+  </div>
+
+  <!-- 5. RESULTADO FINANCEIRO -->
+  <div class="dre-block">
+    <div class="dre-block-title">5 · RESULTADO FINANCEIRO</div>
+    <table>
+      ${isAnalitica ? `
+        ${linhaSimples('(+) Receitas Financeiras (juros, aplicações)', rf_rec, corPos, 1)}
+        ${linhaSimples('(–) Despesas Financeiras (juros, IOF, tarifas)', -rf_desp, corNeg, 1)}
+      ` : ''}
+      ${linhaTotal('RESULTADO FINANCEIRO LÍQUIDO', rf_liq, rf_liq>=0?corPos:corNeg)}
+      ${linhaSep('= RESULTADO')}
+      ${linhaTotal('RESULTADO ANTES DO IR / CSLL', lair, lair>=0?corPos:corNeg)}
+    </table>
+  </div>
+
+  <!-- 6. IR / LL -->
+  <div class="dre-block">
+    <div class="dre-block-title">6 · IMPOSTOS SOBRE O RESULTADO</div>
+    <table>
+      ${linhaSimples('(–) Provisão IR / CSLL', -ir, corNeg, 1)}
+      ${linhaSep('= RESULTADO FINAL')}
+      <tr style="background:#0d2137;">
+        <td style="padding:12px 16px;font-size:15px;font-weight:700;color:${ll>=0?'#4ade80':'#f87171'};border-top:2px solid #1e4d2b">
+          ${ll>=0?'✓ LUCRO LÍQUIDO DO EXERCÍCIO':'✗ PREJUÍZO LÍQUIDO DO EXERCÍCIO'}
+        </td>
+        <td style="text-align:right;padding:12px 20px 12px 0;font-size:16px;font-weight:700;color:${ll>=0?'#4ade80':'#f87171'};border-top:2px solid #1e4d2b;white-space:nowrap">
+          ${fmt(Math.abs(ll))}
+        </td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="footer">
+    <span>STARVL SISTEMAS &nbsp;|&nbsp; REL 11 — Demonstração do Resultado do Exercício &nbsp;|&nbsp; ${now}</span>
+    <span>Visão: ${visao} &nbsp;|&nbsp; ${periodo}</span>
+  </div>
+</div>
+</body></html>`;
+
+      const win = window.open('', '_blank');
+      if (!win) { toast('Permita pop-ups no navegador para gerar o relatório.', 'warn'); return; }
+      win.document.open();
+      win.document.write(html.replace('</body>', '<scr'+'ipt>window.addEventListener("load",function(){setTimeout(function(){window.print();},500);});<\/scr'+'ipt></body>'));
+      win.document.close();
+      setShowDrePanel(false);
+    } catch (err) {
+      toast(`Erro ao gerar DRE: ${err.message}`, 'error');
+    }
+  };
+
+  // ── REL 12 — DREF ────────────────────────────────────────────────────────────
+  const handleGenerateDrefReport = () => {
+    try {
+      const fmt = v => Number(v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+      const fmtD = d => d ? d.split('-').reverse().join('/') : '—';
+      const now = new Date().toLocaleString('pt-BR');
+      const { modalidade, dataInicial, dataFinal } = drefFilters;
+      const periodo = (dataInicial && dataFinal) ? `${fmtD(dataInicial)} a ${fmtD(dataFinal)}` : 'Período Geral';
+
+      // ── Dados de exemplo ────────────────────────────────────────────────────
+      const rec = { dinheiro:185000, debito:320000, creditoVista:410000, creditoParc:180000, pix:90000, prazo:75000 };
+      const pag = { combustiveis:937500, conveniencia:68000, pessoal:89500, impostos:98910, aluguel:28000, financiamentos:15400, outros:14200 };
+      const inadimp = { vencida:12400, aVencer:85000 };
+
+      const totalRec = Object.values(rec).reduce((s,v)=>s+v,0);
+      const totalPag = Object.values(pag).reduce((s,v)=>s+v,0);
+      const saldoFin = totalRec - totalPag;
+      const taxas = { debito:0.019, credito:0.025, pix:0 };
+      const custTaxas = rec.debito*taxas.debito + (rec.creditoVista+rec.creditoParc)*taxas.credito;
+      const saldoLiq = saldoFin - custTaxas;
+
+      const cor = (v) => v>=0?'#4ade80':'#f87171';
+      const corNeg = '#f87171', corPos = '#4ade80', corSub = '#94a3b8', corTotal='#e2e8f0';
+
+      const linhaRec = (desc, valor, pct) =>
+        `<tr><td style="padding:7px 16px;font-size:12.5px;color:${corSub}">${desc}</td>
+         <td style="text-align:right;padding:7px 0;font-size:12.5px;color:${corPos};white-space:nowrap">${fmt(valor)}</td>
+         <td style="text-align:right;padding:7px 20px 7px 12px;font-size:11px;color:#475569;white-space:nowrap">${pct}%</td></tr>`;
+
+      const linhaPag = (desc, valor) =>
+        `<tr><td style="padding:7px 16px;font-size:12.5px;color:${corSub}">${desc}</td>
+         <td style="text-align:right;padding:7px 20px 7px 0;font-size:12.5px;color:${corNeg};white-space:nowrap;font-weight:600" colspan="2">(${fmt(valor)})</td></tr>`;
+
+      const linhaTot = (desc, valor, cor='') =>
+        `<tr style="background:#101720;"><td style="padding:9px 16px;font-size:13px;font-weight:700;color:${cor||corTotal};border-top:2px solid #1e293b">${desc}</td>
+         <td colspan="2" style="text-align:right;padding:9px 20px 9px 0;font-size:14px;font-weight:700;color:${cor||corTotal};border-top:2px solid #1e293b;white-space:nowrap">${fmt(valor)}</td></tr>`;
+
+      const pct = (v) => (totalRec>0?((v/totalRec)*100).toFixed(1):'0.0');
+
+      const html = `<!DOCTYPE html><html><head><meta charset="utf-8"/>
+<title>REL 12 — DREF</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:#0a0d11;color:#e2e8f0;font-family:'Segoe UI',Arial,sans-serif;padding:32px 24px;}
+  .header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:28px;padding-bottom:18px;border-bottom:2px solid #1e293b;}
+  .header-left h1{font-size:17px;font-weight:700;letter-spacing:1.5px;color:#f1f5f9;margin-bottom:4px;}
+  .header-left p{font-size:11px;color:#64748b;margin-top:2px;}
+  .badge{display:inline-block;padding:3px 12px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:1px;}
+  .badge-verde{background:rgba(22,163,74,0.15);color:#4ade80;border:1px solid rgba(22,163,74,0.3);}
+  .badge-red{background:rgba(220,38,38,0.15);color:#f87171;border:1px solid rgba(220,38,38,0.3);}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;}
+  .dre-block{background:#111827;border:1px solid #1e293b;border-radius:10px;margin-bottom:16px;overflow:hidden;}
+  .dre-block-title{background:#0d1117;padding:10px 16px;font-size:10px;font-weight:700;letter-spacing:1.5px;color:#475569;border-bottom:1px solid #1e293b;}
+  table{width:100%;border-collapse:collapse;}
+  .kpi-row{display:flex;gap:12px;margin-bottom:16px;}
+  .kpi{flex:1;background:#111827;border:1px solid #1e293b;border-radius:10px;padding:14px 16px;text-align:center;}
+  .kpi-label{font-size:10px;color:#64748b;letter-spacing:1px;margin-bottom:6px;}
+  .kpi-value{font-size:17px;font-weight:700;}
+  .footer{margin-top:28px;padding-top:14px;border-top:1px solid #1e293b;font-size:10px;color:#334155;display:flex;justify-content:space-between;}
+  @media print{body{background:#fff!important;color:#111!important;padding:16px!important;}
+    .dre-block,.kpi{background:#fff!important;border-color:#e5e7eb!important;}
+    .dre-block-title{background:#f8fafc!important;color:#374151!important;border-color:#e5e7eb!important;}
+    td{color:#111!important;}
+    .kpi-label{color:#6b7280!important;}
+  }
+</style>
+</head><body>
+<div class="report">
+  <div class="header">
+    <div class="header-left">
+      <h1>DEMONSTRAÇÃO DO RESULTADO DO EXERCÍCIO FINANCEIRO</h1>
+      <p>${selectedClient||'STARVL SISTEMAS'} &nbsp;|&nbsp; ${periodo} &nbsp;|&nbsp; Modalidade: ${modalidade} &nbsp;|&nbsp; Emitido em ${now}</p>
+    </div>
+    <span class="badge ${saldoLiq>=0?'badge-verde':'badge-red'}">SALDO LÍQ: ${fmt(saldoLiq)}</span>
+  </div>
+
+  <!-- KPIs -->
+  <div class="kpi-row">
+    <div class="kpi"><div class="kpi-label">TOTAL RECEBIMENTOS</div><div class="kpi-value" style="color:#4ade80">${fmt(totalRec)}</div></div>
+    <div class="kpi"><div class="kpi-label">TOTAL PAGAMENTOS</div><div class="kpi-value" style="color:#f87171">${fmt(totalPag)}</div></div>
+    <div class="kpi"><div class="kpi-label">CUSTO DE TAXAS</div><div class="kpi-value" style="color:#fb923c">${fmt(custTaxas)}</div></div>
+    <div class="kpi"><div class="kpi-label">SALDO FINANCEIRO LÍQ.</div><div class="kpi-value" style="color:${cor(saldoLiq)}">${fmt(saldoLiq)}</div></div>
+  </div>
+
+  <!-- RECEBIMENTOS -->
+  <div class="dre-block">
+    <div class="dre-block-title">1 · RECEBIMENTOS — ENTRADAS POR MODALIDADE</div>
+    <table>
+      <thead><tr style="background:#0d1117;">
+        <th style="text-align:left;padding:8px 16px;font-size:10px;color:#475569;font-weight:600;letter-spacing:1px">MODALIDADE</th>
+        <th style="text-align:right;padding:8px 0;font-size:10px;color:#475569;font-weight:600;letter-spacing:1px">VALOR</th>
+        <th style="text-align:right;padding:8px 20px 8px 12px;font-size:10px;color:#475569;font-weight:600;letter-spacing:1px">% RECEITA</th>
+      </tr></thead>
+      <tbody>
+        ${linhaRec('Dinheiro / Espécie', rec.dinheiro, pct(rec.dinheiro))}
+        ${linhaRec('Cartão Débito à Vista', rec.debito, pct(rec.debito))}
+        ${linhaRec('Cartão Crédito à Vista', rec.creditoVista, pct(rec.creditoVista))}
+        ${linhaRec('Cartão Crédito Parcelado', rec.creditoParc, pct(rec.creditoParc))}
+        ${linhaRec('PIX / Transferência', rec.pix, pct(rec.pix))}
+        ${linhaRec('Vendas a Prazo (CNPJ)', rec.prazo, pct(rec.prazo))}
+        ${linhaTot('TOTAL RECEBIMENTOS', totalRec, corPos)}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- PAGAMENTOS -->
+  <div class="dre-block">
+    <div class="dre-block-title">2 · PAGAMENTOS — SAÍDAS POR CATEGORIA</div>
+    <table>
+      <thead><tr style="background:#0d1117;">
+        <th style="text-align:left;padding:8px 16px;font-size:10px;color:#475569;font-weight:600;letter-spacing:1px">CATEGORIA</th>
+        <th colspan="2" style="text-align:right;padding:8px 20px 8px 0;font-size:10px;color:#475569;font-weight:600;letter-spacing:1px">VALOR</th>
+      </tr></thead>
+      <tbody>
+        ${linhaPag('Fornecedores — Combustíveis', pag.combustiveis)}
+        ${linhaPag('Fornecedores — Conveniência', pag.conveniencia)}
+        ${linhaPag('Pessoal e Encargos', pag.pessoal)}
+        ${linhaPag('Impostos e Tributos', pag.impostos)}
+        ${linhaPag('Aluguel e Ocupação', pag.aluguel)}
+        ${linhaPag('Financiamentos e Empréstimos', pag.financiamentos)}
+        ${linhaPag('Outros Pagamentos', pag.outros)}
+        ${linhaTot('TOTAL PAGAMENTOS', totalPag, corNeg)}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- TAXAS E INADIMPLÊNCIA -->
+  <div class="grid2">
+    <div class="dre-block" style="margin-bottom:0">
+      <div class="dre-block-title">3 · CUSTO DE TAXAS — MAQUININHAS</div>
+      <table>
+        <tbody>
+          ${linhaRec('Taxa Débito (1,9%)', rec.debito*taxas.debito, ((rec.debito*taxas.debito/totalRec)*100).toFixed(1))}
+          ${linhaRec('Taxa Crédito (2,5%)', (rec.creditoVista+rec.creditoParc)*taxas.credito, (((rec.creditoVista+rec.creditoParc)*taxas.credito/totalRec)*100).toFixed(1))}
+          ${linhaRec('PIX (isento)', 0, '0.0')}
+          ${linhaTot('TOTAL TAXAS', custTaxas, '#fb923c')}
+        </tbody>
+      </table>
+    </div>
+    <div class="dre-block" style="margin-bottom:0">
+      <div class="dre-block-title">4 · POSIÇÃO DE INADIMPLÊNCIA</div>
+      <table>
+        <tbody>
+          ${linhaPag('Títulos Vencidos', inadimp.vencida)}
+          <tr><td style="padding:7px 16px;font-size:12.5px;color:${corSub}">Títulos a Vencer (30 d)</td>
+              <td colspan="2" style="text-align:right;padding:7px 20px 7px 0;font-size:12.5px;color:#fb923c;white-space:nowrap;font-weight:600">${fmt(inadimp.aVencer)}</td></tr>
+          ${linhaTot('TOTAL EXPOSIÇÃO', inadimp.vencida+inadimp.aVencer, '#fb923c')}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- SALDO FINAL -->
+  <div class="dre-block" style="margin-top:16px">
+    <div class="dre-block-title">5 · RESULTADO FINANCEIRO CONSOLIDADO</div>
+    <table>
+      <tbody>
+        ${linhaTot('(+) Total Recebimentos', totalRec, corPos)}
+        ${linhaTot('(–) Total Pagamentos', -totalPag, corNeg)}
+        ${linhaTot('(–) Custo de Taxas', -custTaxas, '#fb923c')}
+        <tr style="background:#0d2137;">
+          <td style="padding:12px 16px;font-size:15px;font-weight:700;color:${cor(saldoLiq)};border-top:2px solid #1e4d2b">
+            ${saldoLiq>=0?'✓ SALDO FINANCEIRO LÍQUIDO':'✗ DÉFICIT FINANCEIRO'}
+          </td>
+          <td colspan="2" style="text-align:right;padding:12px 20px 12px 0;font-size:16px;font-weight:700;color:${cor(saldoLiq)};border-top:2px solid #1e4d2b;white-space:nowrap">
+            ${fmt(Math.abs(saldoLiq))}
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="footer">
+    <span>STARVL SISTEMAS &nbsp;|&nbsp; REL 12 — DRE Financeiro &nbsp;|&nbsp; ${now}</span>
+    <span>Modalidade: ${modalidade} &nbsp;|&nbsp; ${periodo}</span>
+  </div>
+</div>
+</body></html>`;
+
+      const win = window.open('', '_blank');
+      if (!win) { toast('Permita pop-ups no navegador para gerar o relatório.', 'warn'); return; }
+      win.document.open();
+      win.document.write(html.replace('</body>', '<scr'+'ipt>window.addEventListener("load",function(){setTimeout(function(){window.print();},500);});<\/scr'+'ipt></body>'));
+      win.document.close();
+      setShowDrefPanel(false);
+    } catch (err) {
+      toast(`Erro ao gerar DREF: ${err.message}`, 'error');
+    }
+  };
+
   const renderOutrosRelatorios = () => (
     <div className="other-reports-panel">
       <div className="other-reports-list">
@@ -10658,6 +11040,26 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
           </div>
           <ChevronRight size={20} />
         </button>
+
+        <button type="button" className="other-report-row" onClick={() => setShowDrePanel(true)}>
+          <div className="other-report-index">REL 11</div>
+          <div className="other-report-icon"><BarChart2 size={22} /></div>
+          <div className="other-report-main">
+            <strong>DRE — Demonstração do Resultado do Exercício</strong>
+            <span>P&amp;L completo: receita bruta, deduções, CMV, despesas operacionais, resultado financeiro e lucro líquido</span>
+          </div>
+          <ChevronRight size={20} />
+        </button>
+
+        <button type="button" className="other-report-row" onClick={() => setShowDrefPanel(true)}>
+          <div className="other-report-index">REL 12</div>
+          <div className="other-report-icon"><PiggyBank size={22} /></div>
+          <div className="other-report-main">
+            <strong>DREF — DRE Financeiro</strong>
+            <span>Recebimentos por modalidade, pagamentos por categoria, custo de taxas e saldo financeiro líquido</span>
+          </div>
+          <ChevronRight size={20} />
+        </button>
       </div>
 
       {showRankingPrintPanel && (
@@ -10751,6 +11153,24 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
           setFilters={setCadastroFilters}
           onClose={() => setShowCadastroPanel(false)}
           onGenerate={handleGenerateCadastroReport}
+        />
+      )}
+
+      {showDrePanel && (
+        <DREFilterPanel
+          filters={dreFilters}
+          setFilters={setDreFilters}
+          onClose={() => setShowDrePanel(false)}
+          onGenerate={handleGenerateDreReport}
+        />
+      )}
+
+      {showDrefPanel && (
+        <DREFFilterPanel
+          filters={drefFilters}
+          setFilters={setDrefFilters}
+          onClose={() => setShowDrefPanel(false)}
+          onGenerate={handleGenerateDrefReport}
         />
       )}
 
@@ -11186,6 +11606,195 @@ const CadastroFilterPanel = ({ filters, setFilters, onClose, onGenerate }) => {
     </div>
   );
 };
+
+// ── DREFilterPanel (REL 11) ───────────────────────────────────────────────────
+const DREFilterPanel = ({ filters, setFilters, onClose, onGenerate }) => (
+  <div className="modal-overlay control-print-overlay" onClick={onClose}>
+    <div className="control-print-panel ranking-filter-panel" onClick={e => e.stopPropagation()}>
+      <div className="control-print-header">
+        <div className="control-print-title">
+          <span className="control-print-icon"><BarChart2 size={25} /></span>
+          <h3>FILTROS — DRE — DEMONSTRAÇÃO DO RESULTADO</h3>
+        </div>
+        <button type="button" className="control-print-close" onClick={onClose} aria-label="Fechar">
+          <X size={28} />
+        </button>
+      </div>
+
+      <div className="control-print-body">
+        <div className="control-print-grid ranking-filter-grid">
+
+          {/* VISÃO */}
+          <section className="control-print-section">
+            <div className="control-print-section-title"><Layers size={20} /><span>VISÃO DO RELATÓRIO</span></div>
+            {[
+              { v:'Sintética', icon:<BarChart2 size={28}/>, sub:'Totais por grupo' },
+              { v:'Analítica', icon:<FileText size={28}/>, sub:'Todas as linhas detalhadas' },
+            ].map(({ v, icon, sub }) => (
+              <label key={v} className={`control-print-option ${filters.visao === v ? 'selected' : ''}`}>
+                {icon}
+                <div><strong>{v.toUpperCase()}</strong><span>{sub}</span></div>
+                <input type="radio" name="dreVisao" value={v} checked={filters.visao === v}
+                  onChange={() => setFilters(f => ({ ...f, visao: v }))} />
+              </label>
+            ))}
+          </section>
+
+          {/* PERÍODO */}
+          <section className="control-print-section">
+            <div className="control-print-section-title"><Calendar size={20} /><span>PERÍODO</span></div>
+            <div className="control-print-date-row">
+              <label className="control-print-field">
+                <span>DATA INICIAL</span>
+                <div className="control-print-input">
+                  <input type="date" value={filters.dataInicial}
+                    onChange={e => setFilters(f => ({ ...f, dataInicial: e.target.value }))} />
+                  <Calendar size={19} />
+                </div>
+              </label>
+              <label className="control-print-field">
+                <span>DATA FINAL</span>
+                <div className="control-print-input">
+                  <input type="date" value={filters.dataFinal}
+                    onChange={e => setFilters(f => ({ ...f, dataFinal: e.target.value }))} />
+                  <Calendar size={19} />
+                </div>
+              </label>
+            </div>
+          </section>
+        </div>
+
+        {/* PRÉ-VISUALIZAÇÃO */}
+        <div className="control-print-section" style={{ background:'#23272f', borderRadius:6, padding:'10px 14px' }}>
+          <div style={{ fontSize:11, color:'#94a3b8', marginBottom:8 }}>Pré-visualização</div>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8 }}>
+            <div style={{ textAlign:'center' }}>
+              <div style={{ fontSize:10, color:'#94a3b8' }}>Receita Bruta</div>
+              <div style={{ fontSize:16, fontWeight:700, color:'#4ade80' }}>R$ 1.413.000</div>
+            </div>
+            <div style={{ textAlign:'center' }}>
+              <div style={{ fontSize:10, color:'#94a3b8' }}>Lucro Bruto</div>
+              <div style={{ fontSize:16, fontWeight:700, color:'#4ade80' }}>R$ 334.890</div>
+            </div>
+            <div style={{ textAlign:'center' }}>
+              <div style={{ fontSize:10, color:'#94a3b8' }}>Lucro Líquido</div>
+              <div style={{ fontSize:16, fontWeight:700, color:'#4ade80' }}>R$ 143.535</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="control-print-footer">
+        <button type="button" className="btn-secondary control-print-cancel" onClick={onClose}>Cancelar</button>
+        <button type="button" className="btn-primary control-print-generate" onClick={onGenerate}>
+          <Printer size={15} /> GERAR IMPRESSÃO
+        </button>
+      </div>
+    </div>
+  </div>
+);
+
+// ── DREFFilterPanel (REL 12) ──────────────────────────────────────────────────
+const DREFFilterPanel = ({ filters, setFilters, onClose, onGenerate }) => (
+  <div className="modal-overlay control-print-overlay" onClick={onClose}>
+    <div className="control-print-panel ranking-filter-panel" onClick={e => e.stopPropagation()}>
+      <div className="control-print-header">
+        <div className="control-print-title">
+          <span className="control-print-icon"><PiggyBank size={25} /></span>
+          <h3>FILTROS — DREF — RESULTADO FINANCEIRO</h3>
+        </div>
+        <button type="button" className="control-print-close" onClick={onClose} aria-label="Fechar">
+          <X size={28} />
+        </button>
+      </div>
+
+      <div className="control-print-body">
+        <div className="control-print-grid ranking-filter-grid">
+
+          {/* MODALIDADE */}
+          <section className="control-print-section">
+            <div className="control-print-section-title"><CreditCard size={20} /><span>MODALIDADE</span></div>
+            {[
+              { v:'Todos',          icon:<Wallet size={28}/>,     sub:'Todas as modalidades' },
+              { v:'Cartão Débito',  icon:<CreditCard size={28}/>, sub:'Débito à vista' },
+              { v:'Cartão Crédito', icon:<CreditCard size={28}/>, sub:'Crédito à vista e parcelado' },
+              { v:'PIX',            icon:<Zap size={28}/>,        sub:'PIX e transferências' },
+            ].map(({ v, icon, sub }) => (
+              <label key={v} className={`control-print-option ${filters.modalidade === v ? 'selected' : ''}`}>
+                {icon}
+                <div><strong>{v.toUpperCase()}</strong><span>{sub}</span></div>
+                <input type="radio" name="drefModalidade" value={v} checked={filters.modalidade === v}
+                  onChange={() => setFilters(f => ({ ...f, modalidade: v }))} />
+              </label>
+            ))}
+          </section>
+
+          {/* PERÍODO */}
+          <section className="control-print-section">
+            <div className="control-print-section-title"><Calendar size={20} /><span>PERÍODO</span></div>
+            <div className="control-print-date-row">
+              <label className="control-print-field">
+                <span>DATA INICIAL</span>
+                <div className="control-print-input">
+                  <input type="date" value={filters.dataInicial}
+                    onChange={e => setFilters(f => ({ ...f, dataInicial: e.target.value }))} />
+                  <Calendar size={19} />
+                </div>
+              </label>
+              <label className="control-print-field">
+                <span>DATA FINAL</span>
+                <div className="control-print-input">
+                  <input type="date" value={filters.dataFinal}
+                    onChange={e => setFilters(f => ({ ...f, dataFinal: e.target.value }))} />
+                  <Calendar size={19} />
+                </div>
+              </label>
+            </div>
+
+            {/* Resumo de taxas */}
+            <div style={{ marginTop:16, padding:'10px 12px', background:'#1e2430', borderRadius:8, border:'1px solid #2d3748' }}>
+              <div style={{ fontSize:10, color:'#94a3b8', marginBottom:8, letterSpacing:'0.8px' }}>TAXAS ESTIMADAS</div>
+              <div style={{ display:'flex', flexDirection:'column', gap:5 }}>
+                {[['Débito','1,9%'],['Crédito','2,5%'],['PIX','Isento']].map(([m,t]) => (
+                  <div key={m} style={{ display:'flex', justifyContent:'space-between', fontSize:11 }}>
+                    <span style={{ color:'#64748b' }}>{m}</span>
+                    <span style={{ color:'#fb923c', fontWeight:600 }}>{t}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+        </div>
+
+        {/* PRÉ-VISUALIZAÇÃO */}
+        <div className="control-print-section" style={{ background:'#23272f', borderRadius:6, padding:'10px 14px' }}>
+          <div style={{ fontSize:11, color:'#94a3b8', marginBottom:8 }}>Pré-visualização</div>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8 }}>
+            <div style={{ textAlign:'center' }}>
+              <div style={{ fontSize:10, color:'#94a3b8' }}>Total Recebimentos</div>
+              <div style={{ fontSize:16, fontWeight:700, color:'#4ade80' }}>R$ 1.260.000</div>
+            </div>
+            <div style={{ textAlign:'center' }}>
+              <div style={{ fontSize:10, color:'#94a3b8' }}>Custo de Taxas</div>
+              <div style={{ fontSize:16, fontWeight:700, color:'#fb923c' }}>R$ 16.380</div>
+            </div>
+            <div style={{ textAlign:'center' }}>
+              <div style={{ fontSize:10, color:'#94a3b8' }}>Saldo Financeiro</div>
+              <div style={{ fontSize:16, fontWeight:700, color:'#4ade80' }}>R$ 10.510</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="control-print-footer">
+        <button type="button" className="btn-secondary control-print-cancel" onClick={onClose}>Cancelar</button>
+        <button type="button" className="btn-primary control-print-generate" onClick={onGenerate}>
+          <Printer size={15} /> GERAR IMPRESSÃO
+        </button>
+      </div>
+    </div>
+  </div>
+);
 
 // Control Component
 const Control = ({ lmcRegistros, lmcDiario, lmcControle, selectedPeriod, setSelectedPeriod, selectedClient, clients }) => {
