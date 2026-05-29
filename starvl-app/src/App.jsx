@@ -34,9 +34,10 @@ const weeklyData = [
   { day: 'Dom', value: 700 },
 ];
 
+// monthlyData: mock estático — não usar Math.random() para evitar re-render oscilante
 const monthlyData = Array.from({ length: 30 }, (_, i) => ({
   day: i + 1,
-  value: 2000 + Math.random() * 1500
+  value: 2000 + ((i * 137 + 42) % 1500), // sequência determinística
 }));
 
 const API_URL = process.env.REACT_APP_API_URL
@@ -152,25 +153,38 @@ const ToastContainer = () => {
 };
 
 // Login Component
-const Login = ({ onLogin, adminUsers }) => {
+const Login = ({ onLogin }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    const users = adminUsers || [];
-    const matched = users.find(
-      u => u.usuario.trim().toLowerCase() === username.trim().toLowerCase() &&
-           (u.senha || '') === password
-    );
-    if (!matched) {
-      setError('Usuário ou senha inválidos.');
+    if (!username.trim() || !password.trim()) {
+      setError('Preencha o usuário e a senha.');
       return;
     }
+    setLoading(true);
     setError('');
-    onLogin(matched);
+    try {
+      const res = await fetch(`${API_URL}/api/starvl-users/auth`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ usuario: username.trim(), senha: password }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        setError(data.error || 'Usuário ou senha inválidos.');
+        return;
+      }
+      onLogin(data);
+    } catch {
+      setError('Não foi possível conectar ao servidor. Tente novamente.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -255,7 +269,9 @@ const Login = ({ onLogin, adminUsers }) => {
                 <div className="forgot"><button type="button" className="forgot-btn">Esqueceu a senha?</button></div>
               </div>
 
-              <button type="submit" className="btn-submit">Entrar</button>
+              <button type="submit" className="btn-submit" disabled={loading} style={{ opacity: loading ? 0.7 : 1 }}>
+                {loading ? 'Entrando...' : 'Entrar'}
+              </button>
               {error && <div className="login-error">{error}</div>}
             </form>
           </div>
@@ -312,9 +328,11 @@ const Sidebar = ({ currentPage, setCurrentPage, onLogout, themeMode, collapsed, 
             key={item.page}
             className={`nav-item ${currentPage === item.page ? 'active' : ''}`}
             onClick={() => setCurrentPage(item.page)}
-            title={collapsed ? item.label : undefined}
+            title={item.label}
+            aria-label={item.label}
+            aria-current={currentPage === item.page ? 'page' : undefined}
           >
-            <item.icon size={20} />
+            <item.icon size={20} aria-hidden="true" />
             <span>{item.label}</span>
           </button>
         ))}
@@ -323,7 +341,8 @@ const Sidebar = ({ currentPage, setCurrentPage, onLogout, themeMode, collapsed, 
       <button
         className="nav-item logout-btn"
         onClick={onLogout}
-        title={collapsed ? 'SAIR' : undefined}
+        title="SAIR"
+        aria-label="Sair do sistema"
       >
         <LogOut size={20} />
         <span>SAIR</span>
@@ -450,9 +469,9 @@ const TopBar = ({ currentPage, setCurrentPage, isConnected, apiError, clients, s
       </div>
 
       <div className="top-bar-right">
-        <button type="button" className="top-bar-icon-btn">
+        {/* Bell: sem funcionalidade ativa — dot removido para não confundir usuário */}
+        <button type="button" className="top-bar-icon-btn" title="Notificações (em breve)" aria-label="Notificações">
           <Bell size={18} />
-          <span className="notification-dot"></span>
         </button>
         <div className="theme-toggle-group" aria-label="Tema">
           <button
@@ -16618,7 +16637,9 @@ export default function App() {
   const [adminUsers, setAdminUsers] = useState(initialAdminUsers);
   const [themeMode, setThemeMode] = useState(() => localStorage.getItem('starvl-theme-mode') || 'dark');
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(
+    () => localStorage.getItem('starvl-sidebar-collapsed') === 'true'
+  );
 
   // Carrega usuários da API na inicialização do app
   useEffect(() => {
@@ -16806,7 +16827,7 @@ export default function App() {
   };
 
   if (!isLoggedIn) {
-    return <Login onLogin={(user) => { setIsLoggedIn(true); setLoggedUser(user); setCurrentPage('dashboard'); setSidebarCollapsed(false); }} adminUsers={adminUsers} />;
+    return <Login onLogin={(user) => { setIsLoggedIn(true); setLoggedUser(user); setCurrentPage('dashboard'); setSidebarCollapsed(false); }} />;
   }
 
   return (
@@ -16817,7 +16838,11 @@ export default function App() {
         onLogout={handleLogoutRequest}
         themeMode={themeMode}
         collapsed={sidebarCollapsed}
-        onToggleCollapse={() => setSidebarCollapsed(prev => !prev)}
+        onToggleCollapse={() => setSidebarCollapsed(prev => {
+          const next = !prev;
+          localStorage.setItem('starvl-sidebar-collapsed', String(next));
+          return next;
+        })}
       />
       <main className={`main-content${sidebarCollapsed ? ' sidebar-collapsed' : ''}`}>
         <TopBar

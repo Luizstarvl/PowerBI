@@ -30,7 +30,7 @@ router.get('/:tipo', async (req, res) => {
     res.json(map);
   } catch (err) {
     console.error('GET /imagens:', err.message);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Erro ao carregar imagens.' });
   }
 });
 
@@ -46,6 +46,12 @@ router.put('/:tipo/:ref', async (req, res) => {
     return res.status(413).json({ error: 'Imagem muito grande (máx ~6 MB)' });
   }
 
+  // Valida que o dado parece ser um base64 data URL ou JSON (para metadados de pastas)
+  const looksLikeDataUrl = dados.startsWith('data:') || dados.startsWith('{') || dados.startsWith('[');
+  if (!looksLikeDataUrl) {
+    return res.status(400).json({ error: 'Formato inválido.' });
+  }
+
   try {
     await pool.query(
       `INSERT INTO starvl_imagens (img_tipo, img_ref, img_dados, img_updated)
@@ -58,7 +64,7 @@ router.put('/:tipo/:ref', async (req, res) => {
     res.json({ ok: true });
   } catch (err) {
     console.error('PUT /imagens:', err.message);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Erro ao salvar imagem.' });
   }
 });
 
@@ -73,7 +79,7 @@ router.delete('/:tipo/:ref', async (req, res) => {
     res.json({ ok: true });
   } catch (err) {
     console.error('DELETE /imagens:', err.message);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Erro ao excluir imagem.' });
   }
 });
 

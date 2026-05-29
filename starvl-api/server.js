@@ -37,15 +37,27 @@ function isAllowedRenderOrigin(origin) {
 
 app.use(cors({
   origin(origin, callback) {
-    if (
-      !origin ||
-      process.env.NODE_ENV === 'production' ||
-      process.env.CORS_ORIGIN === '*' ||
-      corsOrigins.includes(origin) ||
-      isAllowedRenderOrigin(origin)
-    ) {
+    // Sem origin (ex: curl, server-to-server, same-origin) → sempre permitir
+    if (!origin) return callback(null, true);
+
+    // Origem explicitamente liberada via variável de ambiente
+    if (process.env.CORS_ORIGIN === '*' || corsOrigins.includes(origin)) {
       return callback(null, true);
     }
+
+    // Origens *.onrender.com sempre permitidas (deploy próprio)
+    if (isAllowedRenderOrigin(origin)) return callback(null, true);
+
+    // Em dev: permitir localhost de qualquer porta
+    if (process.env.NODE_ENV !== 'production') {
+      try {
+        const { hostname } = new URL(origin);
+        if (hostname === 'localhost' || hostname === '127.0.0.1') {
+          return callback(null, true);
+        }
+      } catch { /* ignora URL inválida */ }
+    }
+
     return callback(new Error(`Origin not allowed by CORS: ${origin}`));
   },
 }));

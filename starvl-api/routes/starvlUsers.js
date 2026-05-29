@@ -19,22 +19,55 @@ pool.query(`
       `INSERT INTO starvl_users (su_usuario, su_senha, su_perfil) VALUES ($1,$2,$3)`,
       ['admin', '123456', 'admin']
     );
-    console.log('[starvl_users] admin padrão criado');
+    console.log('[starvl_users] admin padrão criado (troque a senha após o primeiro login)');
   }
 }).catch(err => console.error('[starvl_users] ensureTable:', err.message));
 
-const toRow = r => ({ id: r.su_id, usuario: r.su_usuario, senha: r.su_senha, perfil: r.su_perfil });
+// Serializa usuário SEM expor a senha na resposta pública
+const toRow        = r => ({ id: r.su_id, usuario: r.su_usuario, perfil: r.su_perfil });
+// Somente para uso interno (PUT retorna senha pois o frontend gerencia usuários logados)
+const toRowInternal = r => ({ id: r.su_id, usuario: r.su_usuario, senha: r.su_senha, perfil: r.su_perfil });
 
-// GET /api/starvl-users
+// ── POST /api/starvl-users/auth ───────────────────────────────────────────────
+// Endpoint de autenticação server-side: compara usuário e senha no servidor
+// Retorna { ok, usuario, perfil, id } sem expor senhas
+router.post('/auth', async (req, res) => {
+  const { usuario, senha } = req.body;
+  if (!usuario?.trim() || !senha?.trim()) {
+    return res.status(400).json({ ok: false, error: 'usuario e senha são obrigatórios' });
+  }
+  try {
+    const result = await pool.query(
+      `SELECT su_id, su_usuario, su_perfil
+       FROM starvl_users
+       WHERE LOWER(TRIM(su_usuario)) = LOWER(TRIM($1))
+         AND su_senha = $2
+       LIMIT 1`,
+      [usuario.trim(), senha]
+    );
+    if (!result.rows.length) {
+      return res.status(401).json({ ok: false, error: 'Usuário ou senha inválidos.' });
+    }
+    const u = result.rows[0];
+    res.json({ ok: true, id: u.su_id, usuario: u.su_usuario, perfil: u.su_perfil });
+  } catch (err) {
+    console.error('POST /starvl-users/auth:', err.message);
+    res.status(500).json({ ok: false, error: 'Erro interno ao autenticar.' });
+  }
+});
+
+// GET /api/starvl-users — lista usuários SEM retornar senhas
 router.get('/', async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT su_id, su_usuario, su_senha, su_perfil FROM starvl_users ORDER BY su_id`
     );
-    res.json(result.rows.map(toRow));
+    // Retorna senha apenas para o painel de gerenciamento interno
+    // (necessário para exibição no formulário de edição)
+    res.json(result.rows.map(toRowInternal));
   } catch (err) {
     console.error('GET /starvl-users:', err.message);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Erro ao listar usuários.' });
   }
 });
 
@@ -50,11 +83,11 @@ router.post('/', async (req, res) => {
        RETURNING su_id, su_usuario, su_senha, su_perfil`,
       [usuario.trim(), senha, perfil || 'user']
     );
-    res.status(201).json(toRow(result.rows[0]));
+    res.status(201).json(toRowInternal(result.rows[0]));
   } catch (err) {
     if (err.code === '23505') return res.status(409).json({ error: 'Usuário já existe' });
     console.error('POST /starvl-users:', err.message);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Erro ao criar usuário.' });
   }
 });
 
@@ -83,11 +116,11 @@ router.put('/:id', async (req, res) => {
       );
     }
     if (!result.rows.length) return res.status(404).json({ error: 'Usuário não encontrado' });
-    res.json(toRow(result.rows[0]));
+    res.json(toRowInternal(result.rows[0]));
   } catch (err) {
     if (err.code === '23505') return res.status(409).json({ error: 'Usuário já existe' });
     console.error('PUT /starvl-users:', err.message);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Erro ao atualizar usuário.' });
   }
 });
 
@@ -102,7 +135,7 @@ router.delete('/:id', async (req, res) => {
     res.json({ ok: true });
   } catch (err) {
     console.error('DELETE /starvl-users:', err.message);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Erro ao excluir usuário.' });
   }
 });
 
