@@ -9354,6 +9354,8 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
   const [clientesFilters, setClientesFilters] = useState({ faixa:'Todas', dia:'Todos' });
   const [showComprasPanel,      setShowComprasPanel]      = useState(false);
   const [comprasFilters, setComprasFilters]  = useState({ fornecedor:'Todos', produto:'Todos', dataInicial:'', dataFinal:'' });
+  const [showCadastroPanel,     setShowCadastroPanel]     = useState(false);
+  const [cadastroFilters, setCadastroFilters] = useState({ tipo:'todos', situacao:'todos', busca:'' });
   const [vendedores, setVendedores] = useState([]);
   const [rankingFilters, setRankingFilters] = useState({
     dataInicial: '',
@@ -10008,6 +10010,143 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
     setShowComprasPanel(false);
   };
 
+  const handleGenerateCadastroReport = async () => {
+    const client = (clients || []).find(c => c.nome === selectedClient) || (clients || [])[0];
+    const empresa = client ? client.codigoEmpresa : null;
+    if (!empresa) { toast('Selecione uma empresa.', 'warn'); return; }
+
+    toast('Gerando relatório de cadastros...', 'info');
+    try {
+      const r = await fetch(`${API_URL}/api/relatorios/cadastro-produtos?empresa=${empresa}`);
+      const result = await r.json();
+      if (result.error) throw new Error(result.error);
+
+      const { combustiveis = [], convenio = [] } = result;
+      const { tipo, situacao, busca } = cadastroFilters;
+      const buscaLow = busca.toLowerCase();
+
+      const filtrarItems = (arr) => arr.filter(p => {
+        if (situacao !== 'todos' && p.situacao.toLowerCase() !== situacao) return false;
+        if (buscaLow && !p.descricao.toLowerCase().includes(buscaLow)) return false;
+        return true;
+      });
+
+      const showComb = tipo === 'todos' || tipo === 'combustiveis';
+      const showConv = tipo === 'todos' || tipo === 'convenio';
+      const combFilt = showComb ? filtrarItems(combustiveis) : [];
+      const convFilt = showConv ? filtrarItems(convenio)     : [];
+
+      const fB  = v => 'R$ ' + Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+      const fP  = (v,d=2) => Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:d});
+      const mCor = m => m >= 20 ? '#15803d' : m >= 10 ? '#b45309' : '#b91c1c';
+      const sitCor = s => s === 'ATIVO' ? '#15803d' : '#6b7280';
+      const now = new Date().toLocaleDateString('pt-BR');
+
+      const trComb = combFilt.map(p => `
+        <tr>
+          <td class="mono">${p.cod}</td>
+          <td>${p.descricao}</td>
+          <td class="mono c">${p.anp || '—'}</td>
+          <td class="r">${fB(p.precoV1)}</td>
+          <td class="r">${fB(p.precoV2)}</td>
+          <td class="r">${fB(p.custo)}</td>
+          <td class="r" style="color:${mCor(p.margem)};font-weight:700">${fP(p.margem,1)}%</td>
+          <td class="c" style="color:${sitCor(p.situacao)};font-weight:700">${p.situacao}</td>
+        </tr>`).join('');
+
+      const trConv = convFilt.map(p => `
+        <tr>
+          <td class="mono">${p.cod}</td>
+          <td class="mono" style="font-size:10px">${p.codBarra || '—'}</td>
+          <td>${p.descricao}</td>
+          <td>${p.secao}</td>
+          <td>${p.grupo || '—'}</td>
+          <td class="r">${fB(p.precoV1)}</td>
+          <td class="r">${fB(p.custo)}</td>
+          <td class="r" style="color:${mCor(p.margem)};font-weight:700">${fP(p.margem,1)}%</td>
+          <td class="c" style="color:${sitCor(p.situacao)};font-weight:700">${p.situacao}</td>
+        </tr>`).join('');
+
+      const html = `<!DOCTYPE html><html lang="pt-BR"><head>
+        <meta charset="utf-8"/>
+        <title>REL 11 — Cadastro de Produtos</title>
+        <style>
+          @page{size:A4 landscape;margin:10mm}
+          *{box-sizing:border-box}
+          body{margin:0;font-family:Arial,sans-serif;font-size:10px;color:#111}
+          h1{margin:0 0 2px;font-size:16px;font-weight:800}
+          .sub{font-size:10px;color:#555}
+          .hd{display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid #E31E24;padding-bottom:8px;margin-bottom:14px}
+          .logo{font-size:13px;font-weight:900;color:#E31E24;letter-spacing:1px}
+          section{margin-bottom:20px}
+          h2{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#E31E24;margin:0 0 6px;display:flex;align-items:center;gap:6px}
+          h2 span{background:#E31E24;color:#fff;border-radius:4px;padding:1px 7px;font-size:10px}
+          table{width:100%;border-collapse:collapse}
+          th{background:#f3f4f6;font-size:9px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:5px 6px;border-bottom:1px solid #d1d5db;text-align:left}
+          td{padding:4px 6px;border-bottom:1px solid #f3f4f6;font-size:9.5px;vertical-align:middle}
+          tr:nth-child(even) td{background:#fafafa}
+          .r{text-align:right}.c{text-align:center}.mono{font-family:monospace}
+          .empty{text-align:center;color:#888;padding:16px;font-style:italic}
+          .footer{margin-top:10px;font-size:9px;color:#888;text-align:right;border-top:1px solid #e5e7eb;padding-top:4px}
+          .kpi-row{display:flex;gap:16px;margin-bottom:12px}
+          .kpi{background:#f8f9fa;border:1px solid #e5e7eb;border-radius:6px;padding:8px 14px;min-width:120px}
+          .kpi-lbl{font-size:9px;color:#666;text-transform:uppercase;letter-spacing:.04em}
+          .kpi-val{font-size:14px;font-weight:800;color:#111;margin-top:2px}
+        </style>
+      </head><body>
+        <div class="hd">
+          <div>
+            <div class="logo">⬡ STARVL</div>
+            <h1>REL 11 — Cadastro de Produtos e Combustíveis</h1>
+            <div class="sub">${selectedClient || ''} &nbsp;|&nbsp; Emitido em ${now}</div>
+          </div>
+          <div style="text-align:right;font-size:10px;color:#888">
+            ${combFilt.length} combustível(is) &nbsp;|&nbsp; ${convFilt.length} produto(s) de conveniência
+          </div>
+        </div>
+
+        ${showComb ? `
+        <section>
+          <h2>🔴 Combustíveis <span>${combFilt.length}</span></h2>
+          ${combFilt.length === 0 ? '<div class="empty">Nenhum combustível encontrado.</div>' : `
+          <table>
+            <thead><tr>
+              <th>Cód.</th><th>Descrição</th><th>Cód. ANP</th>
+              <th class="r">Preço V1</th><th class="r">Preço V2</th>
+              <th class="r">Custo</th><th class="r">Margem</th><th class="c">Situação</th>
+            </tr></thead>
+            <tbody>${trComb || '<tr><td colspan="8" class="empty">—</td></tr>'}</tbody>
+          </table>`}
+        </section>` : ''}
+
+        ${showConv ? `
+        <section>
+          <h2>📦 Conveniência <span>${convFilt.length}</span></h2>
+          ${convFilt.length === 0 ? '<div class="empty">Nenhum produto encontrado.</div>' : `
+          <table>
+            <thead><tr>
+              <th>Cód.</th><th>Cód. Barras</th><th>Descrição</th>
+              <th>Seção</th><th>Grupo</th>
+              <th class="r">Preço V1</th><th class="r">Custo</th>
+              <th class="r">Margem</th><th class="c">Situação</th>
+            </tr></thead>
+            <tbody>${trConv || '<tr><td colspan="9" class="empty">—</td></tr>'}</tbody>
+          </table>`}
+        </section>` : ''}
+
+        <div class="footer">STARVL | REL 11 — Cadastro de Produtos e Combustíveis | ${now}</div>
+      </body></html>`;
+
+      const win = window.open('', '_blank', 'width=1100,height=800');
+      win.document.write(html);
+      win.document.close();
+      setTimeout(() => win.print(), 600);
+      setShowCadastroPanel(false);
+    } catch (err) {
+      toast(`Erro ao gerar relatório: ${err.message}`, 'error');
+    }
+  };
+
   const renderOutrosRelatorios = () => (
     <div className="other-reports-panel">
       <div className="other-reports-list">
@@ -10100,6 +10239,16 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
           </div>
           <ChevronRight size={20} />
         </button>
+
+        <button type="button" className="other-report-row" onClick={() => setShowCadastroPanel(true)}>
+          <div className="other-report-index">REL 11</div>
+          <div className="other-report-icon"><Database size={22} /></div>
+          <div className="other-report-main">
+            <strong>Cadastro de Produtos e Combustíveis</strong>
+            <span>Relação completa dos cadastros com código, preço, custo, margem e situação</span>
+          </div>
+          <ChevronRight size={20} />
+        </button>
       </div>
 
       {showRankingPrintPanel && (
@@ -10185,6 +10334,71 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
           onClose={() => setShowComprasPanel(false)}
           onGenerate={handleGenerateComprasReport}
         />
+      )}
+
+      {showCadastroPanel && (
+        <div className="modal-overlay control-print-overlay">
+          <div className="control-print-panel ranking-filter-panel" style={{ maxWidth:460 }}>
+            <div className="ranking-filter-header">
+              <div>
+                <div style={{ fontSize:16, fontWeight:800 }}>REL 11 — Cadastro de Produtos</div>
+                <div style={{ fontSize:12, color:'#64748b', marginTop:3 }}>Relação de produtos e combustíveis cadastrados</div>
+              </div>
+              <button onClick={() => setShowCadastroPanel(false)} className="ranking-close-btn">✕</button>
+            </div>
+
+            <div style={{ display:'flex', flexDirection:'column', gap:14, marginTop:18 }}>
+              <div>
+                <label style={{ fontSize:11, fontWeight:700, color:'#64748b', textTransform:'uppercase', letterSpacing:'.06em', display:'block', marginBottom:6 }}>Tipo de Produto</label>
+                <div style={{ display:'flex', gap:8 }}>
+                  {[['todos','Todos'],['combustiveis','Combustíveis'],['convenio','Conveniência']].map(([v,l]) => (
+                    <button key={v} onClick={() => setCadastroFilters(f => ({...f, tipo:v}))}
+                      style={{ flex:1, padding:'8px 0', borderRadius:7, fontSize:12, fontWeight:700, cursor:'pointer', border:'none',
+                        background: cadastroFilters.tipo===v ? '#E31E24' : '#1f2937',
+                        color: cadastroFilters.tipo===v ? '#fff' : '#94a3b8' }}>
+                      {l}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label style={{ fontSize:11, fontWeight:700, color:'#64748b', textTransform:'uppercase', letterSpacing:'.06em', display:'block', marginBottom:6 }}>Situação</label>
+                <div style={{ display:'flex', gap:8 }}>
+                  {[['todos','Todos'],['ativo','Somente Ativos'],['inativo','Somente Inativos']].map(([v,l]) => (
+                    <button key={v} onClick={() => setCadastroFilters(f => ({...f, situacao:v}))}
+                      style={{ flex:1, padding:'8px 0', borderRadius:7, fontSize:12, fontWeight:700, cursor:'pointer', border:'none',
+                        background: cadastroFilters.situacao===v ? '#E31E24' : '#1f2937',
+                        color: cadastroFilters.situacao===v ? '#fff' : '#94a3b8' }}>
+                      {l}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label style={{ fontSize:11, fontWeight:700, color:'#64748b', textTransform:'uppercase', letterSpacing:'.06em', display:'block', marginBottom:6 }}>Buscar por nome</label>
+                <input
+                  value={cadastroFilters.busca}
+                  onChange={e => setCadastroFilters(f => ({...f, busca:e.target.value}))}
+                  placeholder="Filtrar por descrição..."
+                  style={{ width:'100%', boxSizing:'border-box', padding:'9px 12px', borderRadius:8, border:'1px solid #2a2a2a', background:'#111', color:'#f8fafc', fontSize:13, outline:'none' }}
+                />
+              </div>
+            </div>
+
+            <div style={{ display:'flex', gap:10, marginTop:22 }}>
+              <button onClick={() => setShowCadastroPanel(false)}
+                style={{ flex:1, padding:'11px 0', background:'#1f2937', color:'#94a3b8', border:'1px solid #374151', borderRadius:8, fontWeight:600, fontSize:13, cursor:'pointer' }}>
+                Cancelar
+              </button>
+              <button onClick={handleGenerateCadastroReport}
+                style={{ flex:2, padding:'11px 0', background:'linear-gradient(135deg,#E31E24,#b91c1c)', color:'#fff', border:'none', borderRadius:8, fontWeight:700, fontSize:14, cursor:'pointer' }}>
+                📄 Gerar Relatório PDF
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
     </div>

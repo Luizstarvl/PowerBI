@@ -491,4 +491,89 @@ router.get('/consolidado', async (req, res) => {
   }
 });
 
+// GET /api/relatorios/cadastro-produtos?empresa=7432
+// REL 11 — Relação de cadastros de produtos (conveniência) e combustíveis
+router.get('/cadastro-produtos', async (req, res) => {
+  const empresa = parseInt(req.query.empresa);
+  if (!empresa) return res.status(400).json({ error: 'empresa is required' });
+
+  try {
+    // ── Combustíveis (prodtipo = 1) ──────────────────────────────────────
+    const combResult = await query(
+      `SELECT
+         p.prodcodigo          AS cod,
+         p.proddescricao       AS descricao,
+         p.prodanp             AS anp,
+         ep.e_prodv1           AS preco_v1,
+         ep.e_prodv2           AS preco_v2,
+         ep.e_prodcusto        AS custo,
+         CASE WHEN ep.e_prodinativo IS NOT NULL THEN 'INATIVO' ELSE 'ATIVO' END AS situacao
+       FROM prod p
+       JOIN e_prod ep
+         ON ep.e_prodproduto = p.prodcodigo
+        AND ep.e_prodempresa = $1
+       WHERE p.prodtipo = 1
+       ORDER BY p.proddescricao`,
+      [empresa]
+    );
+
+    // ── Conveniência (prodtipo != 1) ─────────────────────────────────────
+    const convResult = await query(
+      `SELECT
+         p.prodcodigo          AS cod,
+         p.prodbarra           AS cod_barra,
+         p.proddescricao       AS descricao,
+         s.sprodescricao       AS secao,
+         g.gprodescricao       AS grupo,
+         ep.e_prodv1           AS preco_v1,
+         ep.e_prodcusto        AS custo,
+         CASE WHEN ep.e_prodinativo IS NOT NULL THEN 'INATIVO' ELSE 'ATIVO' END AS situacao
+       FROM prod p
+       JOIN e_prod ep
+         ON ep.e_prodproduto = p.prodcodigo
+        AND ep.e_prodempresa = $1
+       LEFT JOIN LATERAL (
+           SELECT s.sprodescricao FROM spro s WHERE s.sprocodigo = p.prodsecao LIMIT 1
+       ) s ON TRUE
+       LEFT JOIN LATERAL (
+           SELECT g.gprodescricao FROM gpro g
+           WHERE g.gprosecao = p.prodsecao AND g.gprocodigo = p.prodgrupo LIMIT 1
+       ) g ON TRUE
+       WHERE p.prodtipo != 1
+       ORDER BY s.sprodescricao NULLS LAST, g.gprodescricao NULLS LAST, p.proddescricao`,
+      [empresa]
+    );
+
+    const parseF = v => parseFloat(v || 0);
+    const margem = (preco, custo) => preco > 0 ? ((preco - custo) / preco * 100) : 0;
+
+    res.json({
+      combustiveis: combResult.rows.map(r => ({
+        cod:       r.cod,
+        descricao: r.descricao || '',
+        anp:       r.anp       || '',
+        precoV1:   parseF(r.preco_v1),
+        precoV2:   parseF(r.preco_v2),
+        custo:     parseF(r.custo),
+        margem:    margem(parseF(r.preco_v1), parseF(r.custo)),
+        situacao:  r.situacao,
+      })),
+      convenio: convResult.rows.map(r => ({
+        cod:       r.cod,
+        codBarra:  r.cod_barra  || '',
+        descricao: r.descricao  || '',
+        secao:     r.secao      || 'Sem Categoria',
+        grupo:     r.grupo      || '',
+        precoV1:   parseF(r.preco_v1),
+        custo:     parseF(r.custo),
+        margem:    margem(parseF(r.preco_v1), parseF(r.custo)),
+        situacao:  r.situacao,
+      })),
+    });
+  } catch (err) {
+    console.error('Error in /relatorios/cadastro-produtos:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
