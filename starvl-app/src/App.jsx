@@ -61,7 +61,7 @@ const DEFAULT_FOLDERS = [
 const FOLDER_EMOJIS = ['📦','🛒','🥤','⛽','🔧','🍕','☕','🍫','🧴','🔑','💊','🎮','👕','🛠','🌿','🥩','🍞','🧃','🫙','💡','🏪','🧹','🧊','🍎','🧆','🎁','🪴','🐾','🔩','📷'];
 function slugify(str) {
   return str.trim().toLowerCase()
-    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
     .replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '')
     .substring(0, 40);
 }
