@@ -226,10 +226,20 @@ router.get('/convenio', async (req, res) => {
            ORDER BY k.kardexdata DESC
            LIMIT 1
        ) k ON TRUE
-       LEFT JOIN spro s ON s.sprocodigo = p1.prodsecao
-       LEFT JOIN gpro g ON g.gprosecao = p1.prodsecao
-                       AND g.gprocodigo = p1.prodgrupo
-       ORDER BY 6, 8, 4`,
+       LEFT JOIN LATERAL (
+           SELECT s.sprocodigo, s.sprodescricao
+           FROM spro s
+           WHERE s.sprocodigo = p1.prodsecao
+           LIMIT 1
+       ) s ON TRUE
+       LEFT JOIN LATERAL (
+           SELECT g.gprocodigo, g.gprodescricao
+           FROM gpro g
+           WHERE g.gprosecao = p1.prodsecao
+             AND g.gprocodigo = p1.prodgrupo
+           LIMIT 1
+       ) g ON TRUE
+       ORDER BY s.sprodescricao, g.gprodescricao, p1.proddescricao`,
       [empresa]
     );
 
