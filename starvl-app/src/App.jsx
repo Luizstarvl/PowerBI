@@ -49,6 +49,22 @@ function periodToApi(period) {
 // ─── Global formatters ─────────────────────────────────────────────────────
 const fmtBRL  = v => 'R$ ' + Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtDate = s => { if (!s) return '—'; const [y, m, d] = String(s).substring(0, 10).split('-'); return `${d}/${m}/${y}`; };
+
+// ─── Repositório de Imagens — constantes globais ────────────────────────────
+const DEFAULT_FOLDERS = [
+  { id: 'alimentos',     label: 'Alimentos',     emoji: '🛒', order: 0 },
+  { id: 'bebidas',       label: 'Bebidas',        emoji: '🥤', order: 1 },
+  { id: 'combustiveis',  label: 'Combustíveis',   emoji: '⛽', order: 2 },
+  { id: 'lubrificantes', label: 'Lubrificantes',  emoji: '🔧', order: 3 },
+  { id: 'outros',        label: 'Outros',          emoji: '📦', order: 4 },
+];
+const FOLDER_EMOJIS = ['📦','🛒','🥤','⛽','🔧','🍕','☕','🍫','🧴','🔑','💊','🎮','👕','🛠','🌿','🥩','🍞','🧃','🫙','💡','🏪','🧹','🧊','🍎','🧆','🎁','🪴','🐾','🔩','📷'];
+function slugify(str) {
+  return str.trim().toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '')
+    .substring(0, 40);
+}
 const fmtNum  = (v, dec = 0) => Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: dec, maximumFractionDigits: dec });
 const fmt2    = n => fmtNum(n, 2);
 
@@ -12826,21 +12842,38 @@ const ConvenienciaManager = ({ themeMode, selectedClient, clients }) => {
 
   // Repositório de imagens — picker no edit de produto
   const [repoPickerOpen,        setRepoPickerOpen]        = useState(false);
-  const [repoPickerFolder,      setRepoPickerFolder]      = useState('alimentos');
-  const [repoPickerImgsByFolder,setRepoPickerImgsByFolder]= useState({});   // { [folder]: { [name]: dataUrl } }
+  const [repoPickerFolders,     setRepoPickerFolders]     = useState([]);
+  const [repoPickerFolder,      setRepoPickerFolder]      = useState('');
+  const [repoPickerImgsByFolder,setRepoPickerImgsByFolder]= useState({});
   const [repoPickerLoading,     setRepoPickerLoading]     = useState(false);
   const [repoPickerSearch,      setRepoPickerSearch]      = useState('');
 
   const openRepoPicker = async () => {
     setRepoPickerOpen(true);
     setRepoPickerSearch('');
-    setRepoPickerFolder('alimentos');
     setRepoPickerImgsByFolder({});
+    // Carrega lista de pastas do servidor
+    try {
+      const r = await fetch(`${API_URL}/api/imagens/_folders`);
+      const data = r.ok ? await r.json() : null;
+      let folders = DEFAULT_FOLDERS;
+      if (data && Object.keys(data).length > 0) {
+        folders = Object.entries(data).map(([id, raw]) => {
+          try { const p = JSON.parse(raw); return { id, label: p.label||id, emoji: p.emoji||'📦', order: p.order??99 }; }
+          catch { return { id, label:id, emoji:'📦', order:99 }; }
+        }).sort((a,b) => a.order - b.order || a.label.localeCompare(b.label));
+      }
+      setRepoPickerFolders(folders);
+      setRepoPickerFolder(folders[0]?.id || '');
+    } catch {
+      setRepoPickerFolders(DEFAULT_FOLDERS);
+      setRepoPickerFolder(DEFAULT_FOLDERS[0].id);
+    }
   };
 
-  // Carrega pasta do picker quando muda
+  // Carrega imagens da pasta selecionada no picker
   useEffect(() => {
-    if (!repoPickerOpen) return;
+    if (!repoPickerOpen || !repoPickerFolder) return;
     if (repoPickerImgsByFolder[repoPickerFolder] !== undefined) return;
     setRepoPickerLoading(true);
     fetch(`${API_URL}/api/imagens/${repoPickerFolder}`)
@@ -13616,7 +13649,7 @@ const ConvenienciaManager = ({ themeMode, selectedClient, clients }) => {
 
               {/* Folder tabs */}
               <div style={{ display:'flex', gap:6, padding:'10px 20px', borderBottom:'1px solid #1e1e1e', flexWrap:'wrap', background:'#0f0f0f' }}>
-                {REPO_FOLDERS.map(f => (
+                {repoPickerFolders.map(f => (
                   <button
                     key={f.id}
                     type="button"
@@ -13649,7 +13682,7 @@ const ConvenienciaManager = ({ themeMode, selectedClient, clients }) => {
                   <div style={{ textAlign:'center', color:'#475569', padding:40, fontSize:13 }}>⏳ Carregando...</div>
                 ) : Object.keys(pickerFolderImgs).length === 0 ? (
                   <div style={{ textAlign:'center', color:'#475569', padding:40, fontSize:13 }}>
-                    Nenhuma imagem em <strong>{REPO_FOLDERS.find(f=>f.id===repoPickerFolder)?.label}</strong>.<br />
+                    Nenhuma imagem em <strong>{repoPickerFolders.find(f=>f.id===repoPickerFolder)?.label}</strong>.<br />
                     <span style={{ fontSize:11 }}>Acesse Configurações → Repositório de Imagens para adicionar.</span>
                   </div>
                 ) : pickerKeys.length === 0 ? (
@@ -14457,45 +14490,124 @@ const UserEditModal = ({ user, mode, onClose, onSave, existingImg }) => {
 };
 
 // Parameters Component
-const REPO_FOLDERS = [
-  { id: 'alimentos',     label: 'Alimentos',     emoji: '🛒' },
-  { id: 'bebidas',       label: 'Bebidas',        emoji: '🥤' },
-  { id: 'combustiveis',  label: 'Combustíveis',   emoji: '⛽' },
-  { id: 'lubrificantes', label: 'Lubrificantes',  emoji: '🔧' },
-  { id: 'outros',        label: 'Outros',          emoji: '📦' },
-];
-
 const Parameters = ({ clients, setClients, isAdmin }) => {
   // ── Navegação principal ────────────────────────────────────────────────────
   const [paramTab, setParamTab] = useState('repositorio');
 
+  // ── Pastas dinâmicas ──────────────────────────────────────────────────────
+  const [repoFolders,    setRepoFolders]    = useState([]);
+  const [foldersLoading, setFoldersLoading] = useState(true);
+  // Modal de pasta: null | { mode:'create' } | { mode:'edit', folder:{id,label,emoji} }
+  const [folderModal,    setFolderModal]    = useState(null);
+  const [folderForm,     setFolderForm]     = useState({ label:'', emoji:'📦' });
+  const [folderSaving,   setFolderSaving]   = useState(false);
+  const [folderDeleting, setFolderDeleting] = useState(null);
+  const [deleteConfirm,  setDeleteConfirm]  = useState(null); // folder a confirmar exclusão
+
+  // Carrega pastas do servidor
+  useEffect(() => {
+    setFoldersLoading(true);
+    fetch(`${API_URL}/api/imagens/_folders`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (!data || Object.keys(data).length === 0) {
+          // Nenhuma pasta salva: seed com as defaults
+          setRepoFolders(DEFAULT_FOLDERS);
+          setRepoFolder(DEFAULT_FOLDERS[0].id);
+        } else {
+          const folders = Object.entries(data).map(([id, raw]) => {
+            try { const p = JSON.parse(raw); return { id, label: p.label || id, emoji: p.emoji || '📦', order: p.order ?? 99 }; }
+            catch { return { id, label: id, emoji: '📦', order: 99 }; }
+          }).sort((a, b) => a.order - b.order || a.label.localeCompare(b.label));
+          setRepoFolders(folders);
+          setRepoFolder(f => folders.find(x => x.id === f) ? f : folders[0]?.id || '');
+        }
+      })
+      .catch(() => { setRepoFolders(DEFAULT_FOLDERS); setRepoFolder(DEFAULT_FOLDERS[0].id); })
+      .finally(() => setFoldersLoading(false));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const saveFolderToApi = async (id, label, emoji, order) => {
+    const res = await fetch(`${API_URL}/api/imagens/_folders/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dados: JSON.stringify({ label, emoji, order }) }),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  };
+
+  const handleSaveFolder = async () => {
+    const label = folderForm.label.trim();
+    if (!label) return;
+    setFolderSaving(true);
+    try {
+      if (folderModal.mode === 'create') {
+        const id = slugify(label) || `pasta_${Date.now()}`;
+        if (repoFolders.some(f => f.id === id)) {
+          toast('Já existe uma pasta com esse nome.', 'warn'); setFolderSaving(false); return;
+        }
+        const order = repoFolders.length;
+        await saveFolderToApi(id, label, folderForm.emoji, order);
+        const newFolder = { id, label, emoji: folderForm.emoji, order };
+        setRepoFolders(prev => [...prev, newFolder]);
+        setRepoFolder(id);
+        toast(`Pasta "${label}" criada!`, 'success');
+      } else {
+        // edit — mantém mesmo id (imagens ficam intactas)
+        const { id, order } = folderModal.folder;
+        await saveFolderToApi(id, label, folderForm.emoji, order);
+        setRepoFolders(prev => prev.map(f => f.id === id ? { ...f, label, emoji: folderForm.emoji } : f));
+        toast(`Pasta atualizada!`, 'success');
+      }
+      setFolderModal(null);
+    } catch (err) {
+      toast(`Erro ao salvar pasta: ${err.message}`, 'error');
+    }
+    setFolderSaving(false);
+  };
+
+  const handleDeleteFolder = async (folder) => {
+    setFolderDeleting(folder.id);
+    try {
+      await fetch(`${API_URL}/api/imagens/_folders/${encodeURIComponent(folder.id)}`, { method: 'DELETE' });
+      const updated = repoFolders.filter(f => f.id !== folder.id);
+      setRepoFolders(updated);
+      if (repoFolder === folder.id) setRepoFolder(updated[0]?.id || '');
+      setDeleteConfirm(null);
+      toast(`Pasta "${folder.label}" removida.`, 'success');
+    } catch (err) {
+      toast(`Erro ao remover pasta: ${err.message}`, 'error');
+    }
+    setFolderDeleting(null);
+  };
+
   // ── Repositório de Imagens ─────────────────────────────────────────────────
-  const [repoFolder,    setRepoFolder]    = useState('alimentos');
-  const [repoImgs,      setRepoImgs]      = useState({});       // { [folder]: { [name]: dataUrl } }
+  const [repoFolder,    setRepoFolder]    = useState('');
+  const [repoImgs,      setRepoImgs]      = useState({});
   const [repoLoading,   setRepoLoading]   = useState(false);
   const [repoUploading, setRepoUploading] = useState(false);
   const [repoNewName,   setRepoNewName]   = useState('');
   const [repoDeleting,  setRepoDeleting]  = useState(null);
   const repoFileRef = useRef(null);
 
-  // Carrega imagens da pasta ativa quando muda de pasta
   useEffect(() => {
-    if (paramTab !== 'repositorio') return;
-    if (repoImgs[repoFolder] !== undefined) return; // já carregado
+    if (paramTab !== 'repositorio' || !repoFolder) return;
+    if (repoImgs[repoFolder] !== undefined) return;
     setRepoLoading(true);
     fetch(`${API_URL}/api/imagens/${repoFolder}`)
       .then(r => r.ok ? r.json() : {})
       .then(data => setRepoImgs(prev => ({ ...prev, [repoFolder]: data })))
       .catch(() => setRepoImgs(prev => ({ ...prev, [repoFolder]: {} })))
       .finally(() => setRepoLoading(false));
-  }, [paramTab, repoFolder]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [paramTab, repoFolder]); // eslint-disable-line react-hooksectives
 
-  const folderImgs = repoImgs[repoFolder] || null; // null = ainda não carregado
+  const folderImgs = repoFolder ? (repoImgs[repoFolder] ?? null) : null;
+  const activeFolder = repoFolders.find(f => f.id === repoFolder);
 
   const handleRepoUpload = async (e) => {
     const file = e.target.files[0];
     e.target.value = '';
-    if (!file) return;
+    if (!file || !repoFolder) return;
     const name = (repoNewName.trim() || file.name.replace(/\.[^.]+$/, '')).replace(/\s+/g, '_').toLowerCase();
     setRepoUploading(true);
     try {
@@ -14503,17 +14615,14 @@ const Parameters = ({ clients, setClients, isAdmin }) => {
       const raw = await new Promise((res, rej) => { reader.onload = ev => res(ev.target.result); reader.onerror = rej; reader.readAsDataURL(file); });
       const compressed = await compressImage(raw, 900, 0.82);
       const res = await fetch(`${API_URL}/api/imagens/${repoFolder}/${encodeURIComponent(name)}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ dados: compressed }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setRepoImgs(prev => ({ ...prev, [repoFolder]: { ...(prev[repoFolder] || {}), [name]: compressed } }));
       setRepoNewName('');
-      toast(`Imagem "${name}" adicionada em ${REPO_FOLDERS.find(f=>f.id===repoFolder)?.label}!`, 'success');
-    } catch (err) {
-      toast(`Erro ao enviar imagem: ${err.message}`, 'error');
-    }
+      toast(`Imagem "${name}" adicionada em ${activeFolder?.label || repoFolder}!`, 'success');
+    } catch (err) { toast(`Erro ao enviar imagem: ${err.message}`, 'error'); }
     setRepoUploading(false);
   };
 
@@ -14522,20 +14631,14 @@ const Parameters = ({ clients, setClients, isAdmin }) => {
     try {
       const res = await fetch(`${API_URL}/api/imagens/${repoFolder}/${encodeURIComponent(name)}`, { method: 'DELETE' });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      setRepoImgs(prev => {
-        const folder = { ...(prev[repoFolder] || {}) };
-        delete folder[name];
-        return { ...prev, [repoFolder]: folder };
-      });
+      setRepoImgs(prev => { const f = { ...(prev[repoFolder] || {}) }; delete f[name]; return { ...prev, [repoFolder]: f }; });
       toast(`Imagem "${name}" removida.`, 'success');
-    } catch (err) {
-      toast(`Erro ao remover: ${err.message}`, 'error');
-    }
+    } catch (err) { toast(`Erro ao remover: ${err.message}`, 'error'); }
     setRepoDeleting(null);
   };
 
   // ── Render ─────────────────────────────────────────────────────────────────
-  const tabs = [
+  const mainTabs = [
     { id: 'repositorio', label: '📁 Repositório de Imagens' },
     ...(isAdmin ? [{ id: 'clientes', label: '👥 Clientes / Postos' }] : []),
   ];
@@ -14545,13 +14648,10 @@ const Parameters = ({ clients, setClients, isAdmin }) => {
       {/* ── Barra de abas principal ─────────────────────────────────────── */}
       <div className="estoque-tab-bar" style={{ marginBottom: 20 }}>
         <div className="vp-toggle-group">
-          {tabs.map(t => (
-            <button
-              key={t.id}
-              type="button"
+          {mainTabs.map(t => (
+            <button key={t.id} type="button"
               className={`vp-period-btn vp-secao-btn${paramTab === t.id ? ' active' : ''}`}
-              onClick={() => setParamTab(t.id)}
-            >
+              onClick={() => setParamTab(t.id)}>
               {t.label}
             </button>
           ))}
@@ -14570,100 +14670,128 @@ const Parameters = ({ clients, setClients, isAdmin }) => {
             Organize as imagens por categoria. Elas ficarão disponíveis nos cadastros de produtos de conveniência.
           </p>
 
-          {/* ── Pastas / categorias ───────────────────────────────────── */}
-          <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginBottom:20 }}>
-            {REPO_FOLDERS.map(f => (
-              <button
-                key={f.id}
-                type="button"
-                onClick={() => setRepoFolder(f.id)}
-                style={{
-                  display:'flex', alignItems:'center', gap:7,
-                  padding:'8px 16px', borderRadius:9, cursor:'pointer',
-                  fontSize:12, fontWeight: repoFolder===f.id ? 700 : 400,
-                  border: repoFolder===f.id ? '1px solid rgba(227,30,36,0.6)' : '1px solid #2a2a2a',
-                  background: repoFolder===f.id ? 'rgba(227,30,36,0.1)' : '#1a1a1a',
-                  color: repoFolder===f.id ? '#E31E24' : '#94a3b8',
-                  transition:'all 0.18s',
-                }}
-              >
-                <span style={{ fontSize:15 }}>{f.emoji}</span>
-                {f.label}
-                {repoImgs[f.id] !== undefined && (
-                  <span style={{
-                    fontSize:10, fontWeight:700, marginLeft:2,
-                    background: repoFolder===f.id ? 'rgba(227,30,36,0.2)' : '#252525',
-                    color: repoFolder===f.id ? '#E31E24' : '#64748b',
-                    borderRadius:10, padding:'1px 6px',
+          {/* ── Pastas ─────────────────────────────────────────────────── */}
+          {foldersLoading ? (
+            <div style={{ color:'#475569', fontSize:12, padding:'8px 0' }}>⏳ Carregando pastas...</div>
+          ) : (
+            <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginBottom:20, alignItems:'center' }}>
+              {repoFolders.map(f => (
+                <div key={f.id} style={{ position:'relative', display:'inline-flex' }}
+                  onMouseEnter={e => { const btns = e.currentTarget.querySelector('.folder-actions'); if (btns) btns.style.opacity='1'; }}
+                  onMouseLeave={e => { const btns = e.currentTarget.querySelector('.folder-actions'); if (btns) btns.style.opacity='0'; }}
+                >
+                  <button type="button" onClick={() => setRepoFolder(f.id)}
+                    style={{
+                      display:'flex', alignItems:'center', gap:7,
+                      padding:'8px 14px 8px 14px', borderRadius:9, cursor:'pointer',
+                      fontSize:12, fontWeight: repoFolder===f.id ? 700 : 400,
+                      border: repoFolder===f.id ? '1px solid rgba(227,30,36,0.6)' : '1px solid #2a2a2a',
+                      background: repoFolder===f.id ? 'rgba(227,30,36,0.1)' : '#1a1a1a',
+                      color: repoFolder===f.id ? '#E31E24' : '#94a3b8',
+                      transition:'all 0.18s', paddingRight: repoFolder===f.id ? 38 : 14,
+                    }}>
+                    <span style={{ fontSize:15 }}>{f.emoji}</span>
+                    {f.label}
+                    {repoImgs[f.id] !== undefined && (
+                      <span style={{
+                        fontSize:10, fontWeight:700,
+                        background: repoFolder===f.id ? 'rgba(227,30,36,0.2)' : '#252525',
+                        color: repoFolder===f.id ? '#E31E24' : '#64748b',
+                        borderRadius:10, padding:'1px 6px',
+                      }}>{Object.keys(repoImgs[f.id]).length}</span>
+                    )}
+                  </button>
+                  {/* Botões editar/excluir — aparecem no hover */}
+                  <div className="folder-actions" style={{
+                    position:'absolute', right:4, top:'50%', transform:'translateY(-50%)',
+                    display:'flex', gap:2, opacity:0, transition:'opacity 0.15s',
                   }}>
-                    {Object.keys(repoImgs[f.id]).length}
+                    <button type="button"
+                      onClick={e => { e.stopPropagation(); setFolderForm({ label:f.label, emoji:f.emoji }); setFolderModal({ mode:'edit', folder:f }); }}
+                      style={{ background:'rgba(30,36,48,0.9)', border:'none', borderRadius:5, padding:'3px 5px', cursor:'pointer', color:'#94a3b8', display:'flex', alignItems:'center' }}
+                      title="Editar pasta">
+                      <Edit2 size={11} />
+                    </button>
+                    <button type="button"
+                      onClick={e => { e.stopPropagation(); setDeleteConfirm(f); }}
+                      style={{ background:'rgba(30,36,48,0.9)', border:'none', borderRadius:5, padding:'3px 5px', cursor:'pointer', color:'#ef4444', display:'flex', alignItems:'center' }}
+                      title="Excluir pasta">
+                      <Trash2 size={11} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+
+              {/* Botão nova pasta */}
+              <button type="button"
+                onClick={() => { setFolderForm({ label:'', emoji:'📦' }); setFolderModal({ mode:'create' }); }}
+                style={{
+                  display:'flex', alignItems:'center', gap:6, padding:'8px 14px',
+                  borderRadius:9, cursor:'pointer', fontSize:12,
+                  border:'1px dashed #3a3a3a', background:'transparent',
+                  color:'#64748b', transition:'all 0.18s',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor='#E31E24'; e.currentTarget.style.color='#E31E24'; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor='#3a3a3a'; e.currentTarget.style.color='#64748b'; }}
+              >
+                <Plus size={13} /> Nova Pasta
+              </button>
+            </div>
+          )}
+
+          {/* ── Cabeçalho da pasta ativa + upload ─────────────────────── */}
+          {activeFolder && (
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14, flexWrap:'wrap', gap:10 }}>
+              <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                <span style={{ fontSize:18 }}>{activeFolder.emoji}</span>
+                <span style={{ fontSize:13, fontWeight:700, color:'#e2e8f0', letterSpacing:'0.5px' }}>{activeFolder.label}</span>
+                {folderImgs && (
+                  <span style={{ fontSize:11, color:'#475569' }}>
+                    — {Object.keys(folderImgs).length} {Object.keys(folderImgs).length === 1 ? 'imagem' : 'imagens'}
                   </span>
                 )}
-              </button>
-            ))}
-          </div>
-
-          {/* ── Cabeçalho da pasta ativa ───────────────────────────────── */}
-          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14, flexWrap:'wrap', gap:10 }}>
-            <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-              <span style={{ fontSize:18 }}>{REPO_FOLDERS.find(f=>f.id===repoFolder)?.emoji}</span>
-              <span style={{ fontSize:13, fontWeight:700, color:'#e2e8f0', letterSpacing:'0.5px' }}>
-                {REPO_FOLDERS.find(f=>f.id===repoFolder)?.label}
-              </span>
-              {folderImgs && (
-                <span style={{ fontSize:11, color:'#475569' }}>
-                  — {Object.keys(folderImgs).length} {Object.keys(folderImgs).length === 1 ? 'imagem' : 'imagens'}
-                </span>
-              )}
+              </div>
+              <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
+                <input type="text" value={repoNewName} onChange={e => setRepoNewName(e.target.value)}
+                  placeholder="Nome da imagem (opcional)"
+                  style={{ background:'#1a1a1a', border:'1px solid #2a2a2a', borderRadius:8, padding:'8px 13px', color:'#e2e8f0', fontSize:12, outline:'none', width:190 }}
+                />
+                <input ref={repoFileRef} type="file" accept="image/*" style={{ display:'none' }} onChange={handleRepoUpload} />
+                <button type="button" className="btn-primary"
+                  style={{ display:'flex', alignItems:'center', gap:6, padding:'8px 16px', fontSize:12 }}
+                  onClick={() => repoFileRef.current?.click()} disabled={repoUploading}>
+                  <ImagePlus size={14} />
+                  {repoUploading ? 'ENVIANDO...' : 'ADICIONAR'}
+                </button>
+              </div>
             </div>
-
-            {/* Upload row */}
-            <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
-              <input
-                type="text"
-                value={repoNewName}
-                onChange={e => setRepoNewName(e.target.value)}
-                placeholder="Nome da imagem (opcional)"
-                style={{ background:'#1a1a1a', border:'1px solid #2a2a2a', borderRadius:8, padding:'8px 13px', color:'#e2e8f0', fontSize:12, outline:'none', width:190 }}
-              />
-              <input ref={repoFileRef} type="file" accept="image/*" style={{ display:'none' }} onChange={handleRepoUpload} />
-              <button
-                type="button"
-                className="btn-primary"
-                style={{ display:'flex', alignItems:'center', gap:6, padding:'8px 16px', fontSize:12 }}
-                onClick={() => repoFileRef.current?.click()}
-                disabled={repoUploading}
-              >
-                <ImagePlus size={14} />
-                {repoUploading ? 'ENVIANDO...' : 'ADICIONAR'}
-              </button>
-            </div>
-          </div>
+          )}
 
           {/* ── Grade de imagens ───────────────────────────────────────── */}
-          {folderImgs === null || repoLoading ? (
+          {!activeFolder ? (
+            <div style={{ textAlign:'center', color:'#334155', padding:48, fontSize:13, border:'1px dashed #2a2a2a', borderRadius:12 }}>
+              Nenhuma pasta criada ainda.<br />
+              <span style={{ fontSize:11 }}>Clique em "+ Nova Pasta" para começar.</span>
+            </div>
+          ) : folderImgs === null || repoLoading ? (
             <div style={{ textAlign:'center', color:'#475569', padding:48, fontSize:13 }}>⏳ Carregando...</div>
           ) : Object.keys(folderImgs).length === 0 ? (
             <div style={{ textAlign:'center', color:'#334155', padding:48, fontSize:13, border:'1px dashed #2a2a2a', borderRadius:12 }}>
-              Nenhuma imagem em <strong style={{ color:'#64748b' }}>{REPO_FOLDERS.find(f=>f.id===repoFolder)?.label}</strong> ainda.<br />
+              Nenhuma imagem em <strong style={{ color:'#64748b' }}>{activeFolder.label}</strong> ainda.<br />
               <span style={{ fontSize:11 }}>Use o botão ADICIONAR para enviar a primeira imagem.</span>
             </div>
           ) : (
             <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(130px, 1fr))', gap:14 }}>
               {Object.entries(folderImgs).map(([name, dataUrl]) => (
-                <div key={name} style={{ borderRadius:10, border:'1px solid #2a2a2a', overflow:'hidden', background:'#141414', position:'relative' }}>
+                <div key={name} style={{ borderRadius:10, border:'1px solid #2a2a2a', overflow:'hidden', background:'#141414' }}>
                   <div style={{ width:'100%', aspectRatio:'1/1', overflow:'hidden', background:'#0a0a0a' }}>
                     <img src={dataUrl} alt={name} style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }} />
                   </div>
                   <div style={{ padding:'7px 8px 6px', display:'flex', alignItems:'center', justifyContent:'space-between', gap:4 }}>
                     <span style={{ fontSize:10, color:'#94a3b8', wordBreak:'break-all', lineHeight:1.3, flex:1 }}>{name}</span>
-                    <button
-                      type="button"
-                      onClick={() => handleRepoDelete(name)}
-                      disabled={repoDeleting === name}
-                      style={{ background:'transparent', border:'none', cursor:'pointer', color:repoDeleting===name ? '#475569' : '#ef4444', padding:'2px', display:'flex', flexShrink:0 }}
-                      title={`Remover "${name}"`}
-                    >
+                    <button type="button" onClick={() => handleRepoDelete(name)} disabled={repoDeleting===name}
+                      style={{ background:'transparent', border:'none', cursor:'pointer', color:repoDeleting===name?'#475569':'#ef4444', padding:'2px', display:'flex', flexShrink:0 }}
+                      title={`Remover "${name}"`}>
                       <Trash2 size={12} />
                     </button>
                   </div>
@@ -14684,6 +14812,98 @@ const Parameters = ({ clients, setClients, isAdmin }) => {
           </div>
           <div className="params-admin-section">
             <AdminPanel clients={clients} setClients={setClients} />
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal criar / editar pasta ──────────────────────────────────── */}
+      {folderModal && (
+        <div style={{ position:'fixed', inset:0, zIndex:9999, background:'rgba(0,0,0,0.7)', display:'flex', alignItems:'center', justifyContent:'center', padding:24 }}
+          onClick={() => setFolderModal(null)}>
+          <div style={{ background:'#141414', border:'1px solid #2a2a2a', borderRadius:14, width:'100%', maxWidth:420, padding:28 }}
+            onClick={e => e.stopPropagation()}>
+            {/* Cabeçalho */}
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:22 }}>
+              <span style={{ fontSize:14, fontWeight:700, color:'#e2e8f0', letterSpacing:'0.5px' }}>
+                {folderModal.mode === 'create' ? '+ Nova Pasta' : '✏️ Editar Pasta'}
+              </span>
+              <button onClick={() => setFolderModal(null)} style={{ background:'transparent', border:'none', cursor:'pointer', color:'#64748b', display:'flex' }}>
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Nome */}
+            <label style={{ fontSize:11, color:'#64748b', letterSpacing:'0.8px', display:'block', marginBottom:6 }}>NOME DA PASTA</label>
+            <input
+              value={folderForm.label}
+              onChange={e => setFolderForm(f => ({ ...f, label: e.target.value }))}
+              placeholder="Ex: Salgadinhos, Bebidas Geladas..."
+              autoFocus
+              style={{ width:'100%', background:'#1a1a1a', border:'1px solid #2a2a2a', borderRadius:8, padding:'10px 14px', color:'#e2e8f0', fontSize:13, outline:'none', boxSizing:'border-box', marginBottom:20 }}
+            />
+
+            {/* Emoji */}
+            <label style={{ fontSize:11, color:'#64748b', letterSpacing:'0.8px', display:'block', marginBottom:8 }}>ÍCONE</label>
+            <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:14 }}>
+              <span style={{ fontSize:28, lineHeight:1 }}>{folderForm.emoji}</span>
+              <input
+                value={folderForm.emoji}
+                onChange={e => setFolderForm(f => ({ ...f, emoji: e.target.value.trim().slice(0, 2) || '📦' }))}
+                style={{ width:70, background:'#1a1a1a', border:'1px solid #2a2a2a', borderRadius:8, padding:'8px', color:'#e2e8f0', fontSize:18, outline:'none', textAlign:'center' }}
+                placeholder="📦"
+              />
+              <span style={{ fontSize:11, color:'#475569' }}>ou escolha abaixo</span>
+            </div>
+            <div style={{ display:'flex', flexWrap:'wrap', gap:6, marginBottom:24 }}>
+              {FOLDER_EMOJIS.map(em => (
+                <button key={em} type="button" onClick={() => setFolderForm(f => ({ ...f, emoji: em }))}
+                  style={{
+                    fontSize:18, lineHeight:1, padding:'6px 8px', borderRadius:7, cursor:'pointer',
+                    border: folderForm.emoji===em ? '2px solid #E31E24' : '1px solid #2a2a2a',
+                    background: folderForm.emoji===em ? 'rgba(227,30,36,0.12)' : '#1a1a1a',
+                    transition:'all 0.12s',
+                  }}>
+                  {em}
+                </button>
+              ))}
+            </div>
+
+            {/* Ações */}
+            <div style={{ display:'flex', gap:10, justifyContent:'flex-end' }}>
+              <button type="button" onClick={() => setFolderModal(null)}
+                style={{ padding:'9px 20px', borderRadius:8, border:'1px solid #2a2a2a', background:'transparent', color:'#94a3b8', fontSize:12, cursor:'pointer' }}>
+                Cancelar
+              </button>
+              <button type="button" onClick={handleSaveFolder} disabled={folderSaving || !folderForm.label.trim()}
+                style={{ padding:'9px 22px', borderRadius:8, border:'none', background:folderForm.label.trim()?'#E31E24':'#3a3a3a', color:'#fff', fontSize:12, fontWeight:700, cursor:folderForm.label.trim()?'pointer':'not-allowed' }}>
+                {folderSaving ? 'Salvando...' : folderModal.mode === 'create' ? 'Criar Pasta' : 'Salvar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Confirmação de exclusão de pasta ─────────────────────────────── */}
+      {deleteConfirm && (
+        <div style={{ position:'fixed', inset:0, zIndex:9999, background:'rgba(0,0,0,0.7)', display:'flex', alignItems:'center', justifyContent:'center', padding:24 }}
+          onClick={() => setDeleteConfirm(null)}>
+          <div style={{ background:'#141414', border:'1px solid #3a3a3a', borderRadius:14, width:'100%', maxWidth:360, padding:28 }}
+            onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize:16, fontWeight:700, color:'#f87171', marginBottom:12 }}>⚠️ Excluir Pasta</div>
+            <p style={{ fontSize:13, color:'#94a3b8', lineHeight:1.6, marginBottom:22 }}>
+              Tem certeza que deseja excluir a pasta <strong style={{ color:'#e2e8f0' }}>"{deleteConfirm.label}"</strong>?<br />
+              <span style={{ fontSize:11, color:'#64748b' }}>As imagens dentro dela não serão apagadas do servidor, mas a pasta deixará de aparecer.</span>
+            </p>
+            <div style={{ display:'flex', gap:10, justifyContent:'flex-end' }}>
+              <button type="button" onClick={() => setDeleteConfirm(null)}
+                style={{ padding:'9px 20px', borderRadius:8, border:'1px solid #2a2a2a', background:'transparent', color:'#94a3b8', fontSize:12, cursor:'pointer' }}>
+                Cancelar
+              </button>
+              <button type="button" onClick={() => handleDeleteFolder(deleteConfirm)} disabled={!!folderDeleting}
+                style={{ padding:'9px 22px', borderRadius:8, border:'none', background:'#dc2626', color:'#fff', fontSize:12, fontWeight:700, cursor:'pointer' }}>
+                {folderDeleting ? 'Excluindo...' : 'Excluir'}
+              </button>
+            </div>
           </div>
         </div>
       )}
