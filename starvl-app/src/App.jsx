@@ -8867,41 +8867,65 @@ function exportFluxoReport({ filters, clientName }) {
 }
 
 const FluxoFilterPanel = ({ filters, setFilters, onClose, onGenerate }) => (
-  <div className="modal-overlay control-print-overlay">
-    <div className="control-print-panel ranking-filter-panel">
+  <div className="modal-overlay control-print-overlay" onClick={onClose}>
+    <div className="control-print-panel ranking-filter-panel" onClick={e => e.stopPropagation()}>
       <div className="control-print-header">
-        <h2>REL 6 — Fluxo de Caixa Operacional</h2>
-        <button onClick={onClose}><X size={18}/></button>
+        <div className="control-print-title">
+          <span className="control-print-icon"><Wallet size={25} /></span>
+          <h3>FILTROS — FLUXO DE CAIXA OPERACIONAL</h3>
+        </div>
+        <button type="button" className="control-print-close" onClick={onClose} aria-label="Fechar">
+          <X size={28} />
+        </button>
       </div>
       <div className="control-print-body">
         <div className="control-print-grid ranking-filter-grid">
-          <div className="control-print-section">
-            <div className="control-print-section-title">Conta Contábil</div>
-            <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
-              {['Todas','Entradas','Saídas'].map(c => (
-                <button key={c} type="button"
-                  className={`control-print-option${filters.conta===c?' active':''}`}
-                  onClick={() => setFilters(f => ({...f, conta:c}))}>
-                  {c}
-                </button>
-              ))}
+          <section className="control-print-section">
+            <div className="control-print-section-title">
+              <BarChart2 size={20} /><span>CONTA CONTÁBIL</span>
             </div>
-          </div>
-          <div className="control-print-section">
-            <div className="control-print-section-title">Período</div>
+            <label className={`control-print-option ${filters.conta==='Todas' ? 'selected' : ''}`}>
+              <Wallet size={28} />
+              <div><strong>TODAS</strong><span>Entradas e Saídas</span></div>
+              <input type="radio" name="fluxoConta" value="Todas" checked={filters.conta==='Todas'}
+                onChange={() => setFilters(f => ({...f, conta:'Todas'}))} />
+            </label>
+            <label className={`control-print-option ${filters.conta==='Entradas' ? 'selected' : ''}`}>
+              <TrendingUp size={28} />
+              <div><strong>ENTRADAS</strong><span>Recebimentos</span></div>
+              <input type="radio" name="fluxoConta" value="Entradas" checked={filters.conta==='Entradas'}
+                onChange={() => setFilters(f => ({...f, conta:'Entradas'}))} />
+            </label>
+            <label className={`control-print-option ${filters.conta==='Saídas' ? 'selected' : ''}`}>
+              <TrendingDown size={28} />
+              <div><strong>SAÍDAS</strong><span>Pagamentos</span></div>
+              <input type="radio" name="fluxoConta" value="Saídas" checked={filters.conta==='Saídas'}
+                onChange={() => setFilters(f => ({...f, conta:'Saídas'}))} />
+            </label>
+          </section>
+          <section className="control-print-section">
+            <div className="control-print-section-title">
+              <Calendar size={20} /><span>PERÍODO</span>
+            </div>
             <div className="control-print-date-row">
-              <div className="control-print-field">
-                <label>De</label>
-                <input type="date" className="control-print-input" value={filters.dataInicial}
-                  onChange={e => setFilters(f => ({...f, dataInicial:e.target.value}))}/>
-              </div>
-              <div className="control-print-field">
-                <label>Até</label>
-                <input type="date" className="control-print-input" value={filters.dataFinal}
-                  onChange={e => setFilters(f => ({...f, dataFinal:e.target.value}))}/>
-              </div>
+              <label className="control-print-field">
+                <span>DATA INICIAL</span>
+                <div className="control-print-input">
+                  <input type="date" value={filters.dataInicial}
+                    onChange={e => setFilters(f => ({...f, dataInicial:e.target.value}))} />
+                  <Calendar size={19} />
+                </div>
+              </label>
+              <label className="control-print-field">
+                <span>DATA FINAL</span>
+                <div className="control-print-input">
+                  <input type="date" value={filters.dataFinal}
+                    onChange={e => setFilters(f => ({...f, dataFinal:e.target.value}))} />
+                  <Calendar size={19} />
+                </div>
+              </label>
             </div>
-          </div>
+          </section>
         </div>
         <div className="control-print-section" style={{background:'#1a2535',borderRadius:6,padding:'10px 14px'}}>
           <div style={{fontSize:11,color:'#94a3b8',marginBottom:8}}>Pré-visualização</div>
@@ -8918,8 +8942,8 @@ const FluxoFilterPanel = ({ filters, setFilters, onClose, onGenerate }) => (
         </div>
       </div>
       <div className="control-print-footer">
-        <button className="btn-secondary control-print-cancel" onClick={onClose}>Cancelar</button>
-        <button className="btn-primary control-print-generate" onClick={onGenerate}>
+        <button type="button" className="btn-secondary control-print-cancel" onClick={onClose}>Cancelar</button>
+        <button type="button" className="btn-primary control-print-generate" onClick={onGenerate}>
           <Printer size={15}/> GERAR IMPRESSÃO
         </button>
       </div>
