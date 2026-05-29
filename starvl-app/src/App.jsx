@@ -2986,6 +2986,24 @@ const CT_MAQUININHAS = [
 ];
 const CT_FORM_EMPTY = { nome:'', sn:'', local:'', adquirente:'', bandeira:'Crédito', taxa:'', vencDias:'', vencTipo:'Padrão', proxVenc:'', recebPrevisto:'', recebAntecipado:'', status:'Ativa', imgMaquininha:'', imgBandeira:'' };
 
+const CT_LANC_BASE = [
+  { id:1,  data:'2026-05-28', desc:'Venda Crédito à Vista',      bruto:1250.00, parcela:'1/1', status:'Pendente'   },
+  { id:2,  data:'2026-05-28', desc:'Venda Crédito Parcelado 3x', bruto:3600.00, parcela:'1/3', status:'Pendente'   },
+  { id:3,  data:'2026-05-27', desc:'Venda Débito à Vista',        bruto:480.00,  parcela:'—',   status:'Liquidado'  },
+  { id:4,  data:'2026-05-27', desc:'Venda Crédito à Vista',      bruto:2100.00, parcela:'1/1', status:'Liquidado'  },
+  { id:5,  data:'2026-05-26', desc:'Venda Crédito Parcelado 2x', bruto:890.00,  parcela:'2/2', status:'Liquidado'  },
+  { id:6,  data:'2026-05-26', desc:'Venda Débito à Vista',        bruto:320.00,  parcela:'—',   status:'Liquidado'  },
+  { id:7,  data:'2026-05-25', desc:'Venda Crédito à Vista',      bruto:1750.00, parcela:'1/1', status:'Antecipado' },
+  { id:8,  data:'2026-05-25', desc:'Venda Crédito Parcelado 6x', bruto:5400.00, parcela:'1/6', status:'Antecipado' },
+  { id:9,  data:'2026-05-24', desc:'Venda Débito à Vista',        bruto:660.00,  parcela:'—',   status:'Liquidado'  },
+  { id:10, data:'2026-05-24', desc:'Venda Crédito à Vista',      bruto:980.00,  parcela:'1/1', status:'Liquidado'  },
+  { id:11, data:'2026-05-23', desc:'Venda Crédito Parcelado 3x', bruto:2700.00, parcela:'3/3', status:'Liquidado'  },
+  { id:12, data:'2026-05-22', desc:'Venda Débito à Vista',        bruto:540.00,  parcela:'—',   status:'Liquidado'  },
+  { id:13, data:'2026-05-21', desc:'Venda Crédito à Vista',      bruto:1120.00, parcela:'1/1', status:'Liquidado'  },
+  { id:14, data:'2026-05-20', desc:'Chargeback — contestação',   bruto:-450.00, parcela:'—',   status:'Estornado'  },
+  { id:15, data:'2026-05-19', desc:'Venda Crédito Parcelado 2x', bruto:760.00,  parcela:'1/2', status:'Liquidado'  },
+];
+
 const PosMachineIcon = ({ adquirente }) => {
   const cfgs = {
     Cielo:      { g0:'#eef3f8', g1:'#c2d0dc', screen:'#080c14', bezel:'#161c28', key:'#b0beca', keyD:'#8898a6', enter:'#0033a0', sTxt:'#5b9fd6', isLight:true  },
@@ -3138,8 +3156,10 @@ const ControleCartoes = () => {
   const [viewModal,     setViewModal]     = useState(null);
   const [formModal,     setFormModal]     = useState(null); // null | 'nova' | {machine obj being edited}
   const [formData,      setFormData]      = useState(CT_FORM_EMPTY);
-  const [openMore,      setOpenMore]      = useState(null);
-  const [maquininhas,   setMaquininhas]   = useState(CT_MAQUININHAS);
+  const [openMore,         setOpenMore]         = useState(null);
+  const [maquininhas,      setMaquininhas]      = useState(CT_MAQUININHAS);
+  const [lancamentosModal, setLancamentosModal] = useState(null);
+  const [lancTab,          setLancTab]          = useState('Todos');
   // Imagens persistidas na API (memória → localStorage → PostgreSQL)
   const [maqFotoImages, setMaqFotoImages] = useState(() => {
     try { return JSON.parse(localStorage.getItem(CT_MAQ_LS_KEY) || 'null') || {}; } catch { return {}; }
@@ -3384,10 +3404,12 @@ const ControleCartoes = () => {
                 {/* MAQUININHA */}
                 <td>
                   <div className="ct-maq-cell">
-                    {maqFotoImages[String(m.id)]
-                      ? <img src={maqFotoImages[String(m.id)]} className="ct-maq-img-custom" alt={m.nome}/>
-                      : <PosMachineIcon adquirente={m.adquirente}/>
-                    }
+                    <div style={{cursor:'pointer'}} onClick={()=>{ setLancamentosModal(m); setLancTab('Todos'); }}>
+                      {maqFotoImages[String(m.id)]
+                        ? <img src={maqFotoImages[String(m.id)]} className="ct-maq-img-custom" alt={m.nome}/>
+                        : <PosMachineIcon adquirente={m.adquirente}/>
+                      }
+                    </div>
                     <div className="ct-maq-info">
                       <span className="ct-maq-nome">{m.nome}</span>
                       <span className="ct-maq-sn">SN: {m.sn}</span>
@@ -3455,7 +3477,7 @@ const ControleCartoes = () => {
                 {/* AÇÕES */}
                 <td>
                   <div className="ct-actions" onClick={e=>e.stopPropagation()}>
-                    <button className="ct-action-btn" title="Visualizar" onClick={()=>setViewModal(m)}><Eye size={14}/></button>
+                    <button className="ct-action-btn" title="Lançamentos" onClick={()=>{ setLancamentosModal(m); setLancTab('Todos'); }}><Eye size={14}/></button>
                     <button className="ct-action-btn ct-action-edit" title="Editar" onClick={()=>handleOpenEdit(m)}><Edit2 size={14}/></button>
                     <div className="ct-action-more" style={{position:'relative'}}>
                       <button className="ct-action-btn ct-action-more-btn" title="Mais ações"
@@ -3492,6 +3514,118 @@ const ControleCartoes = () => {
 
       {/* ── Pagination ──────────────────────────────────────────────────── */}
       {renderPagination()}
+
+      {/* ── Lançamentos Modal ───────────────────────────────────────────── */}
+      {lancamentosModal && (() => {
+        const taxa = lancamentosModal.taxa;
+        const lancs = CT_LANC_BASE.map(l => ({
+          ...l,
+          taxa_val: l.bruto > 0 ? parseFloat((l.bruto * taxa / 100).toFixed(2)) : 0,
+          liquido:  l.bruto > 0 ? parseFloat((l.bruto * (1 - taxa / 100)).toFixed(2)) : l.bruto,
+        }));
+        const filtradas    = lancTab === 'Todos' ? lancs : lancs.filter(l => l.status === lancTab);
+        const totalBruto   = lancs.filter(l => l.bruto > 0).reduce((s, l) => s + l.bruto, 0);
+        const totalTaxa    = lancs.filter(l => l.bruto > 0).reduce((s, l) => s + l.taxa_val, 0);
+        const totalLiquido = lancs.filter(l => l.bruto > 0).reduce((s, l) => s + l.liquido, 0);
+        const statusColor  = { Pendente:'#fbbf24', Liquidado:'#22c55e', Antecipado:'#60a5fa', Estornado:'#ef4444' };
+        const closeLanc    = () => { setLancamentosModal(null); setLancTab('Todos'); };
+        return (
+          <div className="ct-modal-overlay" onClick={closeLanc}>
+            <div className="ct-modal" style={{maxWidth:880,width:'95vw'}} onClick={e => e.stopPropagation()}>
+              {/* Header */}
+              <div className="ct-modal-header">
+                <div style={{display:'flex',alignItems:'center',gap:14}}>
+                  <div style={{width:46,flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center'}}>
+                    {maqFotoImages[String(lancamentosModal.id)]
+                      ? <img src={maqFotoImages[String(lancamentosModal.id)]} style={{width:46,height:70,objectFit:'contain',borderRadius:5}} alt={lancamentosModal.nome}/>
+                      : <div style={{transform:'scale(0.66)',transformOrigin:'top left',width:46,height:70,overflow:'hidden'}}><PosMachineIcon adquirente={lancamentosModal.adquirente}/></div>
+                    }
+                  </div>
+                  <div>
+                    <h3 style={{margin:0,fontSize:16,display:'flex',alignItems:'center',gap:6}}>
+                      <CreditCard size={16} color="#E31E24"/>{lancamentosModal.nome}
+                    </h3>
+                    <span style={{fontSize:11,color:'#64748b'}}>
+                      SN: {lancamentosModal.sn} &nbsp;|&nbsp; {lancamentosModal.local} &nbsp;|&nbsp; {lancamentosModal.adquirente} &nbsp;|&nbsp; Taxa: {fmtPct(lancamentosModal.taxa)}
+                    </span>
+                  </div>
+                </div>
+                <button className="ct-modal-close" onClick={closeLanc}><X size={18}/></button>
+              </div>
+              {/* KPIs */}
+              <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10,padding:'12px 20px',borderBottom:'1px solid #1e2430'}}>
+                {[
+                  {label:'Total Bruto',   value:fmtBRL(totalBruto),   color:'#e2e8f0'},
+                  {label:'Total Taxa',    value:fmtBRL(totalTaxa),    color:'#ef4444'},
+                  {label:'Total Líquido', value:fmtBRL(totalLiquido), color:'#22c55e'},
+                  {label:'Transações',    value:String(lancs.filter(l=>l.bruto>0).length), color:'#60a5fa'},
+                ].map(k => (
+                  <div key={k.label} style={{textAlign:'center',padding:'8px',background:'#0e1318',borderRadius:8,border:'1px solid #1e2430'}}>
+                    <div style={{fontSize:10,color:'#64748b',marginBottom:4}}>{k.label}</div>
+                    <div style={{fontSize:15,fontWeight:700,color:k.color}}>{k.value}</div>
+                  </div>
+                ))}
+              </div>
+              {/* Filter tabs */}
+              <div style={{display:'flex',gap:6,padding:'10px 20px',borderBottom:'1px solid #1e2430',flexWrap:'wrap'}}>
+                {['Todos','Pendente','Liquidado','Antecipado','Estornado'].map(t => (
+                  <button key={t} type="button"
+                    style={{fontSize:11,padding:'4px 12px',borderRadius:6,cursor:'pointer',transition:'all 0.15s',
+                      border:`1px solid ${lancTab===t?'rgba(227,30,36,0.8)':'#2a3040'}`,
+                      background:lancTab===t?'rgba(227,30,36,0.12)':'#131820',
+                      color:lancTab===t?'#e31e24':'#94a3b8',fontWeight:lancTab===t?700:400}}
+                    onClick={() => setLancTab(t)}>{t}
+                  </button>
+                ))}
+              </div>
+              {/* Table */}
+              <div className="ct-modal-body" style={{padding:0,maxHeight:'52vh',overflowY:'auto'}}>
+                <table style={{width:'100%',borderCollapse:'collapse',fontSize:12}}>
+                  <thead>
+                    <tr style={{background:'#0b0f16',position:'sticky',top:0,zIndex:1}}>
+                      {['Data','Descrição','Bruto','Taxa','Líquido','Parcela','Status'].map(h => (
+                        <th key={h} style={{padding:'9px 12px',textAlign:['Bruto','Taxa','Líquido'].includes(h)?'right':'left',
+                          color:'#475569',fontSize:10,fontWeight:700,borderBottom:'1px solid #1e2430',whiteSpace:'nowrap'}}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filtradas.length === 0 && (
+                      <tr><td colSpan={7} style={{textAlign:'center',padding:32,color:'#475569',fontSize:13}}>Nenhum lançamento encontrado.</td></tr>
+                    )}
+                    {filtradas.map(l => (
+                      <tr key={l.id} style={{borderBottom:'1px solid #131820',transition:'background 0.15s'}}
+                        onMouseEnter={e=>e.currentTarget.style.background='#131820'}
+                        onMouseLeave={e=>e.currentTarget.style.background=''}>
+                        <td style={{padding:'8px 12px',color:'#94a3b8',whiteSpace:'nowrap'}}>{l.data.split('-').reverse().join('/')}</td>
+                        <td style={{padding:'8px 12px',color:'#e2e8f0'}}>{l.desc}</td>
+                        <td style={{padding:'8px 12px',textAlign:'right',color:l.bruto<0?'#ef4444':'#e2e8f0',whiteSpace:'nowrap'}}>{fmtBRL(l.bruto)}</td>
+                        <td style={{padding:'8px 12px',textAlign:'right',color:'#ef4444',whiteSpace:'nowrap'}}>{l.bruto>0?fmtBRL(l.taxa_val):'—'}</td>
+                        <td style={{padding:'8px 12px',textAlign:'right',color:'#22c55e',whiteSpace:'nowrap'}}>{l.bruto>0?fmtBRL(l.liquido):'—'}</td>
+                        <td style={{padding:'8px 12px',color:'#64748b',textAlign:'center'}}>{l.parcela}</td>
+                        <td style={{padding:'8px 12px'}}>
+                          <span style={{display:'inline-flex',alignItems:'center',gap:5,padding:'2px 9px',borderRadius:12,
+                            background:`${statusColor[l.status]}18`,border:`1px solid ${statusColor[l.status]}44`,
+                            color:statusColor[l.status],fontSize:10,fontWeight:600,whiteSpace:'nowrap'}}>
+                            <span style={{width:5,height:5,borderRadius:'50%',background:statusColor[l.status],flexShrink:0}}/>
+                            {l.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="ct-modal-footer">
+                <button className="ct-modal-cancel" onClick={closeLanc}>Fechar</button>
+                <button className="ct-modal-save" onClick={() => handleOpenEdit(lancamentosModal)}>
+                  <Edit2 size={13}/> Editar Maquininha
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ── View Modal ──────────────────────────────────────────────────── */}
       {viewModal && (
