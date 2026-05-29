@@ -9026,39 +9026,57 @@ const EstoqueFilterPanel = ({ filters, setFilters, onClose, onGenerate }) => {
   const criticos = rows.filter(r => r.status === 'Crítico').length;
   const mortos   = rows.filter(r => r.status === 'Morto').length;
   return (
-    <div className="modal-overlay control-print-overlay">
-      <div className="control-print-panel ranking-filter-panel">
+    <div className="modal-overlay control-print-overlay" onClick={onClose}>
+      <div className="control-print-panel ranking-filter-panel" onClick={e => e.stopPropagation()}>
         <div className="control-print-header">
-          <h2>REL 7 — Giro de Estoque e Curva ABC</h2>
-          <button onClick={onClose}><X size={18}/></button>
+          <div className="control-print-title">
+            <span className="control-print-icon"><Package size={25} /></span>
+            <h3>FILTROS — GIRO DE ESTOQUE E CURVA ABC</h3>
+          </div>
+          <button type="button" className="control-print-close" onClick={onClose} aria-label="Fechar">
+            <X size={28} />
+          </button>
         </div>
         <div className="control-print-body">
-          <div className="control-print-section">
-            <div className="control-print-section-title">Unidade</div>
-            <div style={{display:'flex',gap:8}}>
-              {['Todos','Loja','Pista'].map(u => (
-                <button key={u} type="button"
-                  className={`control-print-option${filters.unidade===u?' active':''}`}
-                  onClick={() => setFilters(f => ({...f, unidade:u}))}>
-                  {u}
-                </button>
+          <div className="control-print-grid ranking-filter-grid">
+            <section className="control-print-section">
+              <div className="control-print-section-title">
+                <Layers size={20} /><span>UNIDADE</span>
+              </div>
+              {[
+                {v:'Todos', icon:<Layers size={28}/>,   sub:'Todas as unidades'},
+                {v:'Loja',  icon:<Building size={28}/>, sub:'Área interna'},
+                {v:'Pista', icon:<Droplet size={28}/>,  sub:'Combustíveis'},
+              ].map(({v, icon, sub}) => (
+                <label key={v} className={`control-print-option ${filters.unidade===v ? 'selected' : ''}`}>
+                  {icon}
+                  <div><strong>{v.toUpperCase()}</strong><span>{sub}</span></div>
+                  <input type="radio" name="estoqueUnidade" value={v} checked={filters.unidade===v}
+                    onChange={() => setFilters(f => ({...f, unidade:v}))} />
+                </label>
               ))}
-            </div>
-          </div>
-          <div className="control-print-section">
-            <div className="control-print-section-title">Curva ABC</div>
-            <div style={{display:'flex',gap:8}}>
-              {['Todos','A','B','C'].map(c => (
-                <button key={c} type="button"
-                  className={`control-print-option${filters.classificacao===c?' active':''}`}
-                  onClick={() => setFilters(f => ({...f, classificacao:c}))}>
-                  {c}
-                </button>
+            </section>
+            <section className="control-print-section">
+              <div className="control-print-section-title">
+                <BarChart2 size={20} /><span>CURVA ABC</span>
+              </div>
+              {[
+                {v:'Todos', icon:<Layers size={28}/>,    sub:'Todas as classes'},
+                {v:'A',     icon:<Trophy size={28}/>,    sub:'Alta rotatividade'},
+                {v:'B',     icon:<BarChart2 size={28}/>, sub:'Média rotatividade'},
+                {v:'C',     icon:<Tag size={28}/>,       sub:'Baixa rotatividade'},
+              ].map(({v, icon, sub}) => (
+                <label key={v} className={`control-print-option ${filters.classificacao===v ? 'selected' : ''}`}>
+                  {icon}
+                  <div><strong>{v==='Todos'?'TODOS':`CURVA ${v}`}</strong><span>{sub}</span></div>
+                  <input type="radio" name="estoqueABC" value={v} checked={filters.classificacao===v}
+                    onChange={() => setFilters(f => ({...f, classificacao:v}))} />
+                </label>
               ))}
-            </div>
+            </section>
           </div>
-          <div className="control-print-section" style={{background:'#1a2535',borderRadius:6,padding:'10px 14px'}}>
-            <div style={{fontSize:11,color:'#94a3b8',marginBottom:8}}>Preview — {rows.length} produto(s)</div>
+          <div className="control-print-section" style={{background:'#23272f',borderRadius:6,padding:'10px 14px'}}>
+            <div style={{fontSize:11,color:'#94a3b8',marginBottom:8}}>Pré-visualização — {rows.length} produto(s)</div>
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
               <div style={{textAlign:'center'}}>
                 <div style={{fontSize:10,color:'#ef4444'}}>⚠ Críticos</div>
@@ -9072,8 +9090,8 @@ const EstoqueFilterPanel = ({ filters, setFilters, onClose, onGenerate }) => {
           </div>
         </div>
         <div className="control-print-footer">
-          <button className="btn-secondary control-print-cancel" onClick={onClose}>Cancelar</button>
-          <button className="btn-primary control-print-generate" onClick={onGenerate}>
+          <button type="button" className="btn-secondary control-print-cancel" onClick={onClose}>Cancelar</button>
+          <button type="button" className="btn-primary control-print-generate" onClick={onGenerate}>
             <Printer size={15}/> GERAR IMPRESSÃO
           </button>
         </div>
@@ -9156,41 +9174,50 @@ const ClientesFilterPanel = ({ filters, setFilters, onClose, onGenerate }) => {
   const slotsShow = filters.faixa === 'Todas' ? _CLIENTES_SLOTS : [filters.faixa];
   const totalQ = slotsShow.reduce((s,slot) => s + diasShow.reduce((ss,d) => ss + ((_CLIENTES_BASE_DATA[slot]?.[d]?.q)||0), 0), 0);
   return (
-    <div className="modal-overlay control-print-overlay">
-      <div className="control-print-panel ranking-filter-panel" style={{maxWidth:520}}>
+    <div className="modal-overlay control-print-overlay" onClick={onClose}>
+      <div className="control-print-panel ranking-filter-panel" style={{maxWidth:520}} onClick={e => e.stopPropagation()}>
         <div className="control-print-header">
-          <h2>REL 8 — Fluxo de Clientes e Ticket Médio</h2>
-          <button onClick={onClose}><X size={18}/></button>
+          <div className="control-print-title">
+            <span className="control-print-icon"><UsersIcon size={25} /></span>
+            <h3>FILTROS — FLUXO DE CLIENTES</h3>
+          </div>
+          <button type="button" className="control-print-close" onClick={onClose} aria-label="Fechar">
+            <X size={28} />
+          </button>
         </div>
         <div className="control-print-body">
-          <div className="control-print-section">
-            <div className="control-print-section-title">Faixa de Horário</div>
+          <section className="control-print-section">
+            <div className="control-print-section-title">
+              <Clock size={20} /><span>FAIXA DE HORÁRIO</span>
+            </div>
             <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
               {['Todas',..._CLIENTES_SLOTS].map(s => (
                 <button key={s} type="button"
-                  className={`control-print-option${filters.faixa===s?' active':''}`}
+                  className={`control-print-option${filters.faixa===s?' selected':''}`}
                   style={{fontSize:11,padding:'4px 10px'}}
                   onClick={() => setFilters(f => ({...f, faixa:s}))}>
                   {s}
                 </button>
               ))}
             </div>
-          </div>
-          <div className="control-print-section">
-            <div className="control-print-section-title">Dia da Semana</div>
+          </section>
+          <section className="control-print-section">
+            <div className="control-print-section-title">
+              <Calendar size={20} /><span>DIA DA SEMANA</span>
+            </div>
             <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
               {['Todos','Dias Úteis','FDS',..._CLIENTES_DIAS].map(d => (
                 <button key={d} type="button"
-                  className={`control-print-option${filters.dia===d?' active':''}`}
+                  className={`control-print-option${filters.dia===d?' selected':''}`}
                   style={{fontSize:11,padding:'4px 10px'}}
                   onClick={() => setFilters(f => ({...f, dia:d}))}>
                   {d}
                 </button>
               ))}
             </div>
-          </div>
-          <div className="control-print-section" style={{background:'#1a2535',borderRadius:6,padding:'10px 14px'}}>
-            <div style={{fontSize:11,color:'#94a3b8',marginBottom:8}}>Preview</div>
+          </section>
+          <div className="control-print-section" style={{background:'#23272f',borderRadius:6,padding:'10px 14px'}}>
+            <div style={{fontSize:11,color:'#94a3b8',marginBottom:8}}>Pré-visualização</div>
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
               <div style={{textAlign:'center'}}>
                 <div style={{fontSize:10,color:'#94a3b8'}}>Total Transações</div>
@@ -9204,8 +9231,8 @@ const ClientesFilterPanel = ({ filters, setFilters, onClose, onGenerate }) => {
           </div>
         </div>
         <div className="control-print-footer">
-          <button className="btn-secondary control-print-cancel" onClick={onClose}>Cancelar</button>
-          <button className="btn-primary control-print-generate" onClick={onGenerate}>
+          <button type="button" className="btn-secondary control-print-cancel" onClick={onClose}>Cancelar</button>
+          <button type="button" className="btn-primary control-print-generate" onClick={onGenerate}>
             <Printer size={15}/> GERAR IMPRESSÃO
           </button>
         </div>
@@ -9298,46 +9325,71 @@ const ComprasFilterPanel = ({ filters, setFilters, onClose, onGenerate }) => {
   const rows = _computeComprasRows({ fornecedor: filters.fornecedor, produto: filters.produto, dataInicial: filters.dataInicial, dataFinal: filters.dataFinal });
   const totalGasto = rows.reduce((s,r) => s + r.qtd * r.preco, 0);
   return (
-    <div className="modal-overlay control-print-overlay">
-      <div className="control-print-panel ranking-filter-panel">
+    <div className="modal-overlay control-print-overlay" onClick={onClose}>
+      <div className="control-print-panel ranking-filter-panel" onClick={e => e.stopPropagation()}>
         <div className="control-print-header">
-          <h2>REL 9 — Painel de Auxílio em Compras</h2>
-          <button onClick={onClose}><X size={18}/></button>
+          <div className="control-print-title">
+            <span className="control-print-icon"><CircleDollarSign size={25} /></span>
+            <h3>FILTROS — PAINEL DE COMPRAS</h3>
+          </div>
+          <button type="button" className="control-print-close" onClick={onClose} aria-label="Fechar">
+            <X size={28} />
+          </button>
         </div>
         <div className="control-print-body">
           <div className="control-print-grid ranking-filter-grid">
-            <div className="control-print-section">
-              <div className="control-print-section-title">Fornecedor</div>
-              <select className="control-print-input" value={filters.fornecedor}
-                onChange={e => setFilters(f => ({...f, fornecedor:e.target.value}))}>
-                {['Todos','Ipiranga','Petrobras','Raízen','Shell'].map(v => <option key={v}>{v}</option>)}
-              </select>
-            </div>
-            <div className="control-print-section">
-              <div className="control-print-section-title">Produto</div>
-              <select className="control-print-input" value={filters.produto}
-                onChange={e => setFilters(f => ({...f, produto:e.target.value}))}>
-                {['Todos','Gasolina Comum','Etanol Hidratado','Diesel S10'].map(v => <option key={v}>{v}</option>)}
-              </select>
-            </div>
+            <section className="control-print-section">
+              <div className="control-print-section-title">
+                <Building2 size={20} /><span>FORNECEDOR</span>
+              </div>
+              {['Todos','Ipiranga','Petrobras','Raízen','Shell'].map(v => (
+                <label key={v} className={`control-print-option ${filters.fornecedor===v ? 'selected' : ''}`}>
+                  <Building size={28} />
+                  <div><strong>{v.toUpperCase()}</strong><span>{v==='Todos'?'Todos os fornecedores':v}</span></div>
+                  <input type="radio" name="comprasFornecedor" value={v} checked={filters.fornecedor===v}
+                    onChange={() => setFilters(f => ({...f, fornecedor:v}))} />
+                </label>
+              ))}
+            </section>
+            <section className="control-print-section">
+              <div className="control-print-section-title">
+                <Package size={20} /><span>PRODUTO</span>
+              </div>
+              {['Todos','Gasolina Comum','Etanol Hidratado','Diesel S10'].map(v => (
+                <label key={v} className={`control-print-option ${filters.produto===v ? 'selected' : ''}`}>
+                  <Droplet size={28} />
+                  <div><strong>{v.toUpperCase()}</strong><span>{v==='Todos'?'Todos os produtos':v}</span></div>
+                  <input type="radio" name="comprasProduto" value={v} checked={filters.produto===v}
+                    onChange={() => setFilters(f => ({...f, produto:v}))} />
+                </label>
+              ))}
+            </section>
           </div>
-          <div className="control-print-section">
-            <div className="control-print-section-title">Período</div>
+          <section className="control-print-section">
+            <div className="control-print-section-title">
+              <Calendar size={20} /><span>PERÍODO</span>
+            </div>
             <div className="control-print-date-row">
-              <div className="control-print-field">
-                <label>De</label>
-                <input type="date" className="control-print-input" value={filters.dataInicial}
-                  onChange={e => setFilters(f => ({...f, dataInicial:e.target.value}))}/>
-              </div>
-              <div className="control-print-field">
-                <label>Até</label>
-                <input type="date" className="control-print-input" value={filters.dataFinal}
-                  onChange={e => setFilters(f => ({...f, dataFinal:e.target.value}))}/>
-              </div>
+              <label className="control-print-field">
+                <span>DATA INICIAL</span>
+                <div className="control-print-input">
+                  <input type="date" value={filters.dataInicial}
+                    onChange={e => setFilters(f => ({...f, dataInicial:e.target.value}))} />
+                  <Calendar size={19} />
+                </div>
+              </label>
+              <label className="control-print-field">
+                <span>DATA FINAL</span>
+                <div className="control-print-input">
+                  <input type="date" value={filters.dataFinal}
+                    onChange={e => setFilters(f => ({...f, dataFinal:e.target.value}))} />
+                  <Calendar size={19} />
+                </div>
+              </label>
             </div>
-          </div>
-          <div className="control-print-section" style={{background:'#1a2535',borderRadius:6,padding:'10px 14px'}}>
-            <div style={{fontSize:11,color:'#94a3b8',marginBottom:8}}>Preview — {rows.length} compra(s)</div>
+          </section>
+          <div className="control-print-section" style={{background:'#23272f',borderRadius:6,padding:'10px 14px'}}>
+            <div style={{fontSize:11,color:'#94a3b8',marginBottom:8}}>Pré-visualização — {rows.length} compra(s)</div>
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
               <div style={{textAlign:'center'}}>
                 <div style={{fontSize:10,color:'#94a3b8'}}>Total Gasto</div>
@@ -9351,8 +9403,8 @@ const ComprasFilterPanel = ({ filters, setFilters, onClose, onGenerate }) => {
           </div>
         </div>
         <div className="control-print-footer">
-          <button className="btn-secondary control-print-cancel" onClick={onClose}>Cancelar</button>
-          <button className="btn-primary control-print-generate" onClick={onGenerate}>
+          <button type="button" className="btn-secondary control-print-cancel" onClick={onClose}>Cancelar</button>
+          <button type="button" className="btn-primary control-print-generate" onClick={onGenerate}>
             <Printer size={15}/> GERAR IMPRESSÃO
           </button>
         </div>
