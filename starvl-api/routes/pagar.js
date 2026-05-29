@@ -112,7 +112,7 @@ router.get('/contas', async (req, res) => {
         COALESCE(part.partrazao,   'Fornecedor') AS fornecedor,
         COALESCE(part.partcnpjcpf, '')           AS cnpj,
         CAST(paga.pagadocumento AS TEXT)          AS documento,
-        paga.pagavencimento                       AS vencimento,
+        TO_CHAR(paga.pagavencimento, 'YYYY-MM-DD') AS vencimento,
         COALESCE(paga.pagavalor,    0)            AS valor,
         COALESCE(paga.pagajuro,     0)            AS juros,
         COALESCE(paga.pagadesconto, 0)            AS desconto,

@@ -552,7 +552,7 @@ router.get('/papeis', async (req, res) => {
         `SELECT
            cxaq.cxaqcodigo AS codigo,
            COALESCE(cxaq.cxaqrespnome, '—') AS responsavel,
-           cxaq.cxaqvencimento AS vencimento,
+           TO_CHAR(cxaq.cxaqvencimento, 'YYYY-MM-DD') AS vencimento,
            COALESCE(cxaq.cxaqvalor, 0) AS valor,
            COALESCE(cxaq.cxaqplaca, '') AS placa,
            COALESCE(fr.partrazao, '—') AS frentista,

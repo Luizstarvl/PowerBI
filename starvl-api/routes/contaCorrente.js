@@ -170,14 +170,14 @@ router.get('/visao-geral', async (req, res) => {
     // Lançamentos previstos (next 10)
     const previstosRes = await query(
       `SELECT * FROM (
-        SELECT recevencimento AS vencimento, 'entrada' AS tipo,
+        SELECT TO_CHAR(recevencimento, 'YYYY-MM-DD') AS vencimento, 'entrada' AS tipo,
                COALESCE(pa.partrazao,'Cliente') AS historico,
                recedocumento AS documento, recevalor AS valor, 0 AS contacodigo
         FROM rece
         LEFT JOIN part pa ON pa.partcodigo = rececliente
         WHERE receempresa=$1 AND recevencimento BETWEEN $2::date AND $3::date
       UNION ALL
-        SELECT pagavencimento AS vencimento, 'saida' AS tipo,
+        SELECT TO_CHAR(pagavencimento, 'YYYY-MM-DD') AS vencimento, 'saida' AS tipo,
                COALESCE(pa.partrazao, pagaobs, pagadocumento, 'Fornecedor') AS historico,
                pagadocumento AS documento, pagavalor AS valor, 0 AS contacodigo
         FROM paga
@@ -300,7 +300,7 @@ router.get('/previstos', async (req, res) => {
     const tipoFilter = tipo === 'entradas' ? "WHERE tipo='entrada'" : tipo === 'saidas' ? "WHERE tipo='saida'" : '';
     const result = await query(
       `SELECT * FROM (
-        SELECT recevencimento AS vencimento, 'entrada' AS tipo,
+        SELECT TO_CHAR(recevencimento, 'YYYY-MM-DD') AS vencimento, 'entrada' AS tipo,
                COALESCE(pa.partrazao,'Cliente') AS historico,
                recedocumento AS documento,
                '—' AS conta,
@@ -313,7 +313,7 @@ router.get('/previstos', async (req, res) => {
         WHERE receempresa=$1 AND recevencimento BETWEEN $2::date AND $3::date
           AND recefechamento IS NULL
       UNION ALL
-        SELECT pagavencimento AS vencimento, 'saida' AS tipo,
+        SELECT TO_CHAR(pagavencimento, 'YYYY-MM-DD') AS vencimento, 'saida' AS tipo,
                COALESCE(pa.partrazao, pagaobs, pagadocumento, 'Fornecedor') AS historico,
                pagadocumento AS documento,
                '—' AS conta,
