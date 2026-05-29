@@ -10130,11 +10130,21 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
     tfoot td { background: #f3f4f6 !important; font-weight: 900; }
     .footer { margin-top: 10px; color: #667085; font-size: 9px; text-align: right; border-top: 1px solid #e5e7eb; padding-top: 6px; }
     @media screen {
-      body { background: #f3f4f6; padding: 18px; }
-      .report { max-width: 1180px; min-height: auto; margin: 0 auto; box-shadow: 0 18px 50px rgba(15,23,42,.12); }
+      body { background: #6b7280; padding: 30px; }
+      .report { max-width: 1180px; min-height: auto; margin: 0 auto; box-shadow: 0 18px 50px rgba(15,23,42,.12); position: relative; }
     }
     @media print {
-      .header { break-inside: avoid; page-break-inside: avoid; }
+      .pgbrk { display: none !important; }
+      .report { padding-top: 82px !important; }
+      .header {
+        position: fixed !important;
+        top: 0; left: 0; right: 0;
+        background: #fff !important;
+        z-index: 9999;
+        border-radius: 0;
+        margin: 0 !important;
+        border-top: 0; border-left: 0; border-right: 0;
+      }
       .kpi-strip { break-inside: avoid; page-break-inside: avoid; }
       .panel-head { break-inside: avoid; page-break-inside: avoid; }
       .panel { break-before: auto; page-break-before: auto; }
@@ -10230,6 +10240,35 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
   <div class="footer">STARVL SISTEMAS &nbsp;|&nbsp; REL 11 — Cadastro de Produtos e Combustíveis &nbsp;|&nbsp; ${now}</div>
 
 </main>
+<script>
+(function(){
+  /* Réguas de quebra de página — somente na tela (display:none no @media print) */
+  function addPageRulers(){
+    var r=document.querySelector('.report');
+    if(!r)return;
+    r.querySelectorAll('.pgbrk').forEach(function(e){e.remove();});
+    /* A4 landscape: 210mm × 297mm; margem 10mm → conteúdo 190mm ≈ 718px a 96dpi */
+    var ph=Math.round(190/25.4*96);
+    var tot=r.scrollHeight;
+    r.style.position='relative';
+    for(var y=ph;y<tot;y+=ph){
+      var d=document.createElement('div');
+      d.className='pgbrk';
+      d.style.cssText=[
+        'position:absolute','left:-30px','right:-30px','top:'+y+'px',
+        'height:22px','background:#d1d5db',
+        'display:flex','align-items:center','justify-content:center',
+        'pointer-events:none','z-index:50'
+      ].join(';');
+      d.innerHTML='<span style="font-size:9px;color:#4b5563;font-family:Arial,sans-serif;letter-spacing:.03em">— quebra de página (aprox.) —</span>';
+      r.appendChild(d);
+    }
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',addPageRulers);
+  else addPageRulers();
+  window.addEventListener('resize',addPageRulers);
+})();
+</script>
 </body>
 </html>`;
 
