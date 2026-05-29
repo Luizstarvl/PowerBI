@@ -8874,43 +8874,45 @@ const FluxoFilterPanel = ({ filters, setFilters, onClose, onGenerate }) => (
         <button onClick={onClose}><X size={18}/></button>
       </div>
       <div className="control-print-body">
-        <div className="control-print-section">
-          <div className="control-print-section-title">Conta Contábil</div>
-          <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
-            {['Todas','Entradas','Saídas'].map(c => (
-              <button key={c} type="button"
-                className={`control-print-option${filters.conta===c?' active':''}`}
-                onClick={() => setFilters(f => ({...f, conta:c}))}>
-                {c}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div className="control-print-section">
-          <div className="control-print-section-title">Período</div>
-          <div className="control-print-date-row">
-            <div className="control-print-field">
-              <label>De</label>
-              <input type="date" className="control-print-input" value={filters.dataInicial}
-                onChange={e => setFilters(f => ({...f, dataInicial:e.target.value}))}/>
+        <div className="control-print-grid ranking-filter-grid">
+          <div className="control-print-section">
+            <div className="control-print-section-title">Conta Contábil</div>
+            <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+              {['Todas','Entradas','Saídas'].map(c => (
+                <button key={c} type="button"
+                  className={`control-print-option${filters.conta===c?' active':''}`}
+                  onClick={() => setFilters(f => ({...f, conta:c}))}>
+                  {c}
+                </button>
+              ))}
             </div>
-            <div className="control-print-field">
-              <label>Até</label>
-              <input type="date" className="control-print-input" value={filters.dataFinal}
-                onChange={e => setFilters(f => ({...f, dataFinal:e.target.value}))}/>
+          </div>
+          <div className="control-print-section">
+            <div className="control-print-section-title">Período</div>
+            <div className="control-print-date-row">
+              <div className="control-print-field">
+                <label>De</label>
+                <input type="date" className="control-print-input" value={filters.dataInicial}
+                  onChange={e => setFilters(f => ({...f, dataInicial:e.target.value}))}/>
+              </div>
+              <div className="control-print-field">
+                <label>Até</label>
+                <input type="date" className="control-print-input" value={filters.dataFinal}
+                  onChange={e => setFilters(f => ({...f, dataFinal:e.target.value}))}/>
+              </div>
             </div>
           </div>
         </div>
         <div className="control-print-section" style={{background:'#1a2535',borderRadius:6,padding:'10px 14px'}}>
-          <div style={{fontSize:11,color:'#94a3b8',marginBottom:6}}>Preview</div>
+          <div style={{fontSize:11,color:'#94a3b8',marginBottom:8}}>Pré-visualização</div>
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
             <div style={{textAlign:'center'}}>
               <div style={{fontSize:10,color:'#94a3b8'}}>Total Entradas</div>
-              <div style={{fontSize:15,fontWeight:700,color:'#4ade80'}}>R$ 825.700</div>
+              <div style={{fontSize:18,fontWeight:700,color:'#4ade80'}}>R$ 825.700</div>
             </div>
             <div style={{textAlign:'center'}}>
               <div style={{fontSize:10,color:'#94a3b8'}}>Saldo Operacional</div>
-              <div style={{fontSize:15,fontWeight:700,color:'#4ade80'}}>+R$ 165.800</div>
+              <div style={{fontSize:18,fontWeight:700,color:'#4ade80'}}>+R$ 165.800</div>
             </div>
           </div>
         </div>
