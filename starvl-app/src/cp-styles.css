@@ -43,7 +43,6 @@
 .cp-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
 .cp-table thead tr { background: #E31E24; }
 .cp-table thead th { padding: 11px 12px; text-align: left; font-size: 10px; font-weight: 700; letter-spacing: 0.07em; color: #fff; white-space: nowrap; }
-.cp-table thead th:nth-child(3),
 .cp-table thead th:nth-child(5),
 .cp-table thead th:nth-child(6),
 .cp-table thead th:nth-child(7),
