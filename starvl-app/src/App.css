@@ -5986,3 +5986,90 @@ body.theme-light-body {
 .theme-light .pv-tooltip span {
   color: #374151;
 }
+
+/* ── control-print-panel light theme ─────────────────────────── */
+.theme-light .control-print-panel {
+  background: #ffffff;
+  border-color: #e5e7eb;
+  color: #111827;
+}
+
+.theme-light .control-print-header {
+  border-bottom-color: #e5e7eb;
+  background: #ffffff;
+}
+
+.theme-light .control-print-title h3 {
+  color: #111827;
+}
+
+.theme-light .control-print-icon {
+  background: #f1f5f9;
+  border-color: #e5e7eb;
+}
+
+.theme-light .control-print-close {
+  color: #9ca3af;
+}
+
+.theme-light .control-print-close:hover {
+  color: #111827;
+}
+
+.theme-light .control-print-section {
+  background: #f8fafc;
+  border-color: #e5e7eb;
+}
+
+.theme-light .control-print-section-title {
+  color: #111827;
+}
+
+.theme-light .control-print-option {
+  background: #ffffff;
+  border-color: #e5e7eb;
+}
+
+.theme-light .control-print-option.selected,
+.theme-light .control-print-option:hover {
+  border-color: rgba(227, 30, 36, 0.6);
+  background: #fff5f5;
+}
+
+.theme-light .control-print-option strong {
+  color: #111827;
+}
+
+.theme-light .control-print-option span {
+  color: #6b7280;
+}
+
+.theme-light .control-print-field {
+  background: #f1f5f9;
+  border-color: #e5e7eb;
+}
+
+.theme-light .control-print-field > span {
+  color: #6b7280;
+}
+
+.theme-light .control-print-input,
+.theme-light .control-print-select {
+  background: #ffffff;
+  border-color: #d0d5dd;
+}
+
+.theme-light .control-print-input input,
+.theme-light .control-print-select select {
+  color: #111827;
+}
+
+.theme-light .control-print-select select option {
+  background: #ffffff;
+  color: #111827;
+}
+
+.theme-light .control-print-footer {
+  border-top-color: #e5e7eb;
+  background: #ffffff;
+}
