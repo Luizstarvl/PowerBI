@@ -24,6 +24,9 @@ Thumbs.db
 *.swo
 *~
 
+# Audit watcher runtime data (snapshot + eventos locais)
+starvl-api/data/
+
 # Large local reference/export files
 *.zip
 *.mp4

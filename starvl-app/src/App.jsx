@@ -3,7 +3,7 @@ import logoStarvl from './logo-starvl.png';
 import logoStarvlBlack from './logo-starvl-black.png';
 import * as XLSX from 'xlsx';
 import { LineChart, Line, BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Area, AreaChart, LabelList, ComposedChart, ReferenceLine, PieChart, Pie } from 'recharts';
-import { Home, FileText, Users as UsersIcon, BookOpen, Package, LogOut, Eye, Search, Plus, Edit2, Trash2, X, Calendar, TrendingUp, TrendingDown, Droplet, DollarSign, Calculator, Bell, ChevronDown, ChevronUp, Activity, Settings, Building2, Phone, Mail, MapPin, Hash, Clock, BarChart2, Layers, CircleDollarSign, UserCheck, UserPlus, AlertCircle, Globe, Camera, Building, Tag, RefreshCw, Database, ChevronRight, ChevronLeft, Filter, Printer, Moon, Sun, Trophy, Lock, Unlock, Wallet, Download, CreditCard, AlertTriangle, Save, PiggyBank, Target, CheckCircle, Flag, Upload, Maximize2, Minimize2, ShieldCheck, FolderOpen, ImagePlus, Zap } from 'lucide-react';
+import { Home, FileText, Users as UsersIcon, BookOpen, Package, LogOut, Eye, Search, Plus, Edit2, Trash2, X, Calendar, TrendingUp, TrendingDown, Droplet, DollarSign, Calculator, Bell, ChevronDown, ChevronUp, Activity, Settings, Building2, Phone, Mail, MapPin, Hash, Clock, BarChart2, Layers, CircleDollarSign, UserCheck, UserPlus, AlertCircle, Globe, Camera, Building, Tag, RefreshCw, Database, ChevronRight, ChevronLeft, Filter, Printer, Moon, Sun, Trophy, Lock, Unlock, Wallet, Download, CreditCard, AlertTriangle, Save, PiggyBank, Target, CheckCircle, Flag, Upload, Maximize2, Minimize2, ShieldCheck, FolderOpen, ImagePlus, Zap, History } from 'lucide-react';
 import './App.css';
 import './cr-styles.css';
 import './cp-styles.css';
@@ -15645,6 +15645,13 @@ const Auditoria = ({ themeMode }) => {
   const [limiteLib, setLimiteLib]           = useState(500);
   const [limiteDesc, setLimiteDesc]         = useState(100);
 
+  // Histórico (Alterações & Exclusões) state
+  const [histLoading, setHistLoading]   = useState(false);
+  const [histData, setHistData]         = useState(null);
+  const [histPage, setHistPage]         = useState(1);
+  const [histTipo, setHistTipo]         = useState('');
+  const [histExpandId, setHistExpandId] = useState(null);
+
   const fetchData = useCallback((p = page) => {
     setLoading(true);
     const params = new URLSearchParams({
@@ -15673,8 +15680,20 @@ const Auditoria = ({ themeMode }) => {
       .catch(() => setAlertasLoading(false));
   }, [dataIni, dataFim, horaInicio, horaFim, limiteLib, limiteDesc]);
 
+  const fetchHistorico = useCallback((p = histPage) => {
+    setHistLoading(true);
+    const params = new URLSearchParams({ data_ini: dataIni, data_fim: dataFim, page: p, limit: 50 });
+    if (histTipo) params.set('tipo_acao', histTipo);
+    if (usuario)  params.set('usuario', usuario);
+    fetch(`${API_URL}/api/auditoria/historico?${params}`)
+      .then(r => r.json())
+      .then(d => { setHistData(d); setHistLoading(false); })
+      .catch(() => setHistLoading(false));
+  }, [dataIni, dataFim, histTipo, usuario, histPage]);
+
   useEffect(() => { fetchData(1); setPage(1); }, [dataIni, dataFim, usuario, modulo, tipoAcao]);
   useEffect(() => { if (tab === 'alertas') fetchAlertas(); }, [tab, dataIni, dataFim]);
+  useEffect(() => { if (tab === 'historico') { setHistPage(1); fetchHistorico(1); } }, [tab, dataIni, dataFim, histTipo, usuario]);
 
   const handleSearchChange = (v) => {
     setSearch(v);
@@ -15744,6 +15763,11 @@ const Auditoria = ({ themeMode }) => {
               <RefreshCw size={13} /> Atualizar
             </button>
           )}
+          {tab === 'historico' && (
+            <button className={`audit-refresh-btn${histLoading ? ' spinning' : ''}`} onClick={() => fetchHistorico(histPage)}>
+              <RefreshCw size={13} /> Atualizar
+            </button>
+          )}
         </div>
       </div>
 
@@ -15757,6 +15781,14 @@ const Auditoria = ({ themeMode }) => {
           {alertas && (alertas.fora_horario?.length + alertas.liberacoes_altas?.length) > 0 && (
             <span className="audit-tab-badge">
               {alertas.fora_horario.length + alertas.liberacoes_altas.length}
+            </span>
+          )}
+        </button>
+        <button className={`audit-tab${tab === 'historico' ? ' active' : ''}`} onClick={() => setTab('historico')}>
+          <History size={14} /> Alterações & Exclusões
+          {histData && histData.pagination?.total > 0 && (
+            <span className="audit-tab-badge" style={{ background: '#f97316' }}>
+              {histData.pagination.total}
             </span>
           )}
         </button>
@@ -15801,6 +15833,7 @@ const Auditoria = ({ themeMode }) => {
             <option value="INCLUSÃO">Inclusão</option>
             <option value="CANCELAMENTO">Cancelamento</option>
             <option value="ALTERAÇÃO">Alteração</option>
+            <option value="EXCLUSÃO">Exclusão</option>
           </select>
         </div>
         <div className="audit-filter-divider" />
@@ -15919,6 +15952,29 @@ const Auditoria = ({ themeMode }) => {
                               <strong>Detalhe:</strong> {item.detalhe || '—'}<br />
                               {item.valor != null && (
                                 <><strong>Valor:</strong> {auditFmtBRL(item.valor)}</>
+                              )}
+                              {/* Painel antes/depois para ALTERAÇÃO e EXCLUSÃO */}
+                              {(item.tipoAcao === 'ALTERAÇÃO' || item.tipoAcao === 'EXCLUSÃO') && (
+                                <div className="hist-diff-inline">
+                                  {item.tipoAcao === 'ALTERAÇÃO' && item.valorAntes != null && (
+                                    <span className="hist-diff-chip">
+                                      <span className="hist-diff-label">Valor antes</span>
+                                      <span className="hist-diff-before">{auditFmtBRL(item.valorAntes)}</span>
+                                      <span className="hist-diff-arrow">→</span>
+                                      <span className="hist-diff-after">{auditFmtBRL(item.valorDepois)}</span>
+                                    </span>
+                                  )}
+                                  {item.tipoAcao === 'EXCLUSÃO' && item.valorAntes != null && (
+                                    <span className="hist-diff-chip exclusao">
+                                      <Trash2 size={11} style={{ marginRight: 4 }} />
+                                      Excluído: {auditFmtBRL(item.valorAntes)}
+                                      {item.dataHoraRegistroFmt && ` em ${item.dataHoraRegistroFmt}`}
+                                    </span>
+                                  )}
+                                  <button className="hist-ver-detalhes" onClick={() => setTab('historico')}>
+                                    Ver detalhes completos →
+                                  </button>
+                                </div>
                               )}
                             </div>
                           </td>
@@ -16139,6 +16195,166 @@ const Auditoria = ({ themeMode }) => {
             <div className="audit-empty">
               <AlertTriangle size={40} className="audit-empty-icon" />
               <div className="audit-empty-text">Clique em "Atualizar" para carregar os alertas do período.</div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {tab === 'historico' && (
+        <div>
+          {/* Filtro de tipo */}
+          <div className="hist-filter-bar">
+            <History size={13} color="#f97316" />
+            <span className="hist-filter-label">Filtrar por tipo:</span>
+            {['', 'ALTERAÇÃO', 'EXCLUSÃO'].map(t => (
+              <button
+                key={t || 'all'}
+                className={`hist-tipo-btn${histTipo === t ? ' active' : ''}`}
+                onClick={() => { setHistTipo(t); setHistPage(1); }}
+              >
+                {t === '' ? 'Todos' : t === 'ALTERAÇÃO' ? 'Alterações' : 'Exclusões'}
+                {histData && t !== '' && (
+                  <span className="hist-tipo-count">
+                    {histData.items?.filter(i => i.tipoAcao === t).length > 0
+                      ? histData.items.filter(i => i.tipoAcao === t).length
+                      : ''}
+                  </span>
+                )}
+              </button>
+            ))}
+            <span className="hist-filter-info">
+              {histData ? `${histData.pagination?.total ?? 0} evento(s) detectado(s)` : ''}
+            </span>
+          </div>
+
+          {histLoading && (
+            <div className="audit-loading-overlay">
+              <RefreshCw size={16} style={{ animation: 'spin .7s linear infinite' }} /> Carregando histórico...
+            </div>
+          )}
+
+          {!histLoading && histData && histData.items?.length === 0 && (
+            <div className="audit-empty">
+              <History size={40} className="audit-empty-icon" />
+              <div className="audit-empty-text">
+                Nenhuma alteração ou exclusão detectada no período.
+                <br />
+                <span style={{ fontSize: 12, color: '#64748b' }}>
+                  O watcher registra mudanças a partir do momento em que a API sobe.
+                  Histórico anterior ao início do monitoramento não é rastreado.
+                </span>
+              </div>
+            </div>
+          )}
+
+          {!histLoading && histData?.items?.length > 0 && (
+            <div className="hist-cards">
+              {histData.items.map(ev => {
+                const isExp   = histExpandId === ev.id;
+                const isExcl  = ev.tipoAcao === 'EXCLUSÃO';
+                const isAlter = ev.tipoAcao === 'ALTERAÇÃO';
+                const antes   = ev.dadosAntes  || {};
+                const depois  = ev.dadosDepois || {};
+                const FIELD_LABEL_PT = {
+                  suprvalor: 'Valor', suprhistorico: 'Histórico', suproperacao: 'Operação',
+                  suprcaixa: 'Caixa', suprplaca: 'Placa', suprusuario: 'Usuário',
+                };
+                const campos  = ev.camposAlterados || [];
+
+                return (
+                  <div key={ev.id} className={`hist-card${isExcl ? ' exclusao' : ' alteracao'}`}>
+                    <div className="hist-card-header" onClick={() => setHistExpandId(isExp ? null : ev.id)}>
+                      <div className="hist-card-left">
+                        <span className={`audit-badge ${isExcl ? 'acao-exclusao' : 'acao-alteracao'}`}>
+                          {isExcl ? <Trash2 size={10} style={{ marginRight: 3 }} /> : <Edit2 size={10} style={{ marginRight: 3 }} />}
+                          {ev.tipoAcao}
+                        </span>
+                        <span className="hist-card-op">{ev.operacao}</span>
+                        <span className="hist-card-ref">#{ev.registroId}</span>
+                        {ev.usuario && ev.usuario !== '—' && (
+                          <span className="hist-card-user">
+                            <UserCheck size={11} /> {ev.usuario}
+                          </span>
+                        )}
+                      </div>
+                      <div className="hist-card-right">
+                        {isAlter && ev.valorAntes != null && (
+                          <span className="hist-valor-diff">
+                            <span className="hist-valor-before">{auditFmtBRL(ev.valorAntes)}</span>
+                            <span className="hist-seta">→</span>
+                            <span className="hist-valor-after">{auditFmtBRL(ev.valorDepois)}</span>
+                          </span>
+                        )}
+                        {isExcl && ev.valorAntes != null && (
+                          <span className="hist-valor-excl">{auditFmtBRL(ev.valorAntes)}</span>
+                        )}
+                        <div className="hist-card-dates">
+                          <span className="hist-dt-label">Detectado:</span> {ev.detectadoEmFmt}
+                          {ev.dataHoraRegistroFmt && ev.dataHoraRegistroFmt !== '—' && (
+                            <><br /><span className="hist-dt-label">Registro:</span> {ev.dataHoraRegistroFmt}</>
+                          )}
+                        </div>
+                        <span className={`audit-expand-arrow${isExp ? ' open' : ''}`}>
+                          <ChevronDown size={13} />
+                        </span>
+                      </div>
+                    </div>
+
+                    {isExp && (
+                      <div className="hist-card-detail">
+                        {isAlter && campos.length > 0 && (
+                          <div className="hist-diff-table">
+                            <div className="hist-diff-thead">
+                              <span>Campo</span><span>Antes</span><span></span><span>Depois</span>
+                            </div>
+                            {campos.map(f => (
+                              <div className="hist-diff-row" key={f}>
+                                <span className="hist-diff-field">{FIELD_LABEL_PT[f] || f}</span>
+                                <span className="hist-diff-val before">{antes[f] || '—'}</span>
+                                <span className="hist-diff-arrow-sm">→</span>
+                                <span className="hist-diff-val after">{depois[f] || '—'}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {isExcl && (
+                          <div className="hist-excl-detail">
+                            <div className="hist-excl-title">
+                              <Trash2 size={13} /> Dados do registro excluído
+                            </div>
+                            <div className="hist-excl-grid">
+                              {Object.entries(FIELD_LABEL_PT).map(([k, label]) =>
+                                antes[k] ? (
+                                  <div key={k} className="hist-excl-item">
+                                    <span className="hist-excl-label">{label}</span>
+                                    <span className="hist-excl-val">{antes[k]}</span>
+                                  </div>
+                                ) : null
+                              )}
+                            </div>
+                          </div>
+                        )}
+                        <div className="hist-card-desc">{ev.descricao}</div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Paginação do histórico */}
+          {histData && histData.pagination?.pages > 1 && (
+            <div className="audit-pagination">
+              <span className="audit-pag-info">
+                Página {histPage} de {histData.pagination.pages} · {histData.pagination.total} registros
+              </span>
+              <div className="audit-pag-btns">
+                <button className="audit-pag-btn" onClick={() => { setHistPage(1); fetchHistorico(1); }} disabled={histPage === 1}>«</button>
+                <button className="audit-pag-btn" onClick={() => { const p = histPage-1; setHistPage(p); fetchHistorico(p); }} disabled={histPage === 1}>‹</button>
+                <button className="audit-pag-btn" onClick={() => { const p = histPage+1; setHistPage(p); fetchHistorico(p); }} disabled={histPage === histData.pagination.pages}>›</button>
+                <button className="audit-pag-btn" onClick={() => { setHistPage(histData.pagination.pages); fetchHistorico(histData.pagination.pages); }} disabled={histPage === histData.pagination.pages}>»</button>
+              </div>
             </div>
           )}
         </div>

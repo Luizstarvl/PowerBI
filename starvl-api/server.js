@@ -136,4 +136,12 @@ app.use((err, req, res, next) => {
 app.listen(PORT, () => {
   console.log(`STARVL API running on http://localhost:${PORT}`);
   console.log(`DB: ${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}`);
+
+  // Inicia o watcher de auditoria (snapshot + detecção de alterações/exclusões)
+  try {
+    const auditWatcher = require('./services/auditWatcher');
+    auditWatcher.start();
+  } catch (err) {
+    console.error('[AuditWatcher] Falha ao iniciar:', err.message);
+  }
 });

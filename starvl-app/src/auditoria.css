@@ -573,6 +573,127 @@
 .theme-light .alerta-config { background: #f9fafb; border-color: #e2e8f0; }
 .theme-light .alerta-config-input { background: #fff; border-color: #d1d5db; color: #111827; }
 
+/* ── Histórico: Alterações & Exclusões ──────────────────────────────────── */
+
+.hist-filter-bar {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 16px; background: rgba(255,255,255,.03);
+  border: 1px solid rgba(255,255,255,.07); border-radius: 8px; margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+.hist-filter-label { font-size: 12px; color: #94a3b8; margin-right: 2px; }
+.hist-filter-info  { font-size: 11px; color: #64748b; margin-left: auto; }
+
+.hist-tipo-btn {
+  padding: 4px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,.1);
+  background: transparent; color: #94a3b8; font-size: 12px; cursor: pointer;
+  transition: all .15s;
+}
+.hist-tipo-btn:hover { background: rgba(255,255,255,.06); color: #e2e8f0; }
+.hist-tipo-btn.active { background: rgba(249,115,22,.15); border-color: #f97316; color: #fb923c; }
+.hist-tipo-count { margin-left: 5px; font-size: 10px; background: rgba(255,255,255,.12); padding: 1px 5px; border-radius: 10px; }
+
+/* Cards */
+.hist-cards { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+
+.hist-card {
+  border-radius: 8px; border: 1px solid rgba(255,255,255,.08);
+  background: rgba(255,255,255,.03); overflow: hidden;
+  transition: border-color .15s;
+}
+.hist-card:hover { border-color: rgba(255,255,255,.15); }
+.hist-card.exclusao { border-left: 3px solid #ef4444; }
+.hist-card.alteracao { border-left: 3px solid #f97316; }
+
+.hist-card-header {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  padding: 10px 14px; cursor: pointer; gap: 12px;
+}
+.hist-card-left  { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; flex: 1; }
+.hist-card-right { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+
+.hist-card-op   { font-size: 13px; font-weight: 600; color: #e2e8f0; }
+.hist-card-ref  { font-size: 11px; color: #64748b; background: rgba(255,255,255,.07); padding: 2px 6px; border-radius: 4px; }
+.hist-card-user { font-size: 11px; color: #94a3b8; display: flex; align-items: center; gap: 3px; }
+
+.hist-valor-diff { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; }
+.hist-valor-before { color: #ef4444; text-decoration: line-through; }
+.hist-seta         { color: #64748b; font-size: 12px; }
+.hist-valor-after  { color: #4ade80; }
+.hist-valor-excl   { font-size: 13px; font-weight: 600; color: #ef4444; }
+
+.hist-card-dates { font-size: 11px; color: #64748b; line-height: 1.5; text-align: right; }
+.hist-dt-label   { color: #475569; }
+
+/* Painel de detalhe expandido */
+.hist-card-detail {
+  padding: 0 14px 12px; border-top: 1px solid rgba(255,255,255,.06);
+  padding-top: 10px;
+}
+.hist-card-desc { font-size: 11px; color: #64748b; margin-top: 8px; line-height: 1.5; }
+
+/* Tabela diff de alteração */
+.hist-diff-table { display: grid; grid-template-columns: 100px 1fr 16px 1fr; gap: 2px 8px; }
+.hist-diff-thead { display: contents; }
+.hist-diff-thead > span {
+  font-size: 10px; color: #475569; text-transform: uppercase; letter-spacing: .05em;
+  padding-bottom: 4px; border-bottom: 1px solid rgba(255,255,255,.06); margin-bottom: 2px;
+}
+.hist-diff-row { display: contents; }
+.hist-diff-field { font-size: 12px; color: #94a3b8; padding: 3px 0; align-self: center; }
+.hist-diff-val   { font-size: 12px; padding: 3px 6px; border-radius: 4px; align-self: center; }
+.hist-diff-val.before { background: rgba(239,68,68,.1); color: #fca5a5; }
+.hist-diff-val.after  { background: rgba(74,222,128,.1); color: #86efac; }
+.hist-diff-arrow-sm   { font-size: 11px; color: #475569; align-self: center; }
+
+/* Painel de exclusão */
+.hist-excl-detail { padding: 8px; background: rgba(239,68,68,.06); border-radius: 6px; }
+.hist-excl-title  {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 11px; color: #f87171; font-weight: 600; margin-bottom: 8px;
+}
+.hist-excl-grid  { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 6px; }
+.hist-excl-item  { display: flex; flex-direction: column; gap: 1px; }
+.hist-excl-label { font-size: 10px; color: #64748b; text-transform: uppercase; letter-spacing: .05em; }
+.hist-excl-val   { font-size: 12px; color: #fca5a5; font-weight: 500; }
+
+/* Inline diff chip no log de ações */
+.hist-diff-inline {
+  display: flex; align-items: center; gap: 8px; margin-top: 8px; flex-wrap: wrap;
+}
+.hist-diff-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 11px; padding: 3px 8px; border-radius: 5px;
+  background: rgba(249,115,22,.12); border: 1px solid rgba(249,115,22,.25); color: #fdba74;
+}
+.hist-diff-chip.exclusao {
+  background: rgba(239,68,68,.12); border-color: rgba(239,68,68,.25); color: #fca5a5;
+}
+.hist-diff-label  { color: #94a3b8; }
+.hist-diff-before { color: #fca5a5; text-decoration: line-through; }
+.hist-diff-arrow  { color: #64748b; }
+.hist-diff-after  { color: #86efac; }
+.hist-ver-detalhes {
+  font-size: 11px; color: #60a5fa; background: transparent; border: none;
+  cursor: pointer; text-decoration: underline; padding: 0;
+}
+.hist-ver-detalhes:hover { color: #93c5fd; }
+
+/* Light theme overrides */
+.theme-light .hist-filter-bar { background: #f9fafb; border-color: #e2e8f0; }
+.theme-light .hist-tipo-btn   { border-color: #d1d5db; color: #6b7280; }
+.theme-light .hist-tipo-btn:hover  { background: #f3f4f6; color: #374151; }
+.theme-light .hist-tipo-btn.active { background: #fff7ed; border-color: #f97316; color: #ea580c; }
+.theme-light .hist-card       { background: #fff; border-color: #e2e8f0; }
+.theme-light .hist-card:hover { border-color: #cbd5e1; }
+.theme-light .hist-card-detail { border-color: #f3f4f6; }
+.theme-light .hist-card-op    { color: #111827; }
+.theme-light .hist-card-dates { color: #9ca3af; }
+.theme-light .hist-diff-val.before { background: #fef2f2; color: #dc2626; }
+.theme-light .hist-diff-val.after  { background: #f0fdf4; color: #16a34a; }
+.theme-light .hist-excl-detail     { background: #fef2f2; }
+.theme-light .hist-excl-val  { color: #dc2626; }
+
 /* Responsive */
 @media (max-width: 768px) {
   .audit-wrap { padding: 0 12px 32px; }
