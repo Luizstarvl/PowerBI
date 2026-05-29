@@ -12116,22 +12116,18 @@ const ConvenienciaManager = ({ themeMode, selectedClient, clients }) => {
                   <div className="pm-edit-panel-title"><DollarSign size={12} /> PREÇOS E MARGEM</div>
                   <div className="pm-edit-fg2">
                     <div className="pm-edit-field">
-                      <label className="pm-edit-label" style={{ display:'flex', alignItems:'center', gap:5 }}>
-                        Custo Médio (R$)
-                        <span style={{ fontSize:10, color:'#475569', fontWeight:400 }}>(sistema)</span>
-                        <Lock size={10} color="#475569" />
-                      </label>
-                      <input className="pm-edit-input" readOnly value={fmtBRL(editProd.custo)}
-                        style={{ background:'#0a0f1a', color:'#475569', cursor:'not-allowed' }} />
+                      <label className="pm-edit-label">Custo Médio (R$)</label>
+                      <input className="pm-edit-input" readOnly value={fmtBRL(editProd.custo)} />
+                      <span className="pm-edit-hint" style={{ display:'flex', alignItems:'center', gap:3 }}>
+                        <Lock size={9} color="#475569" /> Valor do sistema (e_prodcusto)
+                      </span>
                     </div>
                     <div className="pm-edit-field">
-                      <label className="pm-edit-label" style={{ display:'flex', alignItems:'center', gap:5 }}>
-                        Preço de Venda (R$)
-                        <span style={{ fontSize:10, color:'#475569', fontWeight:400 }}>(sistema)</span>
-                        <Lock size={10} color="#475569" />
-                      </label>
-                      <input className="pm-edit-input" readOnly value={fmtBRL(editProd.preco)}
-                        style={{ background:'#0a0f1a', color:'#475569', cursor:'not-allowed' }} />
+                      <label className="pm-edit-label">Preço de Venda (R$)</label>
+                      <input className="pm-edit-input" readOnly value={fmtBRL(editProd.preco)} />
+                      <span className="pm-edit-hint" style={{ display:'flex', alignItems:'center', gap:3 }}>
+                        <Lock size={9} color="#475569" /> Valor do sistema (e_prodv1)
+                      </span>
                     </div>
                   </div>
                   {(() => {
@@ -12168,22 +12164,18 @@ const ConvenienciaManager = ({ themeMode, selectedClient, clients }) => {
                   <div className="pm-edit-panel-title"><Database size={12} /> DADOS DE ESTOQUE</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                     <div className="pm-edit-field">
-                      <label className="pm-edit-label" style={{ display:'flex', alignItems:'center', gap:5 }}>
-                        Estoque Atual
-                        <span style={{ fontSize:10, color:'#475569', fontWeight:400 }}>(sistema)</span>
-                        <Lock size={10} color="#475569" />
-                      </label>
-                      <input className="pm-edit-input" readOnly value={`${editProd.estoque} un.`}
-                        style={{ background:'#0a0f1a', color:'#475569', cursor:'not-allowed' }} />
+                      <label className="pm-edit-label">Estoque Atual</label>
+                      <input className="pm-edit-input" readOnly value={`${editProd.estoque} un.`} />
+                      <span className="pm-edit-hint" style={{ display:'flex', alignItems:'center', gap:3 }}>
+                        <Lock size={9} color="#475569" /> Valor do sistema
+                      </span>
                     </div>
                     <div className="pm-edit-field">
-                      <label className="pm-edit-label" style={{ display:'flex', alignItems:'center', gap:5 }}>
-                        Estoque Mínimo
-                        <span style={{ fontSize:10, color:'#475569', fontWeight:400 }}>(sistema)</span>
-                        <Lock size={10} color="#475569" />
-                      </label>
-                      <input className="pm-edit-input" readOnly value={`${editProd.estMin ?? 5} un.`}
-                        style={{ background:'#0a0f1a', color:'#475569', cursor:'not-allowed' }} />
+                      <label className="pm-edit-label">Estoque Mínimo</label>
+                      <input className="pm-edit-input" readOnly value={`${editProd.estMin ?? 5} un.`} />
+                      <span className="pm-edit-hint" style={{ display:'flex', alignItems:'center', gap:3 }}>
+                        <Lock size={9} color="#475569" /> Valor do sistema
+                      </span>
                     </div>
                   </div>
                   <div className="pm-edit-field" style={{ marginTop: 12 }}>
