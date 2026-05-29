@@ -9355,7 +9355,7 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
   const [showComprasPanel,      setShowComprasPanel]      = useState(false);
   const [comprasFilters, setComprasFilters]  = useState({ fornecedor:'Todos', produto:'Todos', dataInicial:'', dataFinal:'' });
   const [showCadastroPanel,     setShowCadastroPanel]     = useState(false);
-  const [cadastroFilters, setCadastroFilters] = useState({ tipo:'todos', situacao:'todos', busca:'', ordenacao:'nome' });
+  const [cadastroFilters, setCadastroFilters] = useState({ tipo:'todos', situacao:'todos', busca:'', ordenacao:'nome', exibirCodBarras:true });
   const [vendedores, setVendedores] = useState([]);
   const [rankingFilters, setRankingFilters] = useState({
     dataInicial: '',
@@ -10022,7 +10022,7 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
       if (result.error) throw new Error(result.error);
 
       const { combustiveis = [], convenio = [] } = result;
-      const { tipo, situacao, busca, ordenacao } = cadastroFilters;
+      const { tipo, situacao, busca, ordenacao, exibirCodBarras } = cadastroFilters;
       const buscaLow = busca.toLowerCase();
 
       const filtrarItems = (arr) => arr.filter(p => {
@@ -10066,7 +10066,7 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
       const trConv = convFilt.map(p => `
         <tr>
           <td class="mono">${p.cod}</td>
-          <td class="mono" style="font-size:9px">${p.codBarra || '—'}</td>
+          ${exibirCodBarras ? `<td class="mono" style="font-size:9px">${p.codBarra || '—'}</td>` : ''}
           <td>${p.descricao}</td>
           <td>${p.secao}</td>
           <td>${p.grupo || '—'}</td>
@@ -10136,12 +10136,12 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
           ${convFilt.length === 0 ? '<div class="empty">Nenhum produto encontrado.</div>' : `
           <table>
             <thead><tr>
-              <th>Cód.</th><th>Cód. Barras</th><th>Descrição</th>
+              <th>Cód.</th>${exibirCodBarras ? '<th>Cód. Barras</th>' : ''}<th>Descrição</th>
               <th>Seção</th><th>Grupo</th>
               <th class="r">Preço V1</th><th class="r">Custo</th>
               <th class="r">Margem</th><th class="r">Estoque</th><th class="c">Situação</th>
             </tr></thead>
-            <tbody>${trConv || '<tr><td colspan="10" class="empty">—</td></tr>'}</tbody>
+            <tbody>${trConv || `<tr><td colspan="${exibirCodBarras ? 10 : 9}" class="empty">—</td></tr>`}</tbody>
           </table>`}
         </section>` : ''}
 
@@ -10350,66 +10350,117 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
 
       {showCadastroPanel && (
         <div className="modal-overlay control-print-overlay">
-          <div className="control-print-panel ranking-filter-panel" style={{ maxWidth:460 }}>
+          <div className="control-print-panel ranking-filter-panel" style={{ maxWidth:720, width:'95%' }}>
             <div className="ranking-filter-header">
               <div>
-                <div style={{ fontSize:16, fontWeight:800 }}>REL 11 — Cadastro de Produtos</div>
+                <div style={{ fontSize:17, fontWeight:800 }}>REL 11 — Cadastro de Produtos</div>
                 <div style={{ fontSize:12, color:'#64748b', marginTop:3 }}>Relação de produtos e combustíveis cadastrados</div>
               </div>
               <button onClick={() => setShowCadastroPanel(false)} className="ranking-close-btn">✕</button>
             </div>
 
-            <div style={{ display:'flex', flexDirection:'column', gap:14, marginTop:18 }}>
-              <div>
-                <label style={{ fontSize:11, fontWeight:700, color:'#64748b', textTransform:'uppercase', letterSpacing:'.06em', display:'block', marginBottom:6 }}>Tipo de Produto</label>
-                <div style={{ display:'flex', gap:8 }}>
-                  {[['todos','Todos'],['combustiveis','Combustíveis'],['convenio','Conveniência']].map(([v,l]) => (
-                    <button key={v} onClick={() => setCadastroFilters(f => ({...f, tipo:v}))}
-                      style={{ flex:1, padding:'8px 0', borderRadius:7, fontSize:12, fontWeight:700, cursor:'pointer', border:'none',
-                        background: cadastroFilters.tipo===v ? '#E31E24' : '#1f2937',
-                        color: cadastroFilters.tipo===v ? '#fff' : '#94a3b8' }}>
-                      {l}
-                    </button>
-                  ))}
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginTop:18 }}>
+              {/* Coluna esquerda */}
+              <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+                <div>
+                  <label style={{ fontSize:11, fontWeight:700, color:'#64748b', textTransform:'uppercase', letterSpacing:'.06em', display:'block', marginBottom:6 }}>Tipo de Produto</label>
+                  <div style={{ display:'flex', gap:8 }}>
+                    {[['todos','Todos'],['combustiveis','Combustíveis'],['convenio','Conveniência']].map(([v,l]) => (
+                      <button key={v} onClick={() => setCadastroFilters(f => ({...f, tipo:v}))}
+                        style={{ flex:1, padding:'8px 4px', borderRadius:7, fontSize:12, fontWeight:700, cursor:'pointer', border:'none',
+                          background: cadastroFilters.tipo===v ? '#E31E24' : '#1f2937',
+                          color: cadastroFilters.tipo===v ? '#fff' : '#94a3b8' }}>
+                        {l}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label style={{ fontSize:11, fontWeight:700, color:'#64748b', textTransform:'uppercase', letterSpacing:'.06em', display:'block', marginBottom:6 }}>Situação</label>
+                  <div style={{ display:'flex', gap:8 }}>
+                    {[['todos','Todos'],['ativo','Somente Ativos'],['inativo','Somente Inativos']].map(([v,l]) => (
+                      <button key={v} onClick={() => setCadastroFilters(f => ({...f, situacao:v}))}
+                        style={{ flex:1, padding:'8px 4px', borderRadius:7, fontSize:11, fontWeight:700, cursor:'pointer', border:'none',
+                          background: cadastroFilters.situacao===v ? '#E31E24' : '#1f2937',
+                          color: cadastroFilters.situacao===v ? '#fff' : '#94a3b8' }}>
+                        {l}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label style={{ fontSize:11, fontWeight:700, color:'#64748b', textTransform:'uppercase', letterSpacing:'.06em', display:'block', marginBottom:6 }}>Buscar por nome ou código de barras</label>
+                  <input
+                    value={cadastroFilters.busca}
+                    onChange={e => setCadastroFilters(f => ({...f, busca:e.target.value}))}
+                    placeholder="Descrição ou cód. de barras..."
+                    style={{ width:'100%', boxSizing:'border-box', padding:'9px 12px', borderRadius:8, border:'1px solid #2a2a2a', background:'#111', color:'#f8fafc', fontSize:13, outline:'none' }}
+                  />
                 </div>
               </div>
 
-              <div>
-                <label style={{ fontSize:11, fontWeight:700, color:'#64748b', textTransform:'uppercase', letterSpacing:'.06em', display:'block', marginBottom:6 }}>Situação</label>
-                <div style={{ display:'flex', gap:8 }}>
-                  {[['todos','Todos'],['ativo','Somente Ativos'],['inativo','Somente Inativos']].map(([v,l]) => (
-                    <button key={v} onClick={() => setCadastroFilters(f => ({...f, situacao:v}))}
-                      style={{ flex:1, padding:'8px 0', borderRadius:7, fontSize:12, fontWeight:700, cursor:'pointer', border:'none',
-                        background: cadastroFilters.situacao===v ? '#E31E24' : '#1f2937',
-                        color: cadastroFilters.situacao===v ? '#fff' : '#94a3b8' }}>
-                      {l}
-                    </button>
-                  ))}
+              {/* Coluna direita */}
+              <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+                <div>
+                  <label style={{ fontSize:11, fontWeight:700, color:'#64748b', textTransform:'uppercase', letterSpacing:'.06em', display:'block', marginBottom:6 }}>Ordenar por</label>
+                  <div style={{ display:'flex', gap:8 }}>
+                    {[['nome','Nome A–Z'],['estoque','Estoque'],['situacao','Situação']].map(([v,l]) => (
+                      <button key={v} onClick={() => setCadastroFilters(f => ({...f, ordenacao:v}))}
+                        style={{ flex:1, padding:'8px 4px', borderRadius:7, fontSize:12, fontWeight:700, cursor:'pointer', border:'none',
+                          background: cadastroFilters.ordenacao===v ? '#E31E24' : '#1f2937',
+                          color: cadastroFilters.ordenacao===v ? '#fff' : '#94a3b8' }}>
+                        {l}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
 
-              <div>
-                <label style={{ fontSize:11, fontWeight:700, color:'#64748b', textTransform:'uppercase', letterSpacing:'.06em', display:'block', marginBottom:6 }}>Ordenar por</label>
-                <div style={{ display:'flex', gap:8 }}>
-                  {[['nome','Nome A–Z'],['estoque','Estoque'],['situacao','Situação']].map(([v,l]) => (
-                    <button key={v} onClick={() => setCadastroFilters(f => ({...f, ordenacao:v}))}
-                      style={{ flex:1, padding:'8px 0', borderRadius:7, fontSize:12, fontWeight:700, cursor:'pointer', border:'none',
-                        background: cadastroFilters.ordenacao===v ? '#E31E24' : '#1f2937',
-                        color: cadastroFilters.ordenacao===v ? '#fff' : '#94a3b8' }}>
-                      {l}
-                    </button>
-                  ))}
+                <div>
+                  <label style={{ fontSize:11, fontWeight:700, color:'#64748b', textTransform:'uppercase', letterSpacing:'.06em', display:'block', marginBottom:10 }}>Opções de Exibição</label>
+                  <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+                    {/* Toggle código de barras */}
+                    <label style={{ display:'flex', alignItems:'center', gap:10, cursor:'pointer', userSelect:'none' }}>
+                      <div
+                        onClick={() => setCadastroFilters(f => ({...f, exibirCodBarras:!f.exibirCodBarras}))}
+                        style={{
+                          width:40, height:22, borderRadius:11, position:'relative', flexShrink:0, cursor:'pointer',
+                          background: cadastroFilters.exibirCodBarras ? '#E31E24' : '#374151',
+                          transition:'background .2s',
+                        }}
+                      >
+                        <div style={{
+                          position:'absolute', top:3, left: cadastroFilters.exibirCodBarras ? 21 : 3,
+                          width:16, height:16, borderRadius:'50%', background:'#fff',
+                          transition:'left .2s', boxShadow:'0 1px 3px rgba(0,0,0,.3)',
+                        }} />
+                      </div>
+                      <span style={{ fontSize:13, color: cadastroFilters.exibirCodBarras ? '#f8fafc' : '#64748b', fontWeight:600 }}>
+                        Exibir Código de Barras
+                      </span>
+                    </label>
+                  </div>
                 </div>
-              </div>
 
-              <div>
-                <label style={{ fontSize:11, fontWeight:700, color:'#64748b', textTransform:'uppercase', letterSpacing:'.06em', display:'block', marginBottom:6 }}>Buscar por nome ou código de barras</label>
-                <input
-                  value={cadastroFilters.busca}
-                  onChange={e => setCadastroFilters(f => ({...f, busca:e.target.value}))}
-                  placeholder="Descrição ou cód. de barras..."
-                  style={{ width:'100%', boxSizing:'border-box', padding:'9px 12px', borderRadius:8, border:'1px solid #2a2a2a', background:'#111', color:'#f8fafc', fontSize:13, outline:'none' }}
-                />
+                {/* Preview resumo */}
+                <div style={{ marginTop:'auto', background:'#0f172a', border:'1px solid #1e293b', borderRadius:8, padding:'12px 14px' }}>
+                  <div style={{ fontSize:10, color:'#475569', fontWeight:700, textTransform:'uppercase', letterSpacing:'.06em', marginBottom:8 }}>Resumo da Seleção</div>
+                  <div style={{ fontSize:12, color:'#94a3b8', lineHeight:1.7 }}>
+                    <div>Tipo: <span style={{ color:'#e2e8f0', fontWeight:600 }}>
+                      {cadastroFilters.tipo === 'todos' ? 'Todos' : cadastroFilters.tipo === 'combustiveis' ? 'Combustíveis' : 'Conveniência'}
+                    </span></div>
+                    <div>Situação: <span style={{ color:'#e2e8f0', fontWeight:600 }}>
+                      {cadastroFilters.situacao === 'todos' ? 'Todos' : cadastroFilters.situacao === 'ativo' ? 'Somente Ativos' : 'Somente Inativos'}
+                    </span></div>
+                    <div>Ordenação: <span style={{ color:'#e2e8f0', fontWeight:600 }}>
+                      {cadastroFilters.ordenacao === 'nome' ? 'Nome A–Z' : cadastroFilters.ordenacao === 'estoque' ? 'Estoque (maior)' : 'Situação'}
+                    </span></div>
+                    <div>Cód. Barras: <span style={{ color: cadastroFilters.exibirCodBarras ? '#4ade80' : '#f87171', fontWeight:600 }}>
+                      {cadastroFilters.exibirCodBarras ? 'Visível' : 'Oculto'}
+                    </span></div>
+                  </div>
+                </div>
               </div>
             </div>
 
