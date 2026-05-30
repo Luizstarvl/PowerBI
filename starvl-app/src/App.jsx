@@ -293,6 +293,7 @@ const Sidebar = ({ currentPage, setCurrentPage, onLogout, themeMode, collapsed, 
   const menuItems = [
     { icon: Home,         label: 'HOME',                     page: 'dashboard' },
     { icon: Package,      label: 'ESTOQUE',                  page: 'stock'     },
+    { icon: ShoppingCart, label: 'COMPRAS',                  page: 'compras'   },
     { icon: BookOpen,     label: 'LIVROS',                   page: 'control'   },
     { icon: Target,       label: 'INDICADORES PATRIMONIAIS', page: 'goals'     },
     { icon: PiggyBank,    label: 'FINANCEIRO',               page: 'receber'   },
@@ -354,13 +355,14 @@ const Sidebar = ({ currentPage, setCurrentPage, onLogout, themeMode, collapsed, 
 // TopBar Component
 const PAGE_TITLES = {
   dashboard: 'Home',
-  reports: 'Relatórios',
-  control: 'Livros',
-  stock: 'Estoque',
-  receber: 'Financeiro',
-  goals: 'Indicadores Patrimoniais',
-  users: 'Gerenciamento de Usuários',
-  params: 'Configurações',
+  reports:   'Relatórios',
+  control:   'Livros',
+  stock:     'Estoque',
+  compras:   'Compras',
+  receber:   'Financeiro',
+  goals:     'Indicadores Patrimoniais',
+  users:     'Gerenciamento de Usuários',
+  params:    'Configurações',
 };
 
 // Navegação rápida por atalho de página
@@ -370,13 +372,14 @@ const QuickNav = ({ setCurrentPage, themeMode }) => {
   const ref = useRef(null);
 
   const NAV_PAGES = [
-    { icon: Home,      label: 'Home',                       page: 'dashboard' },
-    { icon: Package,   label: 'Estoque',                    page: 'stock'     },
-    { icon: BookOpen,  label: 'Livros',                     page: 'control'   },
-    { icon: Target,    label: 'Indicadores Patrimoniais',   page: 'goals'     },
-    { icon: PiggyBank, label: 'Financeiro',                 page: 'receber'   },
-    { icon: FileText,  label: 'Relatórios',                 page: 'reports'   },
-    { icon: Settings,  label: 'Configurações',              page: 'params'    },
+    { icon: Home,         label: 'Home',                       page: 'dashboard' },
+    { icon: Package,      label: 'Estoque',                    page: 'stock'     },
+    { icon: ShoppingCart, label: 'Compras',                    page: 'compras'   },
+    { icon: BookOpen,     label: 'Livros',                     page: 'control'   },
+    { icon: Target,       label: 'Indicadores Patrimoniais',   page: 'goals'     },
+    { icon: PiggyBank,    label: 'Financeiro',                 page: 'receber'   },
+    { icon: FileText,     label: 'Relatórios',                 page: 'reports'   },
+    { icon: Settings,     label: 'Configurações',              page: 'params'    },
   ];
 
   const filtered = query.trim()
@@ -9647,6 +9650,288 @@ const ComprasFilterPanel = ({ filters, setFilters, onClose, onGenerate }) => {
 };
 // ── fim Painel de Auxílio em Compras ─────────────────────────────────────────
 
+// ── ComprasPage ───────────────────────────────────────────────────────────────
+const ComprasPage = ({ selectedClient, clients }) => {
+  const [secao, setSecao]           = useState('combustiveis'); // 'combustiveis' | 'produtos'
+  const [periodo, setPeriodo]       = useState(() => {
+    const now = new Date();
+    return String(now.getMonth() + 1).padStart(2,'0') + String(now.getFullYear());
+  });
+  const [combustSubTab, setCombustSubTab] = useState('comNota');
+  const [prodSubTab,    setProdSubTab]    = useState('comNota');
+  const [dataCombust,   setDataCombust]   = useState(null);
+  const [dataProd,      setDataProd]      = useState(null);
+  const [loading,       setLoading]       = useState({});
+  const [error,         setError]         = useState({});
+
+  const empresa = useMemo(() => {
+    const c = (clients || []).find(c => c.nome === selectedClient) || (clients || [])[0];
+    return c ? c.codigoEmpresa : null;
+  }, [clients, selectedClient]);
+
+  const periodoInput = useMemo(() => {
+    if (!periodo || periodo.length !== 6) return '';
+    const mm = periodo.slice(0,2), yyyy = periodo.slice(2,6);
+    return `${yyyy}-${mm}`;
+  }, [periodo]);
+
+  const fetchCombust = useCallback(async () => {
+    if (!empresa || !periodo) return;
+    setLoading(p => ({ ...p, combustiveis: true }));
+    setError(p => ({ ...p, combustiveis: null }));
+    try {
+      const r = await fetch(`${API_URL}/api/relatorios/descarregamentos?empresa=${empresa}&periodo=${periodo}`);
+      const d = await r.json();
+      if (d.error) throw new Error(d.error);
+      setDataCombust(d);
+    } catch (err) { // eslint-disable-line no-unused-vars
+      setError(p => ({ ...p, combustiveis: 'Erro ao carregar compras de combustíveis.' }));
+    } finally {
+      setLoading(p => ({ ...p, combustiveis: false }));
+    }
+  }, [empresa, periodo]);
+
+  const fetchProd = useCallback(async () => {
+    if (!empresa || !periodo) return;
+    setLoading(p => ({ ...p, produtos: true }));
+    setError(p => ({ ...p, produtos: null }));
+    try {
+      const r = await fetch(`${API_URL}/api/relatorios/notas-produtos?empresa=${empresa}&periodo=${periodo}`);
+      const d = await r.json();
+      if (d.error) throw new Error(d.error);
+      setDataProd(d);
+    } catch (err) { // eslint-disable-line no-unused-vars
+      setError(p => ({ ...p, produtos: 'Erro ao carregar notas de compras de produtos.' }));
+    } finally {
+      setLoading(p => ({ ...p, produtos: false }));
+    }
+  }, [empresa, periodo]);
+
+  useEffect(() => { fetchCombust(); fetchProd(); }, [fetchCombust, fetchProd]);
+
+  const handlePeriodo = (e) => {
+    const val = e.target.value; // "YYYY-MM"
+    if (!val) return;
+    const [yyyy, mm] = val.split('-');
+    setPeriodo(mm + yyyy);
+    setDataCombust(null);
+    setDataProd(null);
+  };
+
+  // ── render helpers ──
+  const renderCombust = () => {
+    if (loading.combustiveis) return <LoadingState label="Carregando compras de combustíveis..." />;
+    if (error.combustiveis)   return <ApiErrorNotice message={error.combustiveis} onRetry={fetchCombust} />;
+    const d = dataCombust;
+    if (!d) return null;
+    const rows     = combustSubTab === 'comNota' ? d.comNota : d.semNota;
+    const totalQtd = rows.reduce((s,r) => s + r.qtd,   0);
+    const totalVal = rows.reduce((s,r) => s + r.total, 0);
+    return (
+      <div>
+        <div style={{ display:'flex', gap:'12px', marginBottom:'16px' }}>
+          <div className="stat-card" style={{ flex:1, minWidth:0 }}>
+            <div className="stat-icon red"><Droplet size={20}/></div>
+            <div className="stat-content">
+              <div className="stat-label">Combustíveis 110</div>
+              <div className="stat-value" style={{ fontSize:'20px' }}>{fmtNum(d.comNota.reduce((s,r)=>s+r.qtd,0),0)} L</div>
+            </div>
+          </div>
+          <div className="stat-card" style={{ flex:1, minWidth:0 }}>
+            <div className="stat-icon orange"><Droplet size={20}/></div>
+            <div className="stat-content">
+              <div className="stat-label">Combustíveis 220</div>
+              <div className="stat-value" style={{ fontSize:'20px' }}>{fmtNum(d.semNota.reduce((s,r)=>s+r.qtd,0),0)} L</div>
+            </div>
+          </div>
+          <div className="stat-card" style={{ flex:1, minWidth:0 }}>
+            <div className="stat-icon green"><DollarSign size={20}/></div>
+            <div className="stat-content">
+              <div className="stat-label">Valor Total</div>
+              <div className="stat-value" style={{ fontSize:'20px' }}>{fmtBRL([...d.comNota,...d.semNota].reduce((s,r)=>s+r.total,0))}</div>
+            </div>
+          </div>
+        </div>
+        <div style={{ display:'flex', gap:'8px', marginBottom:'12px' }}>
+          {['comNota','semNota'].map(t => (
+            <button key={t} type="button" onClick={() => setCombustSubTab(t)}
+              style={{ padding:'6px 16px', borderRadius:'6px', fontSize:'13px', fontWeight:600, border:'none', cursor:'pointer',
+                background: combustSubTab===t ? '#E31E24' : '#222', color: combustSubTab===t ? '#fff' : '#888' }}>
+              {t==='comNota' ? `Combustíveis 110 — ${d.comNota.length}` : `Combustíveis 220 — ${d.semNota.length}`}
+            </button>
+          ))}
+        </div>
+        <div className="table-container">
+          <table className="data-table">
+            <thead><tr>
+              <th>DATA</th><th>FORNECEDOR</th><th>COMBUSTÍVEL</th>
+              <th style={{textAlign:'right'}}>LITROS</th>
+              <th style={{textAlign:'right'}}>UNIT.</th>
+              <th style={{textAlign:'right'}}>TOTAL</th>
+              {combustSubTab==='comNota' ? <><th>NOTA</th><th>PLACA</th></> : <><th>PEDIDO</th><th>OBSERVAÇÃO</th></>}
+            </tr></thead>
+            <tbody>
+              {rows.length===0 && <tr><td colSpan={8} style={{textAlign:'center',color:'#666',padding:'32px'}}>Nenhum registro encontrado.</td></tr>}
+              {rows.map((r,i) => (
+                <tr key={i}>
+                  <td style={{fontFamily:'monospace',fontSize:'13px'}}>{fmtDate(r.data)}</td>
+                  <td style={{maxWidth:'200px',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{r.fornecedor}</td>
+                  <td style={{color:getFuelColor(r.combustivel),fontWeight:600}}>{r.combustivel}</td>
+                  <td style={{textAlign:'right',fontFamily:'monospace',color:'#4CAF50',fontWeight:600}}>{fmtNum(r.qtd,3)}</td>
+                  <td style={{textAlign:'right',fontFamily:'monospace',fontSize:'12px'}}>{fmtBRL(r.unitario)}</td>
+                  <td style={{textAlign:'right',fontFamily:'monospace',fontWeight:600}}>{fmtBRL(r.total)}</td>
+                  {combustSubTab==='comNota'
+                    ? <><td style={{fontFamily:'monospace',fontSize:'11px',color:'#888'}}>{r.nota||'—'}</td><td style={{fontSize:'12px',color:'#888'}}>{r.placa||'—'}</td></>
+                    : <><td style={{fontSize:'12px',color:'#888'}}>#{r.pedido}</td><td style={{fontSize:'11px',color:'#888',maxWidth:'200px'}}>{r.observacao||'—'}</td></>}
+                </tr>
+              ))}
+              {rows.length>0 && (
+                <tr style={{background:'#1a1a1a',fontWeight:700}}>
+                  <td colSpan={3} style={{color:'#888'}}>TOTAL</td>
+                  <td style={{textAlign:'right',fontFamily:'monospace',color:'#4CAF50'}}>{fmtNum(totalQtd,3)} L</td>
+                  <td></td>
+                  <td style={{textAlign:'right',fontFamily:'monospace'}}>{fmtBRL(totalVal)}</td>
+                  <td></td><td></td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  };
+
+  const renderProd = () => {
+    if (loading.produtos) return <LoadingState label="Carregando notas de compras de produtos..." />;
+    if (error.produtos)   return <ApiErrorNotice message={error.produtos} onRetry={fetchProd} />;
+    const d = dataProd;
+    if (!d) return null;
+    const rows     = prodSubTab==='comNota' ? d.comNota : d.semNota;
+    const totalQtd = rows.reduce((s,r) => s + r.qtd,   0);
+    const totalVal = rows.reduce((s,r) => s + r.total, 0);
+    const totalNotasComNota = new Set(d.comNota.map(r=>r.nota)).size;
+    const totalPedidos      = new Set(d.semNota.map(r=>r.pedido)).size;
+    return (
+      <div>
+        <div style={{ display:'flex', gap:'12px', marginBottom:'16px' }}>
+          <div className="stat-card" style={{ flex:1, minWidth:0 }}>
+            <div className="stat-icon red"><ShoppingCart size={20}/></div>
+            <div className="stat-content">
+              <div className="stat-label">NF Entrada (110)</div>
+              <div className="stat-value" style={{ fontSize:'20px' }}>{totalNotasComNota} notas</div>
+              <div className="stat-sub">{d.comNota.length} itens</div>
+            </div>
+          </div>
+          <div className="stat-card" style={{ flex:1, minWidth:0 }}>
+            <div className="stat-icon orange"><Package size={20}/></div>
+            <div className="stat-content">
+              <div className="stat-label">Pedidos (220)</div>
+              <div className="stat-value" style={{ fontSize:'20px' }}>{totalPedidos} pedidos</div>
+              <div className="stat-sub">{d.semNota.length} itens</div>
+            </div>
+          </div>
+          <div className="stat-card" style={{ flex:1, minWidth:0 }}>
+            <div className="stat-icon green"><DollarSign size={20}/></div>
+            <div className="stat-content">
+              <div className="stat-label">Valor Total</div>
+              <div className="stat-value" style={{ fontSize:'20px' }}>{fmtBRL([...d.comNota,...d.semNota].reduce((s,r)=>s+r.total,0))}</div>
+            </div>
+          </div>
+        </div>
+        <div style={{ display:'flex', gap:'8px', marginBottom:'12px' }}>
+          {['comNota','semNota'].map(t => (
+            <button key={t} type="button" onClick={() => setProdSubTab(t)}
+              style={{ padding:'6px 16px', borderRadius:'6px', fontSize:'13px', fontWeight:600, border:'none', cursor:'pointer',
+                background: prodSubTab===t ? '#E31E24' : '#222', color: prodSubTab===t ? '#fff' : '#888' }}>
+              {t==='comNota' ? `NF Entrada (110) — ${d.comNota.length} itens` : `Pedidos (220) — ${d.semNota.length} itens`}
+            </button>
+          ))}
+        </div>
+        <div className="table-container">
+          <table className="data-table">
+            <thead><tr>
+              <th>DATA</th><th>FORNECEDOR</th><th>PRODUTO</th>
+              <th style={{textAlign:'right'}}>QTD</th>
+              <th style={{textAlign:'right'}}>UNIT.</th>
+              <th style={{textAlign:'right'}}>TOTAL</th>
+              {prodSubTab==='comNota' ? <th>CHAVE NF</th> : <><th>PEDIDO</th><th>OBSERVAÇÃO</th></>}
+            </tr></thead>
+            <tbody>
+              {rows.length===0 && <tr><td colSpan={prodSubTab==='comNota'?7:8} style={{textAlign:'center',color:'#666',padding:'32px'}}>Nenhum registro encontrado.</td></tr>}
+              {rows.map((r,i) => (
+                <tr key={i}>
+                  <td style={{fontFamily:'monospace',fontSize:'13px'}}>{fmtDate(r.data)}</td>
+                  <td style={{maxWidth:'200px',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{r.fornecedor}</td>
+                  <td style={{maxWidth:'220px',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',fontWeight:500}}>{r.produto}</td>
+                  <td style={{textAlign:'right',fontFamily:'monospace',color:'#4CAF50',fontWeight:600}}>{fmtNum(r.qtd,3)}</td>
+                  <td style={{textAlign:'right',fontFamily:'monospace',fontSize:'12px'}}>{fmtBRL(r.unitario)}</td>
+                  <td style={{textAlign:'right',fontFamily:'monospace',fontWeight:600}}>{fmtBRL(r.total)}</td>
+                  {prodSubTab==='comNota'
+                    ? <td style={{fontFamily:'monospace',fontSize:'10px',color:'#888',maxWidth:'160px',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{r.nota||'—'}</td>
+                    : <><td style={{fontSize:'12px',color:'#888'}}>#{r.pedido}</td><td style={{fontSize:'11px',color:'#888',maxWidth:'160px'}}>{r.observacao||'—'}</td></>}
+                </tr>
+              ))}
+              {rows.length>0 && (
+                <tr style={{background:'#1a1a1a',fontWeight:700}}>
+                  <td colSpan={3} style={{color:'#888'}}>TOTAL</td>
+                  <td style={{textAlign:'right',fontFamily:'monospace',color:'#4CAF50'}}>{fmtNum(totalQtd,3)}</td>
+                  <td></td>
+                  <td style={{textAlign:'right',fontFamily:'monospace'}}>{fmtBRL(totalVal)}</td>
+                  {prodSubTab==='comNota'?<td></td>:<><td></td><td></td></>}
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="page-content">
+      <div className="page-header">
+        <h2>COMPRAS</h2>
+        <div className="header-actions">
+          <div className="control-filter-group">
+            <label className="control-filter-label">PERÍODO</label>
+            <div className="control-filter-select">
+              <Calendar size={15}/>
+              <input type="month" value={periodoInput} onChange={handlePeriodo}/>
+            </div>
+          </div>
+          <button type="button" className="btn-secondary"
+            onClick={() => { setDataCombust(null); setDataProd(null); fetchCombust(); fetchProd(); }}
+            style={{ alignSelf:'flex-end', width:'auto', display:'flex', gap:'8px', alignItems:'center', padding:'8px 16px', fontSize:'13px' }}>
+            <RefreshCw size={15}/> Atualizar
+          </button>
+        </div>
+      </div>
+
+      {/* Seletor de seção */}
+      <div style={{ display:'flex', gap:'0', marginBottom:'24px', borderRadius:'10px', overflow:'hidden', border:'1px solid #222', width:'fit-content' }}>
+        <button type="button" onClick={() => setSecao('combustiveis')}
+          style={{ display:'flex', alignItems:'center', gap:'8px', padding:'12px 28px', border:'none', cursor:'pointer', fontSize:'14px', fontWeight:700,
+            background: secao==='combustiveis' ? '#E31E24' : '#1a1a1a',
+            color:      secao==='combustiveis' ? '#fff'    : '#666',
+            transition:'all 0.15s' }}>
+          <Droplet size={16}/> Combustíveis
+        </button>
+        <button type="button" onClick={() => setSecao('produtos')}
+          style={{ display:'flex', alignItems:'center', gap:'8px', padding:'12px 28px', border:'none', cursor:'pointer', fontSize:'14px', fontWeight:700,
+            background: secao==='produtos' ? '#E31E24' : '#1a1a1a',
+            color:      secao==='produtos' ? '#fff'    : '#666',
+            borderLeft:'1px solid #222',
+            transition:'all 0.15s' }}>
+          <ShoppingCart size={16}/> Produtos
+        </button>
+      </div>
+
+      {secao==='combustiveis' ? renderCombust() : renderProd()}
+    </div>
+  );
+};
+// ── fim ComprasPage ───────────────────────────────────────────────────────────
+
 const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients }) => {
   const [activeTab, setActiveTab] = useState('descarregamentos');
   const [data, setData] = useState({ descarregamentos: null, vendas: null, historico: null, consolidado: null, controle: null, notasProdutos: null });
@@ -16958,6 +17243,8 @@ export default function App() {
         return <Dashboard kpis={apiData.kpis} combustiveis={apiData.combustiveis} vendasDiarias={apiData.vendasDiarias} vendasHorarias={apiData.vendasHorarias} lmcControle={apiData.dashboardLmcControle} estoques={apiData.estoques} loading={apiData.loading} clients={clients} selectedClient={selectedClient} selectedPeriod={dashboardPeriod} setSelectedPeriod={setDashboardPeriod} onRefresh={handleRefresh} themeMode={themeMode} topConvenio={apiData.topConvenio} vendasDiariasCombusFull={apiData.vendasDiariasCombusFull} abcProdutos1={apiData.abcProdutos1} abcProdutos2={apiData.abcProdutos2} />;
       case 'reports':
         return <Reports selectedClient={selectedClient} selectedPeriod={reportsPeriod} setSelectedPeriod={setReportsPeriod} clients={clients} />;
+      case 'compras':
+        return <ComprasPage selectedClient={selectedClient} clients={clients} />;
       case 'control':
         return <LivrosManager lmcRegistros={apiData.lmcRegistros} lmcDiario={apiData.lmcDiario} lmcControle={apiData.lmcControle} selectedPeriod={controlPeriod} setSelectedPeriod={setControlPeriod} selectedClient={selectedClient} clients={clients} themeMode={themeMode} />;
       case 'stock':
