@@ -10146,6 +10146,8 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
   const [dreFilters,      setDreFilters]      = useState({ visao:'Sintética', dataInicial:'', dataFinal:'' });
   const [showDrefPanel,         setShowDrefPanel]         = useState(false);
   const [drefFilters,     setDrefFilters]     = useState({ modalidade:'Todos', dataInicial:'', dataFinal:'' });
+  const [drefPreviewUrl,        setDrefPreviewUrl]        = useState(null);
+  const drefIframeRef = React.useRef(null);
   const [vendedores, setVendedores] = useState([]);
   const [rankingFilters, setRankingFilters] = useState({
     dataInicial: '',
@@ -11220,77 +11222,160 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
       const custTaxas = rec.debito*taxas.debito + (rec.creditoVista+rec.creditoParc)*taxas.credito;
       const saldoLiq = saldoFin - custTaxas;
 
-      const cor = (v) => v>=0?'#4ade80':'#f87171';
-      const corNeg = '#f87171', corPos = '#4ade80', corSub = '#94a3b8', corTotal='#e2e8f0';
+      const corSaldo = (v) => v >= 0 ? '#16a34a' : '#dc2626';
+      const corPos = '#16a34a', corNeg = '#dc2626', corAviso = '#ea580c';
 
+      /* --- helpers de linha (tema branco REL 1) --- */
       const linhaRec = (desc, valor, pct) =>
-        `<tr><td style="padding:7px 16px;font-size:12.5px;color:${corSub}">${desc}</td>
-         <td style="text-align:right;padding:7px 0;font-size:12.5px;color:${corPos};white-space:nowrap">${fmt(valor)}</td>
-         <td style="text-align:right;padding:7px 20px 7px 12px;font-size:11px;color:#475569;white-space:nowrap">${pct}%</td></tr>`;
+        `<tr>
+          <td style="padding:7px 16px;font-size:12.5px;color:#374151;border-bottom:1px solid #f3f4f6">${desc}</td>
+          <td style="text-align:right;padding:7px 0;font-size:12.5px;color:${corPos};white-space:nowrap;border-bottom:1px solid #f3f4f6;font-weight:600">${fmt(valor)}</td>
+          <td style="text-align:right;padding:7px 20px 7px 12px;font-size:11px;color:#6b7280;white-space:nowrap;border-bottom:1px solid #f3f4f6">${pct}%</td>
+        </tr>`;
 
       const linhaPag = (desc, valor) =>
-        `<tr><td style="padding:7px 16px;font-size:12.5px;color:${corSub}">${desc}</td>
-         <td style="text-align:right;padding:7px 20px 7px 0;font-size:12.5px;color:${corNeg};white-space:nowrap;font-weight:600" colspan="2">(${fmt(valor)})</td></tr>`;
+        `<tr>
+          <td style="padding:7px 16px;font-size:12.5px;color:#374151;border-bottom:1px solid #f3f4f6">${desc}</td>
+          <td style="text-align:right;padding:7px 20px 7px 0;font-size:12.5px;color:${corNeg};white-space:nowrap;font-weight:600;border-bottom:1px solid #f3f4f6" colspan="2">(${fmt(valor)})</td>
+        </tr>`;
 
-      const linhaTot = (desc, valor, cor='') =>
-        `<tr style="background:#101720;"><td style="padding:9px 16px;font-size:13px;font-weight:700;color:${cor||corTotal};border-top:2px solid #1e293b">${desc}</td>
-         <td colspan="2" style="text-align:right;padding:9px 20px 9px 0;font-size:14px;font-weight:700;color:${cor||corTotal};border-top:2px solid #1e293b;white-space:nowrap">${fmt(valor)}</td></tr>`;
+      const linhaTot = (desc, valor, cor) =>
+        `<tr style="background:#f9fafb;">
+          <td style="padding:9px 16px;font-size:13px;font-weight:700;color:${cor||'#111827'};border-top:2px solid #e5e7eb">${desc}</td>
+          <td colspan="2" style="text-align:right;padding:9px 20px 9px 0;font-size:14px;font-weight:700;color:${cor||'#111827'};border-top:2px solid #e5e7eb;white-space:nowrap">${fmt(valor)}</td>
+        </tr>`;
 
-      const pct = (v) => (totalRec>0?((v/totalRec)*100).toFixed(1):'0.0');
+      const pct = (v) => (totalRec > 0 ? ((v / totalRec) * 100).toFixed(1) : '0.0');
 
-      const html = `<!DOCTYPE html><html><head><meta charset="utf-8"/>
+      const saldoBadgeBg = saldoLiq >= 0 ? '#dcfce7' : '#fee2e2';
+      const saldoBadgeColor = saldoLiq >= 0 ? '#15803d' : '#b91c1c';
+      const saldoBadgeBorder = saldoLiq >= 0 ? '#bbf7d0' : '#fecaca';
+
+      const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"/>
 <title>REL 12 — DREF</title>
 <style>
-  *{margin:0;padding:0;box-sizing:border-box;}
-  body{background:#0a0d11;color:#e2e8f0;font-family:'Segoe UI',Arial,sans-serif;padding:32px 24px;}
-  .header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:28px;padding-bottom:18px;border-bottom:2px solid #1e293b;}
-  .header-left h1{font-size:17px;font-weight:700;letter-spacing:1.5px;color:#f1f5f9;margin-bottom:4px;}
-  .header-left p{font-size:11px;color:#64748b;margin-top:2px;}
-  .badge{display:inline-block;padding:3px 12px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:1px;}
-  .badge-verde{background:rgba(22,163,74,0.15);color:#4ade80;border:1px solid rgba(22,163,74,0.3);}
-  .badge-red{background:rgba(220,38,38,0.15);color:#f87171;border:1px solid rgba(220,38,38,0.3);}
-  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;}
-  .dre-block{background:#111827;border:1px solid #1e293b;border-radius:10px;margin-bottom:16px;overflow:hidden;}
-  .dre-block-title{background:#0d1117;padding:10px 16px;font-size:10px;font-weight:700;letter-spacing:1.5px;color:#475569;border-bottom:1px solid #1e293b;}
-  table{width:100%;border-collapse:collapse;}
-  .kpi-row{display:flex;gap:12px;margin-bottom:16px;}
-  .kpi{flex:1;background:#111827;border:1px solid #1e293b;border-radius:10px;padding:14px 16px;text-align:center;}
-  .kpi-label{font-size:10px;color:#64748b;letter-spacing:1px;margin-bottom:6px;}
-  .kpi-value{font-size:17px;font-weight:700;}
-  .footer{margin-top:28px;padding-top:14px;border-top:1px solid #1e293b;font-size:10px;color:#334155;display:flex;justify-content:space-between;}
-  @media print{body{background:#fff!important;color:#111!important;padding:16px!important;}
-    .dre-block,.kpi{background:#fff!important;border-color:#e5e7eb!important;}
-    .dre-block-title{background:#f8fafc!important;color:#374151!important;border-color:#e5e7eb!important;}
-    td{color:#111!important;}
-    .kpi-label{color:#6b7280!important;}
+  @page { size: A4 portrait; margin: 10mm; }
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body, .report, .header, .panel, .kpi, table, th, td {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+  body { margin: 0; font-family: Arial, Helvetica, sans-serif; color: #111827; background: #ffffff; }
+  .report { min-height: 100vh; padding: 18px; background: #ffffff; }
+
+  /* HEADER — mesmo padrão REL 1 */
+  .header {
+    display: flex; align-items: center; justify-content: space-between; gap: 18px;
+    padding: 16px 18px;
+    border: 1px solid #e5e7eb; border-bottom: 3px solid #e31e24; border-radius: 8px;
+    background: #ffffff; margin-bottom: 16px;
+  }
+  .header-left { display: flex; align-items: center; gap: 14px; min-width: 0; }
+  .mark {
+    width: 44px; height: 44px; border-radius: 8px; background: #fff5f5;
+    border: 1px solid #fecaca; display: grid; place-items: end center;
+    padding: 8px; gap: 3px; grid-template-columns: repeat(3, 1fr); flex: 0 0 auto;
+  }
+  .mark span { display: block; width: 7px; border-radius: 3px 3px 0 0; background: #e31e24; }
+  .mark span:nth-child(1) { height: 14px; opacity: .75; }
+  .mark span:nth-child(2) { height: 24px; }
+  .mark span:nth-child(3) { height: 32px; opacity: .85; }
+  h1 { margin: 0; font-size: 18px; font-weight: 900; letter-spacing: 0; line-height: 1.15; color: #111827; }
+  .header-meta { color: #6b7280; font-size: 11px; line-height: 1.45; text-align: left; margin-top: 3px; }
+  .badge-saldo {
+    display: inline-block; padding: 4px 14px; border-radius: 20px;
+    font-size: 10px; font-weight: 700; letter-spacing: 1px; white-space: nowrap;
+    background: ${saldoBadgeBg}; color: ${saldoBadgeColor}; border: 1px solid ${saldoBadgeBorder};
+  }
+
+  /* KPI CARDS */
+  .kpi-row { display: flex; gap: 12px; margin-bottom: 16px; }
+  .kpi {
+    flex: 1; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px;
+    padding: 14px 16px; text-align: center;
+  }
+  .kpi-label { font-size: 10px; color: #6b7280; letter-spacing: 1px; margin-bottom: 6px; font-weight: 700; }
+  .kpi-value { font-size: 17px; font-weight: 900; }
+
+  /* BLOCOS */
+  .dre-block {
+    background: #ffffff; border: 1px solid #e5e7eb; border-radius: 8px;
+    margin-bottom: 14px; overflow: hidden;
+  }
+  .dre-block-title {
+    background: #f9fafb; padding: 8px 16px;
+    font-size: 10px; font-weight: 700; letter-spacing: 1.5px;
+    color: #374151; border-bottom: 1px solid #e5e7eb;
+  }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+  .grid2 .dre-block { margin-bottom: 0; }
+
+  table { width: 100%; border-collapse: collapse; }
+  thead th {
+    background: #e31e24; color: #ffffff;
+    padding: 8px 16px; font-size: 9.5px; font-weight: 700;
+    letter-spacing: 1px; text-align: left;
+  }
+  thead th:not(:first-child) { text-align: right; }
+
+  /* SALDO FINAL */
+  .saldo-row td {
+    padding: 12px 16px; font-size: 15px; font-weight: 900;
+    color: ${corSaldo(saldoLiq)}; border-top: 3px solid #e31e24; background: #fff5f5;
+  }
+  .saldo-row td:last-child { text-align: right; padding-right: 20px; font-size: 17px; }
+
+  /* FOOTER */
+  .footer {
+    margin-top: 16px; padding-top: 12px; border-top: 1px solid #e5e7eb;
+    font-size: 10px; color: #9ca3af; display: flex; justify-content: space-between;
+  }
+
+  @media screen {
+    body { background: #f3f4f6; padding: 18px; }
+    .report { max-width: 900px; min-height: auto; margin: 0 auto; box-shadow: 0 18px 50px rgba(15,23,42,.12); border-radius: 10px; }
+  }
+  @media print {
+    body { background: #ffffff !important; padding: 0 !important; }
+    .report { box-shadow: none !important; border-radius: 0 !important; }
+    .dre-block, .kpi, .header { break-inside: avoid; page-break-inside: avoid; }
   }
 </style>
 </head><body>
-<div class="report">
-  <div class="header">
+<main class="report">
+
+  <!-- HEADER REL 1 style -->
+  <section class="header">
     <div class="header-left">
-      <h1>DEMONSTRAÇÃO DO RESULTADO DO EXERCÍCIO FINANCEIRO</h1>
-      <p>${selectedClient||'STARVL SISTEMAS'} &nbsp;|&nbsp; ${periodo} &nbsp;|&nbsp; Modalidade: ${modalidade} &nbsp;|&nbsp; Emitido em ${now}</p>
+      <img src="/logo-starvl.png" alt="STARVL" style="width:90px;height:auto;object-fit:contain;flex-shrink:0" />
+      <div>
+        <h1>DEMONSTRAÇÃO DO RESULTADO FINANCEIRO</h1>
+        <div class="header-meta">${selectedClient||'STARVL SISTEMAS'} &nbsp;|&nbsp; ${periodo} &nbsp;|&nbsp; Modalidade: ${modalidade}</div>
+      </div>
     </div>
-    <span class="badge ${saldoLiq>=0?'badge-verde':'badge-red'}">SALDO LÍQ: ${fmt(saldoLiq)}</span>
-  </div>
+    <div style="text-align:right">
+      <div class="badge-saldo">SALDO LÍQ: ${fmt(saldoLiq)}</div>
+      <div style="font-size:10px;color:#9ca3af;margin-top:6px">Emitido em ${now}</div>
+    </div>
+  </section>
 
   <!-- KPIs -->
   <div class="kpi-row">
-    <div class="kpi"><div class="kpi-label">TOTAL RECEBIMENTOS</div><div class="kpi-value" style="color:#4ade80">${fmt(totalRec)}</div></div>
-    <div class="kpi"><div class="kpi-label">TOTAL PAGAMENTOS</div><div class="kpi-value" style="color:#f87171">${fmt(totalPag)}</div></div>
-    <div class="kpi"><div class="kpi-label">CUSTO DE TAXAS</div><div class="kpi-value" style="color:#fb923c">${fmt(custTaxas)}</div></div>
-    <div class="kpi"><div class="kpi-label">SALDO FINANCEIRO LÍQ.</div><div class="kpi-value" style="color:${cor(saldoLiq)}">${fmt(saldoLiq)}</div></div>
+    <div class="kpi"><div class="kpi-label">TOTAL RECEBIMENTOS</div><div class="kpi-value" style="color:${corPos}">${fmt(totalRec)}</div></div>
+    <div class="kpi"><div class="kpi-label">TOTAL PAGAMENTOS</div><div class="kpi-value" style="color:${corNeg}">${fmt(totalPag)}</div></div>
+    <div class="kpi"><div class="kpi-label">CUSTO DE TAXAS</div><div class="kpi-value" style="color:${corAviso}">${fmt(custTaxas)}</div></div>
+    <div class="kpi"><div class="kpi-label">SALDO FINANCEIRO LÍQ.</div><div class="kpi-value" style="color:${corSaldo(saldoLiq)}">${fmt(saldoLiq)}</div></div>
   </div>
 
   <!-- RECEBIMENTOS -->
   <div class="dre-block">
     <div class="dre-block-title">1 · RECEBIMENTOS — ENTRADAS POR MODALIDADE</div>
     <table>
-      <thead><tr style="background:#0d1117;">
-        <th style="text-align:left;padding:8px 16px;font-size:10px;color:#475569;font-weight:600;letter-spacing:1px">MODALIDADE</th>
-        <th style="text-align:right;padding:8px 0;font-size:10px;color:#475569;font-weight:600;letter-spacing:1px">VALOR</th>
-        <th style="text-align:right;padding:8px 20px 8px 12px;font-size:10px;color:#475569;font-weight:600;letter-spacing:1px">% RECEITA</th>
+      <thead><tr>
+        <th>MODALIDADE</th>
+        <th style="text-align:right;padding-right:0">VALOR</th>
+        <th style="text-align:right;padding-right:20px">% RECEITA</th>
       </tr></thead>
       <tbody>
         ${linhaRec('Dinheiro / Espécie', rec.dinheiro, pct(rec.dinheiro))}
@@ -11308,9 +11393,9 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
   <div class="dre-block">
     <div class="dre-block-title">2 · PAGAMENTOS — SAÍDAS POR CATEGORIA</div>
     <table>
-      <thead><tr style="background:#0d1117;">
-        <th style="text-align:left;padding:8px 16px;font-size:10px;color:#475569;font-weight:600;letter-spacing:1px">CATEGORIA</th>
-        <th colspan="2" style="text-align:right;padding:8px 20px 8px 0;font-size:10px;color:#475569;font-weight:600;letter-spacing:1px">VALOR</th>
+      <thead><tr>
+        <th>CATEGORIA</th>
+        <th colspan="2" style="text-align:right;padding-right:20px">VALOR</th>
       </tr></thead>
       <tbody>
         ${linhaPag('Fornecedores — Combustíveis', pag.combustiveis)}
@@ -11325,64 +11410,59 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
     </table>
   </div>
 
-  <!-- TAXAS E INADIMPLÊNCIA -->
+  <!-- TAXAS E INADIMPLÊNCIA (grid 2 col) -->
   <div class="grid2">
-    <div class="dre-block" style="margin-bottom:0">
+    <div class="dre-block">
       <div class="dre-block-title">3 · CUSTO DE TAXAS — MAQUININHAS</div>
-      <table>
-        <tbody>
-          ${linhaRec('Taxa Débito (1,9%)', rec.debito*taxas.debito, ((rec.debito*taxas.debito/totalRec)*100).toFixed(1))}
-          ${linhaRec('Taxa Crédito (2,5%)', (rec.creditoVista+rec.creditoParc)*taxas.credito, (((rec.creditoVista+rec.creditoParc)*taxas.credito/totalRec)*100).toFixed(1))}
-          ${linhaRec('PIX (isento)', 0, '0.0')}
-          ${linhaTot('TOTAL TAXAS', custTaxas, '#fb923c')}
-        </tbody>
-      </table>
+      <table><tbody>
+        ${linhaRec('Taxa Débito (1,9%)', rec.debito*taxas.debito, ((rec.debito*taxas.debito/totalRec)*100).toFixed(1))}
+        ${linhaRec('Taxa Crédito (2,5%)', (rec.creditoVista+rec.creditoParc)*taxas.credito, (((rec.creditoVista+rec.creditoParc)*taxas.credito/totalRec)*100).toFixed(1))}
+        ${linhaRec('PIX (isento)', 0, '0.0')}
+        ${linhaTot('TOTAL TAXAS', custTaxas, corAviso)}
+      </tbody></table>
     </div>
-    <div class="dre-block" style="margin-bottom:0">
+    <div class="dre-block">
       <div class="dre-block-title">4 · POSIÇÃO DE INADIMPLÊNCIA</div>
-      <table>
-        <tbody>
-          ${linhaPag('Títulos Vencidos', inadimp.vencida)}
-          <tr><td style="padding:7px 16px;font-size:12.5px;color:${corSub}">Títulos a Vencer (30 d)</td>
-              <td colspan="2" style="text-align:right;padding:7px 20px 7px 0;font-size:12.5px;color:#fb923c;white-space:nowrap;font-weight:600">${fmt(inadimp.aVencer)}</td></tr>
-          ${linhaTot('TOTAL EXPOSIÇÃO', inadimp.vencida+inadimp.aVencer, '#fb923c')}
-        </tbody>
-      </table>
+      <table><tbody>
+        ${linhaPag('Títulos Vencidos', inadimp.vencida)}
+        <tr>
+          <td style="padding:7px 16px;font-size:12.5px;color:#374151;border-bottom:1px solid #f3f4f6">Títulos a Vencer (30 d)</td>
+          <td colspan="2" style="text-align:right;padding:7px 20px 7px 0;font-size:12.5px;color:${corAviso};white-space:nowrap;font-weight:600;border-bottom:1px solid #f3f4f6">${fmt(inadimp.aVencer)}</td>
+        </tr>
+        ${linhaTot('TOTAL EXPOSIÇÃO', inadimp.vencida+inadimp.aVencer, corAviso)}
+      </tbody></table>
     </div>
   </div>
 
   <!-- SALDO FINAL -->
-  <div class="dre-block" style="margin-top:16px">
+  <div class="dre-block">
     <div class="dre-block-title">5 · RESULTADO FINANCEIRO CONSOLIDADO</div>
-    <table>
-      <tbody>
-        ${linhaTot('(+) Total Recebimentos', totalRec, corPos)}
-        ${linhaTot('(–) Total Pagamentos', -totalPag, corNeg)}
-        ${linhaTot('(–) Custo de Taxas', -custTaxas, '#fb923c')}
-        <tr style="background:#0d2137;">
-          <td style="padding:12px 16px;font-size:15px;font-weight:700;color:${cor(saldoLiq)};border-top:2px solid #1e4d2b">
-            ${saldoLiq>=0?'✓ SALDO FINANCEIRO LÍQUIDO':'✗ DÉFICIT FINANCEIRO'}
-          </td>
-          <td colspan="2" style="text-align:right;padding:12px 20px 12px 0;font-size:16px;font-weight:700;color:${cor(saldoLiq)};border-top:2px solid #1e4d2b;white-space:nowrap">
-            ${fmt(Math.abs(saldoLiq))}
-          </td>
-        </tr>
-      </tbody>
-    </table>
+    <table><tbody>
+      ${linhaTot('(+) Total Recebimentos', totalRec, corPos)}
+      ${linhaTot('(–) Total Pagamentos', -totalPag, corNeg)}
+      ${linhaTot('(–) Custo de Taxas', -custTaxas, corAviso)}
+      <tr class="saldo-row">
+        <td>${saldoLiq>=0?'✓ SALDO FINANCEIRO LÍQUIDO':'✗ DÉFICIT FINANCEIRO'}</td>
+        <td colspan="2" style="text-align:right;padding:12px 20px;font-size:17px;font-weight:900;color:${corSaldo(saldoLiq)};border-top:3px solid #e31e24;background:#fff5f5;white-space:nowrap">${fmt(Math.abs(saldoLiq))}</td>
+      </tr>
+    </tbody></table>
   </div>
 
-  <div class="footer">
+  <footer class="footer">
     <span>STARVL SISTEMAS &nbsp;|&nbsp; REL 12 — DRE Financeiro &nbsp;|&nbsp; ${now}</span>
     <span>Modalidade: ${modalidade} &nbsp;|&nbsp; ${periodo}</span>
-  </div>
-</div>
+  </footer>
+
+</main>
 </body></html>`;
 
-      const win = window.open('', '_blank');
-      if (!win) { toast('Permita pop-ups no navegador para gerar o relatório.', 'warn'); return; }
-      win.document.open();
-      win.document.write(html.replace('</body>', '<scr'+'ipt>window.addEventListener("load",function(){setTimeout(function(){window.print();},500);});<\/scr'+'ipt></body>'));
-      win.document.close();
+      // Exibe inline na app (preview branco, igual ao impresso)
+      if (drefPreviewUrl) {
+        URL.revokeObjectURL(drefPreviewUrl);
+      }
+      const blob = new Blob([html], { type: 'text/html; charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      setDrefPreviewUrl(url);
       setShowDrefPanel(false);
     } catch (err) {
       toast(`Erro ao gerar DREF: ${err.message}`, 'error');
@@ -11623,6 +11703,50 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
           onClose={() => setShowDrefPanel(false)}
           onGenerate={handleGenerateDrefReport}
         />
+      )}
+
+      {/* REL 12 — Preview inline (fundo branco, tema REL 1) */}
+      {drefPreviewUrl && (
+        <div style={{ position:'fixed', inset:0, zIndex:1200, display:'flex', flexDirection:'column', background:'#f3f4f6' }}>
+          {/* Barra de controle */}
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'10px 20px', background:'#ffffff', borderBottom:'3px solid #e31e24', flexShrink:0 }}>
+            <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+              <div style={{ width:36, height:36, borderRadius:8, background:'#fff5f5', border:'1px solid #fecaca', display:'grid', placeItems:'end center', padding:6, gap:2, gridTemplateColumns:'repeat(3,1fr)', flexShrink:0 }}>
+                <span style={{ display:'block', width:6, height:11, borderRadius:'3px 3px 0 0', background:'#e31e24', opacity:.75 }} />
+                <span style={{ display:'block', width:6, height:19, borderRadius:'3px 3px 0 0', background:'#e31e24' }} />
+                <span style={{ display:'block', width:6, height:26, borderRadius:'3px 3px 0 0', background:'#e31e24', opacity:.85 }} />
+              </div>
+              <div>
+                <div style={{ fontWeight:900, fontSize:13, color:'#111827', letterSpacing:0.5 }}>REL 12 — DRE FINANCEIRO</div>
+                <div style={{ fontSize:10, color:'#6b7280', marginTop:1 }}>Pré-visualização de impressão</div>
+              </div>
+            </div>
+            <div style={{ display:'flex', gap:8 }}>
+              <button type="button"
+                onClick={() => drefIframeRef.current?.contentWindow?.print()}
+                style={{ display:'flex', alignItems:'center', gap:6, padding:'8px 18px', background:'#e31e24', color:'#fff', border:'none', borderRadius:6, fontSize:12, fontWeight:700, cursor:'pointer' }}>
+                <Printer size={14} /> Imprimir
+              </button>
+              <button type="button"
+                onClick={() => { URL.revokeObjectURL(drefPreviewUrl); setDrefPreviewUrl(null); setShowDrefPanel(true); }}
+                style={{ display:'flex', alignItems:'center', gap:6, padding:'8px 14px', background:'#f9fafb', color:'#374151', border:'1px solid #e5e7eb', borderRadius:6, fontSize:12, fontWeight:700, cursor:'pointer' }}>
+                <ChevronLeft size={14} /> Filtros
+              </button>
+              <button type="button"
+                onClick={() => { URL.revokeObjectURL(drefPreviewUrl); setDrefPreviewUrl(null); }}
+                style={{ display:'flex', alignItems:'center', gap:6, padding:'8px 14px', background:'#f9fafb', color:'#374151', border:'1px solid #e5e7eb', borderRadius:6, fontSize:12, fontWeight:700, cursor:'pointer' }}>
+                <X size={14} /> Fechar
+              </button>
+            </div>
+          </div>
+          {/* Iframe preview */}
+          <iframe
+            ref={drefIframeRef}
+            src={drefPreviewUrl}
+            title="REL 12 — DRE Financeiro"
+            style={{ flex:1, border:'none', width:'100%', background:'#f3f4f6' }}
+          />
+        </div>
       )}
 
     </div>
