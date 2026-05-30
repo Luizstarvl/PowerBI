@@ -3,7 +3,7 @@ import logoStarvl from './logo-starvl.png';
 import logoStarvlBlack from './logo-starvl-black.png';
 import * as XLSX from 'xlsx';
 import { LineChart, Line, BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Area, AreaChart, LabelList, ComposedChart, ReferenceLine, PieChart, Pie } from 'recharts';
-import { Home, FileText, Users as UsersIcon, BookOpen, Package, LogOut, Eye, Search, Plus, Edit2, Trash2, X, Calendar, TrendingUp, TrendingDown, Droplet, DollarSign, Calculator, Bell, ChevronDown, ChevronUp, Activity, Settings, Building2, Phone, Mail, MapPin, Hash, Clock, BarChart2, Layers, CircleDollarSign, UserCheck, UserPlus, AlertCircle, Globe, Camera, Building, Tag, RefreshCw, Database, ChevronRight, ChevronLeft, Filter, Printer, Moon, Sun, Trophy, Lock, Unlock, Wallet, Download, CreditCard, AlertTriangle, Save, PiggyBank, Target, CheckCircle, Flag, Upload, Maximize2, Minimize2, ShieldCheck, FolderOpen, ImagePlus, Zap, History } from 'lucide-react';
+import { Home, FileText, Users as UsersIcon, BookOpen, Package, LogOut, Eye, Search, Plus, Edit2, Trash2, X, Calendar, TrendingUp, TrendingDown, Droplet, DollarSign, Calculator, Bell, ChevronDown, ChevronUp, Activity, Settings, Building2, Phone, Mail, MapPin, Hash, Clock, BarChart2, Layers, CircleDollarSign, UserCheck, UserPlus, AlertCircle, Globe, Camera, Building, Tag, RefreshCw, Database, ChevronRight, ChevronLeft, Filter, Printer, Moon, Sun, Trophy, Lock, Unlock, Wallet, Download, CreditCard, AlertTriangle, Save, PiggyBank, Target, CheckCircle, Flag, Upload, Maximize2, Minimize2, ShieldCheck, FolderOpen, ImagePlus, Zap, History, ShoppingCart } from 'lucide-react';
 import './App.css';
 import './cr-styles.css';
 import './cp-styles.css';
@@ -9649,10 +9649,11 @@ const ComprasFilterPanel = ({ filters, setFilters, onClose, onGenerate }) => {
 
 const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients }) => {
   const [activeTab, setActiveTab] = useState('descarregamentos');
-  const [data, setData] = useState({ descarregamentos: null, vendas: null, historico: null, consolidado: null, controle: null });
+  const [data, setData] = useState({ descarregamentos: null, vendas: null, historico: null, consolidado: null, controle: null, notasProdutos: null });
   const [loading, setLoading] = useState({});
   const [error, setError] = useState({});
   const [descSubTab, setDescSubTab] = useState('comNota');
+  const [prodSubTab, setProdSubTab] = useState('comNota');
   const [showControlPrintPanel, setShowControlPrintPanel] = useState(false);
   const [showRankingPrintPanel, setShowRankingPrintPanel] = useState(false);
   const [showMargemPanel,       setShowMargemPanel]       = useState(false);
@@ -9732,6 +9733,10 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
           lmcDiario: diarioResp || null,
           lmcControle: controleResp.registros || [],
         };
+      } else if (tab === 'notasProdutos') {
+        const r = await fetch(`${API_URL}/api/relatorios/notas-produtos?empresa=${empresa}&periodo=${periodo}`);
+        result = await r.json();
+        if (result.error) throw new Error(result.error);
       }
       setData(prev => ({ ...prev, [tab]: result }));
     } catch (err) {
@@ -9773,9 +9778,10 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
   }, [activeTab, fetchTab]);
 
   const tabs = [
-    { id: 'descarregamentos', label: 'Descarregamentos', icon: <Droplet size={15} /> },
-    { id: 'vendas',           label: 'Vendas PDV',       icon: <BarChart2 size={15} /> },
-    { id: 'outros',           label: 'Outros Relatorios', icon: <FileText size={15} /> },
+    { id: 'descarregamentos', label: 'Compras',                    icon: <Droplet size={15} /> },
+    { id: 'notasProdutos',    label: 'Notas de Compras Produtos',  icon: <ShoppingCart size={15} /> },
+    { id: 'vendas',           label: 'Vendas PDV',                 icon: <BarChart2 size={15} /> },
+    { id: 'outros',           label: 'Outros Relatorios',          icon: <FileText size={15} /> },
   ];
 
   const renderDescarregamentos = () => {
@@ -9790,14 +9796,14 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
           <div className="stat-card" style={{ flex: 1, minWidth: 0 }}>
             <div className="stat-icon red"><Droplet size={20} /></div>
             <div className="stat-content">
-              <div className="stat-label">Compras 110</div>
+              <div className="stat-label">Combustíveis 110</div>
               <div className="stat-value" style={{ fontSize: '20px' }}>{fmtNum(d.comNota.reduce((s, r) => s + r.qtd, 0), 0)} L</div>
             </div>
           </div>
           <div className="stat-card" style={{ flex: 1, minWidth: 0 }}>
             <div className="stat-icon orange"><Droplet size={20} /></div>
             <div className="stat-content">
-              <div className="stat-label">Compras 220</div>
+              <div className="stat-label">Combustíveis 220</div>
               <div className="stat-value" style={{ fontSize: '20px' }}>{fmtNum(d.semNota.reduce((s, r) => s + r.qtd, 0), 0)} L</div>
             </div>
           </div>
@@ -9820,7 +9826,7 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
                 background: descSubTab === t ? '#E31E24' : '#222', color: descSubTab === t ? '#fff' : '#888',
               }}
             >
-              {t === 'comNota' ? `Compras 110 - ${d.comNota.length}` : `Compras 220 - ${d.semNota.length}`}
+              {t === 'comNota' ? `Combustíveis 110 - ${d.comNota.length}` : `Combustíveis 220 - ${d.semNota.length}`}
             </button>
           ))}
         </div>
@@ -9862,6 +9868,108 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
                   <td></td>
                   <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{fmtBRL(totalVal)}</td>
                   <td></td><td></td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  };
+
+  const renderNotasProdutos = () => {
+    const d = data.notasProdutos;
+    if (!d) return null;
+    const rows      = prodSubTab === 'comNota' ? d.comNota : d.semNota;
+    const totalQtd  = rows.reduce((s, r) => s + r.qtd,   0);
+    const totalVal  = rows.reduce((s, r) => s + r.total, 0);
+    const totalNotasComNota  = new Set(d.comNota.map(r => r.nota)).size;
+    const totalNotasSemNota  = new Set(d.semNota.map(r => r.pedido)).size;
+    return (
+      <div>
+        <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
+          <div className="stat-card" style={{ flex: 1, minWidth: 0 }}>
+            <div className="stat-icon red"><ShoppingCart size={20} /></div>
+            <div className="stat-content">
+              <div className="stat-label">NF Entrada (110)</div>
+              <div className="stat-value" style={{ fontSize: '20px' }}>{totalNotasComNota} notas</div>
+              <div className="stat-sub">{d.comNota.length} itens</div>
+            </div>
+          </div>
+          <div className="stat-card" style={{ flex: 1, minWidth: 0 }}>
+            <div className="stat-icon orange"><Package size={20} /></div>
+            <div className="stat-content">
+              <div className="stat-label">Pedidos (220)</div>
+              <div className="stat-value" style={{ fontSize: '20px' }}>{totalNotasSemNota} pedidos</div>
+              <div className="stat-sub">{d.semNota.length} itens</div>
+            </div>
+          </div>
+          <div className="stat-card" style={{ flex: 1, minWidth: 0 }}>
+            <div className="stat-icon green"><DollarSign size={20} /></div>
+            <div className="stat-content">
+              <div className="stat-label">Valor Total ({prodSubTab === 'comNota' ? '110' : '220'})</div>
+              <div className="stat-value" style={{ fontSize: '20px' }}>{fmtBRL([...d.comNota, ...d.semNota].reduce((s, r) => s + r.total, 0))}</div>
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+          {['comNota', 'semNota'].map(t => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => setProdSubTab(t)}
+              style={{
+                padding: '6px 16px', borderRadius: '6px', fontSize: '13px', fontWeight: 600, border: 'none', cursor: 'pointer',
+                background: prodSubTab === t ? '#E31E24' : '#222', color: prodSubTab === t ? '#fff' : '#888',
+              }}
+            >
+              {t === 'comNota'
+                ? `NF Entrada (110) — ${d.comNota.length} itens`
+                : `Pedidos (220) — ${d.semNota.length} itens`}
+            </button>
+          ))}
+        </div>
+
+        <div className="table-container">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>DATA</th>
+                <th>FORNECEDOR</th>
+                <th>PRODUTO</th>
+                <th style={{ textAlign: 'right' }}>QTD</th>
+                <th style={{ textAlign: 'right' }}>UNIT.</th>
+                <th style={{ textAlign: 'right' }}>TOTAL</th>
+                {prodSubTab === 'comNota'
+                  ? <th>CHAVE NF</th>
+                  : <><th>PEDIDO</th><th>OBSERVAÇÃO</th></>}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.length === 0 && (
+                <tr><td colSpan={prodSubTab === 'comNota' ? 7 : 8} style={{ textAlign: 'center', color: '#666', padding: '32px' }}>Nenhum registro encontrado.</td></tr>
+              )}
+              {rows.map((r, i) => (
+                <tr key={i}>
+                  <td style={{ fontFamily: 'monospace', fontSize: '13px' }}>{fmtDate(r.data)}</td>
+                  <td style={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.fornecedor}</td>
+                  <td style={{ maxWidth: '220px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 500 }}>{r.produto}</td>
+                  <td style={{ textAlign: 'right', fontFamily: 'monospace', color: '#4CAF50', fontWeight: 600 }}>{fmtNum(r.qtd, 3)}</td>
+                  <td style={{ textAlign: 'right', fontFamily: 'monospace', fontSize: '12px' }}>{fmtBRL(r.unitario)}</td>
+                  <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 600 }}>{fmtBRL(r.total)}</td>
+                  {prodSubTab === 'comNota'
+                    ? <td style={{ fontFamily: 'monospace', fontSize: '10px', color: '#888', maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.nota || '—'}</td>
+                    : <><td style={{ fontSize: '12px', color: '#888' }}>#{r.pedido}</td><td style={{ fontSize: '11px', color: '#888', maxWidth: '160px' }}>{r.observacao || '—'}</td></>}
+                </tr>
+              ))}
+              {rows.length > 0 && (
+                <tr style={{ background: '#1a1a1a', fontWeight: 700 }}>
+                  <td colSpan={3} style={{ color: '#888' }}>TOTAL</td>
+                  <td style={{ textAlign: 'right', fontFamily: 'monospace', color: '#4CAF50' }}>{fmtNum(totalQtd, 3)}</td>
+                  <td></td>
+                  <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{fmtBRL(totalVal)}</td>
+                  {prodSubTab === 'comNota' ? <td></td> : <><td></td><td></td></>}
                 </tr>
               )}
             </tbody>
@@ -11384,6 +11492,7 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
     }
     if (!data[activeTab]) return null;
     if (activeTab === 'descarregamentos') return renderDescarregamentos();
+    if (activeTab === 'notasProdutos')    return renderNotasProdutos();
     if (activeTab === 'vendas') return renderVendas();
     if (activeTab === 'controle') return renderControle();
     if (activeTab === 'consolidado') return renderConsolidado();

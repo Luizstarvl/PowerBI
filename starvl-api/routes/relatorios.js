@@ -132,6 +132,107 @@ router.get('/descarregamentos', async (req, res) => {
   }
 });
 
+// GET /api/relatorios/notas-produtos?empresa=7432&periodo=052026
+router.get('/notas-produtos', async (req, res) => {
+  const empresa = parseInt(req.query.empresa);
+  const periodo = req.query.periodo;
+  if (!empresa || !periodo || periodo.length !== 6) {
+    return res.status(400).json({ error: 'empresa and periodo (MMYYYY) required' });
+  }
+  const { dataInicio, dataFim } = periodoToRange(periodo);
+  try {
+    const [comNotaResult, semNotaResult] = await Promise.all([
+      // NF-e de entrada (entcpa com chave fiscal) — produtos loja (prodtipo = 2)
+      query(
+        `SELECT
+           DATE(entcpa.entcpachegada) AS data,
+           COALESCE(part.partrazao, '—') AS fornecedor,
+           prod.proddescricao AS produto,
+           prod.prodresumo AS produto_resumo,
+           prod.prodcodigo AS cod_produto,
+           COALESCE(SUM(entcpi.entcpiqtd), 0) AS qtd,
+           CASE WHEN SUM(entcpi.entcpiqtd) > 0
+                THEN SUM(entcpi.entcpitotal) / SUM(entcpi.entcpiqtd)
+                ELSE 0 END AS unitario,
+           COALESCE(SUM(entcpi.entcpitotal), 0) AS total,
+           entcpa.entcpachave AS nota,
+           entcpa.entcpacodigo AS cod_nota
+         FROM entcpa
+         JOIN entcpi ON entcpi.entcpicompra = entcpa.entcpacodigo
+                    AND entcpi.entcpiempresa = entcpa.entcpaempresa
+         JOIN prod ON prod.prodcodigo = entcpi.entcpiproduto
+         LEFT JOIN part ON part.partcodigo = entcpa.entcpafornecedor
+         WHERE entcpa.entcpaempresa = $1
+           AND prod.prodtipo = 2
+           AND entcpa.entcpachave IS NOT NULL
+           AND DATE(entcpa.entcpachegada) >= $2
+           AND DATE(entcpa.entcpachegada) <= $3
+         GROUP BY
+           DATE(entcpa.entcpachegada), part.partrazao,
+           prod.proddescricao, prod.prodresumo, prod.prodcodigo,
+           entcpa.entcpachave, entcpa.entcpacodigo
+         ORDER BY data DESC, produto`,
+        [empresa, dataInicio, dataFim]
+      ),
+      // Pedidos de compra (pede/pedi) sem NF — produtos loja (prodtipo = 2)
+      query(
+        `SELECT
+           DATE(pede.pededatarecebimento) AS data,
+           COALESCE(part.partrazao, '—') AS fornecedor,
+           prod.proddescricao AS produto,
+           prod.prodresumo AS produto_resumo,
+           prod.prodcodigo AS cod_produto,
+           pedi.pediqtd AS qtd,
+           pedi.pediunitario AS unitario,
+           pedi.peditotal AS total,
+           pede.pedeobservacao AS observacao,
+           pede.pedecodigo AS pedido
+         FROM pede
+         JOIN pedi ON pedi.pedicodigopede = pede.pedecodigo
+                  AND pedi.pediempresa = pede.pedeempresa
+         JOIN prod ON prod.prodcodigo = pedi.pediproduto
+         LEFT JOIN part ON part.partcodigo = pede.pedefornecedor
+         WHERE pede.pedeempresa = $1
+           AND prod.prodtipo = 2
+           AND pede.pededatarecebimento IS NOT NULL
+           AND DATE(pede.pededatarecebimento) >= $2
+           AND DATE(pede.pededatarecebimento) <= $3
+         ORDER BY data DESC, produto`,
+        [empresa, dataInicio, dataFim]
+      ),
+    ]);
+
+    const comNota = comNotaResult.rows.map(r => ({
+      data:          r.data,
+      fornecedor:    r.fornecedor,
+      produto:       r.produto || r.produto_resumo || '—',
+      cod_produto:   r.cod_produto,
+      qtd:           parseFloat(r.qtd),
+      unitario:      parseFloat(r.unitario),
+      total:         parseFloat(r.total),
+      nota:          r.nota || null,
+      cod_nota:      r.cod_nota,
+    }));
+
+    const semNota = semNotaResult.rows.map(r => ({
+      data:          r.data,
+      fornecedor:    r.fornecedor,
+      produto:       r.produto || r.produto_resumo || '—',
+      cod_produto:   r.cod_produto,
+      qtd:           parseFloat(r.qtd),
+      unitario:      parseFloat(r.unitario),
+      total:         parseFloat(r.total),
+      pedido:        r.pedido,
+      observacao:    r.observacao || null,
+    }));
+
+    res.json({ comNota, semNota });
+  } catch (err) {
+    console.error('Error in /relatorios/notas-produtos:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /api/relatorios/vendedores?empresa=
 router.get('/vendedores', async (req, res) => {
   const empresa = getRankingEmpresa(req, res);
