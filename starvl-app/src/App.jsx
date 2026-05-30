@@ -11021,6 +11021,7 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
       const fmt = v => Number(v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
       const fmtD = d => d ? d.split('-').reverse().join('/') : '—';
       const now = new Date().toLocaleString('pt-BR');
+      const logoUrl = `${window.location.origin}/logo-starvl.png`;
       const { visao, dataInicial, dataFinal } = dreFilters;
       const periodo = (dataInicial && dataFinal) ? `${fmtD(dataInicial)} a ${fmtD(dataFinal)}` : 'Período Geral';
 
@@ -11150,7 +11151,7 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
   <!-- HEADER REL 1 style -->
   <section class="header">
     <div class="header-left">
-      <img src="/logo-starvl.png" alt="STARVL" style="width:90px;height:auto;object-fit:contain;flex-shrink:0" />
+      <img src="${logoUrl}" alt="STARVL" style="width:90px;height:auto;object-fit:contain;flex-shrink:0" />
       <div>
         <h1>DEMONSTRAÇÃO DO RESULTADO DO EXERCÍCIO</h1>
         <div class="header-meta">${selectedClient || 'STARVL SISTEMAS'} &nbsp;|&nbsp; ${periodo} &nbsp;|&nbsp; Visão: ${visao}</div>
@@ -11277,6 +11278,7 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
       const fmt = v => Number(v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
       const fmtD = d => d ? d.split('-').reverse().join('/') : '—';
       const now = new Date().toLocaleString('pt-BR');
+      const logoUrl = `${window.location.origin}/logo-starvl.png`;
       const { modalidade, dataInicial, dataFinal } = drefFilters;
       const periodo = (dataInicial && dataFinal) ? `${fmtD(dataInicial)} a ${fmtD(dataFinal)}` : 'Período Geral';
 
@@ -11418,7 +11420,7 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
   <!-- HEADER REL 1 style -->
   <section class="header">
     <div class="header-left">
-      <img src="/logo-starvl.png" alt="STARVL" style="width:90px;height:auto;object-fit:contain;flex-shrink:0" />
+      <img src="${logoUrl}" alt="STARVL" style="width:90px;height:auto;object-fit:contain;flex-shrink:0" />
       <div>
         <h1>DEMONSTRAÇÃO DO RESULTADO FINANCEIRO</h1>
         <div class="header-meta">${selectedClient||'STARVL SISTEMAS'} &nbsp;|&nbsp; ${periodo} &nbsp;|&nbsp; Modalidade: ${modalidade}</div>
