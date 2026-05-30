@@ -145,9 +145,13 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Internal server error' });
 });
 
-app.listen(PORT, () => {
-  console.log(`STARVL API running on http://localhost:${PORT}`);
+const server = app.listen(PORT, '0.0.0.0', () => {
+  console.log(`STARVL API running on http://0.0.0.0:${PORT}`);
   console.log(`DB: ${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}`);
+
+  // Render recomenda estes valores para evitar 502 por timeout
+  server.keepAliveTimeout = 120000;
+  server.headersTimeout   = 125000;
 
   // Inicia o watcher de auditoria (snapshot + detecção de alterações/exclusões)
   try {
