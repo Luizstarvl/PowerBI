@@ -9651,6 +9651,188 @@ const ComprasFilterPanel = ({ filters, setFilters, onClose, onGenerate }) => {
 };
 // ── fim Painel de Auxílio em Compras ─────────────────────────────────────────
 
+// ── Compras — Print HTML builder ─────────────────────────────────────────────
+function buildComprasPrintHtml({ secao, subTab, rows, periodo, empresa }) {
+  const geradoEm  = new Date().toLocaleString('pt-BR');
+  const mm        = periodo ? periodo.slice(0,2) : '??';
+  const yyyy      = periodo ? periodo.slice(2,6) : '????';
+  const periodoFmt = `${mm}/${yyyy}`;
+  const totalQtd  = rows.reduce((s,r) => s + (r.qtd   || 0), 0);
+  const totalVal  = rows.reduce((s,r) => s + (r.total || 0), 0);
+
+  const isCombust   = secao === 'combustiveis';
+  const is110       = subTab === 'comNota';
+  const titulo      = isCombust
+    ? (is110 ? 'COMPRAS DE COMBUSTÍVEIS — 110 (NF-e)'  : 'COMPRAS DE COMBUSTÍVEIS — 220 (PEDIDOS)')
+    : 'COMPRAS DE PRODUTOS — NF-e ENTRADA';
+
+  const mkHead = () => isCombust
+    ? (is110
+        ? `<tr><th>DATA</th><th>FORNECEDOR</th><th>COMBUSTÍVEL</th><th class="num">LITROS</th><th class="num">UNIT.</th><th class="num">TOTAL</th><th>DOCUMENTO</th></tr>`
+        : `<tr><th>DATA</th><th>FORNECEDOR</th><th>COMBUSTÍVEL</th><th class="num">LITROS</th><th class="num">UNIT.</th><th class="num">TOTAL</th><th>PEDIDO</th></tr>`)
+    : `<tr><th>DATA</th><th>FORNECEDOR</th><th>PRODUTO</th><th class="num">QTD</th><th class="num">UNIT.</th><th class="num">TOTAL</th><th>DOCUMENTO</th></tr>`;
+
+  const fmtV = (v, dec = 2) => Number(v||0).toLocaleString('pt-BR', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+  const cnpjFmt = v => { if (!v) return ''; const d = String(v).replace(/\D/g,''); if (d.length===14) return d.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/,'$1.$2.$3/$4-$5'); return v; };
+
+  const mkRows = () => rows.map(r => {
+    const fornCell = `<td>${r.fornecedor||'—'}${cnpjFmt(r.cnpj) ? `<br/><small style="color:#777">${cnpjFmt(r.cnpj)}</small>` : ''}</td>`;
+    if (isCombust && is110) {
+      return `<tr><td>${fmtDate(r.data)}</td>${fornCell}<td class="fuel">${r.combustivel||'—'}</td><td class="num">${fmtV(r.qtd,3)}</td><td class="num">R$ ${fmtV(r.unitario)}</td><td class="num bold">R$ ${fmtV(r.total)}</td><td class="doc">${r.documento||'—'}</td></tr>`;
+    } else if (isCombust) {
+      return `<tr><td>${fmtDate(r.data)}</td>${fornCell}<td class="fuel">${r.combustivel||'—'}</td><td class="num">${fmtV(r.qtd,3)}</td><td class="num">R$ ${fmtV(r.unitario)}</td><td class="num bold">R$ ${fmtV(r.total)}</td><td class="doc">${r.pedido!=null?'#'+r.pedido:'—'}</td></tr>`;
+    } else {
+      return `<tr><td>${fmtDate(r.data)}</td>${fornCell}<td>${r.produto||'—'}</td><td class="num">${fmtV(r.qtd,3)}</td><td class="num">R$ ${fmtV(r.unitario)}</td><td class="num bold">R$ ${fmtV(r.total)}</td><td class="doc">${r.documento||'—'}</td></tr>`;
+    }
+  }).join('');
+
+  const colSpan = 7;
+  const unitLabel = isCombust ? 'Litros' : 'Unid.';
+
+  return `<!doctype html><html><head><meta charset="utf-8"/>
+<title>${titulo} — ${periodoFmt}</title>
+<style>
+  @page{size:A4 landscape;margin:10mm}*{box-sizing:border-box}
+  body{margin:0;font-family:Arial,Helvetica,sans-serif;color:#111;background:#fff;font-size:10px}
+  .hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;border-bottom:2px solid #e31e24;padding-bottom:8px}
+  h1{margin:0 0 2px;font-size:15px;font-weight:800}
+  .sub{color:#555;font-size:9px}
+  img.logo{width:90px;height:auto;object-fit:contain}
+  .meta{display:flex;justify-content:space-between;margin-bottom:8px;color:#666;font-size:8.5px}
+  table{width:100%;border-collapse:collapse}
+  thead tr{background:#e31e24;color:#fff}
+  thead th{padding:5px 6px;text-align:left;font-size:9px;font-weight:700;letter-spacing:.04em}
+  thead th.num{text-align:right}
+  tbody tr:nth-child(even){background:#f9f9f9}
+  tbody td{padding:4px 6px;border-bottom:1px solid #eee;vertical-align:top;font-size:9.5px}
+  td.num{text-align:right;font-variant-numeric:tabular-nums}
+  td.bold{font-weight:700}
+  td.fuel{font-weight:600}
+  td.doc{font-size:8.5px;color:#555;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .total-row td{font-weight:800;font-size:10px;background:#f3f4f6;border-top:2px solid #ddd}
+  .footer{border-top:2px solid #e31e24;padding-top:6px;text-align:right;margin-top:10px;font-size:8px;color:#777}
+  @media screen{body{background:#e5e7eb;padding:20px}table{max-width:100%;margin:0 auto;background:#fff;padding:20px;box-shadow:0 4px 20px rgba(0,0,0,.1)}}
+</style></head><body>
+<header class="hd">
+  <div><h1>${titulo}</h1><div class="sub">Empresa: ${empresa} &nbsp;|&nbsp; Período: ${periodoFmt}</div></div>
+  <img class="logo" src="/logo-starvl.png" alt="STARVL"/>
+</header>
+<div class="meta"><span>${rows.length} registro(s)</span><span>Gerado em ${geradoEm}</span></div>
+<table>
+  <thead>${mkHead()}</thead>
+  <tbody>
+    ${mkRows()}
+    <tr class="total-row">
+      <td colspan="3">TOTAL</td>
+      <td class="num">${fmtV(totalQtd,3)} ${unitLabel}</td>
+      <td></td>
+      <td class="num">R$ ${fmtV(totalVal)}</td>
+      <td></td>
+    </tr>
+  </tbody>
+</table>
+<div class="footer">STARVL &nbsp;|&nbsp; ${titulo} &nbsp;|&nbsp; ${periodoFmt}</div>
+<script>window.addEventListener('load',function(){setTimeout(function(){window.print();},400);});</script>
+</body></html>`;
+}
+
+// ── Compras — Painel de Impressão ─────────────────────────────────────────────
+const ComprasPrintPanel = ({ secao, combustSubTab, dataCombust, dataProd, periodo, empresa, onClose }) => {
+  const [printSecao,  setPrintSecao]  = useState(secao);
+  const [printSubTab, setPrintSubTab] = useState(combustSubTab);
+
+  useEffect(() => {
+    const fn = e => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', fn);
+    return () => document.removeEventListener('keydown', fn);
+  }, [onClose]);
+
+  const getRows = () => {
+    if (printSecao === 'combustiveis') {
+      const d = dataCombust;
+      if (!d) return [];
+      return printSubTab === 'comNota' ? (d.comNota || []) : (d.semNota || []);
+    } else {
+      const d = dataProd;
+      if (!d) return d?.notas || [];
+      return d.notas || [];
+    }
+  };
+
+  const handleGenerate = () => {
+    const rows = getRows();
+    const html = buildComprasPrintHtml({ secao: printSecao, subTab: printSubTab, rows, periodo, empresa });
+    const win = window.open('', '_blank');
+    if (!win) { alert('Permita pop-ups no navegador para gerar o relatório.'); return; }
+    win.document.write(html);
+    win.document.close();
+    onClose();
+  };
+
+  const secaoOpts  = [{ k:'combustiveis', l:'Combustíveis', icon:'⛽' }, { k:'produtos', l:'Produtos', icon:'🛒' }];
+  const subTabOpts = [{ k:'comNota', l:'Combustíveis 110 (NF-e)' }, { k:'semNota', l:'Combustíveis 220 (Pedidos)' }];
+
+  return (
+    <div className="modal-overlay control-print-overlay" onClick={onClose}>
+      <div className="control-print-panel" onClick={e => e.stopPropagation()} style={{ maxWidth: 480 }}>
+        <div className="control-print-header">
+          <div className="control-print-title">
+            <span className="control-print-icon"><Printer size={22}/></span>
+            <h3>IMPRIMIR COMPRAS</h3>
+          </div>
+          <button type="button" className="control-print-close" onClick={onClose}><X size={26}/></button>
+        </div>
+
+        <div className="control-print-body">
+          <section className="control-print-section">
+            <div className="control-print-section-title"><ShoppingCart size={18}/><span>SEÇÃO</span></div>
+            <div style={{ display:'flex', gap:'8px', flexWrap:'wrap' }}>
+              {secaoOpts.map(o => (
+                <label key={o.k} className={`ranking-seller-check${printSecao===o.k?' selected':''}`} style={{ cursor:'pointer', userSelect:'none' }}>
+                  <input type="radio" name="printSecao" value={o.k} checked={printSecao===o.k} onChange={() => setPrintSecao(o.k)} style={{ display:'none' }}/>
+                  <span>{o.icon} {o.l}</span>
+                </label>
+              ))}
+            </div>
+          </section>
+
+          {printSecao === 'combustiveis' && (
+            <section className="control-print-section">
+              <div className="control-print-section-title"><Droplet size={18}/><span>TIPO</span></div>
+              <div style={{ display:'flex', gap:'8px', flexWrap:'wrap' }}>
+                {subTabOpts.map(o => (
+                  <label key={o.k} className={`ranking-seller-check${printSubTab===o.k?' selected':''}`} style={{ cursor:'pointer', userSelect:'none' }}>
+                    <input type="radio" name="printSubTab" value={o.k} checked={printSubTab===o.k} onChange={() => setPrintSubTab(o.k)} style={{ display:'none' }}/>
+                    <span>{o.l}</span>
+                  </label>
+                ))}
+              </div>
+            </section>
+          )}
+
+          <section className="control-print-section">
+            <div className="control-print-section-title"><FileText size={18}/><span>RESUMO</span></div>
+            <p style={{ margin:0, fontSize:'12px', color:'#888' }}>
+              {(() => {
+                const rows = getRows();
+                const total = rows.reduce((s,r) => s+r.total, 0);
+                return `${rows.length} registro(s) — R$ ${total.toLocaleString('pt-BR',{minimumFractionDigits:2})}`;
+              })()}
+            </p>
+          </section>
+        </div>
+
+        <div className="control-print-footer">
+          <button type="button" className="btn-secondary control-print-cancel" onClick={onClose}><X size={18}/> CANCELAR</button>
+          <button type="button" className="btn-primary control-print-generate" onClick={handleGenerate}>
+            <Printer size={18}/> GERAR IMPRESSÃO
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ── ComprasPage ───────────────────────────────────────────────────────────────
 const ComprasPage = ({ selectedClient, clients }) => {
   const [secao, setSecao]           = useState('combustiveis'); // 'combustiveis' | 'produtos'
@@ -9663,6 +9845,7 @@ const ComprasPage = ({ selectedClient, clients }) => {
   const [dataProd,      setDataProd]      = useState(null);
   const [loading,       setLoading]       = useState({});
   const [error,         setError]         = useState({});
+  const [showPrintPanel, setShowPrintPanel] = useState(false);
 
   const empresa = useMemo(() => {
     const c = (clients || []).find(c => c.nome === selectedClient) || (clients || [])[0];
@@ -9890,8 +10073,25 @@ const ComprasPage = ({ selectedClient, clients }) => {
             style={{ alignSelf:'flex-end', width:'auto', display:'flex', gap:'8px', alignItems:'center', padding:'8px 16px', fontSize:'13px' }}>
             <RefreshCw size={15}/> Atualizar
           </button>
+          <button type="button" className="btn-primary control-print-generate"
+            onClick={() => setShowPrintPanel(true)}
+            style={{ alignSelf:'flex-end', width:'auto', display:'flex', gap:'8px', alignItems:'center', padding:'8px 16px', fontSize:'13px' }}>
+            <Printer size={15}/> Imprimir
+          </button>
         </div>
       </div>
+
+      {showPrintPanel && (
+        <ComprasPrintPanel
+          secao={secao}
+          combustSubTab={combustSubTab}
+          dataCombust={dataCombust}
+          dataProd={dataProd}
+          periodo={periodo}
+          empresa={empresa}
+          onClose={() => setShowPrintPanel(false)}
+        />
+      )}
 
       {/* Seletor de seção */}
       <div style={{ display:'flex', gap:'0', marginBottom:'24px', borderRadius:'10px', overflow:'hidden', border:'1px solid #222', width:'fit-content' }}>
