@@ -9933,12 +9933,10 @@ const ComprasPage = ({ selectedClient, clients }) => {
 // ── fim ComprasPage ───────────────────────────────────────────────────────────
 
 const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients }) => {
-  const [activeTab, setActiveTab] = useState('descarregamentos');
-  const [data, setData] = useState({ descarregamentos: null, vendas: null, historico: null, consolidado: null, controle: null, notasProdutos: null });
+  const [activeTab, setActiveTab] = useState('vendas');
+  const [data, setData] = useState({ vendas: null, historico: null, consolidado: null, controle: null });
   const [loading, setLoading] = useState({});
   const [error, setError] = useState({});
-  const [descSubTab, setDescSubTab] = useState('comNota');
-  const [prodSubTab, setProdSubTab] = useState('comNota');
   const [showControlPrintPanel, setShowControlPrintPanel] = useState(false);
   const [showRankingPrintPanel, setShowRankingPrintPanel] = useState(false);
   const [showMargemPanel,       setShowMargemPanel]       = useState(false);
@@ -9988,11 +9986,7 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
     setError(prev => ({ ...prev, [tab]: null }));
     try {
       let result;
-      if (tab === 'descarregamentos') {
-        const r = await fetch(`${API_URL}/api/relatorios/descarregamentos?empresa=${empresa}&periodo=${periodo}`);
-        result = await r.json();
-        if (result.error) throw new Error(result.error);
-      } else if (tab === 'vendas') {
+      if (tab === 'vendas') {
         const r = await fetch(`${API_URL}/api/relatorios/vendas?empresa=${empresa}&periodo=${periodo}`);
         result = await r.json();
         if (result.error) throw new Error(result.error);
@@ -10018,10 +10012,6 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
           lmcDiario: diarioResp || null,
           lmcControle: controleResp.registros || [],
         };
-      } else if (tab === 'notasProdutos') {
-        const r = await fetch(`${API_URL}/api/relatorios/notas-produtos?empresa=${empresa}&periodo=${periodo}`);
-        result = await r.json();
-        if (result.error) throw new Error(result.error);
       }
       setData(prev => ({ ...prev, [tab]: result }));
     } catch (err) {
@@ -10063,8 +10053,6 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
   }, [activeTab, fetchTab]);
 
   const tabs = [
-    { id: 'descarregamentos', label: 'Compras',                    icon: <Droplet size={15} /> },
-    { id: 'notasProdutos',    label: 'Notas de Compras Produtos',  icon: <ShoppingCart size={15} /> },
     { id: 'vendas',           label: 'Vendas PDV',                 icon: <BarChart2 size={15} /> },
     { id: 'outros',           label: 'Outros Relatorios',          icon: <FileText size={15} /> },
   ];
@@ -11776,8 +11764,6 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
       );
     }
     if (!data[activeTab]) return null;
-    if (activeTab === 'descarregamentos') return renderDescarregamentos();
-    if (activeTab === 'notasProdutos')    return renderNotasProdutos();
     if (activeTab === 'vendas') return renderVendas();
     if (activeTab === 'controle') return renderControle();
     if (activeTab === 'consolidado') return renderConsolidado();
@@ -15097,7 +15083,7 @@ const Parameters = ({ clients, setClients, isAdmin }) => {
   // ── Render ─────────────────────────────────────────────────────────────────
   const mainTabs = [
     { id: 'repositorio', label: '📁 Repositório de Imagens' },
-    ...(isAdmin ? [{ id: 'clientes', label: '🗄️ Databases Conectadas' }] : []),
+    ...(isAdmin ? [{ id: 'clientes', label: '🗄️ Database Conectada' }] : []),
   ];
 
   return (
@@ -15280,12 +15266,12 @@ const Parameters = ({ clients, setClients, isAdmin }) => {
         </div>
       )}
 
-      {/* ── ABA: Databases Conectadas ────────────────────────────────────── */}
+      {/* ── ABA: Database Conectada ──────────────────────────────────────── */}
       {paramTab === 'clientes' && isAdmin && (
         <div className="params-section-block">
           <div className="params-section-header">
             <Database size={17} className="params-section-icon" />
-            <span>DATABASES CONECTADAS</span>
+            <span>DATABASE CONECTADA</span>
             <div className="params-section-line" />
           </div>
           <div className="params-admin-section">
@@ -15409,12 +15395,12 @@ const AdminPanel = ({ clients, setClients }) => {
   return (
     <div className="admin-panel-content">
       <div className="admin-grid">
-        {/* DATABASES CONECTADAS */}
+        {/* DATABASE CONECTADA */}
         <div className="admin-card">
           <div className="admin-card-header">
             <div className="admin-card-title">
               <Database size={18} />
-              <span>DATABASES CONECTADAS</span>
+              <span>DATABASE CONECTADA</span>
             </div>
             <span className="admin-badge">{clients.length}</span>
           </div>
