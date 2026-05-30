@@ -15097,7 +15097,7 @@ const Parameters = ({ clients, setClients, isAdmin }) => {
   // ── Render ─────────────────────────────────────────────────────────────────
   const mainTabs = [
     { id: 'repositorio', label: '📁 Repositório de Imagens' },
-    ...(isAdmin ? [{ id: 'clientes', label: '👥 Clientes / Postos' }] : []),
+    ...(isAdmin ? [{ id: 'clientes', label: '🗄️ Databases Conectadas' }] : []),
   ];
 
   return (
@@ -15280,12 +15280,12 @@ const Parameters = ({ clients, setClients, isAdmin }) => {
         </div>
       )}
 
-      {/* ── ABA: Clientes / Postos ──────────────────────────────────────── */}
+      {/* ── ABA: Databases Conectadas ────────────────────────────────────── */}
       {paramTab === 'clientes' && isAdmin && (
         <div className="params-section-block">
           <div className="params-section-header">
-            <UsersIcon size={17} className="params-section-icon" />
-            <span>CLIENTES / POSTOS</span>
+            <Database size={17} className="params-section-icon" />
+            <span>DATABASES CONECTADAS</span>
             <div className="params-section-line" />
           </div>
           <div className="params-admin-section">
@@ -15409,12 +15409,12 @@ const AdminPanel = ({ clients, setClients }) => {
   return (
     <div className="admin-panel-content">
       <div className="admin-grid">
-        {/* CLIENTES / POSTOS */}
+        {/* DATABASES CONECTADAS */}
         <div className="admin-card">
           <div className="admin-card-header">
             <div className="admin-card-title">
               <Database size={18} />
-              <span>CLIENTES / POSTOS</span>
+              <span>DATABASES CONECTADAS</span>
             </div>
             <span className="admin-badge">{clients.length}</span>
           </div>
