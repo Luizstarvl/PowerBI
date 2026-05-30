@@ -9686,7 +9686,6 @@ function buildComprasPrintHtml({ secao, subTab, rows, periodo, empresa }) {
     }
   }).join('');
 
-  const colSpan = 7;
   const unitLabel = isCombust ? 'Litros' : 'Unid.';
 
   return `<!doctype html><html><head><meta charset="utf-8"/>
