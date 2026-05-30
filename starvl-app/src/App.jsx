@@ -10144,6 +10144,8 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
   const [cadastroFilters, setCadastroFilters] = useState({ tipo:'todos', situacao:'todos', busca:'', ordenacao:'nome', exibirCodBarras:true });
   const [showDrePanel,          setShowDrePanel]          = useState(false);
   const [dreFilters,      setDreFilters]      = useState({ visao:'Sintética', dataInicial:'', dataFinal:'' });
+  const [drePreviewUrl,         setDrePreviewUrl]         = useState(null);
+  const dreIframeRef = React.useRef(null);
   const [showDrefPanel,         setShowDrefPanel]         = useState(false);
   const [drefFilters,     setDrefFilters]     = useState({ modalidade:'Todos', dataInicial:'', dataFinal:'' });
   const [drefPreviewUrl,        setDrefPreviewUrl]        = useState(null);
@@ -11040,58 +11042,125 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
       const ir = 38155;
       const ll = lair - ir;
 
-      const corPos = '#16a34a', corNeg = '#dc2626', corTotal = '#e2e8f0', corSub = '#94a3b8';
+      /* Paleta branca — mesmo padrão REL 1 */
+      const corPos = '#16a34a', corNeg = '#dc2626', corNeutro = '#111827', corSub = '#6b7280';
 
-      const linhaSimples = (desc, valor, cor='', indent=0, bold=false, bg='') =>
-        `<tr style="${bg?`background:${bg};`:''}">
-          <td style="padding:6px 16px 6px ${16+indent*20}px;font-size:12.5px;color:${bold?corTotal:corSub};${bold?'font-weight:700;':''}">${desc}</td>
-          <td style="text-align:right;padding:6px 20px 6px 0;font-size:12.5px;font-weight:${bold?700:400};color:${cor||corSub};white-space:nowrap">${fmt(valor)}</td>
+      const linhaSimples = (desc, valor, cor, indent=0, bold=false) =>
+        `<tr>
+          <td style="padding:6px 16px 6px ${16+indent*20}px;font-size:12.5px;color:${bold?corNeutro:corSub};${bold?'font-weight:700;':''}border-bottom:1px solid #f3f4f6">${desc}</td>
+          <td style="text-align:right;padding:6px 20px 6px 0;font-size:12.5px;font-weight:${bold?700:400};color:${cor||corSub};white-space:nowrap;border-bottom:1px solid #f3f4f6">${fmt(valor)}</td>
         </tr>`;
 
       const linhaSep = (label='') =>
-        `<tr><td colspan="2" style="padding:0;border-top:1px solid #2a2a2a;"><div style="font-size:10px;color:#475569;padding:3px 16px;background:#0d1117;letter-spacing:1px">${label}</div></td></tr>`;
+        `<tr><td colspan="2" style="padding:0;border-top:1px solid #e5e7eb;">
+          <div style="font-size:10px;color:#6b7280;padding:3px 16px;background:#f9fafb;letter-spacing:1px;font-weight:700">${label}</div>
+        </td></tr>`;
 
-      const linhaTotal = (desc, valor, cor='') =>
-        `<tr style="background:#101720;">
-          <td style="padding:8px 16px;font-size:13px;font-weight:700;color:${cor||corTotal};border-top:2px solid #1e293b">${desc}</td>
-          <td style="text-align:right;padding:8px 20px 8px 0;font-size:14px;font-weight:700;color:${cor||corTotal};border-top:2px solid #1e293b;white-space:nowrap">${fmt(valor)}</td>
+      const linhaTotal = (desc, valor, cor) =>
+        `<tr style="background:#f9fafb;">
+          <td style="padding:8px 16px;font-size:13px;font-weight:700;color:${cor||corNeutro};border-top:2px solid #e5e7eb">${desc}</td>
+          <td style="text-align:right;padding:8px 20px 8px 0;font-size:14px;font-weight:700;color:${cor||corNeutro};border-top:2px solid #e5e7eb;white-space:nowrap">${fmt(valor)}</td>
         </tr>`;
 
       const isAnalitica = visao === 'Analítica';
 
-      const html = `<!DOCTYPE html><html><head><meta charset="utf-8"/>
+      const llBadgeBg     = ll >= 0 ? '#dcfce7' : '#fee2e2';
+      const llBadgeColor  = ll >= 0 ? '#15803d' : '#b91c1c';
+      const llBadgeBorder = ll >= 0 ? '#bbf7d0' : '#fecaca';
+      const llRowBg       = ll >= 0 ? '#f0fdf4' : '#fff5f5';
+      const llRowBorder   = ll >= 0 ? '#bbf7d0' : '#fecaca';
+
+      const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"/>
 <title>REL 11 — DRE</title>
 <style>
-  *{margin:0;padding:0;box-sizing:border-box;}
-  body{background:#0a0d11;color:#e2e8f0;font-family:'Segoe UI',Arial,sans-serif;padding:32px 24px;}
-  .header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:28px;padding-bottom:18px;border-bottom:2px solid #1e293b;}
-  .header-left h1{font-size:17px;font-weight:700;letter-spacing:1.5px;color:#f1f5f9;margin-bottom:4px;}
-  .header-left p{font-size:11px;color:#64748b;margin-top:2px;}
-  .badge{display:inline-block;padding:3px 12px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:1px;}
-  .badge-verde{background:rgba(22,163,74,0.15);color:#4ade80;border:1px solid rgba(22,163,74,0.3);}
-  .badge-red{background:rgba(220,38,38,0.15);color:#f87171;border:1px solid rgba(220,38,38,0.3);}
-  table{width:100%;border-collapse:collapse;}
-  .dre-block{background:#111827;border:1px solid #1e293b;border-radius:10px;margin-bottom:16px;overflow:hidden;}
-  .dre-block-title{background:#0d1117;padding:10px 16px;font-size:10px;font-weight:700;letter-spacing:1.5px;color:#475569;border-bottom:1px solid #1e293b;}
-  .footer{margin-top:28px;padding-top:14px;border-top:1px solid #1e293b;font-size:10px;color:#334155;display:flex;justify-content:space-between;}
-  @media print{body{background:#fff!important;color:#111!important;padding:16px!important;}
-    .dre-block{background:#fff!important;border-color:#e5e7eb!important;}
-    .dre-block-title{background:#f8fafc!important;color:#374151!important;border-color:#e5e7eb!important;}
-    table tr{background:#fff!important;}
-    td{color:#111!important;border-color:#e5e7eb!important;}
+  @page { size: A4 portrait; margin: 10mm; }
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body, .report, .header, .dre-block, table, th, td {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+  body { margin: 0; font-family: Arial, Helvetica, sans-serif; color: #111827; background: #ffffff; }
+  .report { min-height: 100vh; padding: 18px; background: #ffffff; }
+
+  /* HEADER — padrão REL 1 */
+  .header {
+    display: flex; align-items: center; justify-content: space-between; gap: 18px;
+    padding: 16px 18px;
+    border: 1px solid #e5e7eb; border-bottom: 3px solid #e31e24; border-radius: 8px;
+    background: #ffffff; margin-bottom: 16px;
+  }
+  .header-left { display: flex; align-items: center; gap: 14px; min-width: 0; }
+  .mark {
+    width: 44px; height: 44px; border-radius: 8px; background: #fff5f5;
+    border: 1px solid #fecaca; display: grid; place-items: end center;
+    padding: 8px; gap: 3px; grid-template-columns: repeat(3, 1fr); flex: 0 0 auto;
+  }
+  .mark span { display: block; width: 7px; border-radius: 3px 3px 0 0; background: #e31e24; }
+  .mark span:nth-child(1) { height: 14px; opacity: .75; }
+  .mark span:nth-child(2) { height: 24px; }
+  .mark span:nth-child(3) { height: 32px; opacity: .85; }
+  h1 { margin: 0; font-size: 18px; font-weight: 900; line-height: 1.15; color: #111827; }
+  .header-meta { color: #6b7280; font-size: 11px; line-height: 1.45; margin-top: 3px; }
+  .badge-ll {
+    display: inline-block; padding: 4px 14px; border-radius: 20px;
+    font-size: 10px; font-weight: 700; letter-spacing: 1px; white-space: nowrap;
+    background: ${llBadgeBg}; color: ${llBadgeColor}; border: 1px solid ${llBadgeBorder};
+  }
+
+  /* BLOCOS */
+  .dre-block {
+    background: #ffffff; border: 1px solid #e5e7eb; border-radius: 8px;
+    margin-bottom: 14px; overflow: hidden;
+  }
+  .dre-block-title {
+    background: #f9fafb; padding: 8px 16px;
+    font-size: 10px; font-weight: 700; letter-spacing: 1.5px;
+    color: #374151; border-bottom: 1px solid #e5e7eb;
+  }
+  table { width: 100%; border-collapse: collapse; }
+
+  /* RESULTADO FINAL */
+  .ll-row td {
+    padding: 12px 16px; font-size: 15px; font-weight: 900;
+    color: ${ll>=0?corPos:corNeg}; border-top: 3px solid #e31e24;
+    background: ${llRowBg}; border-top-color: ${llRowBorder};
+  }
+  .ll-row td:last-child { text-align: right; padding-right: 20px; font-size: 17px; }
+
+  /* FOOTER */
+  .footer {
+    margin-top: 16px; padding-top: 12px; border-top: 1px solid #e5e7eb;
+    font-size: 10px; color: #9ca3af; display: flex; justify-content: space-between;
+  }
+
+  @media screen {
+    body { background: #f3f4f6; padding: 18px; }
+    .report { max-width: 820px; min-height: auto; margin: 0 auto; box-shadow: 0 18px 50px rgba(15,23,42,.12); border-radius: 10px; }
+  }
+  @media print {
+    body { background: #ffffff !important; padding: 0 !important; }
+    .report { box-shadow: none !important; border-radius: 0 !important; }
+    .dre-block, .header { break-inside: avoid; page-break-inside: avoid; }
   }
 </style>
 </head><body>
-<div class="report">
-  <div class="header">
+<main class="report">
+
+  <!-- HEADER REL 1 style -->
+  <section class="header">
     <div class="header-left">
-      <h1>DEMONSTRAÇÃO DO RESULTADO DO EXERCÍCIO</h1>
-      <p>${selectedClient || 'STARVL SISTEMAS'} &nbsp;|&nbsp; ${periodo} &nbsp;|&nbsp; Visão: ${visao} &nbsp;|&nbsp; Emitido em ${now}</p>
+      <img src="/logo-starvl.png" alt="STARVL" style="width:90px;height:auto;object-fit:contain;flex-shrink:0" />
+      <div>
+        <h1>DEMONSTRAÇÃO DO RESULTADO DO EXERCÍCIO</h1>
+        <div class="header-meta">${selectedClient || 'STARVL SISTEMAS'} &nbsp;|&nbsp; ${periodo} &nbsp;|&nbsp; Visão: ${visao}</div>
+      </div>
     </div>
-    <div>
-      <span class="badge ${ll>=0?'badge-verde':'badge-red'}">${ll>=0?'LUCRO':'PREJUÍZO'}: ${fmt(Math.abs(ll))}</span>
+    <div style="text-align:right">
+      <div class="badge-ll">${ll>=0?'LUCRO':'PREJUÍZO'}: ${fmt(Math.abs(ll))}</div>
+      <div style="font-size:10px;color:#9ca3af;margin-top:6px">Emitido em ${now}</div>
     </div>
-  </div>
+  </section>
 
   <!-- 1. RECEITA BRUTA -->
   <div class="dre-block">
@@ -11170,31 +11239,32 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
   <div class="dre-block">
     <div class="dre-block-title">6 · IMPOSTOS SOBRE O RESULTADO</div>
     <table>
-      ${linhaSimples('(–) Provisão IR / CSLL', -ir, corNeg, 1)}
-      ${linhaSep('= RESULTADO FINAL')}
-      <tr style="background:#0d2137;">
-        <td style="padding:12px 16px;font-size:15px;font-weight:700;color:${ll>=0?'#4ade80':'#f87171'};border-top:2px solid #1e4d2b">
-          ${ll>=0?'✓ LUCRO LÍQUIDO DO EXERCÍCIO':'✗ PREJUÍZO LÍQUIDO DO EXERCÍCIO'}
-        </td>
-        <td style="text-align:right;padding:12px 20px 12px 0;font-size:16px;font-weight:700;color:${ll>=0?'#4ade80':'#f87171'};border-top:2px solid #1e4d2b;white-space:nowrap">
-          ${fmt(Math.abs(ll))}
-        </td>
-      </tr>
+      <tbody>
+        ${linhaSimples('(–) Provisão IR / CSLL', -ir, corNeg, 1)}
+        ${linhaSep('= RESULTADO FINAL')}
+        <tr class="ll-row">
+          <td>${ll>=0?'✓ LUCRO LÍQUIDO DO EXERCÍCIO':'✗ PREJUÍZO LÍQUIDO DO EXERCÍCIO'}</td>
+          <td>${fmt(Math.abs(ll))}</td>
+        </tr>
+      </tbody>
     </table>
   </div>
 
-  <div class="footer">
+  <footer class="footer">
     <span>STARVL SISTEMAS &nbsp;|&nbsp; REL 11 — Demonstração do Resultado do Exercício &nbsp;|&nbsp; ${now}</span>
     <span>Visão: ${visao} &nbsp;|&nbsp; ${periodo}</span>
-  </div>
-</div>
+  </footer>
+
+</main>
 </body></html>`;
 
-      const win = window.open('', '_blank');
-      if (!win) { toast('Permita pop-ups no navegador para gerar o relatório.', 'warn'); return; }
-      win.document.open();
-      win.document.write(html.replace('</body>', '<scr'+'ipt>window.addEventListener("load",function(){setTimeout(function(){window.print();},500);});<\/scr'+'ipt></body>'));
-      win.document.close();
+      // Exibe inline na app (preview branco, igual ao impresso)
+      if (drePreviewUrl) {
+        URL.revokeObjectURL(drePreviewUrl);
+      }
+      const blob = new Blob([html], { type: 'text/html; charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      setDrePreviewUrl(url);
       setShowDrePanel(false);
     } catch (err) {
       toast(`Erro ao gerar DRE: ${err.message}`, 'error');
@@ -11694,6 +11764,48 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
           onClose={() => setShowDrePanel(false)}
           onGenerate={handleGenerateDreReport}
         />
+      )}
+
+      {/* REL 11 — Preview inline (fundo branco, tema REL 1) */}
+      {drePreviewUrl && (
+        <div style={{ position:'fixed', inset:0, zIndex:1200, display:'flex', flexDirection:'column', background:'#f3f4f6' }}>
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'10px 20px', background:'#ffffff', borderBottom:'3px solid #e31e24', flexShrink:0 }}>
+            <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+              <div style={{ width:36, height:36, borderRadius:8, background:'#fff5f5', border:'1px solid #fecaca', display:'grid', placeItems:'end center', padding:6, gap:2, gridTemplateColumns:'repeat(3,1fr)', flexShrink:0 }}>
+                <span style={{ display:'block', width:6, height:11, borderRadius:'3px 3px 0 0', background:'#e31e24', opacity:.75 }} />
+                <span style={{ display:'block', width:6, height:19, borderRadius:'3px 3px 0 0', background:'#e31e24' }} />
+                <span style={{ display:'block', width:6, height:26, borderRadius:'3px 3px 0 0', background:'#e31e24', opacity:.85 }} />
+              </div>
+              <div>
+                <div style={{ fontWeight:900, fontSize:13, color:'#111827', letterSpacing:0.5 }}>REL 11 — DRE — RESULTADO DO EXERCÍCIO</div>
+                <div style={{ fontSize:10, color:'#6b7280', marginTop:1 }}>Pré-visualização de impressão</div>
+              </div>
+            </div>
+            <div style={{ display:'flex', gap:8 }}>
+              <button type="button"
+                onClick={() => dreIframeRef.current?.contentWindow?.print()}
+                style={{ display:'flex', alignItems:'center', gap:6, padding:'8px 18px', background:'#e31e24', color:'#fff', border:'none', borderRadius:6, fontSize:12, fontWeight:700, cursor:'pointer' }}>
+                <Printer size={14} /> Imprimir
+              </button>
+              <button type="button"
+                onClick={() => { URL.revokeObjectURL(drePreviewUrl); setDrePreviewUrl(null); setShowDrePanel(true); }}
+                style={{ display:'flex', alignItems:'center', gap:6, padding:'8px 14px', background:'#f9fafb', color:'#374151', border:'1px solid #e5e7eb', borderRadius:6, fontSize:12, fontWeight:700, cursor:'pointer' }}>
+                <ChevronLeft size={14} /> Filtros
+              </button>
+              <button type="button"
+                onClick={() => { URL.revokeObjectURL(drePreviewUrl); setDrePreviewUrl(null); }}
+                style={{ display:'flex', alignItems:'center', gap:6, padding:'8px 14px', background:'#f9fafb', color:'#374151', border:'1px solid #e5e7eb', borderRadius:6, fontSize:12, fontWeight:700, cursor:'pointer' }}>
+                <X size={14} /> Fechar
+              </button>
+            </div>
+          </div>
+          <iframe
+            ref={dreIframeRef}
+            src={drePreviewUrl}
+            title="REL 11 — DRE"
+            style={{ flex:1, border:'none', width:'100%', background:'#f3f4f6' }}
+          />
+        </div>
       )}
 
       {showDrefPanel && (
