@@ -609,6 +609,51 @@ const TOOLTIP_STYLE = { background: DASHBOARD_COLORS.tooltipBg, border: `1px sol
 const TOOLTIP_STYLE_PURCHASE = { ...TOOLTIP_STYLE, border: `1px solid ${DASHBOARD_COLORS.purchase110}` };
 const CHART_LABEL_STYLE = { fill: DASHBOARD_COLORS.label, fontWeight: 700 };
 
+// ── 3D Bar helpers ────────────────────────────────────────────────────────────
+function lightenHex(hex, amt = 0.38) {
+  if (!hex || hex[0] !== '#' || hex.length < 7) return hex;
+  const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+  const h = n => Math.min(255, Math.round(n + (255-n)*amt)).toString(16).padStart(2,'0');
+  return `#${h(r)}${h(g)}${h(b)}`;
+}
+function darkenHex(hex, amt = 0.44) {
+  if (!hex || hex[0] !== '#' || hex.length < 7) return hex;
+  const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+  const h = n => Math.max(0, Math.round(n*(1-amt))).toString(16).padStart(2,'0');
+  return `#${h(r)}${h(g)}${h(b)}`;
+}
+const ThreeDBar = (props) => {
+  const { x, y, width, height, fill, value } = props;
+  if (!height || height <= 0 || !width || width <= 0) return null;
+  const dx = Math.min(14, Math.max(6, width * 0.22));
+  const dy = dx * 0.52;
+  const front = `M ${x},${y} L ${x+width},${y} L ${x+width},${y+height} L ${x},${y+height} Z`;
+  const top   = `M ${x},${y} L ${x+dx},${y-dy} L ${x+width+dx},${y-dy} L ${x+width},${y} Z`;
+  const right = `M ${x+width},${y} L ${x+width+dx},${y-dy} L ${x+width+dx},${y+height-dy} L ${x+width},${y+height} Z`;
+  const numVal = Number(value);
+  const label  = numVal > 0
+    ? new Intl.NumberFormat('pt-BR').format(Math.round(numVal)) + ' Litros'
+    : '';
+  return (
+    <g>
+      <path d={front} fill={fill} />
+      <path d={top}   fill={lightenHex(fill)} />
+      <path d={right} fill={darkenHex(fill)} />
+      {label && (
+        <text
+          x={x + width / 2 + dx / 2}
+          y={y - dy - 6}
+          textAnchor="middle"
+          fill="#f8fafc"
+          fontWeight={700}
+          fontSize={12}
+          style={{ pointerEvents: 'none' }}
+        >{label}</text>
+      )}
+    </g>
+  );
+};
+
 // ── VendasPista ──────────────────────────────────────────────────────────────
 const VP_PERIODS = [
   { key: 'diario',  label: 'Diário',  maWin: 7 },   // MA7 = 7 dias
@@ -6679,16 +6724,15 @@ const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcContr
         </div>
         {salesFuelSection === 'combustivel' ? (
           <ResponsiveContainer width="100%" height={wideChartHeight}>
-            <BarChart data={salesFuelChartData} margin={{ top: 28, right: 12, left: 6, bottom: 0 }}>
+            <BarChart data={salesFuelChartData} margin={{ top: 48, right: 32, left: 6, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={DASHBOARD_COLORS.grid} />
               <XAxis dataKey="name" stroke={DASHBOARD_COLORS.axis} tick={xTickStyle} interval={0} height={isCompactDashboard ? 46 : 30} angle={isCompactDashboard ? -18 : 0} textAnchor={isCompactDashboard ? 'end' : 'middle'} />
               <YAxis stroke={DASHBOARD_COLORS.axis} tick={xTickStyle} width={isCompactDashboard ? 46 : 60} />
               <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={{ color: '#fff' }} formatter={(v) => [fmtLitersLabel(v), 'Litros']} />
-              <Bar dataKey="litros" name="Litros vendidos" fill={DASHBOARD_COLORS.sale} radius={[8, 8, 0, 0]}>
+              <Bar dataKey="litros" name="Litros vendidos" fill={DASHBOARD_COLORS.sale} shape={ThreeDBar}>
                 {salesFuelChartData.map((entry, index) => (
                   <Cell key={`sales-fuel-${entry.name}-${index}`} fill={entry.color || DASHBOARD_COLORS.sale} />
                 ))}
-                <LabelList dataKey="litros" position="top" formatter={(v) => Number(v) > 0 ? fmtLitersLabel(v) : ''} {...CHART_LABEL_STYLE} fontSize={isCompactDashboard ? 10 : 12} />
               </Bar>
             </BarChart>
           </ResponsiveContainer>
