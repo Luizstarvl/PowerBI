@@ -7472,7 +7472,7 @@ function getRankingBarColor(index) {
   return ['#22c55e', '#facc15', '#fb923c', '#ef4444', '#b91c1c'][index] || '#64748b';
 }
 
-function buildRankingSalesReportHtml({ report, filters, clientName, sellerLabel }) {
+function buildRankingSalesReportHtml({ report, filters, clientName, sellerLabel, logoUrl = '/logo-starvl.png' }) {
   const rows = Array.isArray(report?.ranking) ? report.ranking : [];
   if (!rows.length) {
     toast('Nenhuma venda encontrada para os filtros selecionados.', 'warn');
@@ -7591,7 +7591,7 @@ function buildRankingSalesReportHtml({ report, filters, clientName, sellerLabel 
   <main class="report">
     <section class="header">
       <div class="header-left">
-        <img src="/logo-starvl.png" alt="STARVL" style="width:90px;height:auto;object-fit:contain;margin-right:14px;flex-shrink:0" />
+        <img src="${logoUrl}" alt="STARVL" style="width:90px;height:auto;object-fit:contain;margin-right:14px;flex-shrink:0" />
         <div>
           <h1>RELATORIO RANKING DE VENDAS</h1>
           <div class="header-meta" style="text-align:left;">${escapeHtml(clientName || 'Cliente')} | ${escapeHtml(periodLabel)}</div>
@@ -7715,7 +7715,7 @@ function _computeMargemRows({ categoria, dataInicial, dataFinal, ordenacao }) {
   return rows;
 }
 
-function buildMargemReportHtml({ filters, clientName }) {
+function buildMargemReportHtml({ filters, clientName, logoUrl = '/logo-starvl.png' }) {
   const rows = _computeMargemRows(filters);
   if (!rows.length) {
     toast('Nenhum produto encontrado para os filtros selecionados.', 'warn');
@@ -7823,7 +7823,7 @@ function buildMargemReportHtml({ filters, clientName }) {
 <main class="report">
   <section class="header">
     <div class="header-left">
-      <img src="/logo-starvl.png" alt="STARVL" style="width:90px;height:auto;object-fit:contain;margin-right:14px;flex-shrink:0" />
+      <img src="${logoUrl}" alt="STARVL" style="width:90px;height:auto;object-fit:contain;margin-right:14px;flex-shrink:0" />
       <div>
         <h1>MARGEM POR COMBUSTIVEL E PRODUTOS</h1>
         <div class="header-meta" style="text-align:left">${e(clientName || 'Cliente')} | ${e(periodLabel)}</div>
@@ -8020,7 +8020,7 @@ function _computeConcilRows({ adquirente, bandeira, modalidade, dataInicial, dat
   });
 }
 
-function buildConciliacaoReportHtml({ filters, clientName }) {
+function buildConciliacaoReportHtml({ filters, clientName, logoUrl = '/logo-starvl.png' }) {
   const rows = _computeConcilRows(filters);
   if (!rows.length) {
     toast('Nenhuma transação encontrada para os filtros selecionados.', 'warn');
@@ -8138,7 +8138,7 @@ function buildConciliacaoReportHtml({ filters, clientName }) {
 <main class="report">
   <section class="header">
     <div class="header-left">
-      <img src="/logo-starvl.png" alt="STARVL" style="width:90px;height:auto;object-fit:contain;margin-right:14px;flex-shrink:0" />
+      <img src="${logoUrl}" alt="STARVL" style="width:90px;height:auto;object-fit:contain;margin-right:14px;flex-shrink:0" />
       <div>
         <h1>CONCILIAÇÃO DE CARTÕES E TAXAS</h1>
         <div class="header-meta" style="text-align:left">${e(clientName || 'Cliente')} | ${e(periodLabel)}</div>
@@ -8367,7 +8367,7 @@ function _computeCnpjRows({ search, periodo }) {
     });
 }
 
-function buildCnpjReportHtml({ filters, clientName }) {
+function buildCnpjReportHtml({ filters, clientName, logoUrl = '/logo-starvl.png' }) {
   const rows = _computeCnpjRows(filters);
   if (!rows.length) {
     toast('Nenhum cliente encontrado para os filtros selecionados.', 'warn');
@@ -8531,7 +8531,7 @@ function buildCnpjReportHtml({ filters, clientName }) {
 <main class="report">
   <section class="header">
     <div class="header-left">
-      <img src="/logo-starvl.png" alt="STARVL" style="width:90px;height:auto;object-fit:contain;margin-right:14px;flex-shrink:0" />
+      <img src="${logoUrl}" alt="STARVL" style="width:90px;height:auto;object-fit:contain;margin-right:14px;flex-shrink:0" />
       <div>
         <h1>VENDAS A PRAZO E CONTROLE CNPJ</h1>
         <div class="header-meta" style="text-align:left">${e(clientName||'Cliente')} | Período: ${e(periLabel)}</div>
@@ -8721,7 +8721,7 @@ function _computeTurnoRows({ dataInicial, dataFinal, turno, operador }) {
     });
 }
 
-function buildTurnoReportHtml({ filters, clientName }) {
+function buildTurnoReportHtml({ filters, clientName, logoUrl = '/logo-starvl.png' }) {
   const rows = _computeTurnoRows(filters);
   if (!rows.length) {
     toast('Nenhum registro encontrado para os filtros selecionados.', 'warn');
@@ -8852,7 +8852,7 @@ function buildTurnoReportHtml({ filters, clientName }) {
 <main class="report">
   <section class="header">
     <div class="header-left">
-      <img src="/logo-starvl.png" alt="STARVL" style="width:90px;height:auto;object-fit:contain;margin-right:14px;flex-shrink:0" />
+      <img src="${logoUrl}" alt="STARVL" style="width:90px;height:auto;object-fit:contain;margin-right:14px;flex-shrink:0" />
       <div>
         <h1>FALTAS / SOBRAS DE CAIXA POR TURNO</h1>
         <div class="header-meta" style="text-align:left">${e(clientName||'Cliente')} | Turno: ${e(filters.turno)} · Operador: ${e(filters.operador)}</div>
@@ -9066,7 +9066,7 @@ const _FLUXO_SAIDAS = [
   { descricao: 'Outras Saídas', valor: 8900 },
 ];
 
-function buildFluxoReportHtml({ filters, clientName }) {
+function buildFluxoReportHtml({ filters, clientName, logoUrl = '/logo-starvl.png' }) {
   const { conta, dataInicial, dataFinal } = filters;
   const fmtBRL = v => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   const fmtDate = d => d ? d.split('-').reverse().join('/') : '-';
@@ -9084,7 +9084,7 @@ function buildFluxoReportHtml({ filters, clientName }) {
   }).join('');
   const entradasRows = entradas.map(r => `<tr><td style="padding-left:24px">↳ ${r.descricao}</td><td></td><td style="text-align:right;color:#16a34a">${fmtBRL(r.valor)}</td></tr>`).join('');
   const saidasRows   = saidas.map(r => `<tr><td style="padding-left:24px">↳ ${r.descricao}</td><td></td><td style="text-align:right;color:#dc2626">${fmtBRL(r.valor)}</td></tr>`).join('');
-  return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"/><title>REL 6 — Fluxo de Caixa Operacional</title><style>*{margin:0;padding:0;box-sizing:border-box}html,body{background:#fff;color:#1e293b;font-family:'Segoe UI',Arial,sans-serif;font-size:11px;color-scheme:light only}@page{size:A4 landscape;margin:10mm}@media screen{body{background:#f3f4f6;padding:18px}.page{box-shadow:0 18px 50px rgba(15,23,42,.12);background:#fff}}@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact!important;color-scheme:light!important}th{background:#e31e24!important;color:#fff!important}.header{break-inside:avoid;page-break-inside:avoid}}.page{max-width:1060px;margin:0 auto}.header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;padding-bottom:10px;border:1px solid #e5e7eb;border-bottom:3px solid #e31e24;border-radius:8px}.report-title{font-size:16px;font-weight:700}.report-sub{font-size:10px;color:#64748b;margin-top:2px}.section-title{font-size:12px;font-weight:700;padding:6px 10px;margin:12px 0 4px;border-radius:4px}.sec-green{background:#dcfce7;color:#166534}.sec-red{background:#fee2e2;color:#991b1b}.sec-blue{background:#dbeafe;color:#1e40af}table{width:100%;border-collapse:collapse;margin-bottom:8px}th{background:#e31e24!important;color:#fff;padding:5px 8px;text-align:left;font-size:8.5px;font-weight:700}td{padding:4px 8px;border:1px solid #d0d5dd;font-size:10px}thead{display:table-header-group}tfoot{display:table-footer-group}tr{page-break-inside:avoid;break-inside:avoid}.total-row td{font-weight:700;background:#f3f4f6;border-top:2px solid #e31e24}.result-row td{font-weight:700;font-size:13px;background:#e31e24!important;color:#fff;padding:8px}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}.kpi-box{background:#f8fafc;border-radius:6px;padding:10px 14px;border:1px solid #e2e8f0}.kpi-label{font-size:10px;color:#64748b;margin-bottom:4px}.kpi-value{font-size:18px;font-weight:700}.daily-table table td{padding:3px 6px;font-size:10px}</style></head><body><div class="page"><div class="header"><div><div class="report-title">REL 7 — Fluxo de Caixa Operacional</div><div class="report-sub">${clientName || 'Empresa'} &nbsp;|&nbsp; Período: ${fmtDate(dataInicial)} – ${fmtDate(dataFinal)} &nbsp;|&nbsp; Conta: ${conta}</div></div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px"><img src="/logo-starvl.png" alt="STARVL" style="width:80px;height:auto;object-fit:contain"/><span style="font-size:10px;color:#64748b">Gerado em ${new Date().toLocaleDateString('pt-BR')}</span></div></div><div class="grid2" style="margin-bottom:14px"><div class="kpi-box"><div class="kpi-label">Total Entradas</div><div class="kpi-value" style="color:#16a34a">${fmtBRL(totalEntradas)}</div></div><div class="kpi-box"><div class="kpi-label">Total Saídas</div><div class="kpi-value" style="color:#dc2626">${fmtBRL(totalSaidas)}</div></div></div><div class="section-title sec-green">📥 ENTRADAS OPERACIONAIS</div><table><thead><tr><th>Descrição</th><th></th><th style="text-align:right">Valor</th></tr></thead><tbody>${entradasRows}<tr class="total-row"><td>Total Entradas</td><td></td><td style="text-align:right;color:#16a34a">${fmtBRL(totalEntradas)}</td></tr></tbody></table><div class="section-title sec-red">📤 SAÍDAS OPERACIONAIS</div><table><thead><tr><th>Descrição</th><th></th><th style="text-align:right">Valor</th></tr></thead><tbody>${saidasRows}<tr class="total-row"><td>Total Saídas</td><td></td><td style="text-align:right;color:#dc2626">${fmtBRL(totalSaidas)}</td></tr></tbody></table><table><tbody><tr class="result-row"><td>💰 SALDO OPERACIONAL DO PERÍODO</td><td></td><td style="text-align:right;color:${saldo >= 0 ? '#4ade80' : '#f87171'};font-size:15px">${saldo >= 0 ? '+' : ''}${fmtBRL(saldo)}</td></tr></tbody></table><div class="section-title sec-blue" style="margin-top:16px">📅 EVOLUÇÃO DIÁRIA DO SALDO (simulação)</div><div class="daily-table"><table><thead><tr><th style="text-align:center">Dia</th><th style="text-align:right">Movimento Líquido</th><th style="text-align:right">Saldo Acumulado</th></tr></thead><tbody>${dailyRows}</tbody></table></div><div style="margin-top:12px;font-size:9px;color:#94a3b8;text-align:center">Dados simulados para demonstração. Integre com o banco de dados SGA para valores reais.</div></div></body></html>`;
+  return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"/><title>REL 6 — Fluxo de Caixa Operacional</title><style>*{margin:0;padding:0;box-sizing:border-box}html,body{background:#fff;color:#1e293b;font-family:'Segoe UI',Arial,sans-serif;font-size:11px;color-scheme:light only}@page{size:A4 landscape;margin:10mm}@media screen{body{background:#f3f4f6;padding:18px}.page{box-shadow:0 18px 50px rgba(15,23,42,.12);background:#fff}}@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact!important;color-scheme:light!important}th{background:#e31e24!important;color:#fff!important}.header{break-inside:avoid;page-break-inside:avoid}}.page{max-width:1060px;margin:0 auto}.header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;padding-bottom:10px;border:1px solid #e5e7eb;border-bottom:3px solid #e31e24;border-radius:8px}.report-title{font-size:16px;font-weight:700}.report-sub{font-size:10px;color:#64748b;margin-top:2px}.section-title{font-size:12px;font-weight:700;padding:6px 10px;margin:12px 0 4px;border-radius:4px}.sec-green{background:#dcfce7;color:#166534}.sec-red{background:#fee2e2;color:#991b1b}.sec-blue{background:#dbeafe;color:#1e40af}table{width:100%;border-collapse:collapse;margin-bottom:8px}th{background:#e31e24!important;color:#fff;padding:5px 8px;text-align:left;font-size:8.5px;font-weight:700}td{padding:4px 8px;border:1px solid #d0d5dd;font-size:10px}thead{display:table-header-group}tfoot{display:table-footer-group}tr{page-break-inside:avoid;break-inside:avoid}.total-row td{font-weight:700;background:#f3f4f6;border-top:2px solid #e31e24}.result-row td{font-weight:700;font-size:13px;background:#e31e24!important;color:#fff;padding:8px}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}.kpi-box{background:#f8fafc;border-radius:6px;padding:10px 14px;border:1px solid #e2e8f0}.kpi-label{font-size:10px;color:#64748b;margin-bottom:4px}.kpi-value{font-size:18px;font-weight:700}.daily-table table td{padding:3px 6px;font-size:10px}</style></head><body><div class="page"><div class="header"><div><div class="report-title">REL 7 — Fluxo de Caixa Operacional</div><div class="report-sub">${clientName || 'Empresa'} &nbsp;|&nbsp; Período: ${fmtDate(dataInicial)} – ${fmtDate(dataFinal)} &nbsp;|&nbsp; Conta: ${conta}</div></div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px"><img src="${logoUrl}" alt="STARVL" style="width:80px;height:auto;object-fit:contain"/><span style="font-size:10px;color:#64748b">Gerado em ${new Date().toLocaleDateString('pt-BR')}</span></div></div><div class="grid2" style="margin-bottom:14px"><div class="kpi-box"><div class="kpi-label">Total Entradas</div><div class="kpi-value" style="color:#16a34a">${fmtBRL(totalEntradas)}</div></div><div class="kpi-box"><div class="kpi-label">Total Saídas</div><div class="kpi-value" style="color:#dc2626">${fmtBRL(totalSaidas)}</div></div></div><div class="section-title sec-green">📥 ENTRADAS OPERACIONAIS</div><table><thead><tr><th>Descrição</th><th></th><th style="text-align:right">Valor</th></tr></thead><tbody>${entradasRows}<tr class="total-row"><td>Total Entradas</td><td></td><td style="text-align:right;color:#16a34a">${fmtBRL(totalEntradas)}</td></tr></tbody></table><div class="section-title sec-red">📤 SAÍDAS OPERACIONAIS</div><table><thead><tr><th>Descrição</th><th></th><th style="text-align:right">Valor</th></tr></thead><tbody>${saidasRows}<tr class="total-row"><td>Total Saídas</td><td></td><td style="text-align:right;color:#dc2626">${fmtBRL(totalSaidas)}</td></tr></tbody></table><table><tbody><tr class="result-row"><td>💰 SALDO OPERACIONAL DO PERÍODO</td><td></td><td style="text-align:right;color:${saldo >= 0 ? '#4ade80' : '#f87171'};font-size:15px">${saldo >= 0 ? '+' : ''}${fmtBRL(saldo)}</td></tr></tbody></table><div class="section-title sec-blue" style="margin-top:16px">📅 EVOLUÇÃO DIÁRIA DO SALDO (simulação)</div><div class="daily-table"><table><thead><tr><th style="text-align:center">Dia</th><th style="text-align:right">Movimento Líquido</th><th style="text-align:right">Saldo Acumulado</th></tr></thead><tbody>${dailyRows}</tbody></table></div><div style="margin-top:12px;font-size:9px;color:#94a3b8;text-align:center">Dados simulados para demonstração. Integre com o banco de dados SGA para valores reais.</div></div></body></html>`;
 }
 
 function exportFluxoReport({ filters, clientName }) {
@@ -9223,7 +9223,7 @@ function _computeEstoqueRows({ unidade, classificacao }) {
     .sort((a, b) => a.diasGiro - b.diasGiro);
 }
 
-function buildEstoqueReportHtml({ filters, clientName }) {
+function buildEstoqueReportHtml({ filters, clientName, logoUrl = '/logo-starvl.png' }) {
   const { unidade, classificacao } = filters;
   const rows = _computeEstoqueRows({ unidade, classificacao });
   const abcColor = { A:'#166534', B:'#1e40af', C:'#7c3aed' };
@@ -9239,7 +9239,7 @@ function buildEstoqueReportHtml({ filters, clientName }) {
   const minimos  = rows.filter(r => r.status === 'Mínimo').length;
   const mortos   = rows.filter(r => r.status === 'Morto').length;
   const normais  = rows.filter(r => r.status === 'Normal').length;
-  return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"/><title>REL 7 — Giro de Estoque e Curva ABC</title><style>*{margin:0;padding:0;box-sizing:border-box}html,body{background:#fff;color:#1e293b;font-family:'Segoe UI',Arial,sans-serif;font-size:10px;color-scheme:light only}@page{size:A4 landscape;margin:10mm}@media screen{body{background:#f3f4f6;padding:18px}.page{box-shadow:0 18px 50px rgba(15,23,42,.12);background:#fff}}@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact!important;color-scheme:light!important}th{background:#e31e24!important;color:#fff!important}.header{break-inside:avoid;page-break-inside:avoid}.kpis{break-inside:avoid;page-break-inside:avoid}}.page{max-width:1280px;margin:0 auto}.header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;padding-bottom:10px;border:1px solid #e5e7eb;border-bottom:3px solid #e31e24;border-radius:8px}.report-title{font-size:16px;font-weight:700}.report-sub{font-size:9px;color:#64748b;margin-top:2px}.kpis{display:flex;gap:12px;margin-bottom:14px}.kpi{background:#f9fafb;border-radius:8px;padding:9px 11px;border:1px solid #e5e7eb;flex:1;text-align:center}.kpi-label{font-size:8px;color:#667085;font-weight:800;margin-bottom:4px}.kpi-value{font-size:15px;font-weight:900;color:#111827}table{width:100%;border-collapse:collapse}th{background:#e31e24!important;color:#fff;padding:5px 8px;text-align:left;font-size:8.5px;font-weight:700;white-space:nowrap}td{padding:4px 8px;border:1px solid #d0d5dd;font-size:10px}thead{display:table-header-group}tfoot{display:table-footer-group}tr{page-break-inside:avoid;break-inside:avoid}.legend{display:flex;gap:16px;margin-top:10px;font-size:9px;color:#64748b}.legend-item{display:flex;align-items:center;gap:4px}.legend-dot{width:10px;height:10px;border-radius:50%}</style></head><body><div class="page"><div class="header"><div><div class="report-title">REL 7 — Giro de Estoque e Curva ABC</div><div class="report-sub">${clientName || 'Empresa'} &nbsp;|&nbsp; Unidade: ${unidade} &nbsp;|&nbsp; Curva ABC: ${classificacao}</div></div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px"><img src="/logo-starvl.png" alt="STARVL" style="width:80px;height:auto;object-fit:contain"/><span style="font-size:9px;color:#64748b">Gerado em ${new Date().toLocaleDateString('pt-BR')}<br/>${rows.length} produto(s)</span></div></div><div class="kpis"><div class="kpi"><div class="kpi-label">Crítico (≤1 dia)</div><div class="kpi-value" style="color:#dc2626">${criticos}</div></div><div class="kpi"><div class="kpi-label">Mínimo (≤2 dias)</div><div class="kpi-value" style="color:#d97706">${minimos}</div></div><div class="kpi"><div class="kpi-label">Normal</div><div class="kpi-value" style="color:#16a34a">${normais}</div></div><div class="kpi"><div class="kpi-label">Estoque Morto (>60d)</div><div class="kpi-value" style="color:#94a3b8">${mortos}</div></div></div><table><thead><tr><th>Produto</th><th style="text-align:center">Unidade</th><th style="text-align:center">ABC</th><th style="text-align:right">Saldo Atual</th><th style="text-align:right">Média/Dia</th><th style="text-align:right">Dias Giro</th><th style="text-align:center">Status</th><th style="text-align:right">Custo Unit.</th><th style="text-align:right">Faturamento</th></tr></thead><tbody>${tableRows}</tbody></table><div class="legend"><div class="legend-item"><div class="legend-dot" style="background:#dcfce7;border:1px solid #166534"></div>Curva A — 80% faturamento</div><div class="legend-item"><div class="legend-dot" style="background:#dbeafe;border:1px solid #1e40af"></div>Curva B — 80–95%</div><div class="legend-item"><div class="legend-dot" style="background:#ede9fe;border:1px solid #7c3aed"></div>Curva C — restante</div><div class="legend-item"><div class="legend-dot" style="background:#f8fafc;border:1px solid #94a3b8"></div>Estoque Morto (giro>60d)</div><div style="margin-left:auto;font-size:9px;color:#94a3b8">Dados simulados — conecte ao SGA para valores reais</div></div></div></body></html>`;
+  return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"/><title>REL 7 — Giro de Estoque e Curva ABC</title><style>*{margin:0;padding:0;box-sizing:border-box}html,body{background:#fff;color:#1e293b;font-family:'Segoe UI',Arial,sans-serif;font-size:10px;color-scheme:light only}@page{size:A4 landscape;margin:10mm}@media screen{body{background:#f3f4f6;padding:18px}.page{box-shadow:0 18px 50px rgba(15,23,42,.12);background:#fff}}@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact!important;color-scheme:light!important}th{background:#e31e24!important;color:#fff!important}.header{break-inside:avoid;page-break-inside:avoid}.kpis{break-inside:avoid;page-break-inside:avoid}}.page{max-width:1280px;margin:0 auto}.header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;padding-bottom:10px;border:1px solid #e5e7eb;border-bottom:3px solid #e31e24;border-radius:8px}.report-title{font-size:16px;font-weight:700}.report-sub{font-size:9px;color:#64748b;margin-top:2px}.kpis{display:flex;gap:12px;margin-bottom:14px}.kpi{background:#f9fafb;border-radius:8px;padding:9px 11px;border:1px solid #e5e7eb;flex:1;text-align:center}.kpi-label{font-size:8px;color:#667085;font-weight:800;margin-bottom:4px}.kpi-value{font-size:15px;font-weight:900;color:#111827}table{width:100%;border-collapse:collapse}th{background:#e31e24!important;color:#fff;padding:5px 8px;text-align:left;font-size:8.5px;font-weight:700;white-space:nowrap}td{padding:4px 8px;border:1px solid #d0d5dd;font-size:10px}thead{display:table-header-group}tfoot{display:table-footer-group}tr{page-break-inside:avoid;break-inside:avoid}.legend{display:flex;gap:16px;margin-top:10px;font-size:9px;color:#64748b}.legend-item{display:flex;align-items:center;gap:4px}.legend-dot{width:10px;height:10px;border-radius:50%}</style></head><body><div class="page"><div class="header"><div><div class="report-title">REL 7 — Giro de Estoque e Curva ABC</div><div class="report-sub">${clientName || 'Empresa'} &nbsp;|&nbsp; Unidade: ${unidade} &nbsp;|&nbsp; Curva ABC: ${classificacao}</div></div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px"><img src="${logoUrl}" alt="STARVL" style="width:80px;height:auto;object-fit:contain"/><span style="font-size:9px;color:#64748b">Gerado em ${new Date().toLocaleDateString('pt-BR')}<br/>${rows.length} produto(s)</span></div></div><div class="kpis"><div class="kpi"><div class="kpi-label">Crítico (≤1 dia)</div><div class="kpi-value" style="color:#dc2626">${criticos}</div></div><div class="kpi"><div class="kpi-label">Mínimo (≤2 dias)</div><div class="kpi-value" style="color:#d97706">${minimos}</div></div><div class="kpi"><div class="kpi-label">Normal</div><div class="kpi-value" style="color:#16a34a">${normais}</div></div><div class="kpi"><div class="kpi-label">Estoque Morto (>60d)</div><div class="kpi-value" style="color:#94a3b8">${mortos}</div></div></div><table><thead><tr><th>Produto</th><th style="text-align:center">Unidade</th><th style="text-align:center">ABC</th><th style="text-align:right">Saldo Atual</th><th style="text-align:right">Média/Dia</th><th style="text-align:right">Dias Giro</th><th style="text-align:center">Status</th><th style="text-align:right">Custo Unit.</th><th style="text-align:right">Faturamento</th></tr></thead><tbody>${tableRows}</tbody></table><div class="legend"><div class="legend-item"><div class="legend-dot" style="background:#dcfce7;border:1px solid #166534"></div>Curva A — 80% faturamento</div><div class="legend-item"><div class="legend-dot" style="background:#dbeafe;border:1px solid #1e40af"></div>Curva B — 80–95%</div><div class="legend-item"><div class="legend-dot" style="background:#ede9fe;border:1px solid #7c3aed"></div>Curva C — restante</div><div class="legend-item"><div class="legend-dot" style="background:#f8fafc;border:1px solid #94a3b8"></div>Estoque Morto (giro>60d)</div><div style="margin-left:auto;font-size:9px;color:#94a3b8">Dados simulados — conecte ao SGA para valores reais</div></div></div></body></html>`;
 }
 
 function exportEstoqueReport({ filters, clientName }) {
@@ -9355,7 +9355,7 @@ function _getDiasList(dia) {
   return [dia];
 }
 
-function buildClientesReportHtml({ filters, clientName }) {
+function buildClientesReportHtml({ filters, clientName, logoUrl = '/logo-starvl.png' }) {
   const { faixa, dia } = filters;
   const diasShow  = _getDiasList(dia);
   const slotsShow = faixa === 'Todas' ? _CLIENTES_SLOTS : [faixa];
@@ -9387,7 +9387,7 @@ function buildClientesReportHtml({ filters, clientName }) {
     return `<td style="text-align:center;font-weight:700;background:#f1f5f9">${tot}</td>`;
   }).join('');
   const grandTotal = slotsShow.reduce((s,slot)=>s+diasShow.reduce((ss,d)=>ss+((_CLIENTES_BASE_DATA[slot]?.[d]?.q)||0),0),0);
-  return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"/><title>REL 8 — Fluxo de Clientes e Ticket Médio</title><style>*{margin:0;padding:0;box-sizing:border-box}html,body{background:#fff;color:#1e293b;font-family:'Segoe UI',Arial,sans-serif;font-size:10px;color-scheme:light only}@page{size:A4 landscape;margin:10mm}@media screen{body{background:#f3f4f6;padding:18px}.page{box-shadow:0 18px 50px rgba(15,23,42,.12);background:#fff}}@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact!important;color-scheme:light!important}th{background:#e31e24!important;color:#fff!important}.header{break-inside:avoid;page-break-inside:avoid}.kpis{break-inside:avoid;page-break-inside:avoid}}.page{max-width:1280px;margin:0 auto}.header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;padding-bottom:10px;border:1px solid #e5e7eb;border-bottom:3px solid #e31e24;border-radius:8px}.report-title{font-size:16px;font-weight:700}.report-sub{font-size:9px;color:#64748b;margin-top:2px}table{width:100%;border-collapse:collapse;margin-bottom:10px}th{background:#e31e24!important;color:#fff;padding:5px 8px;text-align:left;font-size:8.5px;font-weight:700}td{padding:4px 6px;border:1px solid #d0d5dd;font-size:10px}thead{display:table-header-group}tfoot{display:table-footer-group}tr{page-break-inside:avoid;break-inside:avoid}.kpis{display:flex;gap:10px;margin-bottom:12px}.kpi{background:#f9fafb;border-radius:8px;padding:9px 11px;border:1px solid #e5e7eb;flex:1;text-align:center}.kpi-label{font-size:8px;color:#667085;font-weight:800}.kpi-value{font-size:16px;font-weight:900;color:#111827}</style></head><body><div class="page"><div class="header"><div><div class="report-title">REL 8 — Fluxo de Clientes e Ticket Médio</div><div class="report-sub">${clientName || 'Empresa'} &nbsp;|&nbsp; Faixa: ${faixa} &nbsp;|&nbsp; Dia: ${dia}</div></div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px"><img src="/logo-starvl.png" alt="STARVL" style="width:80px;height:auto;object-fit:contain"/><span style="font-size:9px;color:#64748b">Gerado em ${new Date().toLocaleDateString('pt-BR')}</span></div></div><div class="kpis"><div class="kpi"><div class="kpi-label">Total Transações</div><div class="kpi-value">${grandTotal}</div></div><div class="kpi"><div class="kpi-label">Transações Excluídas</div><div class="kpi-value" style="color:#94a3b8">${_CLIENTES_EXCLUIDAS}</div></div><div class="kpi"><div class="kpi-label">Ticket Médio Geral</div><div class="kpi-value" style="color:#1e40af">R$ 108</div></div><div class="kpi"><div class="kpi-label">Pico de Movimento</div><div class="kpi-value" style="color:#d97706;font-size:12px">18h–20h Sex</div></div></div><table><thead><tr><th>Faixa de Horário</th>${headerCells}<th style="text-align:center">Total</th><th style="text-align:center">Ticket Méd.</th></tr></thead><tbody>${dataRows}<tr style="background:#f1f5f9;font-weight:700"><td>TOTAL</td>${dayTotals}<td style="text-align:center;font-weight:700">${grandTotal}</td><td style="text-align:center;color:#1e40af">R$ 108</td></tr></tbody></table><div style="display:flex;gap:14px;align-items:center;font-size:9px;color:#64748b;margin-bottom:6px"><div style="font-weight:600">Intensidade:</div><div style="display:flex;gap:3px;align-items:center"><div style="width:12px;height:12px;background:rgb(219,234,254);border-radius:2px"></div>Baixo</div><div style="display:flex;gap:3px;align-items:center"><div style="width:12px;height:12px;background:rgb(251,191,36);border-radius:2px"></div>Médio</div><div style="display:flex;gap:3px;align-items:center"><div style="width:12px;height:12px;background:rgb(255,127,14);border-radius:2px"></div>Alto</div><div style="margin-left:auto;color:#94a3b8">Cada célula: qtd. transações / ticket médio. Excluídas: aferições, estornos e testes (${_CLIENTES_EXCLUIDAS} — ~2,5%).</div></div><div style="font-size:9px;color:#94a3b8;text-align:center">Dados simulados — integre com o banco de dados SGA para valores reais.</div></div></body></html>`;
+  return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"/><title>REL 8 — Fluxo de Clientes e Ticket Médio</title><style>*{margin:0;padding:0;box-sizing:border-box}html,body{background:#fff;color:#1e293b;font-family:'Segoe UI',Arial,sans-serif;font-size:10px;color-scheme:light only}@page{size:A4 landscape;margin:10mm}@media screen{body{background:#f3f4f6;padding:18px}.page{box-shadow:0 18px 50px rgba(15,23,42,.12);background:#fff}}@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact!important;color-scheme:light!important}th{background:#e31e24!important;color:#fff!important}.header{break-inside:avoid;page-break-inside:avoid}.kpis{break-inside:avoid;page-break-inside:avoid}}.page{max-width:1280px;margin:0 auto}.header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;padding-bottom:10px;border:1px solid #e5e7eb;border-bottom:3px solid #e31e24;border-radius:8px}.report-title{font-size:16px;font-weight:700}.report-sub{font-size:9px;color:#64748b;margin-top:2px}table{width:100%;border-collapse:collapse;margin-bottom:10px}th{background:#e31e24!important;color:#fff;padding:5px 8px;text-align:left;font-size:8.5px;font-weight:700}td{padding:4px 6px;border:1px solid #d0d5dd;font-size:10px}thead{display:table-header-group}tfoot{display:table-footer-group}tr{page-break-inside:avoid;break-inside:avoid}.kpis{display:flex;gap:10px;margin-bottom:12px}.kpi{background:#f9fafb;border-radius:8px;padding:9px 11px;border:1px solid #e5e7eb;flex:1;text-align:center}.kpi-label{font-size:8px;color:#667085;font-weight:800}.kpi-value{font-size:16px;font-weight:900;color:#111827}</style></head><body><div class="page"><div class="header"><div><div class="report-title">REL 8 — Fluxo de Clientes e Ticket Médio</div><div class="report-sub">${clientName || 'Empresa'} &nbsp;|&nbsp; Faixa: ${faixa} &nbsp;|&nbsp; Dia: ${dia}</div></div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px"><img src="${logoUrl}" alt="STARVL" style="width:80px;height:auto;object-fit:contain"/><span style="font-size:9px;color:#64748b">Gerado em ${new Date().toLocaleDateString('pt-BR')}</span></div></div><div class="kpis"><div class="kpi"><div class="kpi-label">Total Transações</div><div class="kpi-value">${grandTotal}</div></div><div class="kpi"><div class="kpi-label">Transações Excluídas</div><div class="kpi-value" style="color:#94a3b8">${_CLIENTES_EXCLUIDAS}</div></div><div class="kpi"><div class="kpi-label">Ticket Médio Geral</div><div class="kpi-value" style="color:#1e40af">R$ 108</div></div><div class="kpi"><div class="kpi-label">Pico de Movimento</div><div class="kpi-value" style="color:#d97706;font-size:12px">18h–20h Sex</div></div></div><table><thead><tr><th>Faixa de Horário</th>${headerCells}<th style="text-align:center">Total</th><th style="text-align:center">Ticket Méd.</th></tr></thead><tbody>${dataRows}<tr style="background:#f1f5f9;font-weight:700"><td>TOTAL</td>${dayTotals}<td style="text-align:center;font-weight:700">${grandTotal}</td><td style="text-align:center;color:#1e40af">R$ 108</td></tr></tbody></table><div style="display:flex;gap:14px;align-items:center;font-size:9px;color:#64748b;margin-bottom:6px"><div style="font-weight:600">Intensidade:</div><div style="display:flex;gap:3px;align-items:center"><div style="width:12px;height:12px;background:rgb(219,234,254);border-radius:2px"></div>Baixo</div><div style="display:flex;gap:3px;align-items:center"><div style="width:12px;height:12px;background:rgb(251,191,36);border-radius:2px"></div>Médio</div><div style="display:flex;gap:3px;align-items:center"><div style="width:12px;height:12px;background:rgb(255,127,14);border-radius:2px"></div>Alto</div><div style="margin-left:auto;color:#94a3b8">Cada célula: qtd. transações / ticket médio. Excluídas: aferições, estornos e testes (${_CLIENTES_EXCLUIDAS} — ~2,5%).</div></div><div style="font-size:9px;color:#94a3b8;text-align:center">Dados simulados — integre com o banco de dados SGA para valores reais.</div></div></body></html>`;
 }
 
 function exportClientesReport({ filters, clientName }) {
@@ -9513,7 +9513,7 @@ function _computeComprasRows({ fornecedor, produto, dataInicial, dataFinal }) {
   });
 }
 
-function buildComprasReportHtml({ filters, clientName }) {
+function buildComprasReportHtml({ filters, clientName, logoUrl = '/logo-starvl.png' }) {
   const { fornecedor, produto, dataInicial, dataFinal } = filters;
   const rows = _computeComprasRows({ fornecedor, produto, dataInicial, dataFinal });
   const fmtDate = d => d ? d.split('-').reverse().join('/') : '-';
@@ -9545,7 +9545,7 @@ function buildComprasReportHtml({ filters, clientName }) {
   });
   const alertBanner = hasAlert ? `<div style="background:#fff7ed;border:1px solid #f97316;border-radius:6px;padding:10px 14px;margin-bottom:14px;display:flex;align-items:center;gap:8px"><span style="font-size:16px">⚠️</span><div><div style="font-weight:700;color:#c2410c;font-size:11px">ALERTA DE PREÇO</div><div style="font-size:10px;color:#92400e">Uma ou mais últimas compras estão acima de 5% da média histórica. Negocie antes da próxima compra.</div></div></div>` : '';
   const totalGasto = rows.reduce((s,r)=>s+r.qtd*r.preco,0);
-  return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"/><title>REL 9 — Painel de Auxílio em Compras</title><style>*{margin:0;padding:0;box-sizing:border-box}html,body{background:#fff;color:#1e293b;font-family:'Segoe UI',Arial,sans-serif;font-size:10px;color-scheme:light only}@page{size:A4 landscape;margin:10mm}@media screen{body{background:#f3f4f6;padding:18px}.page{box-shadow:0 18px 50px rgba(15,23,42,.12);background:#fff}}@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact!important;color-scheme:light!important}th{background:#e31e24!important;color:#fff!important}.header{break-inside:avoid;page-break-inside:avoid}.kpis{break-inside:avoid;page-break-inside:avoid}}.page{max-width:1280px;margin:0 auto}.header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;padding-bottom:10px;border:1px solid #e5e7eb;border-bottom:3px solid #e31e24;border-radius:8px}.report-title{font-size:16px;font-weight:700}.report-sub{font-size:9px;color:#64748b;margin-top:2px}table{width:100%;border-collapse:collapse;margin-bottom:12px}th{background:#e31e24!important;color:#fff;padding:5px 8px;text-align:left;font-size:8.5px;font-weight:700}td{padding:4px 8px;border:1px solid #d0d5dd;font-size:10px}thead{display:table-header-group}tfoot{display:table-footer-group}tr{page-break-inside:avoid;break-inside:avoid}.kpis{display:flex;gap:12px;margin-bottom:14px}.kpi{background:#f9fafb;border-radius:8px;padding:9px 11px;border:1px solid #e5e7eb;flex:1;text-align:center}.kpi-label{font-size:8px;color:#667085;font-weight:800;margin-bottom:4px}.kpi-value{font-size:14px;font-weight:900;color:#111827}</style></head><body><div class="page"><div class="header"><div><div class="report-title">REL 9 — Painel de Auxílio em Compras</div><div class="report-sub">${clientName||'Empresa'} &nbsp;|&nbsp; Fornecedor: ${fornecedor} &nbsp;|&nbsp; Produto: ${produto} &nbsp;|&nbsp; ${fmtDate(dataInicial)} – ${fmtDate(dataFinal)}</div></div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px"><img src="/logo-starvl.png" alt="STARVL" style="width:80px;height:auto;object-fit:contain"/><span style="font-size:9px;color:#64748b">Gerado em ${new Date().toLocaleDateString('pt-BR')}<br/>${rows.length} compra(s)</span></div></div>${alertBanner}<div class="kpis"><div class="kpi"><div class="kpi-label">Total Gasto</div><div class="kpi-value">${fmtBRL(totalGasto)}</div></div><div class="kpi"><div class="kpi-label">Compras</div><div class="kpi-value">${rows.length}</div></div><div class="kpi"><div class="kpi-label">Produtos</div><div class="kpi-value">${[...new Set(rows.map(r=>r.produto))].length}</div></div><div class="kpi"><div class="kpi-label">Fornecedores</div><div class="kpi-value">${[...new Set(rows.map(r=>r.fornecedor))].length}</div></div></div><table><thead><tr><th>Data</th><th>Produto</th><th>Fornecedor</th><th style="text-align:right">Qtd (L)</th><th style="text-align:right">Preço Unit.</th><th style="text-align:right">Méd. Hist.</th><th style="text-align:right">Δ vs Méd.</th><th style="text-align:right">Total</th><th style="text-align:center">Ref.</th></tr></thead><tbody>${tableRows}</tbody></table><div style="display:flex;gap:12px;font-size:9px;margin-bottom:8px"><div style="display:flex;align-items:center;gap:4px"><div style="width:12px;height:12px;background:#fff7ed;border:1px solid #f97316;border-radius:2px"></div>Alerta: última compra >5% acima da média</div><div style="display:flex;align-items:center;gap:4px"><div style="width:12px;height:12px;background:#f0fdf4;border:1px solid #86efac;border-radius:2px"></div>Última compra do produto</div><div style="margin-left:auto;color:#94a3b8">Média histórica calculada excluindo a última compra de cada produto.</div></div><div style="font-size:9px;color:#94a3b8;text-align:center">Dados simulados — integre com o banco de dados SGA para valores reais.</div></div></body></html>`;
+  return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"/><title>REL 9 — Painel de Auxílio em Compras</title><style>*{margin:0;padding:0;box-sizing:border-box}html,body{background:#fff;color:#1e293b;font-family:'Segoe UI',Arial,sans-serif;font-size:10px;color-scheme:light only}@page{size:A4 landscape;margin:10mm}@media screen{body{background:#f3f4f6;padding:18px}.page{box-shadow:0 18px 50px rgba(15,23,42,.12);background:#fff}}@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact!important;color-scheme:light!important}th{background:#e31e24!important;color:#fff!important}.header{break-inside:avoid;page-break-inside:avoid}.kpis{break-inside:avoid;page-break-inside:avoid}}.page{max-width:1280px;margin:0 auto}.header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;padding-bottom:10px;border:1px solid #e5e7eb;border-bottom:3px solid #e31e24;border-radius:8px}.report-title{font-size:16px;font-weight:700}.report-sub{font-size:9px;color:#64748b;margin-top:2px}table{width:100%;border-collapse:collapse;margin-bottom:12px}th{background:#e31e24!important;color:#fff;padding:5px 8px;text-align:left;font-size:8.5px;font-weight:700}td{padding:4px 8px;border:1px solid #d0d5dd;font-size:10px}thead{display:table-header-group}tfoot{display:table-footer-group}tr{page-break-inside:avoid;break-inside:avoid}.kpis{display:flex;gap:12px;margin-bottom:14px}.kpi{background:#f9fafb;border-radius:8px;padding:9px 11px;border:1px solid #e5e7eb;flex:1;text-align:center}.kpi-label{font-size:8px;color:#667085;font-weight:800;margin-bottom:4px}.kpi-value{font-size:14px;font-weight:900;color:#111827}</style></head><body><div class="page"><div class="header"><div><div class="report-title">REL 9 — Painel de Auxílio em Compras</div><div class="report-sub">${clientName||'Empresa'} &nbsp;|&nbsp; Fornecedor: ${fornecedor} &nbsp;|&nbsp; Produto: ${produto} &nbsp;|&nbsp; ${fmtDate(dataInicial)} – ${fmtDate(dataFinal)}</div></div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px"><img src="${logoUrl}" alt="STARVL" style="width:80px;height:auto;object-fit:contain"/><span style="font-size:9px;color:#64748b">Gerado em ${new Date().toLocaleDateString('pt-BR')}<br/>${rows.length} compra(s)</span></div></div>${alertBanner}<div class="kpis"><div class="kpi"><div class="kpi-label">Total Gasto</div><div class="kpi-value">${fmtBRL(totalGasto)}</div></div><div class="kpi"><div class="kpi-label">Compras</div><div class="kpi-value">${rows.length}</div></div><div class="kpi"><div class="kpi-label">Produtos</div><div class="kpi-value">${[...new Set(rows.map(r=>r.produto))].length}</div></div><div class="kpi"><div class="kpi-label">Fornecedores</div><div class="kpi-value">${[...new Set(rows.map(r=>r.fornecedor))].length}</div></div></div><table><thead><tr><th>Data</th><th>Produto</th><th>Fornecedor</th><th style="text-align:right">Qtd (L)</th><th style="text-align:right">Preço Unit.</th><th style="text-align:right">Méd. Hist.</th><th style="text-align:right">Δ vs Méd.</th><th style="text-align:right">Total</th><th style="text-align:center">Ref.</th></tr></thead><tbody>${tableRows}</tbody></table><div style="display:flex;gap:12px;font-size:9px;margin-bottom:8px"><div style="display:flex;align-items:center;gap:4px"><div style="width:12px;height:12px;background:#fff7ed;border:1px solid #f97316;border-radius:2px"></div>Alerta: última compra >5% acima da média</div><div style="display:flex;align-items:center;gap:4px"><div style="width:12px;height:12px;background:#f0fdf4;border:1px solid #86efac;border-radius:2px"></div>Última compra do produto</div><div style="margin-left:auto;color:#94a3b8">Média histórica calculada excluindo a última compra de cada produto.</div></div><div style="font-size:9px;color:#94a3b8;text-align:center">Dados simulados — integre com o banco de dados SGA para valores reais.</div></div></body></html>`;
 }
 
 function exportComprasReport({ filters, clientName }) {
@@ -10146,6 +10146,29 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
   const [dreFilters,      setDreFilters]      = useState({ visao:'Sintética', dataInicial:'', dataFinal:'' });
   const [drePreviewUrl,         setDrePreviewUrl]         = useState(null);
   const dreIframeRef = React.useRef(null);
+  // ── Preview inline compartilhado REL 1-10 ────────────────────────────────────
+  const [reportPreviewUrl,   setReportPreviewUrl]   = useState(null);
+  const [reportPreviewTitle, setReportPreviewTitle] = useState('');
+  const [reportReopenFn,     setReportReopenFn]     = useState(null);
+  const reportIframeRef  = React.useRef(null);
+  const reportBlobUrlRef = React.useRef(null); // para cleanup correto
+
+  const showReportPreview = (html, title, reopenFn) => {
+    if (reportBlobUrlRef.current) URL.revokeObjectURL(reportBlobUrlRef.current);
+    const blob = new Blob([html], { type: 'text/html; charset=utf-8' });
+    const url  = URL.createObjectURL(blob);
+    reportBlobUrlRef.current = url;
+    setReportPreviewUrl(url);
+    setReportPreviewTitle(title);
+    setReportReopenFn(reopenFn ? () => reopenFn : null);
+  };
+
+  const closeReportPreview = () => {
+    if (reportBlobUrlRef.current) URL.revokeObjectURL(reportBlobUrlRef.current);
+    reportBlobUrlRef.current = null;
+    setReportPreviewUrl(null);
+    setReportReopenFn(null);
+  };
   const [showDrefPanel,         setShowDrefPanel]         = useState(false);
   const [drefFilters,     setDrefFilters]     = useState({ modalidade:'Todos', dataInicial:'', dataFinal:'' });
   const [drefPreviewUrl,        setDrefPreviewUrl]        = useState(null);
@@ -10581,12 +10604,9 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
       const result = await r.json();
       if (result.error) throw new Error(result.error);
 
-      exportRankingSalesReport({
-        report: result,
-        filters,
-        clientName: selectedClient,
-        sellerLabel: getRankingSellerLabel(filters.vendedores),
-      });
+      const logoUrl = `${window.location.origin}/logo-starvl.png`;
+      const html = buildRankingSalesReportHtml({ report: result, filters, clientName: selectedClient, sellerLabel: getRankingSellerLabel(filters.vendedores), logoUrl });
+      if (html) showReportPreview(html, 'REL 1 — Ranking de Vendas', () => setShowRankingPrintPanel(true));
       setShowRankingPrintPanel(false);
     } catch (err) {
       toast(`Erro ao gerar relatório: ${getFriendlyApiError(err)}`, 'error');
@@ -10610,7 +10630,9 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
       toast('A data inicial não pode ser maior que a data final.', 'warn');
       return;
     }
-    exportMargemReport({ filters: margemFilters, clientName: selectedClient });
+    const logoUrl = `${window.location.origin}/logo-starvl.png`;
+    const html = buildMargemReportHtml({ filters: margemFilters, clientName: selectedClient, logoUrl });
+    if (html) showReportPreview(html, 'REL 2 — Margem por Combustível e Produtos', () => setShowMargemPanel(true));
     setShowMargemPanel(false);
   };
 
@@ -10629,14 +10651,18 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
       toast('A data inicial não pode ser maior que a data final.', 'warn');
       return;
     }
-    exportConciliacaoReport({ filters: conciliacaoFilters, clientName: selectedClient });
+    const logoUrl = `${window.location.origin}/logo-starvl.png`;
+    const html = buildConciliacaoReportHtml({ filters: conciliacaoFilters, clientName: selectedClient, logoUrl });
+    if (html) showReportPreview(html, 'REL 3 — Conciliação de Cartões e Taxas', () => setShowConciliacaoPanel(true));
     setShowConciliacaoPanel(false);
   };
 
   const openCnpjPanel = () => setShowCnpjPanel(true);
 
   const handleGenerateCnpjReport = () => {
-    exportCnpjReport({ filters: cnpjFilters, clientName: selectedClient });
+    const logoUrl = `${window.location.origin}/logo-starvl.png`;
+    const html = buildCnpjReportHtml({ filters: cnpjFilters, clientName: selectedClient, logoUrl });
+    if (html) showReportPreview(html, 'REL 4 — Vendas a Prazo e Controle CNPJ', () => setShowCnpjPanel(true));
     setShowCnpjPanel(false);
   };
 
@@ -10655,7 +10681,9 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
       toast('A data inicial não pode ser maior que a data final.', 'warn');
       return;
     }
-    exportTurnoReport({ filters: turnoFilters, clientName: selectedClient });
+    const logoUrl = `${window.location.origin}/logo-starvl.png`;
+    const html = buildTurnoReportHtml({ filters: turnoFilters, clientName: selectedClient, logoUrl });
+    if (html) showReportPreview(html, 'REL 5 — Faltas / Sobras de Caixa por Turno', () => setShowTurnoPanel(true));
     setShowTurnoPanel(false);
   };
 
@@ -10673,19 +10701,25 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
       toast('A data inicial não pode ser maior que a data final.', 'warn');
       return;
     }
-    exportFluxoReport({ filters: fluxoFilters, clientName: selectedClient });
+    const logoUrl = `${window.location.origin}/logo-starvl.png`;
+    const html = buildFluxoReportHtml({ filters: fluxoFilters, clientName: selectedClient, logoUrl });
+    if (html) showReportPreview(html, 'REL 6 — Fluxo de Caixa Operacional', () => setShowFluxoPanel(true));
     setShowFluxoPanel(false);
   };
 
   const openEstoquePanel  = () => setShowEstoquePanel(true);
   const handleGenerateEstoqueReport = () => {
-    exportEstoqueReport({ filters: estoqueFilters, clientName: selectedClient });
+    const logoUrl = `${window.location.origin}/logo-starvl.png`;
+    const html = buildEstoqueReportHtml({ filters: estoqueFilters, clientName: selectedClient, logoUrl });
+    if (html) showReportPreview(html, 'REL 7 — Giro de Estoque e Curva ABC', () => setShowEstoquePanel(true));
     setShowEstoquePanel(false);
   };
 
   const openClientesPanel = () => setShowClientesPanel(true);
   const handleGenerateClientesReport = () => {
-    exportClientesReport({ filters: clientesFilters, clientName: selectedClient });
+    const logoUrl = `${window.location.origin}/logo-starvl.png`;
+    const html = buildClientesReportHtml({ filters: clientesFilters, clientName: selectedClient, logoUrl });
+    if (html) showReportPreview(html, 'REL 8 — Fluxo de Clientes e Ticket Médio', () => setShowClientesPanel(true));
     setShowClientesPanel(false);
   };
 
@@ -10703,7 +10737,9 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
       toast('A data inicial não pode ser maior que a data final.', 'warn');
       return;
     }
-    exportComprasReport({ filters: comprasFilters, clientName: selectedClient });
+    const logoUrl = `${window.location.origin}/logo-starvl.png`;
+    const html = buildComprasReportHtml({ filters: comprasFilters, clientName: selectedClient, logoUrl });
+    if (html) showReportPreview(html, 'REL 9 — Painel de Auxílio em Compras', () => setShowComprasPanel(true));
     setShowComprasPanel(false);
   };
 
@@ -10850,7 +10886,7 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
 
   <section class="header">
     <div class="header-left">
-      <img src="/logo-starvl.png" alt="STARVL" style="width:100px;height:auto;object-fit:contain;flex-shrink:0" />
+      <img src="${window.location.origin}/logo-starvl.png" alt="STARVL" style="width:100px;height:auto;object-fit:contain;flex-shrink:0" />
       <div>
         <h1>REL 10 — Cadastro de Produtos e Combustíveis</h1>
         <div class="sub">${selectedClient || ''} &nbsp;|&nbsp; Ordenado por: ${ordemLabel} &nbsp;|&nbsp; Emitido em ${now}</div>
@@ -11004,11 +11040,7 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
 </body>
 </html>`;
 
-      const win = window.open('', '_blank');
-      if (!win) { toast('Permita pop-ups no navegador para gerar o relatório.', 'warn'); return; }
-      win.document.open();
-      win.document.write(html.replace('</body>', '<scr' + 'ipt>window.addEventListener("load",function(){setTimeout(function(){window.print();},500);});<\/scr' + 'ipt></body>'));
-      win.document.close();
+      showReportPreview(html, 'REL 10 — Cadastro de Produtos e Combustíveis', () => setShowCadastroPanel(true));
       setShowCadastroPanel(false);
     } catch (err) {
       toast(`Erro ao gerar relatório: ${err.message}`, 'error');
@@ -11858,6 +11890,50 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
             ref={drefIframeRef}
             src={drefPreviewUrl}
             title="REL 12 — DRE Financeiro"
+            style={{ flex:1, border:'none', width:'100%', background:'#f3f4f6' }}
+          />
+        </div>
+      )}
+
+      {/* REL 1-10 — Preview inline compartilhado */}
+      {reportPreviewUrl && (
+        <div style={{ position:'fixed', inset:0, zIndex:1200, display:'flex', flexDirection:'column', background:'#f3f4f6' }}>
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'10px 20px', background:'#ffffff', borderBottom:'3px solid #e31e24', flexShrink:0 }}>
+            <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+              <div style={{ width:36, height:36, borderRadius:8, background:'#fff5f5', border:'1px solid #fecaca', display:'grid', placeItems:'end center', padding:6, gap:2, gridTemplateColumns:'repeat(3,1fr)', flexShrink:0 }}>
+                <span style={{ display:'block', width:6, height:11, borderRadius:'3px 3px 0 0', background:'#e31e24', opacity:.75 }} />
+                <span style={{ display:'block', width:6, height:19, borderRadius:'3px 3px 0 0', background:'#e31e24' }} />
+                <span style={{ display:'block', width:6, height:26, borderRadius:'3px 3px 0 0', background:'#e31e24', opacity:.85 }} />
+              </div>
+              <div>
+                <div style={{ fontWeight:900, fontSize:13, color:'#111827', letterSpacing:0.5 }}>{reportPreviewTitle}</div>
+                <div style={{ fontSize:10, color:'#6b7280', marginTop:1 }}>Pré-visualização de impressão</div>
+              </div>
+            </div>
+            <div style={{ display:'flex', gap:8 }}>
+              <button type="button"
+                onClick={() => reportIframeRef.current?.contentWindow?.print()}
+                style={{ display:'flex', alignItems:'center', gap:6, padding:'8px 18px', background:'#e31e24', color:'#fff', border:'none', borderRadius:6, fontSize:12, fontWeight:700, cursor:'pointer' }}>
+                <Printer size={14} /> Imprimir
+              </button>
+              {reportReopenFn && (
+                <button type="button"
+                  onClick={() => { closeReportPreview(); reportReopenFn(); }}
+                  style={{ display:'flex', alignItems:'center', gap:6, padding:'8px 14px', background:'#f9fafb', color:'#374151', border:'1px solid #e5e7eb', borderRadius:6, fontSize:12, fontWeight:700, cursor:'pointer' }}>
+                  <ChevronLeft size={14} /> Filtros
+                </button>
+              )}
+              <button type="button"
+                onClick={closeReportPreview}
+                style={{ display:'flex', alignItems:'center', gap:6, padding:'8px 14px', background:'#f9fafb', color:'#374151', border:'1px solid #e5e7eb', borderRadius:6, fontSize:12, fontWeight:700, cursor:'pointer' }}>
+                <X size={14} /> Fechar
+              </button>
+            </div>
+          </div>
+          <iframe
+            ref={reportIframeRef}
+            src={reportPreviewUrl}
+            title={reportPreviewTitle}
             style={{ flex:1, border:'none', width:'100%', background:'#f3f4f6' }}
           />
         </div>
