@@ -50,6 +50,7 @@ function periodToApi(period) {
 // ─── Global formatters ─────────────────────────────────────────────────────
 const fmtBRL  = v => 'R$ ' + Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtDate = s => { if (!s) return '—'; const [y, m, d] = String(s).substring(0, 10).split('-'); return `${d}/${m}/${y}`; };
+const fmtCnpj = v => { if (!v) return null; const d = String(v).replace(/\D/g,''); if (d.length===14) return d.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/,'$1.$2.$3/$4-$5'); if (d.length===11) return d.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/,'$1.$2.$3-$4'); return v; };
 
 // ─── Repositório de Imagens — constantes globais ────────────────────────────
 const DEFAULT_FOLDERS = [
@@ -9658,7 +9659,6 @@ const ComprasPage = ({ selectedClient, clients }) => {
     return String(now.getMonth() + 1).padStart(2,'0') + String(now.getFullYear());
   });
   const [combustSubTab, setCombustSubTab] = useState('comNota');
-  const [prodSubTab,    setProdSubTab]    = useState('comNota');
   const [dataCombust,   setDataCombust]   = useState(null);
   const [dataProd,      setDataProd]      = useState(null);
   const [loading,       setLoading]       = useState({});
@@ -9757,7 +9757,7 @@ const ComprasPage = ({ selectedClient, clients }) => {
             <button key={t} type="button" onClick={() => setCombustSubTab(t)}
               style={{ padding:'6px 16px', borderRadius:'6px', fontSize:'13px', fontWeight:600, border:'none', cursor:'pointer',
                 background: combustSubTab===t ? '#E31E24' : '#222', color: combustSubTab===t ? '#fff' : '#888' }}>
-              {t==='comNota' ? 'Combustíveis 110' : `Combustíveis 220 — ${d.semNota.length}`}
+              {t==='comNota' ? 'Combustíveis 110' : 'Combustíveis 220'}
             </button>
           ))}
         </div>
@@ -9768,20 +9768,23 @@ const ComprasPage = ({ selectedClient, clients }) => {
               <th style={{textAlign:'right'}}>LITROS</th>
               <th style={{textAlign:'right'}}>UNIT.</th>
               <th style={{textAlign:'right'}}>TOTAL</th>
-              {combustSubTab==='comNota' ? <><th>DOCUMENTO</th><th>PLACA</th></> : <><th>PEDIDO</th><th>OBSERVAÇÃO</th></>}
+              {combustSubTab==='comNota' ? <th>DOCUMENTO</th> : <><th>PEDIDO</th><th>OBSERVAÇÃO</th></>}
             </tr></thead>
             <tbody>
-              {rows.length===0 && <tr><td colSpan={8} style={{textAlign:'center',color:'#666',padding:'32px'}}>Nenhum registro encontrado.</td></tr>}
+              {rows.length===0 && <tr><td colSpan={7} style={{textAlign:'center',color:'#666',padding:'32px'}}>Nenhum registro encontrado.</td></tr>}
               {rows.map((r,i) => (
                 <tr key={i}>
                   <td style={{fontFamily:'monospace',fontSize:'13px'}}>{fmtDate(r.data)}</td>
-                  <td style={{maxWidth:'200px',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{r.fornecedor}</td>
+                  <td>
+                    <div style={{maxWidth:'220px',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{r.fornecedor}</div>
+                    {fmtCnpj(r.cnpj) && <div style={{fontSize:'11px',color:'#888',marginTop:'2px'}}>{fmtCnpj(r.cnpj)}</div>}
+                  </td>
                   <td style={{color:getFuelColor(r.combustivel),fontWeight:600}}>{r.combustivel}</td>
                   <td style={{textAlign:'right',fontFamily:'monospace',color:'#4CAF50',fontWeight:600}}>{fmtNum(r.qtd,3)}</td>
                   <td style={{textAlign:'right',fontFamily:'monospace',fontSize:'12px'}}>{fmtBRL(r.unitario)}</td>
                   <td style={{textAlign:'right',fontFamily:'monospace',fontWeight:600}}>{fmtBRL(r.total)}</td>
                   {combustSubTab==='comNota'
-                    ? <><td style={{fontFamily:'monospace',fontSize:'13px',color:'#aaa',fontWeight:600}}>{r.documento||'—'}</td><td style={{fontSize:'12px',color:'#888'}}>{r.placa||'—'}</td></>
+                    ? <td style={{fontFamily:'monospace',fontSize:'13px',color:'#aaa',fontWeight:600}}>{r.documento||'—'}</td>
                     : <><td style={{fontSize:'12px',color:'#888'}}>#{r.pedido}</td><td style={{fontSize:'11px',color:'#888',maxWidth:'200px'}}>{r.observacao||'—'}</td></>}
                 </tr>
               ))}
@@ -9791,7 +9794,7 @@ const ComprasPage = ({ selectedClient, clients }) => {
                   <td style={{textAlign:'right',fontFamily:'monospace',color:'#4CAF50'}}>{fmtNum(totalQtd,3)} L</td>
                   <td></td>
                   <td style={{textAlign:'right',fontFamily:'monospace'}}>{fmtBRL(totalVal)}</td>
-                  <td></td><td></td>
+                  <td></td>
                 </tr>
               )}
             </tbody>
@@ -9806,46 +9809,28 @@ const ComprasPage = ({ selectedClient, clients }) => {
     if (error.produtos)   return <ApiErrorNotice message={error.produtos} onRetry={fetchProd} />;
     const d = dataProd;
     if (!d) return null;
-    const rows     = prodSubTab==='comNota' ? d.comNota : d.semNota;
+    const rows     = d.notas || [];
     const totalQtd = rows.reduce((s,r) => s + r.qtd,   0);
     const totalVal = rows.reduce((s,r) => s + r.total, 0);
-    const totalNotasComNota = new Set(d.comNota.map(r=>r.nota)).size;
-    const totalPedidos      = new Set(d.semNota.map(r=>r.pedido)).size;
+    const totalNotas = new Set(rows.map(r => r.nota)).size;
     return (
       <div>
         <div style={{ display:'flex', gap:'12px', marginBottom:'16px' }}>
           <div className="stat-card" style={{ flex:1, minWidth:0 }}>
             <div className="stat-icon red"><ShoppingCart size={20}/></div>
             <div className="stat-content">
-              <div className="stat-label">NF Entrada (110)</div>
-              <div className="stat-value" style={{ fontSize:'20px' }}>{totalNotasComNota} notas</div>
-              <div className="stat-sub">{d.comNota.length} itens</div>
-            </div>
-          </div>
-          <div className="stat-card" style={{ flex:1, minWidth:0 }}>
-            <div className="stat-icon orange"><Package size={20}/></div>
-            <div className="stat-content">
-              <div className="stat-label">Pedidos (220)</div>
-              <div className="stat-value" style={{ fontSize:'20px' }}>{totalPedidos} pedidos</div>
-              <div className="stat-sub">{d.semNota.length} itens</div>
+              <div className="stat-label">NF de Entrada</div>
+              <div className="stat-value" style={{ fontSize:'20px' }}>{totalNotas} notas</div>
+              <div className="stat-sub">{rows.length} itens</div>
             </div>
           </div>
           <div className="stat-card" style={{ flex:1, minWidth:0 }}>
             <div className="stat-icon green"><DollarSign size={20}/></div>
             <div className="stat-content">
               <div className="stat-label">Valor Total</div>
-              <div className="stat-value" style={{ fontSize:'20px' }}>{fmtBRL([...d.comNota,...d.semNota].reduce((s,r)=>s+r.total,0))}</div>
+              <div className="stat-value" style={{ fontSize:'20px' }}>{fmtBRL(totalVal)}</div>
             </div>
           </div>
-        </div>
-        <div style={{ display:'flex', gap:'8px', marginBottom:'12px' }}>
-          {['comNota','semNota'].map(t => (
-            <button key={t} type="button" onClick={() => setProdSubTab(t)}
-              style={{ padding:'6px 16px', borderRadius:'6px', fontSize:'13px', fontWeight:600, border:'none', cursor:'pointer',
-                background: prodSubTab===t ? '#E31E24' : '#222', color: prodSubTab===t ? '#fff' : '#888' }}>
-              {t==='comNota' ? `NF Entrada (110) — ${d.comNota.length} itens` : `Pedidos (220) — ${d.semNota.length} itens`}
-            </button>
-          ))}
         </div>
         <div className="table-container">
           <table className="data-table">
@@ -9854,21 +9839,22 @@ const ComprasPage = ({ selectedClient, clients }) => {
               <th style={{textAlign:'right'}}>QTD</th>
               <th style={{textAlign:'right'}}>UNIT.</th>
               <th style={{textAlign:'right'}}>TOTAL</th>
-              {prodSubTab==='comNota' ? <th>CHAVE NF</th> : <><th>PEDIDO</th><th>OBSERVAÇÃO</th></>}
+              <th>DOCUMENTO</th>
             </tr></thead>
             <tbody>
-              {rows.length===0 && <tr><td colSpan={prodSubTab==='comNota'?7:8} style={{textAlign:'center',color:'#666',padding:'32px'}}>Nenhum registro encontrado.</td></tr>}
+              {rows.length===0 && <tr><td colSpan={7} style={{textAlign:'center',color:'#666',padding:'32px'}}>Nenhum registro encontrado.</td></tr>}
               {rows.map((r,i) => (
                 <tr key={i}>
                   <td style={{fontFamily:'monospace',fontSize:'13px'}}>{fmtDate(r.data)}</td>
-                  <td style={{maxWidth:'200px',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{r.fornecedor}</td>
+                  <td>
+                    <div style={{maxWidth:'220px',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{r.fornecedor}</div>
+                    {fmtCnpj(r.cnpj) && <div style={{fontSize:'11px',color:'#888',marginTop:'2px'}}>{fmtCnpj(r.cnpj)}</div>}
+                  </td>
                   <td style={{maxWidth:'220px',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',fontWeight:500}}>{r.produto}</td>
                   <td style={{textAlign:'right',fontFamily:'monospace',color:'#4CAF50',fontWeight:600}}>{fmtNum(r.qtd,3)}</td>
                   <td style={{textAlign:'right',fontFamily:'monospace',fontSize:'12px'}}>{fmtBRL(r.unitario)}</td>
                   <td style={{textAlign:'right',fontFamily:'monospace',fontWeight:600}}>{fmtBRL(r.total)}</td>
-                  {prodSubTab==='comNota'
-                    ? <td style={{fontFamily:'monospace',fontSize:'10px',color:'#888',maxWidth:'160px',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{r.nota||'—'}</td>
-                    : <><td style={{fontSize:'12px',color:'#888'}}>#{r.pedido}</td><td style={{fontSize:'11px',color:'#888',maxWidth:'160px'}}>{r.observacao||'—'}</td></>}
+                  <td style={{fontFamily:'monospace',fontSize:'13px',color:'#aaa',fontWeight:600}}>{r.documento||'—'}</td>
                 </tr>
               ))}
               {rows.length>0 && (
@@ -9877,7 +9863,7 @@ const ComprasPage = ({ selectedClient, clients }) => {
                   <td style={{textAlign:'right',fontFamily:'monospace',color:'#4CAF50'}}>{fmtNum(totalQtd,3)}</td>
                   <td></td>
                   <td style={{textAlign:'right',fontFamily:'monospace'}}>{fmtBRL(totalVal)}</td>
-                  {prodSubTab==='comNota'?<td></td>:<><td></td><td></td></>}
+                  <td></td>
                 </tr>
               )}
             </tbody>
