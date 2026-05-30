@@ -239,6 +239,7 @@ router.get('/convenio', async (req, res) => {
              AND g.gprocodigo = p1.prodgrupo
            LIMIT 1
        ) g ON TRUE
+       WHERE p1.prodtipo = 2
        ORDER BY s.sprodescricao, g.gprodescricao, p1.proddescricao`,
       [empresa]
     );

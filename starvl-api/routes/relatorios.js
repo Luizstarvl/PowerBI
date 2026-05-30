@@ -539,7 +539,7 @@ router.get('/cadastro-produtos', async (req, res) => {
            SELECT g.gprodescricao FROM gpro g
            WHERE g.gprosecao = p.prodsecao AND g.gprocodigo = p.prodgrupo LIMIT 1
        ) g ON TRUE
-       WHERE p.prodtipo != 1
+       WHERE p.prodtipo = 2
        ORDER BY s.sprodescricao NULLS LAST, g.gprodescricao NULLS LAST, p.proddescricao`,
       [empresa]
     );

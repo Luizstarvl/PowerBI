@@ -404,7 +404,7 @@ router.get('/top-convenio', async (req, res) => {
          AND v.vdamovimento >= $2
          AND v.vdamovimento <= $3
          AND (v.vdastatus IS NULL OR v.vdastatus = 0)
-         AND p.prodtipo != 1
+         AND p.prodtipo = 2
        GROUP BY p.prodcodigo, p.prodresumo
        ORDER BY qtd DESC
        LIMIT 4`,

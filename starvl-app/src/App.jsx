@@ -11543,7 +11543,7 @@ const RankingSalesFilterPanel = ({ vendedores, filters, setFilters, loading, loa
 const CadastroFilterPanel = ({ filters, setFilters, onClose, onGenerate }) => {
   const upd = (field, val) => setFilters(f => ({ ...f, [field]: val }));
 
-  const tipoOpts    = [['todos','Todos','Combustíveis e Conveniência'],['combustiveis','Combustíveis','prodtipo = 1'],['convenio','Conveniência','prodtipo ≠ 1']];
+  const tipoOpts    = [['todos','Todos','Combustíveis e Conveniência'],['combustiveis','Combustíveis','prodtipo = 1'],['convenio','Conveniência','prodtipo = 2']];
   const situOpts    = [['todos','Todos','Ativos e Inativos'],['ativo','Somente Ativos','Situação = ATIVO'],['inativo','Somente Inativos','Situação = INATIVO']];
   const ordenOpts   = [['nome','Nome A–Z','Ordem alfabética'],['estoque','Estoque','Maior estoque primeiro'],['situacao','Situação','Ativos antes dos inativos']];
 
