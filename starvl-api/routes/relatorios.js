@@ -57,6 +57,7 @@ router.get('/descarregamentos', async (req, res) => {
                 ELSE 0 END AS unitario,
            COALESCE(SUM(entcpi.entcpitotal), 0) AS total,
            entcpa.entcpachave AS nota,
+           entcpa.entcpadocumento AS documento,
            entcpa.entcpaplaca AS placa
          FROM entcpa
          JOIN entcpi ON entcpi.entcpicompra = entcpa.entcpacodigo
@@ -70,7 +71,7 @@ router.get('/descarregamentos', async (req, res) => {
            AND DATE(entcpa.entcpachegada) <= $3
          GROUP BY
            DATE(entcpa.entcpachegada), part.partrazao,
-           prod.prodresumo, entcpa.entcpachave, entcpa.entcpaplaca
+           prod.prodresumo, entcpa.entcpachave, entcpa.entcpadocumento, entcpa.entcpaplaca
          ORDER BY data DESC, combustivel`,
         [empresa, dataInicio, dataFim]
       ),
@@ -107,9 +108,10 @@ router.get('/descarregamentos', async (req, res) => {
       qtd: parseFloat(r.qtd),
       unitario: parseFloat(r.unitario),
       total: parseFloat(r.total),
-      tipo: '110',
-      nota: r.nota || null,
-      placa: r.placa || null,
+      tipo:      '110',
+      nota:      r.nota      || null,
+      documento: r.documento || null,
+      placa:     r.placa     || null,
     }));
 
     const semNota = pedeResult.rows.map(r => ({

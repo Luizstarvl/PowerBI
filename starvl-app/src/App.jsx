@@ -9757,7 +9757,7 @@ const ComprasPage = ({ selectedClient, clients }) => {
             <button key={t} type="button" onClick={() => setCombustSubTab(t)}
               style={{ padding:'6px 16px', borderRadius:'6px', fontSize:'13px', fontWeight:600, border:'none', cursor:'pointer',
                 background: combustSubTab===t ? '#E31E24' : '#222', color: combustSubTab===t ? '#fff' : '#888' }}>
-              {t==='comNota' ? `Combustíveis 110 — ${d.comNota.length}` : `Combustíveis 220 — ${d.semNota.length}`}
+              {t==='comNota' ? 'Combustíveis 110' : `Combustíveis 220 — ${d.semNota.length}`}
             </button>
           ))}
         </div>
@@ -9768,7 +9768,7 @@ const ComprasPage = ({ selectedClient, clients }) => {
               <th style={{textAlign:'right'}}>LITROS</th>
               <th style={{textAlign:'right'}}>UNIT.</th>
               <th style={{textAlign:'right'}}>TOTAL</th>
-              {combustSubTab==='comNota' ? <><th>NOTA</th><th>PLACA</th></> : <><th>PEDIDO</th><th>OBSERVAÇÃO</th></>}
+              {combustSubTab==='comNota' ? <><th>DOCUMENTO</th><th>PLACA</th></> : <><th>PEDIDO</th><th>OBSERVAÇÃO</th></>}
             </tr></thead>
             <tbody>
               {rows.length===0 && <tr><td colSpan={8} style={{textAlign:'center',color:'#666',padding:'32px'}}>Nenhum registro encontrado.</td></tr>}
@@ -9781,7 +9781,7 @@ const ComprasPage = ({ selectedClient, clients }) => {
                   <td style={{textAlign:'right',fontFamily:'monospace',fontSize:'12px'}}>{fmtBRL(r.unitario)}</td>
                   <td style={{textAlign:'right',fontFamily:'monospace',fontWeight:600}}>{fmtBRL(r.total)}</td>
                   {combustSubTab==='comNota'
-                    ? <><td style={{fontFamily:'monospace',fontSize:'11px',color:'#888'}}>{r.nota||'—'}</td><td style={{fontSize:'12px',color:'#888'}}>{r.placa||'—'}</td></>
+                    ? <><td style={{fontFamily:'monospace',fontSize:'13px',color:'#aaa',fontWeight:600}}>{r.documento||'—'}</td><td style={{fontSize:'12px',color:'#888'}}>{r.placa||'—'}</td></>
                     : <><td style={{fontSize:'12px',color:'#888'}}>#{r.pedido}</td><td style={{fontSize:'11px',color:'#888',maxWidth:'200px'}}>{r.observacao||'—'}</td></>}
                 </tr>
               ))}
