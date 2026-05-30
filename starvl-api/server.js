@@ -55,7 +55,7 @@ app.use(cors({
         if (hostname === 'localhost' || hostname === '127.0.0.1') {
           return callback(null, true);
         }
-      } catch { /* ignora URL inválida */ }
+      } catch (_urlErr) { /* ignora URL inválida */ }
     }
 
     return callback(new Error(`Origin not allowed by CORS: ${origin}`));

@@ -180,7 +180,7 @@ const Login = ({ onLogin }) => {
         return;
       }
       onLogin(data);
-    } catch {
+    } catch (err) { // eslint-disable-line no-unused-vars
       setError('Não foi possível conectar ao servidor. Tente novamente.');
     } finally {
       setLoading(false);
@@ -14618,7 +14618,7 @@ const Parameters = ({ clients, setClients, isAdmin }) => {
       .then(data => setRepoImgs(prev => ({ ...prev, [repoFolder]: data })))
       .catch(() => setRepoImgs(prev => ({ ...prev, [repoFolder]: {} })))
       .finally(() => setRepoLoading(false));
-  }, [paramTab, repoFolder]); // eslint-disable-line react-hooksectives
+  }, [paramTab, repoFolder]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const folderImgs = repoFolder ? (repoImgs[repoFolder] ?? null) : null;
   const activeFolder = repoFolders.find(f => f.id === repoFolder);
