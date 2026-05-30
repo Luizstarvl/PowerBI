@@ -1,0 +1,14 @@
+node_modules
+starvl-api/node_modules
+starvl-app/node_modules
+starvl-app/build
+.git
+.env
+starvl-api/.env
+*.log
+railway.json
+RAILWAY_DEPLOY.md
+skill-sga
+SQL_LMC_220.txt
+Consulta.js
+Logo Starvl
