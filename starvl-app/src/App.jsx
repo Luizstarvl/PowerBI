@@ -1193,7 +1193,7 @@ const MR_CSS = `
 @keyframes mr-pulse { 0%,100%{opacity:1} 50%{opacity:.55} }
 `;
 
-const MetasRealizadoChart = ({ themeMode = 'dark', vendasDiariasCombusFull, selectedPeriod }) => {
+const MetasRealizadoChart = ({ themeMode = 'dark', vendasDiariasCombusFull, selectedPeriod, goals = [] }) => {
   const [metrica, setMetrica]   = useState('litros');
   const [periodo, setPeriodo]   = useState('mensal');
   const [animKey, setAnimKey]   = useState(0);
@@ -1220,7 +1220,29 @@ const MetasRealizadoChart = ({ themeMode = 'dark', vendasDiariasCombusFull, sele
 
     const totalDias = mensal ? totalDiasNoMes : 7;
     const avgDiario = raw.length > 0 ? raw.reduce((s, v) => s + v, 0) / raw.length : 0;
-    const meta      = avgDiario * totalDias || 1; // projeção de fechamento ao ritmo atual
+
+    // Busca meta do Indicadores Patrimoniais (prioriza Em andamento, aceita qualquer status)
+    const allGoals = goals || [];
+    const sortByActive = (a, b) => {
+      const order = { 'Em andamento': 0, 'Em atraso': 1, 'Concluída': 2 };
+      return (order[a.status] ?? 3) - (order[b.status] ?? 3);
+    };
+    let metaFromGoals = 0;
+    if (metrica === 'litros') {
+      const g = [...allGoals].sort(sortByActive).find(g =>
+        g.nome.toLowerCase().includes('volume') ||
+        g.nome.toLowerCase().includes('combustív') ||
+        g.nome.toLowerCase().includes('combustivel'));
+      if (g) metaFromGoals = g.meta / (g.periodo === 'Anual' ? 12 : g.periodo === 'Trimestral' ? 3 : 1);
+    } else {
+      const g = [...allGoals].sort(sortByActive).find(g =>
+        g.categoria === 'Faturamento' &&
+        (g.periodo === 'Mensal' || g.nome.toLowerCase().includes('faturamento')));
+      if (g) metaFromGoals = g.meta / (g.periodo === 'Anual' ? 12 : g.periodo === 'Trimestral' ? 3 : 1);
+    }
+    const meta = mensal
+      ? (metaFromGoals > 0 ? metaFromGoals : avgDiario * totalDiasNoMes || 1)
+      : (metaFromGoals > 0 ? metaFromGoals / totalDiasNoMes * 7 : avgDiario * 7 || 1);
 
     let acc = 0;
     const data = raw.map((v, i) => {
@@ -1252,9 +1274,9 @@ const MetasRealizadoChart = ({ themeMode = 'dark', vendasDiariasCombusFull, sele
     title : { margin: 0, fontSize: 12, fontWeight: 700, color: dark ? '#94a3b8' : '#6b7280', letterSpacing: 1, textTransform: 'uppercase' },
     sub   : { fontSize: 11, color: dark ? '#475569' : '#9ca3af', marginTop: 2 },
     tog   : (active) => ({ background: active ? '#E31E24' : (dark ? '#2c2c2e' : '#f3f4f6'), color: active ? '#fff' : (dark ? '#64748b' : '#6b7280'), border: 'none', borderRadius: 6, padding: '5px 13px', fontSize: 11, fontWeight: 700, cursor: 'pointer', transition: 'all .15s' }),
-    kpiBox: (accent) => ({ flex: 1, background: dark ? '#141414' : '#f9fafb', border: `1px solid ${accent}33`, borderRadius: 10, padding: '14px 16px' }),
-    kpiL  : { fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: dark ? '#6b7280' : '#9ca3af', marginBottom: 4 },
-    kpiV  : (col) => ({ fontSize: 22, fontWeight: 900, color: col || (dark ? '#f1f5f9' : '#111827'), lineHeight: 1.1 }),
+    kpiBox: (accent) => ({ flex: '1 1 100px', minWidth: 100, background: dark ? '#141414' : '#f9fafb', border: `1px solid ${accent}33`, borderRadius: 10, padding: '12px 14px' }),
+    kpiL  : { fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: dark ? '#6b7280' : '#9ca3af', marginBottom: 4, whiteSpace: 'nowrap' },
+    kpiV  : (col) => ({ fontSize: 18, fontWeight: 900, color: col || (dark ? '#f1f5f9' : '#111827'), lineHeight: 1.1, whiteSpace: 'nowrap' }),
     axis  : { fill: dark ? '#64748b' : '#9ca3af', fontSize: 10 },
     grid  : dark ? '#1e293b' : '#f1f5f9',
   };
@@ -6566,7 +6588,7 @@ const FuelStationCard = ({ estoques = [], themeMode = 'dark' }) => {
 };
 
 // Dashboard Component
-const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcControle, estoques, loading, clients, selectedClient, selectedPeriod, setSelectedPeriod, onRefresh, themeMode, topConvenio, vendasDiariasCombusFull, abcProdutos1, abcProdutos2 }) => {
+const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcControle, estoques, loading, clients, selectedClient, selectedPeriod, setSelectedPeriod, onRefresh, themeMode, topConvenio, vendasDiariasCombusFull, abcProdutos1, abcProdutos2, goals }) => {
   const [selectedFuelDonut, setSelectedFuelDonut] = useState(null);
   const [isCompactDashboard, setIsCompactDashboard] = useState(false);
   const [salesFuelSection, setSalesFuelSection] = useState('conveniencia');
@@ -7040,7 +7062,7 @@ const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcContr
           <ProjecaoVendas vendasDiariasCombusFull={vendasDiariasCombusFull} selectedPeriod={selectedPeriod} />
         </div>
         <div className="dashboard-static-full">
-          <MetasRealizadoChart themeMode={themeMode} vendasDiariasCombusFull={vendasDiariasCombusFull} selectedPeriod={selectedPeriod} />
+          <MetasRealizadoChart themeMode={themeMode} vendasDiariasCombusFull={vendasDiariasCombusFull} selectedPeriod={selectedPeriod} goals={goals} />
         </div>
         <div className="dashboard-static-full">
           <VendasPista clients={clients} selectedClient={selectedClient} selectedPeriod={selectedPeriod} themeMode={themeMode} />
@@ -15989,6 +16011,7 @@ const INITIAL_GOALS = [
   { id:9,  nome:'Eficiência Operacional',        desc:'Melhorar margem bruta em 8%',                   categoria:'Redução de Custos', periodo:'Anual',       meta:900000,  alcancado:900000, status:'Concluída',    vencimento:'2025-12-31' },
   { id:10, nome:'Volume de Combustíveis',        desc:'Aumentar volume de venda em 25%',               categoria:'Faturamento',       periodo:'Anual',       meta:1200000, alcancado:1200000,status:'Concluída',    vencimento:'2025-12-31' },
   { id:11, nome:'Captação Novos Clientes',       desc:'Fechar 50 novos contratos no ano',              categoria:'Outros',            periodo:'Anual',       meta:120000,  alcancado:120000, status:'Concluída',    vencimento:'2025-12-31' },
+  { id:12, nome:'Volume de Combustíveis Mensal', desc:'Meta mensal de litros vendidos (combustível)',   categoria:'Faturamento',       periodo:'Mensal',      meta:100000,  alcancado:0,      status:'Em andamento', vencimento:'2026-12-31' },
 ];
 
 const GOAL_MONTHLY_CHART = [
@@ -16008,9 +16031,8 @@ const GOAL_MONTHLY_CHART = [
 
 const EMPTY_GOAL_FORM = { nome:'', desc:'', categoria:'Faturamento', periodo:'Mensal', meta:'', alcancado:'', vencimento:'', status:'Em andamento' };
 
-const GoalManager = ({ themeMode = 'dark' }) => {
+const GoalManager = ({ themeMode = 'dark', goals = INITIAL_GOALS, setGoals }) => {
   const [activeTab, setActiveTab]   = useState('visao');
-  const [goals, setGoals]           = useState(INITIAL_GOALS);
   const [search, setSearch]         = useState('');
   const [catFilter, setCatFilter]   = useState('Todas');
   const [statusFilter, setStatus]   = useState('Todos');
@@ -16018,7 +16040,7 @@ const GoalManager = ({ themeMode = 'dark' }) => {
   const [page, setPage]             = useState(1);
   const [editGoal, setEditGoal]     = useState(null);
   const [form, setForm]             = useState(EMPTY_GOAL_FORM);
-  const [nextId, setNextId]         = useState(12);
+  const [nextId, setNextId]         = useState(() => Math.max(0, ...(INITIAL_GOALS.map(g => g.id))) + 1);
   const PAGE_SIZE = 5;
 
   const fmtBRL = v => Number(v || 0).toLocaleString('pt-BR', { style:'currency', currency:'BRL', maximumFractionDigits:0 });
@@ -17554,6 +17576,7 @@ export default function App() {
   );
   const [autoRefresh, setAutoRefresh] = useState(() => localStorage.getItem('starvl-auto-refresh') === 'true');
   const autoRefreshRef = useRef(null);
+  const [goals, setGoals]           = useState(INITIAL_GOALS);
 
   // Carrega usuários da API na inicialização do app
   useEffect(() => {
@@ -17749,7 +17772,7 @@ export default function App() {
   const renderPage = () => {
     switch (currentPage) {
       case 'dashboard':
-        return <Dashboard kpis={apiData.kpis} combustiveis={apiData.combustiveis} vendasDiarias={apiData.vendasDiarias} vendasHorarias={apiData.vendasHorarias} lmcControle={apiData.dashboardLmcControle} estoques={apiData.estoques} loading={apiData.loading} clients={clients} selectedClient={selectedClient} selectedPeriod={dashboardPeriod} setSelectedPeriod={setDashboardPeriod} onRefresh={handleRefresh} themeMode={themeMode} topConvenio={apiData.topConvenio} vendasDiariasCombusFull={apiData.vendasDiariasCombusFull} abcProdutos1={apiData.abcProdutos1} abcProdutos2={apiData.abcProdutos2} />;
+        return <Dashboard kpis={apiData.kpis} combustiveis={apiData.combustiveis} vendasDiarias={apiData.vendasDiarias} vendasHorarias={apiData.vendasHorarias} lmcControle={apiData.dashboardLmcControle} estoques={apiData.estoques} loading={apiData.loading} clients={clients} selectedClient={selectedClient} selectedPeriod={dashboardPeriod} setSelectedPeriod={setDashboardPeriod} onRefresh={handleRefresh} themeMode={themeMode} topConvenio={apiData.topConvenio} vendasDiariasCombusFull={apiData.vendasDiariasCombusFull} abcProdutos1={apiData.abcProdutos1} abcProdutos2={apiData.abcProdutos2} goals={goals} />;
       case 'reports':
         return <Reports selectedClient={selectedClient} selectedPeriod={reportsPeriod} setSelectedPeriod={setReportsPeriod} clients={clients} />;
       case 'compras':
@@ -17761,7 +17784,7 @@ export default function App() {
       case 'receber':
         return <Financeiro clients={clients} selectedClient={selectedClient} themeMode={themeMode} />;
       case 'goals':
-        return <GoalManager themeMode={themeMode} />;
+        return <GoalManager themeMode={themeMode} goals={goals} setGoals={setGoals} />;
       case 'auditoria':
         return <Auditoria themeMode={themeMode} />;
       case 'users':
@@ -17771,7 +17794,7 @@ export default function App() {
       case 'admin':
         return <Parameters clients={clients} setClients={setClients} isAdmin={isAdmin} />;
       default:
-        return <Dashboard kpis={apiData.kpis} combustiveis={apiData.combustiveis} vendasDiarias={apiData.vendasDiarias} vendasHorarias={apiData.vendasHorarias} lmcControle={apiData.dashboardLmcControle} estoques={apiData.estoques} loading={apiData.loading} clients={clients} selectedClient={selectedClient} selectedPeriod={dashboardPeriod} setSelectedPeriod={setDashboardPeriod} onRefresh={handleRefresh} themeMode={themeMode} topConvenio={apiData.topConvenio} vendasDiariasCombusFull={apiData.vendasDiariasCombusFull} abcProdutos1={apiData.abcProdutos1} abcProdutos2={apiData.abcProdutos2} />;
+        return <Dashboard kpis={apiData.kpis} combustiveis={apiData.combustiveis} vendasDiarias={apiData.vendasDiarias} vendasHorarias={apiData.vendasHorarias} lmcControle={apiData.dashboardLmcControle} estoques={apiData.estoques} loading={apiData.loading} clients={clients} selectedClient={selectedClient} selectedPeriod={dashboardPeriod} setSelectedPeriod={setDashboardPeriod} onRefresh={handleRefresh} themeMode={themeMode} topConvenio={apiData.topConvenio} vendasDiariasCombusFull={apiData.vendasDiariasCombusFull} abcProdutos1={apiData.abcProdutos1} abcProdutos2={apiData.abcProdutos2} goals={goals} />;
     }
   };
 
