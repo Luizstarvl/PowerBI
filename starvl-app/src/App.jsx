@@ -6341,7 +6341,7 @@ const FuelTypeCarousel = ({ estoques, selected, onSelect, dark }) => {
 };
 
 // ─── Carrossel coverflow de seleção de combustível ────────────────────────────
-const FuelCarouselSelector = ({ estoques, selected, onSelect, dark }) => {
+const FuelCarouselSelector = ({ estoques, selected, onSelect, dark, lmcFechamento = {} }) => {
   const n = estoques.length;
   const [active, setActive] = useState(() => {
     const idx = estoques.findIndex(e => e.produtoCodigo === selected);
@@ -6386,8 +6386,11 @@ const FuelCarouselSelector = ({ estoques, selected, onSelect, dark }) => {
           const isAct  = offset === 0;
           const absOff = Math.abs(offset);
           const fColor = getFuelColor(e.produtoNome, DASHBOARD_COLORS.stock);
-          const stockE = e.estoqueEstimado ?? e.estoqueTotal ?? 0;
-          const pct    = Math.min(100, e.percentualEstimado ?? e.percentualOcupacao ?? 0);
+          const lmcVal = lmcFechamento[e.produtoCodigo];
+          const stockE = lmcVal != null ? lmcVal : (e.estoqueEstimado ?? e.estoqueTotal ?? 0);
+          const pct    = e.capacidadeTotal > 0
+            ? Math.min(100, (stockE / e.capacidadeTotal) * 100)
+            : Math.min(100, e.percentualEstimado ?? e.percentualOcupacao ?? 0);
 
           const tx    = offset * 148;
           const sc    = isAct ? 1.18 : Math.max(0.58, 1 - absOff * 0.26);
@@ -6457,13 +6460,43 @@ const FuelStationCard = ({ estoques = [], lmcSaldos = [], lmcControle = [], them
   const [slideAnim, setSlideAnim] = useState('appear');
   const [animKey, setAnimKey]     = useState(0);
 
-  // Backend calcula: abertura_lmc + compras110 + compras220 + aferições − vendas
-  // Idêntico ao Livros (Movimentação de Combustíveis)
+  // Calcula fechamento LMC igual à aba Livros: abertura + compras110 + compras220 + afericoes - vendas
+  const lmcFechamentoByProduct = useMemo(() => {
+    const result = {};
+    // Abertura de cada produto (do registro mensal lmc)
+    (lmcSaldos || []).forEach(r => {
+      const cod = Number(r.combustivelCodigo);
+      result[cod] = Number(r.abertura || 0);
+    });
+    // Agrupar movimentos diários por produto, em ordem de data
+    const movByProd = {};
+    (lmcControle || []).forEach(r => {
+      const cod = Number(r.codProduto);
+      if (!movByProd[cod]) movByProd[cod] = [];
+      movByProd[cod].push(r);
+    });
+    // Saldo acumulado = abertura + Σ(compras+afericoes-vendas) de cada dia
+    Object.entries(movByProd).forEach(([codStr, rows]) => {
+      const cod = Number(codStr);
+      rows.sort((a, b) => String(a.emissao || '').localeCompare(String(b.emissao || '')));
+      let saldo = result[cod] ?? 0;
+      rows.forEach(r => {
+        saldo += Number(r.compra110 || 0) + Number(r.compra220 || 0) + Number(r.afericao || 0) - Number(r.venda || 0);
+      });
+      result[cod] = saldo;
+    });
+    return result;
+  }, [lmcSaldos, lmcControle]);
+
   const active    = list.find(e => e.produtoCodigo === selFuel) || list[0] || null;
-  const stockVal  = active?.estoqueEstimado ?? active?.estoqueTotal ?? 0;
-  const fuelPct   = active
-    ? Math.min(100, active.percentualEstimado ?? active.percentualOcupacao ?? 0)
-    : 0;
+  const activeCod = active?.produtoCodigo;
+  const lmcStock  = activeCod != null && lmcFechamentoByProduct[activeCod] != null
+    ? lmcFechamentoByProduct[activeCod]
+    : (active?.estoqueEstimado ?? active?.estoqueTotal ?? 0);
+  const stockVal  = lmcStock;
+  const fuelPct   = active?.capacidadeTotal > 0
+    ? Math.min(100, (lmcStock / active.capacidadeTotal) * 100)
+    : (active ? Math.min(100, active.percentualEstimado ?? active.percentualOcupacao ?? 0) : 0);
   const fuelColor = active ? getFuelColor(active.produtoNome, DASHBOARD_COLORS.stock) : DASHBOARD_COLORS.stock;
   const fmtN      = n => Number(n || 0).toLocaleString('pt-BR', { maximumFractionDigits: 0 });
 
@@ -6572,6 +6605,7 @@ const FuelStationCard = ({ estoques = [], lmcSaldos = [], lmcControle = [], them
         selected={selFuel || list[0]?.produtoCodigo}
         onSelect={handleSelect}
         dark={dark}
+        lmcFechamento={lmcFechamentoByProduct}
       />
 
       {/* ── Tanque com animação 3D coverflow ── */}
@@ -14623,7 +14657,7 @@ const ConvenienciaManager = ({ themeMode, selectedClient, clients }) => {
 };
 
 // ─── EstoqueManager — wraps Pista (StockPosition) + Conveniência ───────────
-const EstoqueManager = ({ estoques, projecao, loading, selectedClient, clients, themeMode }) => {
+const EstoqueManager = ({ estoques, projecao, loading, selectedClient, clients, themeMode, lmcSaldos, lmcControle }) => {
   const [tab, setTab] = useState('conveniencia');
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
@@ -14634,7 +14668,7 @@ const EstoqueManager = ({ estoques, projecao, loading, selectedClient, clients, 
         </div>
       </div>
       {tab === 'pista'
-        ? <StockPosition estoques={estoques} projecao={projecao} loading={loading} selectedClient={selectedClient} clients={clients} />
+        ? <StockPosition estoques={estoques} projecao={projecao} loading={loading} selectedClient={selectedClient} clients={clients} lmcSaldos={lmcSaldos} lmcControle={lmcControle} />
         : <ConvenienciaManager themeMode={themeMode} selectedClient={selectedClient} clients={clients} />
       }
     </div>
@@ -14642,7 +14676,7 @@ const EstoqueManager = ({ estoques, projecao, loading, selectedClient, clients, 
 };
 
 // Stock Position Component
-const StockPosition = ({ estoques, projecao, loading, selectedClient, clients }) => {
+const StockPosition = ({ estoques, projecao, loading, selectedClient, clients, lmcSaldos = [], lmcControle = [] }) => {
   const [selectedFuelId, setSelectedFuelId] = useState(null);
   const getDateInput = (date) => {
     const year = date.getFullYear();
@@ -14664,6 +14698,30 @@ const StockPosition = ({ estoques, projecao, loading, selectedClient, clients })
   const [projectionLoading, setProjectionLoading] = useState(false);
   const [projectionError, setProjectionError] = useState(null);
 
+  // Fechamento LMC = mesma fórmula da aba Livros: abertura + compras + afericoes - vendas
+  const lmcFechamentoByProduct = useMemo(() => {
+    const result = {};
+    (lmcSaldos || []).forEach(r => {
+      result[Number(r.combustivelCodigo)] = Number(r.abertura || 0);
+    });
+    const movByProd = {};
+    (lmcControle || []).forEach(r => {
+      const cod = Number(r.codProduto);
+      if (!movByProd[cod]) movByProd[cod] = [];
+      movByProd[cod].push(r);
+    });
+    Object.entries(movByProd).forEach(([codStr, rows]) => {
+      const cod = Number(codStr);
+      rows.sort((a, b) => String(a.emissao || '').localeCompare(String(b.emissao || '')));
+      let saldo = result[cod] ?? 0;
+      rows.forEach(r => {
+        saldo += Number(r.compra110 || 0) + Number(r.compra220 || 0) + Number(r.afericao || 0) - Number(r.venda || 0);
+      });
+      result[cod] = saldo;
+    });
+    return result;
+  }, [lmcSaldos, lmcControle]);
+
   const estoquesList = estoques || [];
   const activeFuel = estoquesList.find(e => e.produtoCodigo === selectedFuelId) || estoquesList[0];
   const projectionRows = projectionData.projecoes || projecao || [];
@@ -14671,13 +14729,21 @@ const StockPosition = ({ estoques, projecao, loading, selectedClient, clients })
 
   const fmtR = fmtBRL;
 
-  const tankPct = activeFuel ? Math.min(Math.max(activeFuel.percentualOcupacao, 0), 100) : 0;
+  // Usa fechamento LMC se disponível, senão estoqueTotal (tanqestoque)
+  const activeCod = activeFuel?.produtoCodigo;
+  const lmcStock  = activeCod != null && lmcFechamentoByProduct[activeCod] != null
+    ? lmcFechamentoByProduct[activeCod]
+    : (activeFuel?.estoqueTotal || 0);
+
+  const tankPct = activeFuel?.capacidadeTotal > 0
+    ? Math.min(100, (lmcStock / activeFuel.capacidadeTotal) * 100)
+    : (activeFuel ? Math.min(Math.max(activeFuel.percentualOcupacao, 0), 100) : 0);
   const stockFuelColor = activeFuel ? getFuelColor(activeFuel.produtoNome, DASHBOARD_COLORS.stock) : DASHBOARD_COLORS.stock;
   const mediaDiaria = activeProjecao?.mediaDiariaLitros || 0;
   const consumoProjetado = activeProjecao?.consumoProjetado ?? mediaDiaria * projectionDays;
   const compraProjetada = activeProjecao?.compraProjetada ?? consumoProjetado;
-  const necessidadeCompra = activeProjecao?.necessidadeCompra ?? Math.max(consumoProjetado - (activeFuel?.estoqueTotal || 0), 0);
-  const estoqueAtualProjetado = activeFuel?.estoqueTotal || activeProjecao?.estoqueAtual || 0;
+  const necessidadeCompra = activeProjecao?.necessidadeCompra ?? Math.max(consumoProjetado - lmcStock, 0);
+  const estoqueAtualProjetado = lmcStock || activeProjecao?.estoqueAtual || 0;
   const estoqueFinalProjetado = Math.max(0, estoqueAtualProjetado - consumoProjetado);
   const autonomiaDias = mediaDiaria > 0 ? Math.floor(estoqueAtualProjetado / mediaDiaria) : null;
 
@@ -14771,7 +14837,7 @@ const StockPosition = ({ estoques, projecao, loading, selectedClient, clients })
             <HorizTank
               pct={tankPct}
               color={stockFuelColor}
-              liters={activeFuel?.estoqueTotal || 0}
+              liters={lmcStock}
             />
           </div>
 
@@ -17798,7 +17864,7 @@ export default function App() {
       case 'control':
         return <LivrosManager lmcRegistros={apiData.lmcRegistros} lmcDiario={apiData.lmcDiario} lmcControle={apiData.lmcControle} selectedPeriod={controlPeriod} setSelectedPeriod={setControlPeriod} selectedClient={selectedClient} clients={clients} themeMode={themeMode} />;
       case 'stock':
-        return <EstoqueManager estoques={apiData.estoques} projecao={apiData.projecao} loading={apiData.loading} selectedClient={selectedClient} clients={clients} themeMode={themeMode} />;
+        return <EstoqueManager estoques={apiData.estoques} projecao={apiData.projecao} loading={apiData.loading} selectedClient={selectedClient} clients={clients} themeMode={themeMode} lmcSaldos={apiData.dashboardLmcSaldos} lmcControle={apiData.dashboardLmcControle} />;
       case 'receber':
         return <Financeiro clients={clients} selectedClient={selectedClient} themeMode={themeMode} />;
       case 'goals':
