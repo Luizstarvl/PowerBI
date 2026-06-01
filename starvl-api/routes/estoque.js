@@ -65,87 +65,98 @@ router.get('/', async (req, res) => {
       produtoMap[cod].capacidadeTotal += capTanq;
     });
 
-    // ── Cálculo idêntico ao Livros (Movimentação de Combustíveis) ──────────────
-    // fechamento = abertura_lmc + compras110 + compras220 + aferições − vendas
-    // Tudo no período corrente (mês atual) até hoje
-    const agora       = new Date();
-    const mesPad      = String(agora.getMonth() + 1).padStart(2, '0');
-    const anoAtual    = agora.getFullYear();
-    const dataInicio  = `${anoAtual}-${mesPad}-01`;
-    const dataHoje    = agora.toISOString().split('T')[0];
-    const lmcPeriodo  = `${mesPad}/${anoAtual}`;
+    // ── Fechamento LMC — mesmo cálculo da página Movimentação de Combustíveis ──
+    // fechamento = abertura_lmc + compras110(entcpivol) + compras220(pediqtd)
+    //              + aferições(aferqtd) − vendas(vditqtd)
+    // Período: 1º dia do mês corrente até hoje
+    const agora      = new Date();
+    const mesPad     = String(agora.getMonth() + 1).padStart(2, '0');
+    const anoAtual   = agora.getFullYear();
+    const dataInicio = `${anoAtual}-${mesPad}-01`;
+    const dataHoje   = agora.toISOString().split('T')[0];
+    const lmcPeriodo = `${mesPad}/${anoAtual}`;
 
-    // Abertura do mês (lmc table)
-    const lmcAbertRes = await query(
-      `SELECT lmccombustivel AS produto, COALESCE(lmcabertura, 0) AS abertura
-       FROM lmc
-       WHERE lmcempresa = $1 AND lmcperiodo = $2`,
-      [empresa, lmcPeriodo]
+    const lmcFechRes = await query(
+      `WITH
+        -- Abertura do mês (tabela lmc)
+        abertura AS (
+          SELECT lmccombustivel AS produto,
+                 COALESCE(lmcabertura, 0) AS total
+          FROM lmc
+          WHERE lmcempresa = $1 AND lmcperiodo = $4
+        ),
+        -- Compras 110: usa entcpivol1+vol2+vol3 (igual ao /api/lmc/controle)
+        c110 AS (
+          SELECT t.entcpiproduto AS produto,
+                 COALESCE(SUM(COALESCE(t.entcpivol1,0)+COALESCE(t.entcpivol2,0)+COALESCE(t.entcpivol3,0)), 0) AS total
+          FROM entcpi t
+          JOIN entcpa r ON r.entcpacodigo = t.entcpicompra AND r.entcpaempresa = $1
+          WHERE t.entcpiempresa = $1
+            AND DATE(r.entcpachegada) BETWEEN $2 AND $3
+          GROUP BY t.entcpiproduto
+        ),
+        -- Compras 220: pediqtd (igual ao /api/lmc/controle)
+        c220 AS (
+          SELECT e.pediproduto AS produto,
+                 COALESCE(SUM(e.pediqtd), 0) AS total
+          FROM pede d
+          JOIN pedi e ON e.pedicodigopede = d.pedecodigo AND e.pediempresa = d.pedeempresa
+          WHERE d.pedeempresa = $1
+            AND d.pededatarecebimento IS NOT NULL
+            AND DATE(d.pededatarecebimento) BETWEEN $2 AND $3
+          GROUP BY e.pediproduto
+        ),
+        -- Vendas: vditqtd (igual ao /api/lmc/controle)
+        vnd AS (
+          SELECT i.vditproduto AS produto,
+                 COALESCE(SUM(i.vditqtd), 0) AS total
+          FROM vdit i
+          JOIN vda v ON v.vdacodigo = i.vditcodigovda AND v.vdaempresa = i.vditempresa
+          JOIN prod p ON p.prodcodigo = i.vditproduto
+          WHERE i.vditempresa = $1
+            AND p.prodtipo = 1
+            AND v.vdastatus = 0
+            AND i.vditstatus = 0
+            AND DATE(v.vdadata) BETWEEN $2 AND $3
+          GROUP BY i.vditproduto
+        ),
+        -- Aferições: aferqtd, data = afermovimento (igual ao /api/lmc/controle)
+        af AS (
+          SELECT a.aferproduto AS produto,
+                 COALESCE(SUM(a.aferqtd), 0) AS total
+          FROM afer a
+          WHERE a.aferempresa = $1
+            AND DATE(a.afermovimento) BETWEEN $2 AND $3
+          GROUP BY a.aferproduto
+        )
+      SELECT
+        ab.produto,
+        ab.total                                     AS abertura,
+        COALESCE(c110.total, 0)                      AS compras110,
+        COALESCE(c220.total, 0)                      AS compras220,
+        COALESCE(vnd.total, 0)                       AS vendas,
+        COALESCE(af.total,  0)                       AS afericoes,
+        ab.total + COALESCE(c110.total,0) + COALESCE(c220.total,0)
+                 + COALESCE(af.total,0)  - COALESCE(vnd.total,0)  AS fechamento
+      FROM abertura ab
+      LEFT JOIN c110 ON c110.produto = ab.produto
+      LEFT JOIN c220 ON c220.produto = ab.produto
+      LEFT JOIN vnd  ON vnd.produto  = ab.produto
+      LEFT JOIN af   ON af.produto   = ab.produto`,
+      [empresa, dataInicio, dataHoje, lmcPeriodo]
     );
 
-    // Compras 110 (entcpa/entcpi)
-    const c110Res = await query(
-      `SELECT ei.entcpiproduto AS produto, COALESCE(SUM(ei.entcpiqtd), 0) AS total
-       FROM entcpa ec
-       JOIN entcpi ei ON ei.entcpicompra = ec.entcpacodigo AND ei.entcpiempresa = $1
-       JOIN prod p ON p.prodcodigo = ei.entcpiproduto
-       WHERE ec.entcpaempresa = $1
-         AND DATE(ec.entcpachegada) BETWEEN $2 AND $3
-         AND p.prodtipo = 1
-       GROUP BY ei.entcpiproduto`,
-      [empresa, dataInicio, dataHoje]
-    );
-
-    // Compras 220 (pede/pedi)
-    const c220Res = await query(
-      `SELECT pi.pediproduto AS produto, COALESCE(SUM(pi.pediqtd), 0) AS total
-       FROM pede pd
-       JOIN pedi pi ON pi.pedicodigopede = pd.pedecodigo AND pi.pediempresa = pd.pedeempresa
-       JOIN prod p ON p.prodcodigo = pi.pediproduto
-       WHERE pd.pedeempresa = $1
-         AND pd.pededatarecebimento IS NOT NULL
-         AND DATE(pd.pededatarecebimento) BETWEEN $2 AND $3
-         AND p.prodtipo = 1
-       GROUP BY pi.pediproduto`,
-      [empresa, dataInicio, dataHoje]
-    );
-
-    // Vendas do mês
-    const vendasRes = await query(
-      `SELECT vdit.vditproduto AS produto, COALESCE(SUM(vdit.vditqtd), 0) AS total
-       FROM vdit
-       JOIN vda  ON vda.vdacodigo  = vdit.vditcodigovda AND vda.vdaempresa = vdit.vditempresa
-       JOIN prod ON prod.prodcodigo = vdit.vditproduto
-       WHERE vdit.vditempresa = $1
-         AND DATE(vda.vdamovimento) BETWEEN $2 AND $3
-         AND prod.prodtipo = 1
-         AND (vda.vdastatus IS NULL OR vda.vdastatus = 0)
-       GROUP BY vdit.vditproduto`,
-      [empresa, dataInicio, dataHoje]
-    );
-
-    // Aferições do mês
-    const afRes = await query(
-      `SELECT aferproduto AS produto, COALESCE(SUM(aferqtd), 0) AS total
-       FROM afer
-       JOIN prod ON prod.prodcodigo = afer.aferproduto
-       WHERE aferempresa = $1
-         AND DATE(aferdata) BETWEEN $2 AND $3
-         AND prod.prodtipo = 1
-       GROUP BY aferproduto`,
-      [empresa, dataInicio, dataHoje]
-    );
-
-    // Mapeia por produto_codigo
-    const abertMap  = {};  lmcAbertRes.rows.forEach(r => { abertMap[r.produto]  = parseFloat(r.abertura || 0); });
-    const c110Map   = {};  c110Res.rows.forEach(r => { c110Map[r.produto]   = parseFloat(r.total   || 0); });
-    const c220Map   = {};  c220Res.rows.forEach(r => { c220Map[r.produto]   = parseFloat(r.total   || 0); });
-    const vendMap   = {};  vendasRes.rows.forEach(r => { vendMap[r.produto]   = parseFloat(r.total   || 0); });
-    const afMap     = {};  afRes.rows.forEach(r => { afMap[r.produto]     = parseFloat(r.total   || 0); });
+    const lmcFechMap = {};
+    lmcFechRes.rows.forEach(r => {
+      lmcFechMap[r.produto] = {
+        fechamento: parseFloat(r.fechamento || 0),
+        abertura:   parseFloat(r.abertura   || 0),
+      };
+    });
 
     const estoques = Object.values(produtoMap).map(p => {
-      const cod            = p.produtoCodigo;
-      const valorEstoque   = p.estoqueTotal * p.custo;
+      const cod = p.produtoCodigo;
+      const valorEstoque = p.estoqueTotal * p.custo;
       const percentualOcupacao = p.capacidadeTotal > 0
         ? Math.min((p.estoqueTotal / p.capacidadeTotal) * 100, 100)
         : 0;
@@ -153,16 +164,10 @@ router.get('/', async (req, res) => {
         ? ((p.precoVenda - p.custo) / p.precoVenda) * 100
         : 0;
 
-      const abertura   = abertMap[cod]  ?? null;   // null = sem registro LMC
-      const compras110 = c110Map[cod]   || 0;
-      const compras220 = c220Map[cod]   || 0;
-      const vendas     = vendMap[cod]   || 0;
-      const afericoes  = afMap[cod]     || 0;
-
-      // Só calcula se houver abertura no LMC (mesmo que seja 0 explícito)
-      const temLmc       = abertura !== null;
-      const estoqueEstimado = temLmc
-        ? Math.max(0, abertura + compras110 + compras220 + afericoes - vendas)
+      const lmcInfo = lmcFechMap[cod];
+      // Usa o fechamento calculado igual ao Livros; fallback para tanqestoque
+      const estoqueEstimado = lmcInfo
+        ? Math.max(0, lmcInfo.fechamento)
         : p.estoqueTotal;
       const percentualEstimado = p.capacidadeTotal > 0
         ? Math.min((estoqueEstimado / p.capacidadeTotal) * 100, 100)
@@ -173,12 +178,7 @@ router.get('/', async (req, res) => {
         valorEstoque,
         percentualOcupacao,
         margem,
-        lmcPeriodo:      temLmc ? lmcPeriodo : null,
-        lmcAbertura:     abertura ?? 0,
-        compras110,
-        compras220,
-        vendas,
-        afericoes,
+        lmcPeriodo:      lmcInfo ? lmcPeriodo : null,
         estoqueEstimado,
         percentualEstimado,
       };
@@ -202,6 +202,8 @@ router.get('/projecao', async (req, res) => {
   if (!empresa) {
     return res.status(400).json({ error: 'empresa is required' });
   }
+
+  const query = queryFor(empresa);
 
   const hoje      = new Date();
   const dataInicio = new Date(hoje);
