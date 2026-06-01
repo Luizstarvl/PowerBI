@@ -65,31 +65,87 @@ router.get('/', async (req, res) => {
       produtoMap[cod].capacidadeTotal += capTanq;
     });
 
-    // Último fechamento LMC por produto (período mais recente com fechamento preenchido)
-    const lmcResult = await query(
-      `SELECT DISTINCT ON (lmc.lmccombustivel)
-         lmc.lmccombustivel AS produto_codigo,
-         lmc.lmcfechamento,
-         lmc.lmcperiodo
+    // ── Cálculo idêntico ao Livros (Movimentação de Combustíveis) ──────────────
+    // fechamento = abertura_lmc + compras110 + compras220 + aferições − vendas
+    // Tudo no período corrente (mês atual) até hoje
+    const agora       = new Date();
+    const mesPad      = String(agora.getMonth() + 1).padStart(2, '0');
+    const anoAtual    = agora.getFullYear();
+    const dataInicio  = `${anoAtual}-${mesPad}-01`;
+    const dataHoje    = agora.toISOString().split('T')[0];
+    const lmcPeriodo  = `${mesPad}/${anoAtual}`;
+
+    // Abertura do mês (lmc table)
+    const lmcAbertRes = await query(
+      `SELECT lmccombustivel AS produto, COALESCE(lmcabertura, 0) AS abertura
        FROM lmc
-       WHERE lmc.lmcempresa = $1
-         AND lmc.lmcfechamento IS NOT NULL
-         AND lmc.lmcfechamento > 0
-       ORDER BY lmc.lmccombustivel,
-                TO_DATE(lmc.lmcperiodo, 'MM/YYYY') DESC`,
-      [empresa]
+       WHERE lmcempresa = $1 AND lmcperiodo = $2`,
+      [empresa, lmcPeriodo]
     );
 
-    const lmcMap = {};
-    lmcResult.rows.forEach(r => {
-      lmcMap[r.produto_codigo] = {
-        saldoLMC:   parseFloat(r.lmcfechamento || 0),
-        lmcPeriodo: r.lmcperiodo,
-      };
-    });
+    // Compras 110 (entcpa/entcpi)
+    const c110Res = await query(
+      `SELECT ei.entcpiproduto AS produto, COALESCE(SUM(ei.entcpiqtd), 0) AS total
+       FROM entcpa ec
+       JOIN entcpi ei ON ei.entcpicompra = ec.entcpacodigo AND ei.entcpiempresa = $1
+       JOIN prod p ON p.prodcodigo = ei.entcpiproduto
+       WHERE ec.entcpaempresa = $1
+         AND DATE(ec.entcpachegada) BETWEEN $2 AND $3
+         AND p.prodtipo = 1
+       GROUP BY ei.entcpiproduto`,
+      [empresa, dataInicio, dataHoje]
+    );
+
+    // Compras 220 (pede/pedi)
+    const c220Res = await query(
+      `SELECT pi.pediproduto AS produto, COALESCE(SUM(pi.pediqtd), 0) AS total
+       FROM pede pd
+       JOIN pedi pi ON pi.pedicodigopede = pd.pedecodigo AND pi.pediempresa = pd.pedeempresa
+       JOIN prod p ON p.prodcodigo = pi.pediproduto
+       WHERE pd.pedeempresa = $1
+         AND pd.pededatarecebimento IS NOT NULL
+         AND DATE(pd.pededatarecebimento) BETWEEN $2 AND $3
+         AND p.prodtipo = 1
+       GROUP BY pi.pediproduto`,
+      [empresa, dataInicio, dataHoje]
+    );
+
+    // Vendas do mês
+    const vendasRes = await query(
+      `SELECT vdit.vditproduto AS produto, COALESCE(SUM(vdit.vditqtd), 0) AS total
+       FROM vdit
+       JOIN vda  ON vda.vdacodigo  = vdit.vditcodigovda AND vda.vdaempresa = vdit.vditempresa
+       JOIN prod ON prod.prodcodigo = vdit.vditproduto
+       WHERE vdit.vditempresa = $1
+         AND DATE(vda.vdamovimento) BETWEEN $2 AND $3
+         AND prod.prodtipo = 1
+         AND (vda.vdastatus IS NULL OR vda.vdastatus = 0)
+       GROUP BY vdit.vditproduto`,
+      [empresa, dataInicio, dataHoje]
+    );
+
+    // Aferições do mês
+    const afRes = await query(
+      `SELECT aferproduto AS produto, COALESCE(SUM(aferqtd), 0) AS total
+       FROM afer
+       JOIN prod ON prod.prodcodigo = afer.aferproduto
+       WHERE aferempresa = $1
+         AND DATE(aferdata) BETWEEN $2 AND $3
+         AND prod.prodtipo = 1
+       GROUP BY aferproduto`,
+      [empresa, dataInicio, dataHoje]
+    );
+
+    // Mapeia por produto_codigo
+    const abertMap  = {};  lmcAbertRes.rows.forEach(r => { abertMap[r.produto]  = parseFloat(r.abertura || 0); });
+    const c110Map   = {};  c110Res.rows.forEach(r => { c110Map[r.produto]   = parseFloat(r.total   || 0); });
+    const c220Map   = {};  c220Res.rows.forEach(r => { c220Map[r.produto]   = parseFloat(r.total   || 0); });
+    const vendMap   = {};  vendasRes.rows.forEach(r => { vendMap[r.produto]   = parseFloat(r.total   || 0); });
+    const afMap     = {};  afRes.rows.forEach(r => { afMap[r.produto]     = parseFloat(r.total   || 0); });
 
     const estoques = Object.values(produtoMap).map(p => {
-      const valorEstoque       = p.estoqueTotal * p.custo;
+      const cod            = p.produtoCodigo;
+      const valorEstoque   = p.estoqueTotal * p.custo;
       const percentualOcupacao = p.capacidadeTotal > 0
         ? Math.min((p.estoqueTotal / p.capacidadeTotal) * 100, 100)
         : 0;
@@ -97,10 +153,17 @@ router.get('/', async (req, res) => {
         ? ((p.precoVenda - p.custo) / p.precoVenda) * 100
         : 0;
 
-      const lmcInfo  = lmcMap[p.produtoCodigo] || {};
-      const saldoLMC = lmcInfo.saldoLMC || 0;
-      // Usa diretamente o fechamento do LMC; cai para tanqestoque se não houver LMC
-      const estoqueEstimado = saldoLMC > 0 ? saldoLMC : p.estoqueTotal;
+      const abertura   = abertMap[cod]  ?? null;   // null = sem registro LMC
+      const compras110 = c110Map[cod]   || 0;
+      const compras220 = c220Map[cod]   || 0;
+      const vendas     = vendMap[cod]   || 0;
+      const afericoes  = afMap[cod]     || 0;
+
+      // Só calcula se houver abertura no LMC (mesmo que seja 0 explícito)
+      const temLmc       = abertura !== null;
+      const estoqueEstimado = temLmc
+        ? Math.max(0, abertura + compras110 + compras220 + afericoes - vendas)
+        : p.estoqueTotal;
       const percentualEstimado = p.capacidadeTotal > 0
         ? Math.min((estoqueEstimado / p.capacidadeTotal) * 100, 100)
         : percentualOcupacao;
@@ -110,8 +173,12 @@ router.get('/', async (req, res) => {
         valorEstoque,
         percentualOcupacao,
         margem,
-        saldoLMC,
-        lmcPeriodo:      lmcInfo.lmcPeriodo || null,
+        lmcPeriodo:      temLmc ? lmcPeriodo : null,
+        lmcAbertura:     abertura ?? 0,
+        compras110,
+        compras220,
+        vendas,
+        afericoes,
         estoqueEstimado,
         percentualEstimado,
       };

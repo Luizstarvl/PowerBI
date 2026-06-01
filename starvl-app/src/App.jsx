@@ -6457,24 +6457,12 @@ const FuelStationCard = ({ estoques = [], lmcSaldos = [], lmcControle = [], them
   const [slideAnim, setSlideAnim] = useState('appear');
   const [animKey, setAnimKey]     = useState(0);
 
-  // Calcula o fechamento LMC exato = abertura + compras110 + compras220 + aferições − vendas
-  // Idêntico ao cálculo da página Livros / Movimentação de Combustíveis
-  const getLmcFechamento = (produtoCodigo) => {
-    const lmcRec = (lmcSaldos || []).find(r => r.combustivelCodigo === produtoCodigo);
-    if (!lmcRec) return null;
-    const abertura = lmcRec.abertura || 0;
-    const rows = (lmcControle || []).filter(r => r.codProduto === produtoCodigo);
-    const compras   = rows.reduce((s, r) => s + (r.compra110 || 0) + (r.compra220 || 0), 0);
-    const vendas    = rows.reduce((s, r) => s + (r.venda    || 0), 0);
-    const afericoes = rows.reduce((s, r) => s + (r.afericao || 0), 0);
-    return abertura + compras - vendas + afericoes;
-  };
-
+  // Backend calcula: abertura_lmc + compras110 + compras220 + aferições − vendas
+  // Idêntico ao Livros (Movimentação de Combustíveis)
   const active    = list.find(e => e.produtoCodigo === selFuel) || list[0] || null;
-  const lmcFech   = active ? getLmcFechamento(active.produtoCodigo) : null;
-  const stockVal  = lmcFech !== null ? lmcFech : (active?.estoqueTotal ?? 0);
+  const stockVal  = active?.estoqueEstimado ?? active?.estoqueTotal ?? 0;
   const fuelPct   = active
-    ? Math.min(100, active.capacidadeTotal > 0 ? (stockVal / active.capacidadeTotal) * 100 : 0)
+    ? Math.min(100, active.percentualEstimado ?? active.percentualOcupacao ?? 0)
     : 0;
   const fuelColor = active ? getFuelColor(active.produtoNome, DASHBOARD_COLORS.stock) : DASHBOARD_COLORS.stock;
   const fmtN      = n => Number(n || 0).toLocaleString('pt-BR', { maximumFractionDigits: 0 });
@@ -6565,11 +6553,9 @@ const FuelStationCard = ({ estoques = [], lmcSaldos = [], lmcControle = [], them
       <div style={{ position: 'relative', zIndex: 10, padding: '14px 20px 0', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
         <div>
           <h3 style={{ margin: 0, fontSize: 13, fontWeight: 900, letterSpacing: 2, color: dark ? '#f1f5f9' : '#111827' }}>ESTOQUE DE COMBUSTÍVEL</h3>
-          {active && lmcFech !== null && (
+          {active?.lmcPeriodo && (
             <div style={{ fontSize: 10, color: dark ? '#64748b' : '#9ca3af', marginTop: 2 }}>
-              Fechamento LMC · {(lmcSaldos.find(r => r.combustivelCodigo === active.produtoCodigo))?.data
-                ? new Date((lmcSaldos.find(r => r.combustivelCodigo === active.produtoCodigo)).data + 'T00:00:00').toLocaleDateString('pt-BR')
-                : 'acumulado'}
+              Fechamento LMC {active.lmcPeriodo}
             </div>
           )}
         </div>
