@@ -6302,7 +6302,7 @@ const FuelTypeCarousel = ({ estoques, selected, onSelect, dark }) => {
         {estoques.slice(viewOff, viewOff + visible).map(e => {
           const color = getFuelColor(e.produtoNome, DASHBOARD_COLORS.stock);
           const isActive = e.produtoCodigo === selected;
-          const pct = Math.min(100, e.percentualOcupacao || 0);
+          const pct = Math.min(100, e.percentualEstimado ?? e.percentualOcupacao ?? 0);
           const shortName = e.produtoNome.split(' ').slice(0, 3).join(' ');
           return (
             <button key={e.produtoCodigo} onClick={() => onSelect(e.produtoCodigo)} style={{
@@ -6386,7 +6386,7 @@ const FuelCarouselSelector = ({ estoques, selected, onSelect, dark }) => {
           const isAct  = offset === 0;
           const absOff = Math.abs(offset);
           const fColor = getFuelColor(e.produtoNome, DASHBOARD_COLORS.stock);
-          const pct    = Math.min(100, e.percentualOcupacao || 0);
+          const pct    = Math.min(100, e.percentualEstimado ?? e.percentualOcupacao ?? 0);
 
           const tx    = offset * 148;
           const sc    = isAct ? 1.18 : Math.max(0.58, 1 - absOff * 0.26);
@@ -6422,7 +6422,7 @@ const FuelCarouselSelector = ({ estoques, selected, onSelect, dark }) => {
                 <div style={{ color: isAct ? fColor : (dark?'#475569':'#94a3b8'), fontSize:15, fontWeight:900 }}>{pct.toFixed(0)}%</div>
                 {isAct && (
                   <div style={{ color: dark ? '#475569' : '#94a3b8', fontSize:9, marginTop:3 }}>
-                    {Number(e.estoqueTotal||0).toLocaleString('pt-BR',{maximumFractionDigits:0})} L
+                    {Number(e.estoqueEstimado ?? e.estoqueTotal ?? 0).toLocaleString('pt-BR',{maximumFractionDigits:0})} L
                   </div>
                 )}
               </div>
@@ -6457,7 +6457,7 @@ const FuelStationCard = ({ estoques = [], themeMode = 'dark' }) => {
   const [animKey, setAnimKey]     = useState(0);
 
   const active    = list.find(e => e.produtoCodigo === selFuel) || list[0] || null;
-  const fuelPct   = active ? Math.round(active.percentualOcupacao) : 0;
+  const fuelPct   = active ? Math.round(active.percentualEstimado ?? active.percentualOcupacao) : 0;
   const fuelColor = active ? getFuelColor(active.produtoNome, DASHBOARD_COLORS.stock) : DASHBOARD_COLORS.stock;
   const fmtN      = n => Number(n || 0).toLocaleString('pt-BR', { maximumFractionDigits: 0 });
 
@@ -6544,8 +6544,15 @@ const FuelStationCard = ({ estoques = [], themeMode = 'dark' }) => {
       </div>
 
       {/* ── Header ── */}
-      <div style={{ position: 'relative', zIndex: 10, padding: '14px 20px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <h3 style={{ margin: 0, fontSize: 13, fontWeight: 900, letterSpacing: 2, color: dark ? '#f1f5f9' : '#111827' }}>ESTOQUE DE COMBUSTÍVEL</h3>
+      <div style={{ position: 'relative', zIndex: 10, padding: '14px 20px 0', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+        <div>
+          <h3 style={{ margin: 0, fontSize: 13, fontWeight: 900, letterSpacing: 2, color: dark ? '#f1f5f9' : '#111827' }}>ESTOQUE DE COMBUSTÍVEL</h3>
+          {active && active.saldoLMC > 0 && (
+            <div style={{ fontSize: 10, color: dark ? '#64748b' : '#9ca3af', marginTop: 2 }}>
+              LMC {active.lmcPeriodo} − <span style={{ color: '#ef4444' }}>{fmtN(active.vendasHoje)} L</span> hoje
+            </div>
+          )}
+        </div>
         {active && (
           <span style={{ fontSize: 11, color: dark ? '#e2e8f0' : '#111827' }}>
             Cap: <strong style={{ color: fuelColor, transition: 'color 0.4s' }}>{fmtN(active.capacidadeTotal)} L</strong>
@@ -6572,7 +6579,7 @@ const FuelStationCard = ({ estoques = [], themeMode = 'dark' }) => {
             transformOrigin: 'center center',
           }}
         >
-          <HorizTank pct={fuelPct} color={fuelColor} liters={active?.estoqueTotal || 0} />
+          <HorizTank pct={fuelPct} color={fuelColor} liters={active?.estoqueEstimado ?? active?.estoqueTotal ?? 0} />
         </div>
         {/* Reflexo sombra no chão */}
         <div style={{

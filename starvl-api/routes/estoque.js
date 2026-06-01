@@ -65,6 +65,51 @@ router.get('/', async (req, res) => {
       produtoMap[cod].capacidadeTotal += capTanq;
     });
 
+    // Último fechamento LMC por produto (período mais recente com fechamento preenchido)
+    const lmcResult = await query(
+      `SELECT DISTINCT ON (lmc.lmccombustivel)
+         lmc.lmccombustivel AS produto_codigo,
+         lmc.lmcfechamento,
+         lmc.lmcperiodo
+       FROM lmc
+       WHERE lmc.lmcempresa = $1
+         AND lmc.lmcfechamento IS NOT NULL
+         AND lmc.lmcfechamento > 0
+       ORDER BY lmc.lmccombustivel,
+                TO_DATE(lmc.lmcperiodo, 'MM/YYYY') DESC`,
+      [empresa]
+    );
+
+    // Vendas do dia corrente por produto (somente combustíveis)
+    const vendasHojeResult = await query(
+      `SELECT
+         vdit.vditproduto AS produto_codigo,
+         COALESCE(SUM(vdit.vditqtd), 0) AS litros_hoje
+       FROM vdit
+       JOIN vda  ON vda.vdacodigo  = vdit.vditcodigovda
+                AND vda.vdaempresa = vdit.vditempresa
+       JOIN prod ON prod.prodcodigo = vdit.vditproduto
+       WHERE vdit.vditempresa = $1
+         AND DATE(vda.vdamovimento) = CURRENT_DATE
+         AND prod.prodtipo = 1
+         AND (vda.vdastatus IS NULL OR vda.vdastatus = 0)
+       GROUP BY vdit.vditproduto`,
+      [empresa]
+    );
+
+    const lmcMap = {};
+    lmcResult.rows.forEach(r => {
+      lmcMap[r.produto_codigo] = {
+        saldoLMC:  parseFloat(r.lmcfechamento || 0),
+        lmcPeriodo: r.lmcperiodo,
+      };
+    });
+
+    const vendasHojeMap = {};
+    vendasHojeResult.rows.forEach(r => {
+      vendasHojeMap[r.produto_codigo] = parseFloat(r.litros_hoje || 0);
+    });
+
     const estoques = Object.values(produtoMap).map(p => {
       const valorEstoque       = p.estoqueTotal * p.custo;
       const percentualOcupacao = p.capacidadeTotal > 0
@@ -74,11 +119,27 @@ router.get('/', async (req, res) => {
         ? ((p.precoVenda - p.custo) / p.precoVenda) * 100
         : 0;
 
+      const lmcInfo    = lmcMap[p.produtoCodigo] || {};
+      const saldoLMC   = lmcInfo.saldoLMC || 0;
+      const vendasHoje = vendasHojeMap[p.produtoCodigo] || 0;
+      // Estoque estimado = fechamento LMC − vendas de hoje; cai de volta para tanqestoque se não houver LMC
+      const estoqueEstimado = saldoLMC > 0
+        ? Math.max(0, saldoLMC - vendasHoje)
+        : p.estoqueTotal;
+      const percentualEstimado = p.capacidadeTotal > 0
+        ? Math.min((estoqueEstimado / p.capacidadeTotal) * 100, 100)
+        : percentualOcupacao;
+
       return {
         ...p,
         valorEstoque,
         percentualOcupacao,
         margem,
+        saldoLMC,
+        vendasHoje,
+        lmcPeriodo:           lmcInfo.lmcPeriodo || null,
+        estoqueEstimado,
+        percentualEstimado,
       };
     });
 
