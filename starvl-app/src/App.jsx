@@ -6353,13 +6353,19 @@ const FuelTypeCarousel = ({ estoques, selected, onSelect, dark }) => {
 };
 
 // ─── Carrossel coverflow de seleção de combustível ────────────────────────────
-const FuelCarouselSelector = ({ estoques, selected, onSelect, dark, lmcFechamento = {}, lmcStarvlFechamento = {} }) => {
+const FuelCarouselSelector = ({ estoques, selected, onSelect, dark, lmcFechamento = {}, lmcStarvlFechamento = [] }) => {
   const n = estoques.length;
   const [active, setActive] = useState(() => {
     const idx = estoques.findIndex(e => e.produtoCodigo === selected);
     return idx >= 0 ? idx : 0;
   });
   const [paused, setPaused] = useState(false);
+
+  // Aplica regra: se ESTOQUE FÍSICO > 0 → físico; senão → fechamento
+  const effectiveStockMap = useMemo(
+    () => computeEffectiveStock(lmcStarvlFechamento),
+    [lmcStarvlFechamento]
+  );
 
   useEffect(() => {
     const idx = estoques.findIndex(e => e.produtoCodigo === selected);
@@ -6398,10 +6404,9 @@ const FuelCarouselSelector = ({ estoques, selected, onSelect, dark, lmcFechament
           const isAct  = offset === 0;
           const absOff = Math.abs(offset);
           const fColor = getFuelColor(e.produtoNome, DASHBOARD_COLORS.stock);
-          // Prioridade: starvl_lmc armazenado > calculado em tempo real > backend estimado
-          const starvlEntry = (lmcStarvlFechamento || []).find(f => Number(f.codProduto) === e.produtoCodigo);
-          const starvlVal   = starvlEntry?.fechamento;
-          const lmcVal      = starvlVal != null ? starvlVal : lmcFechamento[e.produtoCodigo];
+          // Prioridade: starvl_lmc (com regra físico) > calculado em tempo real > backend estimado
+          const starvlVal = effectiveStockMap[e.produtoCodigo];
+          const lmcVal    = starvlVal != null ? starvlVal : lmcFechamento[e.produtoCodigo];
           const stockE = lmcVal != null ? lmcVal : (e.estoqueEstimado ?? e.estoqueTotal ?? 0);
           const pct    = e.capacidadeTotal > 0
             ? Math.min(100, (stockE / e.capacidadeTotal) * 100)
@@ -6503,13 +6508,16 @@ const FuelStationCard = ({ estoques = [], lmcSaldos = [], lmcControle = [], lmcS
     return result;
   }, [lmcSaldos, lmcControle]);
 
+  // starvl + regra físico/fechamento (físico > 0 → usa físico, senão fechamento)
+  const effectiveStockMap = useMemo(
+    () => computeEffectiveStock(lmcStarvlFechamento),
+    [lmcStarvlFechamento]
+  );
+
   const active    = list.find(e => e.produtoCodigo === selFuel) || list[0] || null;
   const activeCod = active?.produtoCodigo;
-  // Prioridade: starvl_lmc armazenado > calculado em tempo real > backend estimado
-  const starvlEntry  = activeCod != null
-    ? (lmcStarvlFechamento || []).find(f => Number(f.codProduto) === activeCod)
-    : null;
-  const starvlStock  = starvlEntry?.fechamento;
+  // Prioridade: efetivo(starvl+físico) > calculado tempo real > backend estimado
+  const starvlStock = activeCod != null ? effectiveStockMap[activeCod] : undefined;
   const lmcStock  = starvlStock != null
     ? starvlStock
     : activeCod != null && lmcFechamentoByProduct[activeCod] != null
@@ -7210,6 +7218,38 @@ function buildStarvlRows(registros = [], fuelId, fisicoEdits = {}, selectedPerio
       perdas,
     };
   });
+}
+
+/**
+ * Regra: se o usuário informou ESTOQUE FÍSICO > 0 para o último dia → usa físico.
+ * Caso contrário → usa ESTOQUE FECHAMENTO do starvl_lmc.
+ * O físico é lido do localStorage (starvl:lmc-fisico) e nunca enviado ao backend.
+ */
+function computeEffectiveStock(starvlFechamentos = []) {
+  let fisicoEdits = {};
+  try { fisicoEdits = JSON.parse(localStorage.getItem('starvl:lmc-fisico') || '{}'); } catch { /* ignore */ }
+
+  const result = {};
+  (starvlFechamentos || []).forEach(f => {
+    const cod = Number(f.codProduto);
+    const fechamento = f.fechamento ?? 0;
+    const dayKey = f.data; // YYYY-MM-DD (último dia sincronizado)
+
+    let fisico = 0;
+    if (dayKey) {
+      const [year, month] = dayKey.split('-');
+      const period = `${month}/${year}`; // "06/2026"
+      const fisicoKey = `${period}|${cod}|${dayKey}`;
+      const raw = fisicoEdits[fisicoKey];
+      if (raw !== undefined && String(raw).trim() !== '') {
+        const parsed = parseControlNumber(raw);
+        if (parsed > 0) fisico = parsed;
+      }
+    }
+
+    result[cod] = fisico > 0 ? fisico : fechamento;
+  });
+  return result;
 }
 
 function getPeriodDateRange(period) {
@@ -14880,12 +14920,13 @@ const StockPosition = ({ estoques, projecao, loading, selectedClient, clients, l
 
   const fmtR = fmtBRL;
 
-  // Prioridade: starvl_lmc armazenado > calculado em tempo real > estoqueTotal
+  // Prioridade: starvl_lmc (com regra físico) > calculado em tempo real > estoqueTotal
+  const effectiveStockMapSP = useMemo(
+    () => computeEffectiveStock(lmcStarvlFechamento),
+    [lmcStarvlFechamento]
+  );
   const activeCod    = activeFuel?.produtoCodigo;
-  const starvlEntry  = activeCod != null
-    ? (lmcStarvlFechamento || []).find(f => Number(f.codProduto) === activeCod)
-    : null;
-  const starvlStockP = starvlEntry?.fechamento;
+  const starvlStockP = activeCod != null ? effectiveStockMapSP[activeCod] : undefined;
   const lmcStock     = starvlStockP != null
     ? starvlStockP
     : activeCod != null && lmcFechamentoByProduct[activeCod] != null
