@@ -97,13 +97,15 @@ router.post('/', async (req, res) => {
 });
 
 // DELETE /api/clients/:id — remove cliente
+// DELETE /api/clients/:codigoEmpresa — usa codigoEmpresa (sc_codigo) pois é UNIQUE e é o que o frontend conhece
 router.delete('/:id', async (req, res) => {
-  const id = parseInt(req.params.id);
+  const codigoEmpresa = parseInt(req.params.id);
+  if (!codigoEmpresa) return res.status(400).json({ error: 'codigoEmpresa inválido.' });
   try {
     const { rows } = await mainPool.query(
-      `DELETE FROM starvl_clients WHERE sc_id = $1
+      `DELETE FROM starvl_clients WHERE sc_codigo = $1
        RETURNING sc_id, sc_nome, sc_codigo`,
-      [id]
+      [codigoEmpresa]
     );
     if (!rows.length) {
       return res.status(404).json({ error: 'Cliente não encontrado.' });
@@ -111,7 +113,7 @@ router.delete('/:id', async (req, res) => {
     const removed = rows[0];
     unregisterClient(removed.sc_codigo);
     console.log(`[clients] cliente removido: "${removed.sc_nome}" (empresa ${removed.sc_codigo})`);
-    res.json({ ok: true, id: removed.sc_id });
+    res.json({ ok: true, id: removed.sc_codigo });
   } catch (err) {
     console.error('DELETE /clients:', err.message);
     res.status(500).json({ error: 'Erro ao remover cliente.' });

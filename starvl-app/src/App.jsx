@@ -15760,13 +15760,13 @@ const AdminPanel = ({ clients, setClients }) => {
     setSaving(false);
   };
 
-  const handleRemoveClient = async (id) => {
+  const handleRemoveClient = async (codigoEmpresa) => {
     if (!window.confirm('Remover este posto? Ele não aparecerá mais no sistema.')) return;
-    setRemoving(id);
+    setRemoving(codigoEmpresa);
     try {
-      const res = await fetch(`${API_URL}/api/clients/${id}`, { method: 'DELETE' });
+      const res = await fetch(`${API_URL}/api/clients/${codigoEmpresa}`, { method: 'DELETE' });
       if (res.ok) {
-        setClients(prev => prev.filter(c => c.id !== id));
+        setClients(prev => prev.filter(c => c.codigoEmpresa !== codigoEmpresa));
       } else {
         const d = await res.json();
         toast(d.error || 'Erro ao remover.', 'error');
@@ -15802,19 +15802,19 @@ const AdminPanel = ({ clients, setClients }) => {
               </thead>
               <tbody>
                 {clients.map((c) => (
-                  <tr key={c.id}>
-                    <td>{c.id}</td>
+                  <tr key={c.codigoEmpresa}>
+                    <td>{c.codigoEmpresa}</td>
                     <td><strong>{c.nome}</strong></td>
                     <td><span className="db-name">{c.banco}</span></td>
                     <td>
                       <button
                         type="button"
                         className="btn-remove"
-                        onClick={() => handleRemoveClient(c.id)}
-                        disabled={removing === c.id}
-                        style={{ opacity: removing === c.id ? 0.5 : 1 }}
+                        onClick={() => handleRemoveClient(c.codigoEmpresa)}
+                        disabled={removing === c.codigoEmpresa}
+                        style={{ opacity: removing === c.codigoEmpresa ? 0.5 : 1 }}
                       >
-                        {removing === c.id ? '...' : 'Remover'}
+                        {removing === c.codigoEmpresa ? '...' : 'Remover'}
                       </button>
                     </td>
                   </tr>
