@@ -103,46 +103,50 @@ router.get('/kpis', withCache(async (req, res) => {
       [empresa, dataInicio, dataFim]
     );
 
-    // Compras de Combustível: NF (entcpi, entcpachave NOT NULL) + Pedidos (pedi/pede)
-    const compras110Result = await query(
-      `WITH c110 AS (
+    // Compras de Combustível (prodtipo = 1): entcpa + pedidos (pede/pedi)
+    const comprasCombResult = await query(
+      `WITH c_entcpa AS (
          SELECT COALESCE(SUM(ei.entcpitotal), 0) AS valor,
                 COUNT(DISTINCT ec.entcpacodigo)   AS total
          FROM entcpa ec
-         JOIN entcpi ei ON ei.entcpicompra = ec.entcpacodigo
+         JOIN entcpi ei ON ei.entcpicompra   = ec.entcpacodigo
+         JOIN prod   p  ON p.prodcodigo      = ei.entcpiproduto
          WHERE ec.entcpaempresa = $1
            AND DATE(ec.entcpachegada) >= $2
            AND DATE(ec.entcpachegada) <= $3
-           AND ec.entcpachave IS NOT NULL
+           AND p.prodtipo = 1
        ),
-       c220 AS (
+       c_pedi AS (
          SELECT COALESCE(SUM(pi.peditotal), 0) AS valor,
                 COUNT(DISTINCT pd.pedecodigo)   AS total
          FROM pede pd
          JOIN pedi pi ON pi.pedicodigopede = pd.pedecodigo
                      AND pi.pediempresa    = pd.pedeempresa
+         JOIN prod  p  ON p.prodcodigo     = pi.pediproduto
          WHERE pd.pedeempresa = $1
            AND pd.pededatarecebimento IS NOT NULL
            AND DATE(pd.pededatarecebimento) >= $2
            AND DATE(pd.pededatarecebimento) <= $3
+           AND p.prodtipo = 1
        )
        SELECT
-         (SELECT valor FROM c110) + (SELECT valor FROM c220) AS valor_compras,
-         (SELECT total FROM c110) + (SELECT total FROM c220) AS total_compras`,
+         (SELECT valor FROM c_entcpa) + (SELECT valor FROM c_pedi) AS valor_compras_comb,
+         (SELECT total FROM c_entcpa) + (SELECT total FROM c_pedi) AS total_compras_comb`,
       [empresa, dataInicio, dataFim]
     );
 
-    // Compras 220 (sem documento fiscal - entcpachave IS NULL)
-    const compras220Result = await query(
+    // Compras de Conveniência (prodtipo = 2): apenas entcpa
+    const comprasConvResult = await query(
       `SELECT
-         COUNT(DISTINCT entcpa.entcpacodigo) AS total_sem_nf,
-         COALESCE(SUM(entcpi.entcpitotal), 0) AS valor_compras_220
-       FROM entcpa
-       JOIN entcpi ON entcpi.entcpicompra = entcpa.entcpacodigo
-       WHERE entcpa.entcpaempresa = $1
-         AND DATE(entcpa.entcpachegada) >= $2
-         AND DATE(entcpa.entcpachegada) <= $3
-         AND entcpa.entcpachave IS NULL`,
+         COALESCE(SUM(ei.entcpitotal), 0)  AS valor_compras_conv,
+         COUNT(DISTINCT ec.entcpacodigo)    AS total_compras_conv
+       FROM entcpa ec
+       JOIN entcpi ei ON ei.entcpicompra = ec.entcpacodigo
+       JOIN prod   p  ON p.prodcodigo    = ei.entcpiproduto
+       WHERE ec.entcpaempresa = $1
+         AND DATE(ec.entcpachegada) >= $2
+         AND DATE(ec.entcpachegada) <= $3
+         AND p.prodtipo = 2`,
       [empresa, dataInicio, dataFim]
     );
 
@@ -174,13 +178,13 @@ router.get('/kpis', withCache(async (req, res) => {
         valor: parseFloat(convenienciaResult.rows[0].valor_conv),
         qtd:   parseFloat(convenienciaResult.rows[0].qtd_itens_conv),
       },
-      compras110: {
-        total: parseInt(compras110Result.rows[0].total_compras),
-        valor: parseFloat(compras110Result.rows[0].valor_compras),
+      comprasComb: {
+        total: parseInt(comprasCombResult.rows[0].total_compras_comb),
+        valor: parseFloat(comprasCombResult.rows[0].valor_compras_comb),
       },
-      compras220: {
-        total: parseInt(compras220Result.rows[0].total_sem_nf),
-        valor: parseFloat(compras220Result.rows[0].valor_compras_220),
+      comprasConv: {
+        total: parseInt(comprasConvResult.rows[0].total_compras_conv),
+        valor: parseFloat(comprasConvResult.rows[0].valor_compras_conv),
       },
       afericoes: {
         total: parseInt(afericoesResult.rows[0].total_afericoes),

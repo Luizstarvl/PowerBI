@@ -6716,8 +6716,8 @@ const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcContr
     },
     {
       label: 'Compras', iconClass: 'purchase', icon: FileText,
-      value: 'R$ ' + fmt((kpis.compras110?.valor || 0) + (kpis.compras220?.valor || 0)),
-      sub: `${((kpis.compras110?.total || 0) + (kpis.compras220?.total || 0)).toLocaleString('pt-BR')} compras (110+220)`,
+      value: 'R$ ' + fmt(kpis.comprasComb?.valor),
+      sub: `${(kpis.comprasComb?.total || 0).toLocaleString('pt-BR')} compras`,
     },
     {
       label: 'Aferições', iconClass: 'attention', icon: Activity,
@@ -6739,8 +6739,8 @@ const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcContr
     },
     {
       label: 'Compras', iconClass: 'purchase', icon: FileText,
-      value: 'R$ ' + fmt(kpis.compras110?.valor),
-      sub: `${(kpis.compras110?.total || 0).toLocaleString('pt-BR')} compras (110)`,
+      value: 'R$ ' + fmt(kpis.comprasConv?.valor),
+      sub: `${(kpis.comprasConv?.total || 0).toLocaleString('pt-BR')} compras`,
     },
   ] : [];
 
