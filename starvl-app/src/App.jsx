@@ -6353,7 +6353,7 @@ const FuelTypeCarousel = ({ estoques, selected, onSelect, dark }) => {
 };
 
 // ─── Carrossel coverflow de seleção de combustível ────────────────────────────
-const FuelCarouselSelector = ({ estoques, selected, onSelect, dark, lmcFechamento = {}, lmcStarvlFechamento = [] }) => {
+const FuelCarouselSelector = ({ estoques, selected, onSelect, dark, lmcFechamento = {}, lmcControle = [] }) => {
   const n = estoques.length;
   const [active, setActive] = useState(() => {
     const idx = estoques.findIndex(e => e.produtoCodigo === selected);
@@ -6361,10 +6361,10 @@ const FuelCarouselSelector = ({ estoques, selected, onSelect, dark, lmcFechament
   });
   const [paused, setPaused] = useState(false);
 
-  // Aplica regra: se ESTOQUE FÍSICO > 0 → físico; senão → fechamento
+  // Tempo real: fechamento de lmcFechamento + override de físico do localStorage
   const effectiveStockMap = useMemo(
-    () => computeEffectiveStock(lmcStarvlFechamento),
-    [lmcStarvlFechamento]
+    () => computeRealTimeEffectiveStock(lmcFechamento, lmcControle),
+    [lmcFechamento, lmcControle]
   );
 
   useEffect(() => {
@@ -6404,10 +6404,9 @@ const FuelCarouselSelector = ({ estoques, selected, onSelect, dark, lmcFechament
           const isAct  = offset === 0;
           const absOff = Math.abs(offset);
           const fColor = getFuelColor(e.produtoNome, DASHBOARD_COLORS.stock);
-          // Prioridade: starvl_lmc (com regra físico) > calculado em tempo real > backend estimado
-          const starvlVal = effectiveStockMap[e.produtoCodigo];
-          const lmcVal    = starvlVal != null ? starvlVal : lmcFechamento[e.produtoCodigo];
-          const stockE = lmcVal != null ? lmcVal : (e.estoqueEstimado ?? e.estoqueTotal ?? 0);
+          // Prioridade: tempo real (lmc+físico) > backend estimado
+          const rtVal  = effectiveStockMap[e.produtoCodigo];
+          const stockE = rtVal != null ? rtVal : (e.estoqueEstimado ?? e.estoqueTotal ?? 0);
           const pct    = e.capacidadeTotal > 0
             ? Math.min(100, (stockE / e.capacidadeTotal) * 100)
             : Math.min(100, e.percentualEstimado ?? e.percentualOcupacao ?? 0);
@@ -6508,21 +6507,18 @@ const FuelStationCard = ({ estoques = [], lmcSaldos = [], lmcControle = [], lmcS
     return result;
   }, [lmcSaldos, lmcControle]);
 
-  // starvl + regra físico/fechamento (físico > 0 → usa físico, senão fechamento)
+  // Tempo real: fechamento calculado de lmcSaldos+lmcControle + override de físico
   const effectiveStockMap = useMemo(
-    () => computeEffectiveStock(lmcStarvlFechamento),
-    [lmcStarvlFechamento]
+    () => computeRealTimeEffectiveStock(lmcFechamentoByProduct, lmcControle),
+    [lmcFechamentoByProduct, lmcControle]
   );
 
   const active    = list.find(e => e.produtoCodigo === selFuel) || list[0] || null;
   const activeCod = active?.produtoCodigo;
-  // Prioridade: efetivo(starvl+físico) > calculado tempo real > backend estimado
-  const starvlStock = activeCod != null ? effectiveStockMap[activeCod] : undefined;
-  const lmcStock  = starvlStock != null
-    ? starvlStock
-    : activeCod != null && lmcFechamentoByProduct[activeCod] != null
-      ? lmcFechamentoByProduct[activeCod]
-      : (active?.estoqueEstimado ?? active?.estoqueTotal ?? 0);
+  // Prioridade: tempo real (lmc+físico) > backend estimado
+  const lmcStock  = activeCod != null && effectiveStockMap[activeCod] != null
+    ? effectiveStockMap[activeCod]
+    : (active?.estoqueEstimado ?? active?.estoqueTotal ?? 0);
   const stockVal  = lmcStock;
   const fuelPct   = active?.capacidadeTotal > 0
     ? Math.min(100, (lmcStock / active.capacidadeTotal) * 100)
@@ -6636,7 +6632,7 @@ const FuelStationCard = ({ estoques = [], lmcSaldos = [], lmcControle = [], lmcS
         onSelect={handleSelect}
         dark={dark}
         lmcFechamento={lmcFechamentoByProduct}
-        lmcStarvlFechamento={lmcStarvlFechamento}
+        lmcControle={lmcControle}
       />
 
       {/* ── Tanque com animação 3D coverflow ── */}
@@ -7248,6 +7244,46 @@ function computeEffectiveStock(starvlFechamentos = []) {
     }
 
     result[cod] = fisico > 0 ? fisico : fechamento;
+  });
+  return result;
+}
+
+/**
+ * Calcula o estoque efetivo em tempo real a partir de lmcSaldos + lmcControle
+ * (mesma fórmula da aba Livros), sem depender do sync starvl_lmc.
+ * Aplica a regra: se o usuário informou ESTOQUE FÍSICO > 0 para o último dia → usa físico.
+ */
+function computeRealTimeEffectiveStock(lmcFechamentoByProduct = {}, lmcControle = []) {
+  // 1. Acha o último dia registrado por produto (para a chave do físico)
+  const lastDayByProd = {};
+  (lmcControle || []).forEach(r => {
+    const cod = Number(r.codProduto);
+    const day = r.emissao || '';
+    if (!lastDayByProd[cod] || day > lastDayByProd[cod]) lastDayByProd[cod] = day;
+  });
+
+  // 2. Checa override de físico no localStorage
+  let fisicoEdits = {};
+  try { fisicoEdits = JSON.parse(localStorage.getItem('starvl:lmc-fisico') || '{}'); } catch { /* ignore */ }
+
+  const result = {};
+  Object.entries(lmcFechamentoByProduct).forEach(([codStr, fechamento]) => {
+    const cod    = Number(codStr);
+    const dayKey = lastDayByProd[cod];
+    let stock    = fechamento;
+
+    if (dayKey) {
+      const [year, month] = dayKey.split('-');
+      const period   = `${month}/${year}`; // "06/2026"
+      const fisicoKey = `${period}|${cod}|${dayKey}`;
+      const raw = fisicoEdits[fisicoKey];
+      if (raw !== undefined && String(raw).trim() !== '') {
+        const parsed = parseControlNumber(raw);
+        if (parsed > 0) stock = parsed;
+      }
+    }
+
+    result[cod] = stock;
   });
   return result;
 }
@@ -14920,18 +14956,15 @@ const StockPosition = ({ estoques, projecao, loading, selectedClient, clients, l
 
   const fmtR = fmtBRL;
 
-  // Prioridade: starvl_lmc (com regra físico) > calculado em tempo real > estoqueTotal
+  // Tempo real: fechamento de lmcSaldos+lmcControle + override de físico
   const effectiveStockMapSP = useMemo(
-    () => computeEffectiveStock(lmcStarvlFechamento),
-    [lmcStarvlFechamento]
+    () => computeRealTimeEffectiveStock(lmcFechamentoByProduct, lmcControle),
+    [lmcFechamentoByProduct, lmcControle]
   );
-  const activeCod    = activeFuel?.produtoCodigo;
-  const starvlStockP = activeCod != null ? effectiveStockMapSP[activeCod] : undefined;
-  const lmcStock     = starvlStockP != null
-    ? starvlStockP
-    : activeCod != null && lmcFechamentoByProduct[activeCod] != null
-      ? lmcFechamentoByProduct[activeCod]
-      : (activeFuel?.estoqueTotal || 0);
+  const activeCod = activeFuel?.produtoCodigo;
+  const lmcStock  = activeCod != null && effectiveStockMapSP[activeCod] != null
+    ? effectiveStockMapSP[activeCod]
+    : (activeFuel?.estoqueTotal || 0);
 
   const tankPct = activeFuel?.capacidadeTotal > 0
     ? Math.min(100, (lmcStock / activeFuel.capacidadeTotal) * 100)
