@@ -80,34 +80,12 @@ router.get('/', async (req, res) => {
       [empresa]
     );
 
-    // Vendas do dia corrente por produto (somente combustíveis)
-    const vendasHojeResult = await query(
-      `SELECT
-         vdit.vditproduto AS produto_codigo,
-         COALESCE(SUM(vdit.vditqtd), 0) AS litros_hoje
-       FROM vdit
-       JOIN vda  ON vda.vdacodigo  = vdit.vditcodigovda
-                AND vda.vdaempresa = vdit.vditempresa
-       JOIN prod ON prod.prodcodigo = vdit.vditproduto
-       WHERE vdit.vditempresa = $1
-         AND DATE(vda.vdamovimento) = CURRENT_DATE
-         AND prod.prodtipo = 1
-         AND (vda.vdastatus IS NULL OR vda.vdastatus = 0)
-       GROUP BY vdit.vditproduto`,
-      [empresa]
-    );
-
     const lmcMap = {};
     lmcResult.rows.forEach(r => {
       lmcMap[r.produto_codigo] = {
-        saldoLMC:  parseFloat(r.lmcfechamento || 0),
+        saldoLMC:   parseFloat(r.lmcfechamento || 0),
         lmcPeriodo: r.lmcperiodo,
       };
-    });
-
-    const vendasHojeMap = {};
-    vendasHojeResult.rows.forEach(r => {
-      vendasHojeMap[r.produto_codigo] = parseFloat(r.litros_hoje || 0);
     });
 
     const estoques = Object.values(produtoMap).map(p => {
@@ -119,13 +97,10 @@ router.get('/', async (req, res) => {
         ? ((p.precoVenda - p.custo) / p.precoVenda) * 100
         : 0;
 
-      const lmcInfo    = lmcMap[p.produtoCodigo] || {};
-      const saldoLMC   = lmcInfo.saldoLMC || 0;
-      const vendasHoje = vendasHojeMap[p.produtoCodigo] || 0;
-      // Estoque estimado = fechamento LMC − vendas de hoje; cai de volta para tanqestoque se não houver LMC
-      const estoqueEstimado = saldoLMC > 0
-        ? Math.max(0, saldoLMC - vendasHoje)
-        : p.estoqueTotal;
+      const lmcInfo  = lmcMap[p.produtoCodigo] || {};
+      const saldoLMC = lmcInfo.saldoLMC || 0;
+      // Usa diretamente o fechamento do LMC; cai para tanqestoque se não houver LMC
+      const estoqueEstimado = saldoLMC > 0 ? saldoLMC : p.estoqueTotal;
       const percentualEstimado = p.capacidadeTotal > 0
         ? Math.min((estoqueEstimado / p.capacidadeTotal) * 100, 100)
         : percentualOcupacao;
@@ -136,8 +111,7 @@ router.get('/', async (req, res) => {
         percentualOcupacao,
         margem,
         saldoLMC,
-        vendasHoje,
-        lmcPeriodo:           lmcInfo.lmcPeriodo || null,
+        lmcPeriodo:      lmcInfo.lmcPeriodo || null,
         estoqueEstimado,
         percentualEstimado,
       };

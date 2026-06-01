@@ -6549,7 +6549,7 @@ const FuelStationCard = ({ estoques = [], themeMode = 'dark' }) => {
           <h3 style={{ margin: 0, fontSize: 13, fontWeight: 900, letterSpacing: 2, color: dark ? '#f1f5f9' : '#111827' }}>ESTOQUE DE COMBUSTÍVEL</h3>
           {active && active.saldoLMC > 0 && (
             <div style={{ fontSize: 10, color: dark ? '#64748b' : '#9ca3af', marginTop: 2 }}>
-              LMC {active.lmcPeriodo} − <span style={{ color: '#ef4444' }}>{fmtN(active.vendasHoje)} L</span> hoje
+              Fechamento LMC {active.lmcPeriodo}
             </div>
           )}
         </div>
