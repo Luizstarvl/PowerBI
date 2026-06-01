@@ -6385,10 +6385,9 @@ const FuelCarouselSelector = ({ estoques, selected, onSelect, dark }) => {
           const offset = raw > n / 2 ? raw - n : raw;
           const isAct  = offset === 0;
           const absOff = Math.abs(offset);
-          const fColor    = getFuelColor(e.produtoNome, DASHBOARD_COLORS.stock);
-          const lmcF     = getLmcFechamento(e.produtoCodigo);
-          const stockE   = lmcF !== null ? lmcF : (e.estoqueTotal ?? 0);
-          const pct      = Math.min(100, e.capacidadeTotal > 0 ? (stockE / e.capacidadeTotal) * 100 : 0);
+          const fColor = getFuelColor(e.produtoNome, DASHBOARD_COLORS.stock);
+          const stockE = e.estoqueEstimado ?? e.estoqueTotal ?? 0;
+          const pct    = Math.min(100, e.percentualEstimado ?? e.percentualOcupacao ?? 0);
 
           const tx    = offset * 148;
           const sc    = isAct ? 1.18 : Math.max(0.58, 1 - absOff * 0.26);
