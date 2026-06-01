@@ -97,8 +97,6 @@ function filterParams(req, empresa) {
 
 // GET /api/fluxo-caixa
 router.get('/', async (req, res) => {
-  }
-
   const empresa = parseInt(req.query.empresa, 10) || 7432;
   const q = queryFor(empresa);
   const data = parseDate(req.query.data);
@@ -440,8 +438,6 @@ router.get('/', async (req, res) => {
 
 // GET /api/fluxo-caixa/papeis?empresa=7432&data=2026-05-27&caixa=375&tab=cartaoDebito
 router.get('/papeis', async (req, res) => {
-  }
-
   const empresa = parseInt(req.query.empresa, 10) || 7432;
   const q = queryFor(empresa);
   const data = parseDate(req.query.data);
@@ -588,8 +584,6 @@ router.get('/papeis', async (req, res) => {
 
 // GET /api/fluxo-caixa/detalhe?empresa=7432&data=2026-05-27&caixa=375&tipo=vendaCombustiveis
 router.get('/detalhe', async (req, res) => {
-  }
-
   const empresa = parseInt(req.query.empresa, 10) || 7432;
   const q = queryFor(empresa);
   const data = parseDate(req.query.data);

@@ -55,11 +55,10 @@ router.post('/', async (req, res) => {
       return res.status(409).json({ error: `Empresa ${codigo} já está cadastrada.` });
     }
 
-    // Testa a conexão com o banco informado ANTES de salvar
-    const { queryFor: _qf, registerClient: _rc } = require('../db/poolManager');
-    // Registra temporariamente para testar
+    // Registra temporariamente para testar a conexão ANTES de salvar
+    const { queryFor } = require('../db/poolManager');
     registerClient({ codigoEmpresa: codigo, dbName: banco, host, port, dbUser, dbPass });
-    const testQuery = _qf(codigo);
+    const testQuery = queryFor(codigo);
     try {
       await testQuery(`SELECT 1`, []);
     } catch (connErr) {
