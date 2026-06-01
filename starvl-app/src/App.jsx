@@ -6759,33 +6759,45 @@ const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcContr
     kpis: loading && !kpis ? (
       <SkeletonCards count={7} />
     ) : (
-      <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+      <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
 
-        {/* ── COMBUSTÍVEL ── topo, largura total */}
-        <div>
+        {/* ── COMBUSTÍVEL ── */}
+        <div style={{ display:'flex', alignItems:'center', gap:14 }}>
+          {/* label vertical à esquerda */}
           <div style={{
-            fontSize:10, fontWeight:800, letterSpacing:'.1em', textTransform:'uppercase',
-            color:'#e31e24', marginBottom:8, display:'flex', alignItems:'center', justifyContent:'center', gap:5,
+            display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center',
+            gap:6, flexShrink:0, width:18,
           }}>
-            <Droplet size={11}/> COMBUSTÍVEL
+            <Droplet size={13} style={{ color:'#e31e24' }}/>
+            <span style={{
+              fontSize:9, fontWeight:900, letterSpacing:'.18em', textTransform:'uppercase',
+              color:'#e31e24', writingMode:'vertical-rl', transform:'rotate(180deg)',
+            }}>COMBUSTÍVEL</span>
           </div>
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12 }}>
+          {/* cards */}
+          <div style={{ flex:1, display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12 }}>
             {combustivelKpis.map(k => renderKpiCard(k, 'comb'))}
           </div>
         </div>
 
-        {/* divisor horizontal */}
-        <div style={{ height:1, background:'rgba(255,255,255,0.08)' }} />
+        {/* divisor */}
+        <div style={{ height:1, background:'rgba(255,255,255,0.07)', margin:'2px 0' }} />
 
-        {/* ── CONVENIÊNCIA ── baixo, centralizado (3 de 4 colunas) */}
-        <div style={{ display:'flex', flexDirection:'column', alignItems:'center' }}>
+        {/* ── CONVENIÊNCIA ── */}
+        <div style={{ display:'flex', alignItems:'center', gap:14 }}>
+          {/* label vertical à esquerda */}
           <div style={{
-            fontSize:10, fontWeight:800, letterSpacing:'.1em', textTransform:'uppercase',
-            color:'#38bdf8', marginBottom:8, display:'flex', alignItems:'center', gap:5,
+            display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center',
+            gap:6, flexShrink:0, width:18,
           }}>
-            <ShoppingCart size={11}/> CONVENIÊNCIA
+            <ShoppingCart size={13} style={{ color:'#38bdf8' }}/>
+            <span style={{
+              fontSize:9, fontWeight:900, letterSpacing:'.18em', textTransform:'uppercase',
+              color:'#38bdf8', writingMode:'vertical-rl', transform:'rotate(180deg)',
+            }}>CONVENIÊNCIA</span>
           </div>
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12, width:'75%' }}>
+          {/* cards — mesma largura total, 3 colunas */}
+          <div style={{ flex:1, display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12 }}>
             {convenienciaKpis.map(k => renderKpiCard(k, 'conv'))}
           </div>
         </div>
