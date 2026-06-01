@@ -436,7 +436,7 @@ const QuickNav = ({ setCurrentPage, themeMode }) => {
   );
 };
 
-const TopBar = ({ currentPage, setCurrentPage, isConnected, apiError, clients, selectedClient, setSelectedClient, onLogout, loggedUser, themeMode, setThemeMode }) => {
+const TopBar = ({ currentPage, setCurrentPage, isConnected, apiError, clients, selectedClient, setSelectedClient, onLogout, loggedUser, themeMode, setThemeMode, autoRefresh, setAutoRefresh, onRefresh }) => {
   const [showAdminMenu, setShowAdminMenu] = useState(false);
   const [profileImg, setProfileImg] = useState(null);
   const connectionLabel = isConnected ? 'Conectado' : (apiError ? 'Servidor offline' : 'Desconectado');
@@ -466,13 +466,33 @@ const TopBar = ({ currentPage, setCurrentPage, isConnected, apiError, clients, s
           ))}
         </select>
 
-        <div className={`connection-status ${isConnected ? 'connected' : 'disconnected'}`}>
-          <span className="connection-dot" />
+        {/* Indicador de conexão com API */}
+        <div
+          className={`connection-status ${isConnected ? 'connected' : 'disconnected'}`}
+          title={isConnected ? 'API conectada' : (apiError || 'API desconectada')}
+          style={{ cursor: 'pointer' }}
+          onClick={onRefresh}
+        >
+          <span className={`connection-dot${isConnected ? ' pulse-green' : ''}`} />
           <span>{connectionLabel}</span>
         </div>
       </div>
 
       <div className="top-bar-right">
+        {/* Auto-refresh toggle */}
+        <button
+          type="button"
+          className="top-bar-icon-btn"
+          title={autoRefresh ? 'Auto-atualização ativa (5 min) — clique para desativar' : 'Auto-atualização desativada — clique para ativar'}
+          aria-label="Auto-atualização"
+          onClick={() => setAutoRefresh && setAutoRefresh(v => !v)}
+          style={{ color: autoRefresh ? '#22c55e' : undefined, position: 'relative' }}
+        >
+          <RefreshCw size={18} />
+          {autoRefresh && (
+            <span style={{ position:'absolute', top:4, right:4, width:7, height:7, borderRadius:'50%', background:'#22c55e', border:'1.5px solid #111' }} />
+          )}
+        </button>
         {/* Bell: sem funcionalidade ativa — dot removido para não confundir usuário */}
         <button type="button" className="top-bar-icon-btn" title="Notificações (em breve)" aria-label="Notificações">
           <Bell size={18} />
@@ -14625,14 +14645,27 @@ const StockPosition = ({ estoques, projecao, loading, selectedClient, clients })
           <div className="card-header">
             <h3>COMBUSTÍVEL SELECIONADO</h3>
           </div>
+          {/* Alertas de estoque crítico */}
+          {projectionRows.some(p => p.alertaAbastecimento) && (
+            <div style={{ display:'flex', gap:6, flexWrap:'wrap', margin:'0 0 8px' }}>
+              {projectionRows.filter(p => p.alertaAbastecimento).map(p => (
+                <span key={p.produtoCodigo} style={{ display:'inline-flex', alignItems:'center', gap:4, background:'rgba(239,68,68,0.15)', border:'1px solid #ef4444', color:'#f87171', borderRadius:6, padding:'3px 10px', fontSize:11, fontWeight:700 }}>
+                  <AlertTriangle size={11} /> {p.produtoNome} — {p.diasRestantes ?? 0}d restantes
+                </span>
+              ))}
+            </div>
+          )}
           <select
             className="fuel-select-large"
             value={selectedFuelId || estoquesList[0]?.produtoCodigo || ''}
             onChange={(e) => setSelectedFuelId(parseInt(e.target.value))}
+            style={estoquesList.find(e => e.produtoCodigo === (selectedFuelId || estoquesList[0]?.produtoCodigo)) && projectionRows.find(p => p.produtoCodigo === (selectedFuelId || estoquesList[0]?.produtoCodigo) && p.alertaAbastecimento) ? { borderColor:'#ef4444', boxShadow:'0 0 0 2px rgba(239,68,68,0.25)' } : {}}
           >
-            {estoquesList.map(e => (
-              <option key={e.produtoCodigo} value={e.produtoCodigo}>{e.produtoNome}</option>
-            ))}
+            {estoquesList.map(e => {
+              const proj = projectionRows.find(p => p.produtoCodigo === e.produtoCodigo);
+              const alerta = proj?.alertaAbastecimento;
+              return <option key={e.produtoCodigo} value={e.produtoCodigo}>{alerta ? '⚠ ' : ''}{e.produtoNome}{proj ? ` (${proj.diasRestantes ?? '?'}d)` : ''}</option>;
+            })}
             {estoquesList.length === 0 && <option value="">Carregando...</option>}
           </select>
 
@@ -15682,19 +15715,66 @@ const Parameters = ({ clients, setClients, isAdmin }) => {
 
 // Admin Panel Component
 const AdminPanel = ({ clients, setClients }) => {
-  const [newClient, setNewClient] = useState({ id: '', nome: '', banco: '', codigoEmpresa: '', host: '', dbUser: '', dbPass: '' });
+  const emptyForm = { nome: '', banco: '', codigoEmpresa: '', host: '', dbUser: '', dbPass: '' };
+  const [newClient, setNewClient] = useState(emptyForm);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [removing, setRemoving] = useState(null); // id do cliente sendo removido
+  const [testResult, setTestResult] = useState(null); // { ok, msg }
 
-  const handleAddClient = (e) => {
+  const handleAddClient = async (e) => {
     e.preventDefault();
-    if (!newClient.nome.trim() || !newClient.banco.trim()) return;
-    setClients([...clients, { ...newClient, id: newClient.id || Date.now() }]);
-    setNewClient({ id: '', nome: '', banco: '', codigoEmpresa: '', host: '', dbUser: '', dbPass: '' });
-    setShowAdvanced(false);
+    if (!newClient.nome.trim() || !newClient.banco.trim() || !newClient.codigoEmpresa) return;
+    setSaving(true);
+    setTestResult(null);
+    try {
+      const res = await fetch(`${API_URL}/api/clients`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nome:          newClient.nome.trim(),
+          banco:         newClient.banco.trim(),
+          codigoEmpresa: parseInt(newClient.codigoEmpresa),
+          host:          newClient.host?.trim()   || undefined,
+          dbUser:        newClient.dbUser?.trim()  || undefined,
+          dbPass:        newClient.dbPass          || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setTestResult({ ok: false, msg: data.error || 'Erro ao adicionar posto.' });
+      } else {
+        setClients(prev => [...prev, {
+          id:            data.id,
+          nome:          data.nome,
+          banco:         data.banco,
+          codigoEmpresa: data.codigoEmpresa,
+        }]);
+        setNewClient(emptyForm);
+        setShowAdvanced(false);
+        setTestResult({ ok: true, msg: `"${data.nome}" adicionado e conectado com sucesso!` });
+      }
+    } catch (err) {
+      setTestResult({ ok: false, msg: `Erro de rede: ${err.message}` });
+    }
+    setSaving(false);
   };
 
-  const handleRemoveClient = (id) => {
-    setClients(clients.filter((c) => c.id !== id));
+  const handleRemoveClient = async (id) => {
+    if (!window.confirm('Remover este posto? Ele não aparecerá mais no sistema.')) return;
+    setRemoving(id);
+    try {
+      const res = await fetch(`${API_URL}/api/clients/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        setClients(prev => prev.filter(c => c.id !== id));
+      } else {
+        const d = await res.json();
+        toast(d.error || 'Erro ao remover.', 'error');
+      }
+    } catch (err) {
+      toast(`Erro de rede: ${err.message}`, 'error');
+    }
+    setRemoving(null);
   };
 
   return (
@@ -15727,8 +15807,14 @@ const AdminPanel = ({ clients, setClients }) => {
                     <td><strong>{c.nome}</strong></td>
                     <td><span className="db-name">{c.banco}</span></td>
                     <td>
-                      <button type="button" className="btn-remove" onClick={() => handleRemoveClient(c.id)}>
-                        Remover
+                      <button
+                        type="button"
+                        className="btn-remove"
+                        onClick={() => handleRemoveClient(c.id)}
+                        disabled={removing === c.id}
+                        style={{ opacity: removing === c.id ? 0.5 : 1 }}
+                      >
+                        {removing === c.id ? '...' : 'Remover'}
                       </button>
                     </td>
                   </tr>
@@ -15795,7 +15881,22 @@ const AdminPanel = ({ clients, setClients }) => {
                 />
               </div>
             )}
-            <button type="submit" className="btn-success">Adicionar posto</button>
+            {testResult && (
+              <div style={{
+                padding: '10px 14px',
+                borderRadius: 8,
+                background: testResult.ok ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.12)',
+                border: `1px solid ${testResult.ok ? '#22c55e' : '#ef4444'}`,
+                color: testResult.ok ? '#22c55e' : '#f87171',
+                fontSize: 13,
+                fontWeight: 600,
+              }}>
+                {testResult.ok ? '✓ ' : '✗ '}{testResult.msg}
+              </div>
+            )}
+            <button type="submit" className="btn-success" disabled={saving}>
+              {saving ? 'Testando conexão...' : 'Adicionar posto'}
+            </button>
           </form>
         </div>
       </div>
@@ -16834,6 +16935,25 @@ const Auditoria = ({ themeMode }) => {
       </div>
 
       {tab === 'log' && <>
+      {/* Resumo executivo */}
+      {data && (
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))', gap:12, marginBottom:12 }}>
+          {[
+            { label:'Total de Eventos', value: total, icon: <Database size={16} />, color:'#60a5fa' },
+            { label:'Cancelamentos', value: stats.filter(s => s.tipoAcao === 'CANCELAMENTO' || s.operacao === 'CANCELAMENTO').reduce((a,s) => a + (s.qtd||0), 0) || items.filter(i => i.tipoAcao === 'CANCELAMENTO').length, icon: <X size={16} />, color:'#f87171' },
+            { label:'Alterações', value: stats.filter(s => s.tipoAcao === 'ALTERAÇÃO' || s.operacao === 'ALTERAÇÃO').reduce((a,s) => a + (s.qtd||0), 0) || items.filter(i => i.tipoAcao === 'ALTERAÇÃO').length, icon: <Edit2 size={16} />, color:'#fb923c' },
+            { label:'Usuários Ativos', value: usuarios.length, icon: <UsersIcon size={16} />, color:'#34d399' },
+          ].map(card => (
+            <div key={card.label} style={{ background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:'14px 16px', display:'flex', flexDirection:'column', gap:6 }}>
+              <div style={{ display:'flex', alignItems:'center', gap:6, color: card.color, fontSize:11, fontWeight:700, textTransform:'uppercase', letterSpacing:'.06em' }}>
+                {card.icon} {card.label}
+              </div>
+              <div style={{ fontSize:26, fontWeight:900, color:'#f1f5f9' }}>{(card.value||0).toLocaleString('pt-BR')}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* KPI summary */}
       {stats.length > 0 && (
         <div className="audit-kpis">
@@ -17369,12 +17489,36 @@ export default function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(
     () => localStorage.getItem('starvl-sidebar-collapsed') === 'true'
   );
+  const [autoRefresh, setAutoRefresh] = useState(() => localStorage.getItem('starvl-auto-refresh') === 'true');
+  const autoRefreshRef = useRef(null);
 
   // Carrega usuários da API na inicialização do app
   useEffect(() => {
     suLoadAll()
       .then(users => { if (users && users.length > 0) setAdminUsers(users); })
       .catch(() => { /* sem rede: mantém fallback hardcoded */ });
+  }, []);
+
+  // Carrega lista de clientes (postos) da API — sobrescreve o hardcoded
+  useEffect(() => {
+    fetch(`${API_URL}/api/clients`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (Array.isArray(data) && data.length > 0) {
+          setClients(data.map(c => ({
+            id:            c.id,
+            nome:          c.nome,
+            banco:         c.banco,
+            codigoEmpresa: c.codigoEmpresa,
+          })));
+          setSelectedClient(prev => {
+            // Mantém o cliente selecionado se ele ainda existe, senão seleciona o primeiro
+            const still = data.find(c => c.nome === prev);
+            return still ? prev : data[0].nome;
+          });
+        }
+      })
+      .catch(() => { /* mantém initialClients como fallback */ });
   }, []);
 
   // Mensagem de boas-vindas após login
@@ -17388,6 +17532,17 @@ export default function App() {
     return () => clearTimeout(t);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoggedIn]);
+
+  // Auto-refresh a cada 5 minutos quando ativo
+  useEffect(() => {
+    localStorage.setItem('starvl-auto-refresh', String(autoRefresh));
+    if (autoRefreshRef.current) { clearInterval(autoRefreshRef.current); autoRefreshRef.current = null; }
+    if (autoRefresh && isLoggedIn) {
+      autoRefreshRef.current = setInterval(() => { handleRefresh(); }, 5 * 60 * 1000);
+    }
+    return () => { if (autoRefreshRef.current) clearInterval(autoRefreshRef.current); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoRefresh, isLoggedIn]);
 
   const handleLogoutRequest = useCallback(() => setShowLogoutConfirm(true), []);
   const handleLogoutConfirm = useCallback(() => {
@@ -17588,6 +17743,9 @@ export default function App() {
           loggedUser={loggedUser}
           themeMode={themeMode}
           setThemeMode={setThemeMode}
+          autoRefresh={autoRefresh}
+          setAutoRefresh={setAutoRefresh}
+          onRefresh={handleRefresh}
         />
         {apiData.error && <ApiErrorNotice message={apiData.error} onRetry={handleRefresh} />}
         {renderPage()}

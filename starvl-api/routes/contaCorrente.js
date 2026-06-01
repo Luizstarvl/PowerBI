@@ -1,10 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const pool = require('../db/pool');
-const { safeQuery } = require('../middleware/readonly');
+const { queryFor } = require('../db/poolManager');
 
-const query = safeQuery(pool);
-const CC_EMPRESA = 7432;
+
+
+
 
 function toN(v) { return parseFloat(v || 0) || 0; }
 function parseDate(v) {
@@ -29,7 +29,8 @@ function detectBanco(desc) {
 
 // GET /api/conta-corrente/visao-geral
 router.get('/visao-geral', async (req, res) => {
-  const emp = parseInt(req.query.empresa, 10) || CC_EMPRESA;
+  const emp = parseInt(req.query.empresa, 10) || 7432;
+  const query = queryFor(emp);
   const hoje = parseDate(req.query.data);
   const dias = Math.max(7, Math.min(90, parseInt(req.query.dias, 10) || 30));
   const dataFim = addDays(hoje, dias);
@@ -237,7 +238,8 @@ router.get('/visao-geral', async (req, res) => {
 
 // GET /api/conta-corrente/lancamentos
 router.get('/lancamentos', async (req, res) => {
-  const emp = parseInt(req.query.empresa, 10) || CC_EMPRESA;
+  const emp = parseInt(req.query.empresa, 10) || 7432;
+  const query = queryFor(emp);
   const dataIni = parseDate(req.query.dataIni || addDays(new Date().toISOString().slice(0,10), -30));
   const dataFim = parseDate(req.query.dataFim || new Date().toISOString().slice(0,10));
   const tipo = req.query.tipo || 'todos';
@@ -290,7 +292,8 @@ router.get('/lancamentos', async (req, res) => {
 
 // GET /api/conta-corrente/previstos
 router.get('/previstos', async (req, res) => {
-  const emp = parseInt(req.query.empresa, 10) || CC_EMPRESA;
+  const emp = parseInt(req.query.empresa, 10) || 7432;
+  const query = queryFor(emp);
   const dataIni = parseDate(req.query.dataIni || new Date().toISOString().slice(0,10));
   const dataFim = parseDate(req.query.dataFim || addDays(new Date().toISOString().slice(0,10), 60));
   const tipo = req.query.tipo || 'todos';
@@ -338,7 +341,8 @@ router.get('/previstos', async (req, res) => {
 
 // GET /api/conta-corrente/conciliacao
 router.get('/conciliacao', async (req, res) => {
-  const emp = parseInt(req.query.empresa, 10) || CC_EMPRESA;
+  const emp = parseInt(req.query.empresa, 10) || 7432;
+  const query = queryFor(emp);
   const hoje = new Date().toISOString().slice(0, 10);
   const dataIni = parseDate(req.query.dataIni || addDays(hoje, -30));
   const dataFim = parseDate(req.query.dataFim || hoje);
@@ -407,7 +411,8 @@ router.get('/conciliacao', async (req, res) => {
 
 // GET /api/conta-corrente/transferencias
 router.get('/transferencias', async (req, res) => {
-  const emp = parseInt(req.query.empresa, 10) || CC_EMPRESA;
+  const emp = parseInt(req.query.empresa, 10) || 7432;
+  const query = queryFor(emp);
   const dataIni = parseDate(req.query.dataIni || addDays(new Date().toISOString().slice(0,10), -30));
   const dataFim = parseDate(req.query.dataFim || new Date().toISOString().slice(0,10));
 
@@ -458,7 +463,8 @@ router.get('/transferencias', async (req, res) => {
 
 // GET /api/conta-corrente/extratos
 router.get('/extratos', async (req, res) => {
-  const emp = parseInt(req.query.empresa, 10) || CC_EMPRESA;
+  const emp = parseInt(req.query.empresa, 10) || 7432;
+  const query = queryFor(emp);
   const dataIni = parseDate(req.query.dataIni || addDays(new Date().toISOString().slice(0,10), -30));
   const dataFim = parseDate(req.query.dataFim || new Date().toISOString().slice(0,10));
 

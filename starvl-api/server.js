@@ -1,24 +1,47 @@
 require('dotenv').config();
-const express = require('express');
-const cors = require('cors');
-const fs = require('fs');
+const express   = require('express');
+const cors      = require('cors');
+const rateLimit = require('express-rate-limit');
+const fs   = require('fs');
 const path = require('path');
 const pool = require('./db/pool');
+const poolManager = require('./db/poolManager');
 
-const dashboardRoutes = require('./routes/dashboard');
-const lmcRoutes       = require('./routes/lmc');
-const estoqueRoutes   = require('./routes/estoque');
-const relatoriosRoutes = require('./routes/relatorios');
-const receberRoutes   = require('./routes/receber');
-const pagarRoutes     = require('./routes/pagar');
+const dashboardRoutes     = require('./routes/dashboard');
+const lmcRoutes           = require('./routes/lmc');
+const estoqueRoutes       = require('./routes/estoque');
+const relatoriosRoutes    = require('./routes/relatorios');
+const receberRoutes       = require('./routes/receber');
+const pagarRoutes         = require('./routes/pagar');
 const fluxoCaixaRoutes    = require('./routes/fluxoCaixa');
 const contaCorrenteRoutes = require('./routes/contaCorrente');
 const imagensRoutes       = require('./routes/imagens');
 const starvlUsersRoutes   = require('./routes/starvlUsers');
 const auditoriaRoutes     = require('./routes/auditoria');
+const clientsRoutes       = require('./routes/clients');
 
 const app = express();
 const PORT = process.env.PORT || process.env.API_PORT || 3001;
+
+// ── Rate limiting ─────────────────────────────────────────────────────────────
+// Autenticação: mais restrito (evita brute-force)
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 min
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { ok: false, error: 'Muitas tentativas. Aguarde 15 minutos e tente novamente.' },
+});
+
+// Geral: proteção padrão para o restante da API
+const apiLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000, // 1 min
+  max: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Muitas requisições. Aguarde e tente novamente.' },
+  skip: (req) => req.path === '/api/health', // health não conta no limite
+});
 const clientBuildPath = path.resolve(__dirname, '../starvl-app/build');
 
 const corsOrigins = (process.env.CORS_ORIGIN || 'http://localhost:3000')
@@ -62,6 +85,9 @@ app.use(cors({
   },
 }));
 app.use(express.json({ limit: '10mb' }));
+
+app.use('/api', apiLimiter);
+app.use('/api/starvl-users/auth', authLimiter);
 
 app.use('/api', (req, res, next) => {
   res.setHeader('Cache-Control', 'no-store');
@@ -114,6 +140,7 @@ app.use('/api/relatorios', relatoriosRoutes);
 app.use('/api/imagens',        imagensRoutes);
 app.use('/api/starvl-users',   starvlUsersRoutes);
 app.use('/api/auditoria',      auditoriaRoutes);
+app.use('/api/clients',        clientsRoutes);
 
 if (fs.existsSync(clientBuildPath)) {
   app.use(express.static(clientBuildPath, {
@@ -145,19 +172,25 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Internal server error' });
 });
 
-const server = app.listen(PORT, '0.0.0.0', () => {
-  console.log(`STARVL API running on http://0.0.0.0:${PORT}`);
-  console.log(`DB: ${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}`);
+// ── Inicializa pool manager e sobe o servidor ─────────────────────────────────
+poolManager.initialize().then(() => {
+  const server = app.listen(PORT, '0.0.0.0', () => {
+    console.log(`STARVL API running on http://0.0.0.0:${PORT}`);
+    console.log(`DB: ${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}`);
 
-  // Render recomenda estes valores para evitar 502 por timeout
-  server.keepAliveTimeout = 120000;
-  server.headersTimeout   = 125000;
+    // Render recomenda estes valores para evitar 502 por timeout
+    server.keepAliveTimeout = 120000;
+    server.headersTimeout   = 125000;
 
-  // Inicia o watcher de auditoria (snapshot + detecção de alterações/exclusões)
-  try {
-    const auditWatcher = require('./services/auditWatcher');
-    auditWatcher.start();
-  } catch (err) {
-    console.error('[AuditWatcher] Falha ao iniciar:', err.message);
-  }
+    // Inicia o watcher de auditoria (snapshot + detecção de alterações/exclusões)
+    try {
+      const auditWatcher = require('./services/auditWatcher');
+      auditWatcher.start();
+    } catch (err) {
+      console.error('[AuditWatcher] Falha ao iniciar:', err.message);
+    }
+  });
+}).catch(err => {
+  console.error('Falha ao inicializar poolManager:', err.message);
+  process.exit(1);
 });

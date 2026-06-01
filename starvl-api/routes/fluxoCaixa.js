@@ -1,10 +1,13 @@
 const express = require('express');
 const router = express.Router();
-const pool = require('../db/pool');
-const { safeQuery } = require('../middleware/readonly');
+const { queryFor } = require('../db/poolManager');
 
-const query = safeQuery(pool);
-const FLUXO_EMPRESA_ID = 7432;
+// query é definido por handler; aqui está o fallback para helpers
+// que não têm acesso direto ao pool da empresa
+
+
+
+
 
 function parseDate(value) {
   if (/^\d{4}-\d{2}-\d{2}$/.test(String(value || ''))) return value;
@@ -19,8 +22,8 @@ function pct(value, total) {
   return total > 0 ? (value / total) * 100 : 0;
 }
 
-function buildCaixaWhere(req) {
-  const params = [FLUXO_EMPRESA_ID, parseDate(req.query.data)];
+function buildCaixaWhere(req, empresa) {
+  const params = [empresa, parseDate(req.query.data)];
   const conditions = ['cxa.cxaempresa = $1', 'DATE(cxa.cxadatai) = $2::date'];
 
   const turno = parseInt(req.query.turno, 10);
@@ -44,9 +47,9 @@ function buildCaixaWhere(req) {
   return { params, where: conditions.join(' AND ') };
 }
 
-async function getCaixas(req) {
-  const { params, where } = buildCaixaWhere(req);
-  const result = await query(
+async function getCaixas(req, q, empresa) {
+  const { params, where } = buildCaixaWhere(req, empresa);
+  const result = await q(
     `SELECT
        cxa.cxanumero,
        cxa.cxadatai,
@@ -79,12 +82,12 @@ function caixaFilterSql() {
   )`;
 }
 
-function filterParams(req) {
+function filterParams(req, empresa) {
   const turno = parseInt(req.query.turno, 10);
   const caixa = parseInt(req.query.caixa, 10);
   const operador = String(req.query.operador || '').trim();
   return [
-    FLUXO_EMPRESA_ID,
+    empresa,
     parseDate(req.query.data),
     turno > 0 ? turno : null,
     caixa > 0 ? caixa : null,
@@ -94,19 +97,18 @@ function filterParams(req) {
 
 // GET /api/fluxo-caixa
 router.get('/', async (req, res) => {
-  const requestedEmpresa = parseInt(req.query.empresa, 10);
-  if (requestedEmpresa && requestedEmpresa !== FLUXO_EMPRESA_ID) {
-    return res.status(403).json({ error: 'Relatorio disponivel apenas para a empresa 7432' });
   }
 
+  const empresa = parseInt(req.query.empresa, 10) || 7432;
+  const q = queryFor(empresa);
   const data = parseDate(req.query.data);
-  const params = filterParams(req);
+  const params = filterParams(req, empresa);
 
   try {
-    const caixas = await getCaixas(req);
+    const caixas = await getCaixas(req, q, empresa);
 
     const [vendasRes, recRes, caixaTotaisRes, suprRes, pagjRes, cartoesRes, tanquesRes, timelineRes, filtersRes] = await Promise.all([
-      query(
+      q(
         `${caixaFilterSql()}
          SELECT
            COALESCE(SUM(CASE WHEN p.prodtipo = 1 THEN i.vdittotal ELSE 0 END), 0) AS combustiveis,
@@ -120,7 +122,7 @@ router.get('/', async (req, res) => {
            AND COALESCE(v.vdastatus, 0) <> 1`,
         params
       ),
-      query(
+      q(
         `${caixaFilterSql()}
          SELECT COALESCE(SUM(recj.recjvalor), 0) AS total
          FROM recj
@@ -128,7 +130,7 @@ router.get('/', async (req, res) => {
            AND recj.recjcaixa IN (SELECT cxanumero FROM caixas)`,
         params
       ),
-      query(
+      q(
         `${caixaFilterSql()}
          , vendas AS (
            SELECT v.vdacaixa AS caixa, COALESCE(SUM(i.vdittotal), 0) AS total
@@ -161,7 +163,7 @@ router.get('/', async (req, res) => {
          LEFT JOIN movimentos ON movimentos.caixa = c.cxanumero`,
         params
       ),
-      query(
+      q(
         `${caixaFilterSql()}
          SELECT
            COALESCE(SUM(CASE WHEN supr.suproperacao = 'D' THEN supr.suprvalor ELSE 0 END), 0) AS sangrias,
@@ -180,7 +182,7 @@ router.get('/', async (req, res) => {
       ),
       // pagj: fonte autoritativa para pagamentos baixados por caixa
       // Cobre casos onde supr.suproperacao='P' não foi gerado pelo sistema
-      query(
+      q(
         `${caixaFilterSql()}
          SELECT COALESCE(SUM(COALESCE(pagj.pagjpago, pagj.pagjvalor, 0)), 0) AS pagamentos
          FROM pagj
@@ -189,7 +191,7 @@ router.get('/', async (req, res) => {
            AND DATE(pagj.pagjpagamento) = $2::date`,
         params
       ),
-      query(
+      q(
         `${caixaFilterSql()}
          SELECT
            COALESCE(tefp.tefpdescricao, 'Operadora ' || cxac.cxacoperadora::text, 'Sem operadora') AS operadora,
@@ -204,7 +206,7 @@ router.get('/', async (req, res) => {
          ORDER BY total DESC`,
         params
       ),
-      query(
+      q(
         `WITH latest_lmc AS (
            SELECT DISTINCT ON (l.lmccombustivel, e.lmcetanque)
                   l.lmcdata, l.lmccombustivel, e.lmcetanque,
@@ -228,9 +230,9 @@ router.get('/', async (req, res) => {
            AND t.tanqinativo IS NULL
          ORDER BY t.tanqcodigo
          LIMIT 8`,
-        [FLUXO_EMPRESA_ID, data]
+        [empresa, data]
       ),
-      query(
+      q(
         `${caixaFilterSql()}
          SELECT * FROM (
            SELECT cxa.cxadatai AS momento, 'abertura' AS tipo, 'Abertura de Caixa' AS titulo,
@@ -273,7 +275,7 @@ router.get('/', async (req, res) => {
          LIMIT 18`,
         params
       ),
-      query(
+      q(
         `SELECT
            ARRAY_AGG(DISTINCT cxa.cxaturno ORDER BY cxa.cxaturno) FILTER (WHERE cxa.cxaturno IS NOT NULL) AS turnos,
            ARRAY_AGG(DISTINCT cxa.cxaresponsavel ORDER BY cxa.cxaresponsavel) FILTER (WHERE cxa.cxaresponsavel IS NOT NULL) AS operadores,
@@ -281,7 +283,7 @@ router.get('/', async (req, res) => {
          FROM cxa
          WHERE cxa.cxaempresa = $1
            AND DATE(cxa.cxadatai) = $2::date`,
-        [FLUXO_EMPRESA_ID, data]
+        [empresa, data]
       ),
     ]);
 
@@ -382,7 +384,7 @@ router.get('/', async (req, res) => {
     }, {});
 
     res.json({
-      empresa: FLUXO_EMPRESA_ID,
+      empresa: empresa,
       data,
       filtros: filtersRes.rows[0] || { turnos: [], operadores: [], caixas: [] },
       resumo: {
@@ -438,12 +440,10 @@ router.get('/', async (req, res) => {
 
 // GET /api/fluxo-caixa/papeis?empresa=7432&data=2026-05-27&caixa=375&tab=cartaoDebito
 router.get('/papeis', async (req, res) => {
-  const requestedEmpresa = parseInt(req.query.empresa, 10);
-  if (requestedEmpresa && requestedEmpresa !== FLUXO_EMPRESA_ID) {
-    return res.status(403).json({ error: 'Relatorio disponivel apenas para a empresa 7432' });
   }
 
-  const empresa = FLUXO_EMPRESA_ID;
+  const empresa = parseInt(req.query.empresa, 10) || 7432;
+  const q = queryFor(empresa);
   const data = parseDate(req.query.data);
   const caixa = parseInt(req.query.caixa, 10);
   const tab = req.query.tab;
@@ -465,7 +465,7 @@ router.get('/papeis', async (req, res) => {
         ? "AND cxac.cxactipo = 'TEF'"
         : "AND (cxac.cxactipo IS NULL OR cxac.cxactipo = '' OR cxac.cxactipo = 'POS')";
 
-      const result = await query(
+      const result = await q(
         `SELECT
            SPLIT_PART(cxac.cxacchave, '@', 2) AS operadora,
            SPLIT_PART(cxac.cxacchave, '@', 3) AS bandeira,
@@ -512,7 +512,7 @@ router.get('/papeis', async (req, res) => {
       if (tab !== 'prazo') {
         return res.json({ tab, tipo: 'lista', subTipo: 'prazo', rows: [] });
       }
-      const result = await query(
+      const result = await q(
         `SELECT
            recj.recjcodigo AS codigo,
            COALESCE(recj.recjdocumento, '—') AS documento,
@@ -548,7 +548,7 @@ router.get('/papeis', async (req, res) => {
 
     if (tab === 'chequeVista' || tab === 'chequePre') {
       const predatado = tab === 'chequePre' ? 1 : 0;
-      const result = await query(
+      const result = await q(
         `SELECT
            cxaq.cxaqcodigo AS codigo,
            COALESCE(cxaq.cxaqrespnome, '—') AS responsavel,
@@ -588,12 +588,10 @@ router.get('/papeis', async (req, res) => {
 
 // GET /api/fluxo-caixa/detalhe?empresa=7432&data=2026-05-27&caixa=375&tipo=vendaCombustiveis
 router.get('/detalhe', async (req, res) => {
-  const requestedEmpresa = parseInt(req.query.empresa, 10);
-  if (requestedEmpresa && requestedEmpresa !== FLUXO_EMPRESA_ID) {
-    return res.status(403).json({ error: 'Relatorio disponivel apenas para a empresa 7432' });
   }
 
-  const empresa = FLUXO_EMPRESA_ID;
+  const empresa = parseInt(req.query.empresa, 10) || 7432;
+  const q = queryFor(empresa);
   const data = parseDate(req.query.data);
   const caixa = parseInt(req.query.caixa, 10);
   const tipo = req.query.tipo;
@@ -618,7 +616,7 @@ router.get('/detalhe', async (req, res) => {
 
     if (tipo === 'vendaCombustiveis' || tipo === 'vendaProdutos') {
       const prodFilter = tipo === 'vendaCombustiveis' ? 'p.prodtipo = 1' : 'COALESCE(p.prodtipo, 0) <> 1';
-      const result = await query(
+      const result = await q(
         `SELECT
            v.vdacodigo AS codigo,
            v.vdadata AS momento,
@@ -650,7 +648,7 @@ router.get('/detalhe', async (req, res) => {
       }));
 
     } else if (tipo === 'recebimentos') {
-      const result = await query(
+      const result = await q(
         `SELECT
            recj.recjcodigo AS codigo,
            recj.recjemissao AS momento,
@@ -675,7 +673,7 @@ router.get('/detalhe', async (req, res) => {
       }));
 
     } else if (tipo === 'papeisApresentados') {
-      const result = await query(
+      const result = await q(
         `SELECT
            cxac.cxaccodigo AS codigo,
            COALESCE(tefp.tefpdescricao, 'Operadora ' || cxac.cxacoperadora::text) AS operadora,
@@ -698,7 +696,7 @@ router.get('/detalhe', async (req, res) => {
 
     } else if (SUPR_OP_MAP[tipo]) {
       const op = SUPR_OP_MAP[tipo];
-      const result = await query(
+      const result = await q(
         `SELECT
            supr.suprcodigo AS codigo,
            supr.suprdata AS momento,

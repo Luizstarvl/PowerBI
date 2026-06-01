@@ -1,13 +1,47 @@
 const express = require('express');
-const router = express.Router();
-const pool = require('../db/pool');
-const { safeQuery } = require('../middleware/readonly');
+const router  = require('express').Router();
+const { queryFor } = require('../db/poolManager');
 
-const query = safeQuery(pool);
+// ── Cache em memória (5 min) ──────────────────────────────────────────────────
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutos
+const cache = new Map();
+
+function cacheGet(key) {
+  const entry = cache.get(key);
+  if (!entry) return null;
+  if (Date.now() - entry.ts > CACHE_TTL) { cache.delete(key); return null; }
+  return entry.data;
+}
+function cacheSet(key, data) {
+  cache.set(key, { data, ts: Date.now() });
+}
+// Middleware que injeta cache nas rotas GET do dashboard
+function withCache(handler) {
+  return async (req, res) => {
+    const key = req.originalUrl;
+    // Bypass cache se force=1 for passado na query
+    if (req.query.force !== '1') {
+      const cached = cacheGet(key);
+      if (cached) {
+        res.setHeader('X-Cache', 'HIT');
+        return res.json(cached);
+      }
+    }
+    // Intercepta res.json para armazenar no cache
+    const originalJson = res.json.bind(res);
+    res.json = (body) => {
+      if (res.statusCode >= 200 && res.statusCode < 300) cacheSet(key, body);
+      res.setHeader('X-Cache', 'MISS');
+      return originalJson(body);
+    };
+    return handler(req, res);
+  };
+}
 
 // GET /api/dashboard/kpis?empresa=7432&periodo=042026
-router.get('/kpis', async (req, res) => {
+router.get('/kpis', withCache(async (req, res) => {
   const empresa = parseInt(req.query.empresa);
+  const query = queryFor(empresa);
   const periodo = req.query.periodo; // MMYYYY
 
   if (!empresa || !periodo || periodo.length !== 6) {
@@ -133,11 +167,12 @@ router.get('/kpis', async (req, res) => {
     console.error('Error in /dashboard/kpis:', err.message);
     res.status(500).json({ error: err.message });
   }
-});
+}));
 
 // GET /api/dashboard/vendas-diarias?empresa=7432&periodo=042026
-router.get('/vendas-diarias', async (req, res) => {
+router.get('/vendas-diarias', withCache(async (req, res) => {
   const empresa = parseInt(req.query.empresa);
+  const query = queryFor(empresa);
   const periodo = req.query.periodo;
 
   if (!empresa || !periodo || periodo.length !== 6) {
@@ -178,11 +213,12 @@ router.get('/vendas-diarias', async (req, res) => {
     console.error('Error in /dashboard/vendas-diarias:', err.message);
     res.status(500).json({ error: err.message });
   }
-});
+}));
 
 // GET /api/dashboard/vendas-horarias?empresa=7432&periodo=042026
-router.get('/vendas-horarias', async (req, res) => {
+router.get('/vendas-horarias', withCache(async (req, res) => {
   const empresa = parseInt(req.query.empresa);
+  const query = queryFor(empresa);
   const periodo = req.query.periodo;
 
   if (!empresa || !periodo || periodo.length !== 6) {
@@ -232,11 +268,12 @@ router.get('/vendas-horarias', async (req, res) => {
     console.error('Error in /dashboard/vendas-horarias:', err.message);
     res.status(500).json({ error: err.message });
   }
-});
+}));
 
 // GET /api/dashboard/combustiveis?empresa=7432&periodo=042026
-router.get('/combustiveis', async (req, res) => {
+router.get('/combustiveis', withCache(async (req, res) => {
   const empresa = parseInt(req.query.empresa);
+  const query = queryFor(empresa);
   const periodo = req.query.periodo;
 
   if (!empresa || !periodo || periodo.length !== 6) {
@@ -279,12 +316,13 @@ router.get('/combustiveis', async (req, res) => {
     console.error('Error in /dashboard/combustiveis:', err.message);
     res.status(500).json({ error: err.message });
   }
-});
+}));
 
 // GET /api/dashboard/vendas-pista?empresa=7432&dataInicio=2026-04-20&dataFim=2026-05-26&prodtipo=1
 // prodtipo: 1 = combustíveis (padrão), 2 = conveniência/loja
-router.get('/vendas-pista', async (req, res) => {
+router.get('/vendas-pista', withCache(async (req, res) => {
   const empresa  = parseInt(req.query.empresa);
+  const query = queryFor(empresa);
   const prodtipo = parseInt(req.query.prodtipo) || 1;
   const { dataInicio, dataFim } = req.query;
 
@@ -337,11 +375,11 @@ router.get('/vendas-pista', async (req, res) => {
     console.error('Error in /dashboard/vendas-pista:', err.message);
     res.status(500).json({ error: err.message });
   }
-});
+}));
 
 // GET /api/dashboard/prod-categorias?prodtipo=2
 // Retorna todas as seções (spro) e grupos (gpro) disponíveis para um prodtipo
-router.get('/prod-categorias', async (req, res) => {
+router.get('/prod-categorias', withCache(async (req, res) => {
   const prodtipo = parseInt(req.query.prodtipo) || 1;
 
   try {
@@ -373,12 +411,13 @@ router.get('/prod-categorias', async (req, res) => {
     console.error('Error in /dashboard/prod-categorias:', err.message);
     res.status(500).json({ error: err.message });
   }
-});
+}));
 
 // GET /api/dashboard/top-convenio?empresa=7432&periodo=052026
 // Top 4 non-fuel products by qty sold in the period
-router.get('/top-convenio', async (req, res) => {
+router.get('/top-convenio', withCache(async (req, res) => {
   const empresa = parseInt(req.query.empresa);
+  const query = queryFor(empresa);
   const periodo = req.query.periodo;
 
   if (!empresa || !periodo || periodo.length !== 6) {
@@ -420,12 +459,13 @@ router.get('/top-convenio', async (req, res) => {
     console.error('Error in /dashboard/top-convenio:', err.message);
     res.status(500).json({ error: err.message });
   }
-});
+}));
 
 // GET /api/dashboard/vendas-diarias-full?empresa=7432&periodo=052026
 // Daily litros + valor combustivel + valor conveniencia
-router.get('/vendas-diarias-full', async (req, res) => {
+router.get('/vendas-diarias-full', withCache(async (req, res) => {
   const empresa = parseInt(req.query.empresa);
+  const query = queryFor(empresa);
   const periodo = req.query.periodo;
 
   if (!empresa || !periodo || periodo.length !== 6) {
@@ -467,12 +507,13 @@ router.get('/vendas-diarias-full', async (req, res) => {
     console.error('Error in /dashboard/vendas-diarias-full:', err.message);
     res.status(500).json({ error: err.message });
   }
-});
+}));
 
 // GET /api/dashboard/abc-produtos?empresa=7432&periodo=052026&prodtipo=1
 // Products ranked by volume for ABC matrix — prodtipo=1 (combustíveis), prodtipo=2 (pista/convenio)
-router.get('/abc-produtos', async (req, res) => {
+router.get('/abc-produtos', withCache(async (req, res) => {
   const empresa  = parseInt(req.query.empresa);
+  const query = queryFor(empresa);
   const periodo  = req.query.periodo;
   const prodtipo = parseInt(req.query.prodtipo) || 1;
 
@@ -526,6 +567,6 @@ router.get('/abc-produtos', async (req, res) => {
     console.error('Error in /dashboard/abc-produtos:', err.message);
     res.status(500).json({ error: err.message });
   }
-});
+}));
 
 module.exports = router;

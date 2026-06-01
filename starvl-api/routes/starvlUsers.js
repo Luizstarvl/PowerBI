@@ -1,6 +1,14 @@
-const express = require('express');
-const router  = express.Router();
-const pool    = require('../db/pool');
+const express  = require('express');
+const router   = express.Router();
+const pool     = require('../db/pool');
+const bcrypt   = require('bcryptjs');
+
+const SALT_ROUNDS = 10;
+
+// Detecta se o valor parece um hash bcrypt ($2a$... ou $2b$...)
+function isBcryptHash(str) {
+  return typeof str === 'string' && /^\$2[ab]\$\d{2}\$/.test(str);
+}
 
 // Cria tabela e semeia admin padrão (idempotente)
 pool.query(`
@@ -15,22 +23,21 @@ pool.query(`
 `).then(async () => {
   const { rows } = await pool.query('SELECT COUNT(*) AS n FROM starvl_users');
   if (parseInt(rows[0].n) === 0) {
+    const hash = await bcrypt.hash('123456', SALT_ROUNDS);
     await pool.query(
       `INSERT INTO starvl_users (su_usuario, su_senha, su_perfil) VALUES ($1,$2,$3)`,
-      ['admin', '123456', 'admin']
+      ['admin', hash, 'admin']
     );
-    console.log('[starvl_users] admin padrão criado (troque a senha após o primeiro login)');
+    console.log('[starvl_users] admin padrão criado com senha hasheada');
   }
 }).catch(err => console.error('[starvl_users] ensureTable:', err.message));
 
-// Serializa usuário SEM expor a senha na resposta pública
-const toRow        = r => ({ id: r.su_id, usuario: r.su_usuario, perfil: r.su_perfil });
-// Somente para uso interno (PUT retorna senha pois o frontend gerencia usuários logados)
-const toRowInternal = r => ({ id: r.su_id, usuario: r.su_usuario, senha: r.su_senha, perfil: r.su_perfil });
+// Serializa usuário SEM expor a senha
+const toRow         = r => ({ id: r.su_id, usuario: r.su_usuario, perfil: r.su_perfil });
+// Para gerenciamento interno: retorna campo senha mascarado (nunca o hash real)
+const toRowInternal = r => ({ id: r.su_id, usuario: r.su_usuario, senha: '', perfil: r.su_perfil });
 
 // ── POST /api/starvl-users/auth ───────────────────────────────────────────────
-// Endpoint de autenticação server-side: compara usuário e senha no servidor
-// Retorna { ok, usuario, perfil, id } sem expor senhas
 router.post('/auth', async (req, res) => {
   const { usuario, senha } = req.body;
   if (!usuario?.trim() || !senha?.trim()) {
@@ -38,17 +45,38 @@ router.post('/auth', async (req, res) => {
   }
   try {
     const result = await pool.query(
-      `SELECT su_id, su_usuario, su_perfil
+      `SELECT su_id, su_usuario, su_perfil, su_senha
        FROM starvl_users
        WHERE LOWER(TRIM(su_usuario)) = LOWER(TRIM($1))
-         AND su_senha = $2
        LIMIT 1`,
-      [usuario.trim(), senha]
+      [usuario.trim()]
     );
     if (!result.rows.length) {
       return res.status(401).json({ ok: false, error: 'Usuário ou senha inválidos.' });
     }
     const u = result.rows[0];
+    const senhaDB = u.su_senha;
+
+    let valid = false;
+    if (isBcryptHash(senhaDB)) {
+      // Senha já hasheada — comparar normalmente
+      valid = await bcrypt.compare(senha, senhaDB);
+    } else {
+      // Senha plain-text legada — comparar direto e migrar para hash
+      valid = (senha === senhaDB);
+      if (valid) {
+        const newHash = await bcrypt.hash(senha, SALT_ROUNDS);
+        await pool.query(
+          `UPDATE starvl_users SET su_senha=$1, su_atualizado=NOW() WHERE su_id=$2`,
+          [newHash, u.su_id]
+        );
+        console.log(`[starvl_users] senha de "${u.su_usuario}" migrada para bcrypt`);
+      }
+    }
+
+    if (!valid) {
+      return res.status(401).json({ ok: false, error: 'Usuário ou senha inválidos.' });
+    }
     res.json({ ok: true, id: u.su_id, usuario: u.su_usuario, perfil: u.su_perfil });
   } catch (err) {
     console.error('POST /starvl-users/auth:', err.message);
@@ -60,11 +88,9 @@ router.post('/auth', async (req, res) => {
 router.get('/', async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT su_id, su_usuario, su_senha, su_perfil FROM starvl_users ORDER BY su_id`
+      `SELECT su_id, su_usuario, su_perfil FROM starvl_users ORDER BY su_id`
     );
-    // Retorna senha apenas para o painel de gerenciamento interno
-    // (necessário para exibição no formulário de edição)
-    res.json(result.rows.map(toRowInternal));
+    res.json(result.rows.map(toRow));
   } catch (err) {
     console.error('GET /starvl-users:', err.message);
     res.status(500).json({ error: 'Erro ao listar usuários.' });
@@ -77,13 +103,14 @@ router.post('/', async (req, res) => {
   if (!usuario?.trim() || !senha?.trim())
     return res.status(400).json({ error: 'usuario e senha são obrigatórios' });
   try {
+    const hash = await bcrypt.hash(senha, SALT_ROUNDS);
     const result = await pool.query(
       `INSERT INTO starvl_users (su_usuario, su_senha, su_perfil)
        VALUES ($1,$2,$3)
-       RETURNING su_id, su_usuario, su_senha, su_perfil`,
-      [usuario.trim(), senha, perfil || 'user']
+       RETURNING su_id, su_usuario, su_perfil`,
+      [usuario.trim(), hash, perfil || 'user']
     );
-    res.status(201).json(toRowInternal(result.rows[0]));
+    res.status(201).json(toRow(result.rows[0]));
   } catch (err) {
     if (err.code === '23505') return res.status(409).json({ error: 'Usuário já existe' });
     console.error('POST /starvl-users:', err.message);
@@ -99,24 +126,25 @@ router.put('/:id', async (req, res) => {
   try {
     let result;
     if (senha && senha.trim()) {
+      const hash = await bcrypt.hash(senha, SALT_ROUNDS);
       result = await pool.query(
         `UPDATE starvl_users
          SET su_usuario=$1, su_senha=$2, su_perfil=$3, su_atualizado=NOW()
          WHERE su_id=$4
-         RETURNING su_id, su_usuario, su_senha, su_perfil`,
-        [usuario.trim(), senha, perfil || 'user', id]
+         RETURNING su_id, su_usuario, su_perfil`,
+        [usuario.trim(), hash, perfil || 'user', id]
       );
     } else {
       result = await pool.query(
         `UPDATE starvl_users
          SET su_usuario=$1, su_perfil=$2, su_atualizado=NOW()
          WHERE su_id=$3
-         RETURNING su_id, su_usuario, su_senha, su_perfil`,
+         RETURNING su_id, su_usuario, su_perfil`,
         [usuario.trim(), perfil || 'user', id]
       );
     }
     if (!result.rows.length) return res.status(404).json({ error: 'Usuário não encontrado' });
-    res.json(toRowInternal(result.rows[0]));
+    res.json(toRow(result.rows[0]));
   } catch (err) {
     if (err.code === '23505') return res.status(409).json({ error: 'Usuário já existe' });
     console.error('PUT /starvl-users:', err.message);

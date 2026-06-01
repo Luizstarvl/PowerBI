@@ -1,9 +1,10 @@
 const express = require('express');
 const router  = express.Router();
-const pool    = require('../db/pool');
-const { safeQuery } = require('../middleware/readonly');
+const { queryFor } = require('../db/poolManager');
 
-const query = safeQuery(pool);
+
+
+
 
 function today() {
   return new Date().toISOString().split('T')[0];
@@ -13,6 +14,7 @@ function today() {
 // GET /api/pagar/resumo?empresa=X
 router.get('/resumo', async (req, res) => {
   const empresa = parseInt(req.query.empresa);
+  const query = queryFor(empresa);
   if (!empresa) return res.status(400).json({ error: 'empresa required' });
 
   const d = today();
@@ -65,6 +67,7 @@ router.get('/resumo', async (req, res) => {
 // GET /api/pagar/contas?empresa=X&page=1&limit=10&search=&status=&dataInicio=&dataFim=
 router.get('/contas', async (req, res) => {
   const empresa    = parseInt(req.query.empresa);
+  const query = queryFor(empresa);
   const page       = Math.max(1, parseInt(req.query.page)  || 1);
   const limit      = Math.min(50, Math.max(5, parseInt(req.query.limit) || 10));
   const offset     = (page - 1) * limit;
@@ -170,6 +173,7 @@ router.get('/contas', async (req, res) => {
 // GET /api/pagar/analiticos?empresa=X
 router.get('/analiticos', async (req, res) => {
   const empresa = parseInt(req.query.empresa);
+  const query = queryFor(empresa);
   if (!empresa) return res.status(400).json({ error: 'empresa required' });
 
   const d = today();

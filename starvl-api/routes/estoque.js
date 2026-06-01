@@ -1,14 +1,16 @@
 const express = require('express');
 const router = express.Router();
-const pool = require('../db/pool');
-const { safeQuery } = require('../middleware/readonly');
+const { queryFor } = require('../db/poolManager');
 
-const query = safeQuery(pool);
+
+
+
 
 // GET /api/estoque?empresa=7432
 // Estoque de combustíveis via tanq, preço/custo via e_prod (empresa-específico)
 router.get('/', async (req, res) => {
   const empresa = parseInt(req.query.empresa);
+  const query = queryFor(empresa);
 
   if (!empresa) {
     return res.status(400).json({ error: 'empresa is required' });
@@ -193,6 +195,7 @@ router.get('/projecao', async (req, res) => {
 // GET /api/estoque/convenio?empresa=7432
 router.get('/convenio', async (req, res) => {
   const empresa = parseInt(req.query.empresa);
+  const query = queryFor(empresa);
   if (!empresa) return res.status(400).json({ error: 'empresa is required' });
 
   try {

@@ -1,10 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const pool = require('../db/pool');
-const { safeQuery } = require('../middleware/readonly');
+const { queryFor } = require('../db/poolManager');
 
-const query = safeQuery(pool);
-const RANKING_EMPRESA_ID = 7432;
+
+
+
 
 function periodoToRange(periodo) {
   const mes = parseInt(periodo.substring(0, 2));
@@ -28,16 +28,13 @@ function getRankingEmpresa(req, res) {
     res.status(400).json({ error: 'empresa is required' });
     return null;
   }
-  if (empresa !== RANKING_EMPRESA_ID) {
-    res.status(400).json({ error: `Este relatorio esta restrito a empresa ${RANKING_EMPRESA_ID}` });
-    return null;
-  }
-  return RANKING_EMPRESA_ID;
+  return empresa;
 }
 
 // GET /api/relatorios/descarregamentos?empresa=&periodo=MMYYYY
 router.get('/descarregamentos', async (req, res) => {
   const empresa = parseInt(req.query.empresa);
+  const query = queryFor(empresa);
   const periodo = req.query.periodo;
   if (!empresa || !periodo || periodo.length !== 6) {
     return res.status(400).json({ error: 'empresa and periodo (MMYYYY) required' });
@@ -137,6 +134,7 @@ router.get('/descarregamentos', async (req, res) => {
 // GET /api/relatorios/notas-produtos?empresa=7432&periodo=052026
 router.get('/notas-produtos', async (req, res) => {
   const empresa = parseInt(req.query.empresa);
+  const query = queryFor(empresa);
   const periodo = req.query.periodo;
   if (!empresa || !periodo || periodo.length !== 6) {
     return res.status(400).json({ error: 'empresa and periodo (MMYYYY) required' });
@@ -203,6 +201,7 @@ router.get('/notas-produtos', async (req, res) => {
 router.get('/vendedores', async (req, res) => {
   const empresa = getRankingEmpresa(req, res);
   if (!empresa) return;
+  const query = queryFor(empresa);
 
   try {
     const result = await query(
@@ -236,6 +235,7 @@ router.get('/vendedores', async (req, res) => {
 router.get('/ranking-vendas', async (req, res) => {
   const empresa = getRankingEmpresa(req, res);
   if (!empresa) return;
+  const query = queryFor(empresa);
   const dataInicial = req.query.dataInicial;
   const dataFinal = req.query.dataFinal;
   const tipoProd = parseInt(req.query.tipoProd);
@@ -324,6 +324,7 @@ router.get('/ranking-vendas', async (req, res) => {
 // GET /api/relatorios/vendas?empresa=&periodo=MMYYYY
 router.get('/vendas', async (req, res) => {
   const empresa = parseInt(req.query.empresa);
+  const query = queryFor(empresa);
   const periodo = req.query.periodo;
   if (!empresa || !periodo || periodo.length !== 6) {
     return res.status(400).json({ error: 'empresa and periodo (MMYYYY) required' });
@@ -389,6 +390,7 @@ router.get('/vendas', async (req, res) => {
 // GET /api/relatorios/historico?empresa=&meses=12
 router.get('/historico', async (req, res) => {
   const empresa = parseInt(req.query.empresa);
+  const query = queryFor(empresa);
   const meses = parseInt(req.query.meses) || 12;
   if (!empresa) {
     return res.status(400).json({ error: 'empresa is required' });
@@ -427,6 +429,7 @@ router.get('/historico', async (req, res) => {
 // GET /api/relatorios/consolidado?empresa=&periodo=MMYYYY
 router.get('/consolidado', async (req, res) => {
   const empresa = parseInt(req.query.empresa);
+  const query = queryFor(empresa);
   const periodo = req.query.periodo;
   if (!empresa || !periodo || periodo.length !== 6) {
     return res.status(400).json({ error: 'empresa and periodo (MMYYYY) required' });
@@ -562,6 +565,7 @@ router.get('/consolidado', async (req, res) => {
 // REL 11 — Relação de cadastros de produtos (conveniência) e combustíveis
 router.get('/cadastro-produtos', async (req, res) => {
   const empresa = parseInt(req.query.empresa);
+  const query = queryFor(empresa);
   if (!empresa) return res.status(400).json({ error: 'empresa is required' });
 
   try {

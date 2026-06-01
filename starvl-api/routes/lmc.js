@@ -1,9 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const pool = require('../db/pool');
-const { safeQuery } = require('../middleware/readonly');
+const { queryFor } = require('../db/poolManager');
 
-const query = safeQuery(pool);
+
+
+
 
 function getPeriodoRange(periodo) {
   const mes = parseInt(periodo.substring(0, 2));
@@ -21,6 +22,7 @@ function getPeriodoRange(periodo) {
 // GET /api/lmc?empresa=7432&periodo=042026
 router.get('/', async (req, res) => {
   const empresa = parseInt(req.query.empresa);
+  const query = queryFor(empresa);
   const periodo = req.query.periodo; // MMYYYY
 
   if (!empresa || !periodo || periodo.length !== 6) {
@@ -110,6 +112,7 @@ router.get('/', async (req, res) => {
 // GET /api/lmc/controle?empresa=7432&periodo=042026
 router.get('/controle', async (req, res) => {
   const empresa = parseInt(req.query.empresa);
+  const query = queryFor(empresa);
   const periodo = req.query.periodo;
 
   if (!empresa || !periodo || periodo.length !== 6) {
@@ -212,6 +215,7 @@ router.get('/controle', async (req, res) => {
 // GET /api/lmc/diario?empresa=7432&periodo=042026
 router.get('/diario', async (req, res) => {
   const empresa = parseInt(req.query.empresa);
+  const query = queryFor(empresa);
   const periodo = req.query.periodo;
 
   if (!empresa || !periodo || periodo.length !== 6) {

@@ -1,9 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const pool = require('../db/pool');
-const { safeQuery } = require('../middleware/readonly');
+const { queryFor } = require('../db/poolManager');
 
-const query = safeQuery(pool);
+
+
+
 
 function today() {
   return new Date().toISOString().split('T')[0];
@@ -13,6 +14,7 @@ function today() {
 // GET /api/receber/resumo?empresa=X
 router.get('/resumo', async (req, res) => {
   const empresa = parseInt(req.query.empresa);
+  const query = queryFor(empresa);
   if (!empresa) return res.status(400).json({ error: 'empresa required' });
 
   const d = today();
@@ -171,6 +173,7 @@ router.get('/contas', async (req, res) => {
 // GET /api/receber/analiticos?empresa=X
 router.get('/analiticos', async (req, res) => {
   const empresa = parseInt(req.query.empresa);
+  const query = queryFor(empresa);
   if (!empresa) return res.status(400).json({ error: 'empresa required' });
 
   const d = today();

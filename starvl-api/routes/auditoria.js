@@ -1,10 +1,10 @@
 const express = require('express');
 const router  = express.Router();
-const pool    = require('../db/pool');
-const { safeQuery } = require('../middleware/readonly');
+const { queryFor } = require('../db/poolManager');
 
-const query             = safeQuery(pool);
-const EMPRESA_ID_PADRAO = 7432; // fallback quando empresa não informada na query
+
+
+
 
 function parseDate(v) {
   if (/^\d{4}-\d{2}-\d{2}$/.test(String(v || ''))) return v;
@@ -39,7 +39,8 @@ router.get('/', async (req, res) => {
   let store;
   try { store = require('../services/auditStore'); } catch { store = null; }
 
-  const empresa  = toInt(req.query.empresa, 0) || EMPRESA_ID_PADRAO;
+  const empresa  = toInt(req.query.empresa, 0) || 7432;
+  const query = queryFor(empresa);
   const data_ini = parseDate(req.query.data_ini);
   const data_fim = parseDate(req.query.data_fim);
   const page  = Math.max(1, toInt(req.query.page, 1));
@@ -339,7 +340,8 @@ router.get('/historico', (req, res) => {
     return res.json({ items: [], pagination: { total: 0, page: 1, limit: 50, pages: 0 }, status: 'not_ready' });
   }
 
-  const empresa  = toInt(req.query.empresa, 0) || EMPRESA_ID_PADRAO;
+  const empresa  = toInt(req.query.empresa, 0) || 7432;
+  const query = queryFor(empresa);
   const data_ini = parseDate(req.query.data_ini);
   const data_fim = parseDate(req.query.data_fim);
   const page   = Math.max(1, toInt(req.query.page, 1));
@@ -375,7 +377,8 @@ router.get('/historico', (req, res) => {
 
 // ── GET /api/auditoria/alertas ───────────────────────────────────────────────
 router.get('/alertas', async (req, res) => {
-  const empresa  = toInt(req.query.empresa, 0) || EMPRESA_ID_PADRAO;
+  const empresa  = toInt(req.query.empresa, 0) || 7432;
+  const query = queryFor(empresa);
   const data_ini = parseDate(req.query.data_ini) + ' 00:00:00';
   const data_fim = parseDate(req.query.data_fim) + ' 23:59:59';
   const hora_inicio = toInt(req.query.hora_inicio, 6);
