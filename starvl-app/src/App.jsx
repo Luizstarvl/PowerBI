@@ -6762,20 +6762,14 @@ const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcContr
       <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
 
         {/* ── COMBUSTÍVEL ── */}
-        <div style={{ display:'flex', alignItems:'center', gap:14 }}>
-          {/* label vertical à esquerda */}
-          <div style={{
-            display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center',
-            gap:6, flexShrink:0, width:18,
-          }}>
-            <Droplet size={13} style={{ color:'#e31e24' }}/>
-            <span style={{
-              fontSize:9, fontWeight:900, letterSpacing:'.18em', textTransform:'uppercase',
-              color:'#e31e24', writingMode:'vertical-rl', transform:'rotate(180deg)',
-            }}>COMBUSTÍVEL</span>
+        <div>
+          <div style={{ display:'flex', alignItems:'center', gap:5, marginBottom:6 }}>
+            <Droplet size={11} style={{ color:'#e31e24' }}/>
+            <span style={{ fontSize:10, fontWeight:900, letterSpacing:'.12em', textTransform:'uppercase', color:'#e31e24' }}>
+              COMBUSTÍVEL
+            </span>
           </div>
-          {/* cards */}
-          <div style={{ flex:1, display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12 }}>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12 }}>
             {combustivelKpis.map(k => renderKpiCard(k, 'comb'))}
           </div>
         </div>
@@ -6784,20 +6778,14 @@ const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcContr
         <div style={{ height:1, background:'rgba(255,255,255,0.07)', margin:'2px 0' }} />
 
         {/* ── CONVENIÊNCIA ── */}
-        <div style={{ display:'flex', alignItems:'center', gap:14 }}>
-          {/* label vertical à esquerda */}
-          <div style={{
-            display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center',
-            gap:6, flexShrink:0, width:18,
-          }}>
-            <ShoppingCart size={13} style={{ color:'#38bdf8' }}/>
-            <span style={{
-              fontSize:9, fontWeight:900, letterSpacing:'.18em', textTransform:'uppercase',
-              color:'#38bdf8', writingMode:'vertical-rl', transform:'rotate(180deg)',
-            }}>CONVENIÊNCIA</span>
+        <div>
+          <div style={{ display:'flex', alignItems:'center', gap:5, marginBottom:6 }}>
+            <ShoppingCart size={11} style={{ color:'#38bdf8' }}/>
+            <span style={{ fontSize:10, fontWeight:900, letterSpacing:'.12em', textTransform:'uppercase', color:'#38bdf8' }}>
+              CONVENIÊNCIA
+            </span>
           </div>
-          {/* cards — mesma largura total, 3 colunas */}
-          <div style={{ flex:1, display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12 }}>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12 }}>
             {convenienciaKpis.map(k => renderKpiCard(k, 'conv'))}
           </div>
         </div>
