@@ -6781,7 +6781,7 @@ const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcContr
     kpis: loading && !kpis ? (
       <SkeletonCards count={7} />
     ) : (
-      <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+      <div style={{ display:'flex', flexDirection:'column', gap:8, marginBottom:24 }}>
 
         {/* ── COMBUSTÍVEL ── */}
         <div>
