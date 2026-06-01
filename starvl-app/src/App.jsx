@@ -6302,7 +6302,7 @@ const FuelTypeCarousel = ({ estoques, selected, onSelect, dark }) => {
         {estoques.slice(viewOff, viewOff + visible).map(e => {
           const color = getFuelColor(e.produtoNome, DASHBOARD_COLORS.stock);
           const isActive = e.produtoCodigo === selected;
-          const pct = Math.min(100, e.percentualEstimado ?? e.percentualOcupacao ?? 0);
+          const pct = Math.min(100, e.percentualEstimado ?? e.percentualOcupacao ?? 0); // tab sem LMC: usa backend fallback
           const shortName = e.produtoNome.split(' ').slice(0, 3).join(' ');
           return (
             <button key={e.produtoCodigo} onClick={() => onSelect(e.produtoCodigo)} style={{
@@ -6385,8 +6385,10 @@ const FuelCarouselSelector = ({ estoques, selected, onSelect, dark }) => {
           const offset = raw > n / 2 ? raw - n : raw;
           const isAct  = offset === 0;
           const absOff = Math.abs(offset);
-          const fColor = getFuelColor(e.produtoNome, DASHBOARD_COLORS.stock);
-          const pct    = Math.min(100, e.percentualEstimado ?? e.percentualOcupacao ?? 0);
+          const fColor    = getFuelColor(e.produtoNome, DASHBOARD_COLORS.stock);
+          const lmcF     = getLmcFechamento(e.produtoCodigo);
+          const stockE   = lmcF !== null ? lmcF : (e.estoqueTotal ?? 0);
+          const pct      = Math.min(100, e.capacidadeTotal > 0 ? (stockE / e.capacidadeTotal) * 100 : 0);
 
           const tx    = offset * 148;
           const sc    = isAct ? 1.18 : Math.max(0.58, 1 - absOff * 0.26);
@@ -6422,7 +6424,7 @@ const FuelCarouselSelector = ({ estoques, selected, onSelect, dark }) => {
                 <div style={{ color: isAct ? fColor : (dark?'#475569':'#94a3b8'), fontSize:15, fontWeight:900 }}>{pct.toFixed(0)}%</div>
                 {isAct && (
                   <div style={{ color: dark ? '#475569' : '#94a3b8', fontSize:9, marginTop:3 }}>
-                    {Number(e.estoqueEstimado ?? e.estoqueTotal ?? 0).toLocaleString('pt-BR',{maximumFractionDigits:0})} L
+                    {Number(stockE).toLocaleString('pt-BR',{maximumFractionDigits:0})} L
                   </div>
                 )}
               </div>
@@ -6449,15 +6451,32 @@ const FuelCarouselSelector = ({ estoques, selected, onSelect, dark }) => {
 };
 
 // ─── Card de Estoque de Combustível — Posto 3D com Carrossel ─────────────────
-const FuelStationCard = ({ estoques = [], themeMode = 'dark' }) => {
+const FuelStationCard = ({ estoques = [], lmcSaldos = [], lmcControle = [], themeMode = 'dark' }) => {
   const dark = themeMode !== 'light';
   const list = estoques || [];
   const [selFuel, setSelFuel]     = useState(null);
   const [slideAnim, setSlideAnim] = useState('appear');
   const [animKey, setAnimKey]     = useState(0);
 
+  // Calcula o fechamento LMC exato = abertura + compras110 + compras220 + aferições − vendas
+  // Idêntico ao cálculo da página Livros / Movimentação de Combustíveis
+  const getLmcFechamento = (produtoCodigo) => {
+    const lmcRec = (lmcSaldos || []).find(r => r.combustivelCodigo === produtoCodigo);
+    if (!lmcRec) return null;
+    const abertura = lmcRec.abertura || 0;
+    const rows = (lmcControle || []).filter(r => r.codProduto === produtoCodigo);
+    const compras   = rows.reduce((s, r) => s + (r.compra110 || 0) + (r.compra220 || 0), 0);
+    const vendas    = rows.reduce((s, r) => s + (r.venda    || 0), 0);
+    const afericoes = rows.reduce((s, r) => s + (r.afericao || 0), 0);
+    return abertura + compras - vendas + afericoes;
+  };
+
   const active    = list.find(e => e.produtoCodigo === selFuel) || list[0] || null;
-  const fuelPct   = active ? Math.round(active.percentualEstimado ?? active.percentualOcupacao) : 0;
+  const lmcFech   = active ? getLmcFechamento(active.produtoCodigo) : null;
+  const stockVal  = lmcFech !== null ? lmcFech : (active?.estoqueTotal ?? 0);
+  const fuelPct   = active
+    ? Math.min(100, active.capacidadeTotal > 0 ? (stockVal / active.capacidadeTotal) * 100 : 0)
+    : 0;
   const fuelColor = active ? getFuelColor(active.produtoNome, DASHBOARD_COLORS.stock) : DASHBOARD_COLORS.stock;
   const fmtN      = n => Number(n || 0).toLocaleString('pt-BR', { maximumFractionDigits: 0 });
 
@@ -6547,9 +6566,11 @@ const FuelStationCard = ({ estoques = [], themeMode = 'dark' }) => {
       <div style={{ position: 'relative', zIndex: 10, padding: '14px 20px 0', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
         <div>
           <h3 style={{ margin: 0, fontSize: 13, fontWeight: 900, letterSpacing: 2, color: dark ? '#f1f5f9' : '#111827' }}>ESTOQUE DE COMBUSTÍVEL</h3>
-          {active && active.saldoLMC > 0 && (
+          {active && lmcFech !== null && (
             <div style={{ fontSize: 10, color: dark ? '#64748b' : '#9ca3af', marginTop: 2 }}>
-              Fechamento LMC {active.lmcPeriodo}
+              Fechamento LMC · {(lmcSaldos.find(r => r.combustivelCodigo === active.produtoCodigo))?.data
+                ? new Date((lmcSaldos.find(r => r.combustivelCodigo === active.produtoCodigo)).data + 'T00:00:00').toLocaleDateString('pt-BR')
+                : 'acumulado'}
             </div>
           )}
         </div>
@@ -6579,7 +6600,7 @@ const FuelStationCard = ({ estoques = [], themeMode = 'dark' }) => {
             transformOrigin: 'center center',
           }}
         >
-          <HorizTank pct={fuelPct} color={fuelColor} liters={active?.estoqueEstimado ?? active?.estoqueTotal ?? 0} />
+          <HorizTank pct={fuelPct} color={fuelColor} liters={stockVal} />
         </div>
         {/* Reflexo sombra no chão */}
         <div style={{
@@ -6595,7 +6616,7 @@ const FuelStationCard = ({ estoques = [], themeMode = 'dark' }) => {
 };
 
 // Dashboard Component
-const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcControle, estoques, loading, clients, selectedClient, selectedPeriod, setSelectedPeriod, onRefresh, themeMode, topConvenio, vendasDiariasCombusFull, abcProdutos1, abcProdutos2, goals }) => {
+const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcControle, lmcSaldos, estoques, loading, clients, selectedClient, selectedPeriod, setSelectedPeriod, onRefresh, themeMode, topConvenio, vendasDiariasCombusFull, abcProdutos1, abcProdutos2, goals }) => {
   const [selectedFuelDonut, setSelectedFuelDonut] = useState(null);
   const [isCompactDashboard, setIsCompactDashboard] = useState(false);
   const [salesFuelSection, setSalesFuelSection] = useState('conveniencia');
@@ -6858,7 +6879,7 @@ const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcContr
       </div>
     ),
     stock: (
-      <FuelStationCard estoques={estoquesList} themeMode={themeMode} />
+      <FuelStationCard estoques={estoquesList} lmcSaldos={lmcSaldos} lmcControle={lmcControle} themeMode={themeMode} />
     ),
     purchases: (
       <div className="chart-card">
@@ -17657,6 +17678,7 @@ export default function App() {
     vendasDiarias: [],
     vendasHorarias: [],
     dashboardLmcControle: null,
+    dashboardLmcSaldos: [],
     lmcRegistros: null,
     lmcDiario: null,
     lmcControle: null,
@@ -17690,6 +17712,7 @@ export default function App() {
       fetch(`${API_URL}/api/dashboard/vendas-diarias?empresa=${empresa}&periodo=${dashboardPeriodo}`).then(r => r.json()),
       fetch(`${API_URL}/api/dashboard/vendas-horarias?empresa=${empresa}&periodo=${dashboardPeriodo}`).then(r => r.json()),
       fetch(`${API_URL}/api/lmc/controle?empresa=${empresa}&periodo=${dashboardPeriodo}`).then(r => r.json()),
+      fetch(`${API_URL}/api/lmc?empresa=${empresa}&periodo=${dashboardPeriodo}`).then(r => r.json()),
       fetch(`${API_URL}/api/lmc?empresa=${empresa}&periodo=${controlPeriodo}`).then(r => r.json()),
       fetch(`${API_URL}/api/lmc/diario?empresa=${empresa}&periodo=${controlPeriodo}`).then(r => r.json()),
       fetch(`${API_URL}/api/lmc/controle?empresa=${empresa}&periodo=${controlPeriodo}`).then(r => r.json()),
@@ -17699,7 +17722,7 @@ export default function App() {
       fetch(`${API_URL}/api/dashboard/vendas-diarias-full?empresa=${empresa}&periodo=${dashboardPeriodo}`).then(r => r.json()),
       fetch(`${API_URL}/api/dashboard/abc-produtos?empresa=${empresa}&periodo=${dashboardPeriodo}&prodtipo=1`).then(r => r.json()),
       fetch(`${API_URL}/api/dashboard/abc-produtos?empresa=${empresa}&periodo=${dashboardPeriodo}&prodtipo=2`).then(r => r.json()),
-    ]).then(([kpis, combustiveis, vendasDiarias, vendasHorarias, dashboardLmcControle, lmcResp, lmcDiario, lmcControle, estoqueResp, projecaoResp, topConvenioResp, vendasDiariasFullResp, abcProd1Resp, abcProd2Resp]) => {
+    ]).then(([kpis, combustiveis, vendasDiarias, vendasHorarias, dashboardLmcControle, dashboardLmcSaldosResp, lmcResp, lmcDiario, lmcControle, estoqueResp, projecaoResp, topConvenioResp, vendasDiariasFullResp, abcProd1Resp, abcProd2Resp]) => {
       setIsConnected(true);
       setApiData({
         kpis: kpis.error ? null : kpis,
@@ -17707,6 +17730,7 @@ export default function App() {
         vendasDiarias: Array.isArray(vendasDiarias) ? vendasDiarias : [],
         vendasHorarias: Array.isArray(vendasHorarias) ? vendasHorarias : [],
         dashboardLmcControle: dashboardLmcControle.registros || [],
+        dashboardLmcSaldos: dashboardLmcSaldosResp.registros || [],
         lmcRegistros: lmcResp.registros || [],
         lmcDiario: lmcDiario || null,
         lmcControle: lmcControle.registros || [],
@@ -17741,6 +17765,7 @@ export default function App() {
       fetch(`${API_URL}/api/dashboard/vendas-diarias?empresa=${empresa}&periodo=${dashboardPeriodo}`).then(r => r.json()),
       fetch(`${API_URL}/api/dashboard/vendas-horarias?empresa=${empresa}&periodo=${dashboardPeriodo}`).then(r => r.json()),
       fetch(`${API_URL}/api/lmc/controle?empresa=${empresa}&periodo=${dashboardPeriodo}`).then(r => r.json()),
+      fetch(`${API_URL}/api/lmc?empresa=${empresa}&periodo=${dashboardPeriodo}`).then(r => r.json()),
       fetch(`${API_URL}/api/lmc?empresa=${empresa}&periodo=${controlPeriodo}`).then(r => r.json()),
       fetch(`${API_URL}/api/lmc/diario?empresa=${empresa}&periodo=${controlPeriodo}`).then(r => r.json()),
       fetch(`${API_URL}/api/lmc/controle?empresa=${empresa}&periodo=${controlPeriodo}`).then(r => r.json()),
@@ -17750,7 +17775,7 @@ export default function App() {
       fetch(`${API_URL}/api/dashboard/vendas-diarias-full?empresa=${empresa}&periodo=${dashboardPeriodo}`).then(r => r.json()),
       fetch(`${API_URL}/api/dashboard/abc-produtos?empresa=${empresa}&periodo=${dashboardPeriodo}&prodtipo=1`).then(r => r.json()),
       fetch(`${API_URL}/api/dashboard/abc-produtos?empresa=${empresa}&periodo=${dashboardPeriodo}&prodtipo=2`).then(r => r.json()),
-    ]).then(([kpis, combustiveis, vendasDiarias, vendasHorarias, dashboardLmcControle, lmcResp, lmcDiario, lmcControle, estoqueResp, projecaoResp, topConvenioResp, vendasDiariasFullResp, abcProd1Resp, abcProd2Resp]) => {
+    ]).then(([kpis, combustiveis, vendasDiarias, vendasHorarias, dashboardLmcControle, dashboardLmcSaldosResp, lmcResp, lmcDiario, lmcControle, estoqueResp, projecaoResp, topConvenioResp, vendasDiariasFullResp, abcProd1Resp, abcProd2Resp]) => {
       setIsConnected(true);
       setApiData({
         kpis: kpis.error ? null : kpis,
@@ -17758,6 +17783,7 @@ export default function App() {
         vendasDiarias: Array.isArray(vendasDiarias) ? vendasDiarias : [],
         vendasHorarias: Array.isArray(vendasHorarias) ? vendasHorarias : [],
         dashboardLmcControle: dashboardLmcControle.registros || [],
+        dashboardLmcSaldos: dashboardLmcSaldosResp.registros || [],
         lmcRegistros: lmcResp.registros || [],
         lmcDiario: lmcDiario || null,
         lmcControle: lmcControle.registros || [],
@@ -17779,7 +17805,7 @@ export default function App() {
   const renderPage = () => {
     switch (currentPage) {
       case 'dashboard':
-        return <Dashboard kpis={apiData.kpis} combustiveis={apiData.combustiveis} vendasDiarias={apiData.vendasDiarias} vendasHorarias={apiData.vendasHorarias} lmcControle={apiData.dashboardLmcControle} estoques={apiData.estoques} loading={apiData.loading} clients={clients} selectedClient={selectedClient} selectedPeriod={dashboardPeriod} setSelectedPeriod={setDashboardPeriod} onRefresh={handleRefresh} themeMode={themeMode} topConvenio={apiData.topConvenio} vendasDiariasCombusFull={apiData.vendasDiariasCombusFull} abcProdutos1={apiData.abcProdutos1} abcProdutos2={apiData.abcProdutos2} goals={goals} />;
+        return <Dashboard kpis={apiData.kpis} combustiveis={apiData.combustiveis} vendasDiarias={apiData.vendasDiarias} vendasHorarias={apiData.vendasHorarias} lmcControle={apiData.dashboardLmcControle} lmcSaldos={apiData.dashboardLmcSaldos} estoques={apiData.estoques} loading={apiData.loading} clients={clients} selectedClient={selectedClient} selectedPeriod={dashboardPeriod} setSelectedPeriod={setDashboardPeriod} onRefresh={handleRefresh} themeMode={themeMode} topConvenio={apiData.topConvenio} vendasDiariasCombusFull={apiData.vendasDiariasCombusFull} abcProdutos1={apiData.abcProdutos1} abcProdutos2={apiData.abcProdutos2} goals={goals} />;
       case 'reports':
         return <Reports selectedClient={selectedClient} selectedPeriod={reportsPeriod} setSelectedPeriod={setReportsPeriod} clients={clients} />;
       case 'compras':
@@ -17801,7 +17827,7 @@ export default function App() {
       case 'admin':
         return <Parameters clients={clients} setClients={setClients} isAdmin={isAdmin} />;
       default:
-        return <Dashboard kpis={apiData.kpis} combustiveis={apiData.combustiveis} vendasDiarias={apiData.vendasDiarias} vendasHorarias={apiData.vendasHorarias} lmcControle={apiData.dashboardLmcControle} estoques={apiData.estoques} loading={apiData.loading} clients={clients} selectedClient={selectedClient} selectedPeriod={dashboardPeriod} setSelectedPeriod={setDashboardPeriod} onRefresh={handleRefresh} themeMode={themeMode} topConvenio={apiData.topConvenio} vendasDiariasCombusFull={apiData.vendasDiariasCombusFull} abcProdutos1={apiData.abcProdutos1} abcProdutos2={apiData.abcProdutos2} goals={goals} />;
+        return <Dashboard kpis={apiData.kpis} combustiveis={apiData.combustiveis} vendasDiarias={apiData.vendasDiarias} vendasHorarias={apiData.vendasHorarias} lmcControle={apiData.dashboardLmcControle} lmcSaldos={apiData.dashboardLmcSaldos} estoques={apiData.estoques} loading={apiData.loading} clients={clients} selectedClient={selectedClient} selectedPeriod={dashboardPeriod} setSelectedPeriod={setDashboardPeriod} onRefresh={handleRefresh} themeMode={themeMode} topConvenio={apiData.topConvenio} vendasDiariasCombusFull={apiData.vendasDiariasCombusFull} abcProdutos1={apiData.abcProdutos1} abcProdutos2={apiData.abcProdutos2} goals={goals} />;
     }
   };
 
