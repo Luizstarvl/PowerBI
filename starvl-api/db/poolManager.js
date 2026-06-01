@@ -107,7 +107,7 @@ function queryFor(codigoEmpresa) {
 
 async function initialize() {
   try {
-    // Garante que a tabela existe
+    // Garante que a tabela de clientes existe
     await mainPool.query(`
       CREATE TABLE IF NOT EXISTS starvl_clients (
         sc_id           SERIAL       PRIMARY KEY,
@@ -120,6 +120,29 @@ async function initialize() {
         sc_pass         VARCHAR(200),
         sc_criado       TIMESTAMPTZ  DEFAULT NOW()
       )
+    `);
+
+    // Tabela LMC gerenciado pelo STARVL (abertura/fechamento calculados por nós)
+    await mainPool.query(`
+      CREATE TABLE IF NOT EXISTS starvl_lmc (
+        slmc_id           SERIAL          PRIMARY KEY,
+        slmc_empresa      INTEGER         NOT NULL,
+        slmc_produto      INTEGER         NOT NULL,
+        slmc_produto_nome VARCHAR(300),
+        slmc_data         DATE            NOT NULL,
+        slmc_abertura     NUMERIC(14, 3)  NOT NULL DEFAULT 0,
+        slmc_compras110   NUMERIC(14, 3)  NOT NULL DEFAULT 0,
+        slmc_compras220   NUMERIC(14, 3)  NOT NULL DEFAULT 0,
+        slmc_vendas       NUMERIC(14, 3)  NOT NULL DEFAULT 0,
+        slmc_afericoes    NUMERIC(14, 3)  NOT NULL DEFAULT 0,
+        slmc_fechamento   NUMERIC(14, 3)  NOT NULL DEFAULT 0,
+        slmc_synced_at    TIMESTAMPTZ     DEFAULT NOW(),
+        UNIQUE (slmc_empresa, slmc_produto, slmc_data)
+      )
+    `);
+    await mainPool.query(`
+      CREATE INDEX IF NOT EXISTS idx_starvl_lmc_emp_data
+        ON starvl_lmc (slmc_empresa, slmc_data DESC)
     `);
 
     // Seed: se não houver nenhum cliente, cria o padrão a partir do .env

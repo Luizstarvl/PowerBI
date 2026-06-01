@@ -6032,6 +6032,18 @@ const CONV_CAROUSEL_CSS = `
 `;
 
 const FUEL_STATION_CSS = `
+@keyframes lmc-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+.lmc-sync-spinner {
+  display: inline-block;
+  width: 13px; height: 13px;
+  border: 2px solid #475569;
+  border-top-color: #94a3b8;
+  border-radius: 50%;
+  animation: lmc-spin 0.7s linear infinite;
+}
 @keyframes fs-glow-pulse {
   0%,100% { opacity: 0.45; }
   50%      { opacity: 1; }
@@ -6341,7 +6353,7 @@ const FuelTypeCarousel = ({ estoques, selected, onSelect, dark }) => {
 };
 
 // ─── Carrossel coverflow de seleção de combustível ────────────────────────────
-const FuelCarouselSelector = ({ estoques, selected, onSelect, dark, lmcFechamento = {} }) => {
+const FuelCarouselSelector = ({ estoques, selected, onSelect, dark, lmcFechamento = {}, lmcStarvlFechamento = {} }) => {
   const n = estoques.length;
   const [active, setActive] = useState(() => {
     const idx = estoques.findIndex(e => e.produtoCodigo === selected);
@@ -6386,7 +6398,10 @@ const FuelCarouselSelector = ({ estoques, selected, onSelect, dark, lmcFechament
           const isAct  = offset === 0;
           const absOff = Math.abs(offset);
           const fColor = getFuelColor(e.produtoNome, DASHBOARD_COLORS.stock);
-          const lmcVal = lmcFechamento[e.produtoCodigo];
+          // Prioridade: starvl_lmc armazenado > calculado em tempo real > backend estimado
+          const starvlEntry = (lmcStarvlFechamento || []).find(f => Number(f.codProduto) === e.produtoCodigo);
+          const starvlVal   = starvlEntry?.fechamento;
+          const lmcVal      = starvlVal != null ? starvlVal : lmcFechamento[e.produtoCodigo];
           const stockE = lmcVal != null ? lmcVal : (e.estoqueEstimado ?? e.estoqueTotal ?? 0);
           const pct    = e.capacidadeTotal > 0
             ? Math.min(100, (stockE / e.capacidadeTotal) * 100)
@@ -6453,7 +6468,7 @@ const FuelCarouselSelector = ({ estoques, selected, onSelect, dark, lmcFechament
 };
 
 // ─── Card de Estoque de Combustível — Posto 3D com Carrossel ─────────────────
-const FuelStationCard = ({ estoques = [], lmcSaldos = [], lmcControle = [], themeMode = 'dark' }) => {
+const FuelStationCard = ({ estoques = [], lmcSaldos = [], lmcControle = [], lmcStarvlFechamento = [], themeMode = 'dark' }) => {
   const dark = themeMode !== 'light';
   const list = estoques || [];
   const [selFuel, setSelFuel]     = useState(null);
@@ -6490,9 +6505,16 @@ const FuelStationCard = ({ estoques = [], lmcSaldos = [], lmcControle = [], them
 
   const active    = list.find(e => e.produtoCodigo === selFuel) || list[0] || null;
   const activeCod = active?.produtoCodigo;
-  const lmcStock  = activeCod != null && lmcFechamentoByProduct[activeCod] != null
-    ? lmcFechamentoByProduct[activeCod]
-    : (active?.estoqueEstimado ?? active?.estoqueTotal ?? 0);
+  // Prioridade: starvl_lmc armazenado > calculado em tempo real > backend estimado
+  const starvlEntry  = activeCod != null
+    ? (lmcStarvlFechamento || []).find(f => Number(f.codProduto) === activeCod)
+    : null;
+  const starvlStock  = starvlEntry?.fechamento;
+  const lmcStock  = starvlStock != null
+    ? starvlStock
+    : activeCod != null && lmcFechamentoByProduct[activeCod] != null
+      ? lmcFechamentoByProduct[activeCod]
+      : (active?.estoqueEstimado ?? active?.estoqueTotal ?? 0);
   const stockVal  = lmcStock;
   const fuelPct   = active?.capacidadeTotal > 0
     ? Math.min(100, (lmcStock / active.capacidadeTotal) * 100)
@@ -6606,6 +6628,7 @@ const FuelStationCard = ({ estoques = [], lmcSaldos = [], lmcControle = [], them
         onSelect={handleSelect}
         dark={dark}
         lmcFechamento={lmcFechamentoByProduct}
+        lmcStarvlFechamento={lmcStarvlFechamento}
       />
 
       {/* ── Tanque com animação 3D coverflow ── */}
@@ -6635,7 +6658,7 @@ const FuelStationCard = ({ estoques = [], lmcSaldos = [], lmcControle = [], them
 };
 
 // Dashboard Component
-const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcControle, lmcSaldos, estoques, loading, clients, selectedClient, selectedPeriod, setSelectedPeriod, onRefresh, themeMode, topConvenio, vendasDiariasCombusFull, abcProdutos1, abcProdutos2, goals }) => {
+const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcControle, lmcSaldos, lmcStarvlFechamento, estoques, loading, clients, selectedClient, selectedPeriod, setSelectedPeriod, onRefresh, themeMode, topConvenio, vendasDiariasCombusFull, abcProdutos1, abcProdutos2, goals }) => {
   const [selectedFuelDonut, setSelectedFuelDonut] = useState(null);
   const [isCompactDashboard, setIsCompactDashboard] = useState(false);
   const [salesFuelSection, setSalesFuelSection] = useState('conveniencia');
@@ -6898,7 +6921,7 @@ const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcContr
       </div>
     ),
     stock: (
-      <FuelStationCard estoques={estoquesList} lmcSaldos={lmcSaldos} lmcControle={lmcControle} themeMode={themeMode} />
+      <FuelStationCard estoques={estoquesList} lmcSaldos={lmcSaldos} lmcControle={lmcControle} lmcStarvlFechamento={lmcStarvlFechamento} themeMode={themeMode} />
     ),
     purchases: (
       <div className="chart-card">
@@ -7147,6 +7170,46 @@ function parseControlNumber(value) {
 
 function formatControlInputNumber(value) {
   return String(Number((value || 0).toFixed(2)));
+}
+
+/**
+ * Constrói linhas de tabela a partir dos registros starvl_lmc
+ * (abertura/fechamento já calculados no backend, sem recalcular).
+ */
+function buildStarvlRows(registros = [], fuelId, fisicoEdits = {}, selectedPeriod = '') {
+  const filtered = registros.filter(r => Number(r.codProduto) === Number(fuelId));
+  filtered.sort((a, b) => (a.emissao || '').localeCompare(b.emissao || ''));
+  return filtered.map(r => {
+    const dayKey   = r.emissao; // YYYY-MM-DD
+    const key      = `${fuelId}|${dayKey}`;
+    const fisicoKey = `${selectedPeriod}|${fuelId}|${dayKey}`;
+    const fisicoRaw = fisicoEdits[fisicoKey];
+    const hasFisico = fisicoRaw !== undefined && String(fisicoRaw).trim() !== '';
+    const fisico    = hasFisico ? parseControlNumber(fisicoRaw) : 0;
+    const perdas    = hasFisico ? fisico - r.fechamento : 0;
+    return {
+      key,
+      aberturaKey:    `${selectedPeriod}|${fuelId}|${dayKey}`,
+      fisicoKey,
+      produtoId:      Number(fuelId),
+      produtoNome:    r.descricaoProduto,
+      dayKey,
+      dia:            formatDayBR(dayKey),
+      data:           formatFullDateBR(dayKey),
+      abertura:       r.abertura,
+      aberturaInput:  formatControlInputNumber(r.abertura),
+      hasAberturaEdit: false,
+      compras110:     r.compras110,
+      compras220:     r.compras220,
+      afericoes:      r.afericoes,
+      vendas:         r.vendas,
+      fechamento:     r.fechamento,
+      fisicoInput:    hasFisico ? fisicoRaw : '',
+      hasFisico,
+      fisico,
+      perdas,
+    };
+  });
 }
 
 function getPeriodDateRange(period) {
@@ -12749,8 +12812,63 @@ const Control = ({ lmcRegistros, lmcDiario, lmcControle, selectedPeriod, setSele
   const [selectedRowKey, setSelectedRowKey] = useState(null);
   const [savedEditKey, setSavedEditKey] = useState(null);
 
+  // ── STARVL LMC — dados sincronizados do banco do cliente ──────────────────
+  const [starvlRegistros, setStarvlRegistros] = useState([]);
+  const [syncing,         setSyncing]         = useState(false);
+  const [lastSync,        setLastSync]        = useState(null);
+  const [syncError,       setSyncError]       = useState(null);
+
+  const getEmpresa = useCallback(() => {
+    const c = (clients || []).find(cl => cl.nome === selectedClient) || (clients || [])[0];
+    return c?.codigoEmpresa || null;
+  }, [clients, selectedClient]);
+
+  const syncAndFetch = useCallback(async (period) => {
+    const empresa = getEmpresa();
+    if (!empresa || !period) return;
+    const [monthRaw, yearRaw] = (period || '').split('/');
+    const month = Number(monthRaw);
+    const year  = Number(yearRaw);
+    if (!month || !year) return;
+    const periodo = `${String(month).padStart(2, '0')}${year}`; // MMYYYY
+
+    setSyncing(true);
+    setSyncError(null);
+    try {
+      await fetch(`${API_URL}/api/lmc-starvl/sync?empresa=${empresa}&periodo=${periodo}`, { method: 'POST' });
+      const resp = await fetch(`${API_URL}/api/lmc-starvl?empresa=${empresa}&periodo=${periodo}`);
+      const data = await resp.json();
+      if (!data.error) {
+        setStarvlRegistros(data.registros || []);
+        setLastSync(new Date());
+      } else {
+        setSyncError(data.error);
+      }
+    } catch (err) {
+      setSyncError(err.message);
+    } finally {
+      setSyncing(false);
+    }
+  }, [getEmpresa]);
+
+  useEffect(() => {
+    setStarvlRegistros([]);
+    syncAndFetch(selectedPeriod);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedPeriod, selectedClient]);
+  // ──────────────────────────────────────────────────────────────────────────
+
   const fuels = [];
   const seenFuels = new Set();
+  // Inclui produtos do starvl (fonte autoritativa)
+  (starvlRegistros || []).forEach(r => {
+    const codigo = Number(r.codProduto);
+    if (!seenFuels.has(codigo)) {
+      seenFuels.add(codigo);
+      fuels.push({ codigo, nome: r.descricaoProduto });
+    }
+  });
+  // Fallback: inclui produtos das fontes originais
   (lmcControle || []).forEach(r => {
     const codigo = Number(r.codProduto);
     if (!seenFuels.has(codigo)) {
@@ -12871,15 +12989,20 @@ const Control = ({ lmcRegistros, lmcDiario, lmcControle, selectedPeriod, setSele
     setSelectedRowKey(prev => (prev === key ? null : key));
   }
 
-  const tableRows = buildControlReportRows({
-    lmcRegistros,
-    lmcControle,
-    lmcDiario,
-    selectedPeriod,
-    fisicoEdits,
-    aberturaEdits,
-    produto: activeFuelId ? String(activeFuelId) : 'all',
-  });
+  // Usa dados do STARVL quando disponíveis (abertura/fechamento já calculados)
+  // Fallback: buildControlReportRows com dados do banco do cliente
+  const hasStarvlData = starvlRegistros.length > 0;
+  const tableRows = hasStarvlData && activeFuelId
+    ? buildStarvlRows(starvlRegistros, activeFuelId, fisicoEdits, selectedPeriod)
+    : buildControlReportRows({
+        lmcRegistros,
+        lmcControle,
+        lmcDiario,
+        selectedPeriod,
+        fisicoEdits,
+        aberturaEdits,
+        produto: activeFuelId ? String(activeFuelId) : 'all',
+      });
 
   const totals = tableRows.reduce((acc, r) => ({
     compras110: acc.compras110 + r.compras110,
@@ -12899,6 +13022,7 @@ const Control = ({ lmcRegistros, lmcDiario, lmcControle, selectedPeriod, setSele
 
   return (
     <div className="page-content">
+      <style>{FUEL_STATION_CSS}</style>
       <div className="page-header">
         <h2>MOVIMENTAÇÃO DE COMBUSTÍVEIS</h2>
         <div className="header-actions">
@@ -12934,6 +13058,18 @@ const Control = ({ lmcRegistros, lmcDiario, lmcControle, selectedPeriod, setSele
               </select>
             </div>
           </div>
+          <button
+            type="button"
+            className="btn-secondary"
+            style={{ alignSelf: 'flex-end', minWidth: 120, gap: 6 }}
+            disabled={syncing}
+            onClick={() => syncAndFetch(selectedPeriod)}
+            title={lastSync ? `Última sincronização: ${lastSync.toLocaleTimeString('pt-BR')}` : 'Sincronizar com o banco do cliente'}
+          >
+            {syncing
+              ? <><span className="lmc-sync-spinner" /> SINCRONIZANDO...</>
+              : <><RefreshCw size={15} /> SINCRONIZAR</>}
+          </button>
           <button type="button" className="btn-secondary" style={{ alignSelf: 'flex-end' }} onClick={openPrintPanel}>
             <Printer size={18} />
             IMPRESSAO
@@ -12941,9 +13077,24 @@ const Control = ({ lmcRegistros, lmcDiario, lmcControle, selectedPeriod, setSele
         </div>
       </div>
 
+      {/* Indicador de fonte dos dados */}
+      {hasStarvlData && (
+        <div style={{ display:'flex', alignItems:'center', gap:8, padding:'4px 0 8px', fontSize:11 }}>
+          <span style={{ color:'#22c55e', fontWeight:700 }}>● STARVL</span>
+          <span style={{ color:'#64748b' }}>
+            Abertura/Fechamento calculados pelo sistema
+            {lastSync && ` · Sincronizado às ${lastSync.toLocaleTimeString('pt-BR')}`}
+          </span>
+          {syncError && <span style={{ color:'#ef4444' }}>⚠ {syncError}</span>}
+        </div>
+      )}
+      {!hasStarvlData && syncError && (
+        <div style={{ color:'#ef4444', fontSize:11, padding:'4px 0 8px' }}>⚠ Erro na sincronização: {syncError}</div>
+      )}
+
       {tableRows.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '48px', color: '#666' }}>
-          {!lmcRegistros && !lmcControle ? 'Carregando dados...' : 'Nenhum registro LMC encontrado para o período selecionado.'}
+          {syncing ? 'Sincronizando dados...' : !lmcRegistros && !lmcControle ? 'Carregando dados...' : 'Nenhum registro LMC encontrado para o período selecionado.'}
         </div>
       ) : (
         <>
@@ -14657,7 +14808,7 @@ const ConvenienciaManager = ({ themeMode, selectedClient, clients }) => {
 };
 
 // ─── EstoqueManager — wraps Pista (StockPosition) + Conveniência ───────────
-const EstoqueManager = ({ estoques, projecao, loading, selectedClient, clients, themeMode, lmcSaldos, lmcControle }) => {
+const EstoqueManager = ({ estoques, projecao, loading, selectedClient, clients, themeMode, lmcSaldos, lmcControle, lmcStarvlFechamento }) => {
   const [tab, setTab] = useState('conveniencia');
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
@@ -14668,7 +14819,7 @@ const EstoqueManager = ({ estoques, projecao, loading, selectedClient, clients, 
         </div>
       </div>
       {tab === 'pista'
-        ? <StockPosition estoques={estoques} projecao={projecao} loading={loading} selectedClient={selectedClient} clients={clients} lmcSaldos={lmcSaldos} lmcControle={lmcControle} />
+        ? <StockPosition estoques={estoques} projecao={projecao} loading={loading} selectedClient={selectedClient} clients={clients} lmcSaldos={lmcSaldos} lmcControle={lmcControle} lmcStarvlFechamento={lmcStarvlFechamento} />
         : <ConvenienciaManager themeMode={themeMode} selectedClient={selectedClient} clients={clients} />
       }
     </div>
@@ -14676,7 +14827,7 @@ const EstoqueManager = ({ estoques, projecao, loading, selectedClient, clients, 
 };
 
 // Stock Position Component
-const StockPosition = ({ estoques, projecao, loading, selectedClient, clients, lmcSaldos = [], lmcControle = [] }) => {
+const StockPosition = ({ estoques, projecao, loading, selectedClient, clients, lmcSaldos = [], lmcControle = [], lmcStarvlFechamento = [] }) => {
   const [selectedFuelId, setSelectedFuelId] = useState(null);
   const getDateInput = (date) => {
     const year = date.getFullYear();
@@ -14729,11 +14880,17 @@ const StockPosition = ({ estoques, projecao, loading, selectedClient, clients, l
 
   const fmtR = fmtBRL;
 
-  // Usa fechamento LMC se disponível, senão estoqueTotal (tanqestoque)
-  const activeCod = activeFuel?.produtoCodigo;
-  const lmcStock  = activeCod != null && lmcFechamentoByProduct[activeCod] != null
-    ? lmcFechamentoByProduct[activeCod]
-    : (activeFuel?.estoqueTotal || 0);
+  // Prioridade: starvl_lmc armazenado > calculado em tempo real > estoqueTotal
+  const activeCod    = activeFuel?.produtoCodigo;
+  const starvlEntry  = activeCod != null
+    ? (lmcStarvlFechamento || []).find(f => Number(f.codProduto) === activeCod)
+    : null;
+  const starvlStockP = starvlEntry?.fechamento;
+  const lmcStock     = starvlStockP != null
+    ? starvlStockP
+    : activeCod != null && lmcFechamentoByProduct[activeCod] != null
+      ? lmcFechamentoByProduct[activeCod]
+      : (activeFuel?.estoqueTotal || 0);
 
   const tankPct = activeFuel?.capacidadeTotal > 0
     ? Math.min(100, (lmcStock / activeFuel.capacidadeTotal) * 100)
@@ -17730,6 +17887,7 @@ export default function App() {
     vendasHorarias: [],
     dashboardLmcControle: null,
     dashboardLmcSaldos: [],
+    lmcStarvlFechamento: [],   // último fechamento por produto (starvl_lmc)
     lmcRegistros: null,
     lmcDiario: null,
     lmcControle: null,
@@ -17773,7 +17931,8 @@ export default function App() {
       fetch(`${API_URL}/api/dashboard/vendas-diarias-full?empresa=${empresa}&periodo=${dashboardPeriodo}`).then(r => r.json()),
       fetch(`${API_URL}/api/dashboard/abc-produtos?empresa=${empresa}&periodo=${dashboardPeriodo}&prodtipo=1`).then(r => r.json()),
       fetch(`${API_URL}/api/dashboard/abc-produtos?empresa=${empresa}&periodo=${dashboardPeriodo}&prodtipo=2`).then(r => r.json()),
-    ]).then(([kpis, combustiveis, vendasDiarias, vendasHorarias, dashboardLmcControle, dashboardLmcSaldosResp, lmcResp, lmcDiario, lmcControle, estoqueResp, projecaoResp, topConvenioResp, vendasDiariasFullResp, abcProd1Resp, abcProd2Resp]) => {
+      fetch(`${API_URL}/api/lmc-starvl/fechamento?empresa=${empresa}`).then(r => r.json()).catch(() => ({ fechamentos: [] })),
+    ]).then(([kpis, combustiveis, vendasDiarias, vendasHorarias, dashboardLmcControle, dashboardLmcSaldosResp, lmcResp, lmcDiario, lmcControle, estoqueResp, projecaoResp, topConvenioResp, vendasDiariasFullResp, abcProd1Resp, abcProd2Resp, lmcStarvlResp]) => {
       setIsConnected(true);
       setApiData({
         kpis: kpis.error ? null : kpis,
@@ -17782,6 +17941,7 @@ export default function App() {
         vendasHorarias: Array.isArray(vendasHorarias) ? vendasHorarias : [],
         dashboardLmcControle: dashboardLmcControle.registros || [],
         dashboardLmcSaldos: dashboardLmcSaldosResp.registros || [],
+        lmcStarvlFechamento: lmcStarvlResp.fechamentos || [],
         lmcRegistros: lmcResp.registros || [],
         lmcDiario: lmcDiario || null,
         lmcControle: lmcControle.registros || [],
@@ -17826,7 +17986,8 @@ export default function App() {
       fetch(`${API_URL}/api/dashboard/vendas-diarias-full?empresa=${empresa}&periodo=${dashboardPeriodo}`).then(r => r.json()),
       fetch(`${API_URL}/api/dashboard/abc-produtos?empresa=${empresa}&periodo=${dashboardPeriodo}&prodtipo=1`).then(r => r.json()),
       fetch(`${API_URL}/api/dashboard/abc-produtos?empresa=${empresa}&periodo=${dashboardPeriodo}&prodtipo=2`).then(r => r.json()),
-    ]).then(([kpis, combustiveis, vendasDiarias, vendasHorarias, dashboardLmcControle, dashboardLmcSaldosResp, lmcResp, lmcDiario, lmcControle, estoqueResp, projecaoResp, topConvenioResp, vendasDiariasFullResp, abcProd1Resp, abcProd2Resp]) => {
+      fetch(`${API_URL}/api/lmc-starvl/fechamento?empresa=${empresa}`).then(r => r.json()).catch(() => ({ fechamentos: [] })),
+    ]).then(([kpis, combustiveis, vendasDiarias, vendasHorarias, dashboardLmcControle, dashboardLmcSaldosResp, lmcResp, lmcDiario, lmcControle, estoqueResp, projecaoResp, topConvenioResp, vendasDiariasFullResp, abcProd1Resp, abcProd2Resp, lmcStarvlResp]) => {
       setIsConnected(true);
       setApiData({
         kpis: kpis.error ? null : kpis,
@@ -17835,6 +17996,7 @@ export default function App() {
         vendasHorarias: Array.isArray(vendasHorarias) ? vendasHorarias : [],
         dashboardLmcControle: dashboardLmcControle.registros || [],
         dashboardLmcSaldos: dashboardLmcSaldosResp.registros || [],
+        lmcStarvlFechamento: lmcStarvlResp.fechamentos || [],
         lmcRegistros: lmcResp.registros || [],
         lmcDiario: lmcDiario || null,
         lmcControle: lmcControle.registros || [],
@@ -17856,7 +18018,7 @@ export default function App() {
   const renderPage = () => {
     switch (currentPage) {
       case 'dashboard':
-        return <Dashboard kpis={apiData.kpis} combustiveis={apiData.combustiveis} vendasDiarias={apiData.vendasDiarias} vendasHorarias={apiData.vendasHorarias} lmcControle={apiData.dashboardLmcControle} lmcSaldos={apiData.dashboardLmcSaldos} estoques={apiData.estoques} loading={apiData.loading} clients={clients} selectedClient={selectedClient} selectedPeriod={dashboardPeriod} setSelectedPeriod={setDashboardPeriod} onRefresh={handleRefresh} themeMode={themeMode} topConvenio={apiData.topConvenio} vendasDiariasCombusFull={apiData.vendasDiariasCombusFull} abcProdutos1={apiData.abcProdutos1} abcProdutos2={apiData.abcProdutos2} goals={goals} />;
+        return <Dashboard kpis={apiData.kpis} combustiveis={apiData.combustiveis} vendasDiarias={apiData.vendasDiarias} vendasHorarias={apiData.vendasHorarias} lmcControle={apiData.dashboardLmcControle} lmcSaldos={apiData.dashboardLmcSaldos} lmcStarvlFechamento={apiData.lmcStarvlFechamento} estoques={apiData.estoques} loading={apiData.loading} clients={clients} selectedClient={selectedClient} selectedPeriod={dashboardPeriod} setSelectedPeriod={setDashboardPeriod} onRefresh={handleRefresh} themeMode={themeMode} topConvenio={apiData.topConvenio} vendasDiariasCombusFull={apiData.vendasDiariasCombusFull} abcProdutos1={apiData.abcProdutos1} abcProdutos2={apiData.abcProdutos2} goals={goals} />;
       case 'reports':
         return <Reports selectedClient={selectedClient} selectedPeriod={reportsPeriod} setSelectedPeriod={setReportsPeriod} clients={clients} />;
       case 'compras':
@@ -17864,7 +18026,7 @@ export default function App() {
       case 'control':
         return <LivrosManager lmcRegistros={apiData.lmcRegistros} lmcDiario={apiData.lmcDiario} lmcControle={apiData.lmcControle} selectedPeriod={controlPeriod} setSelectedPeriod={setControlPeriod} selectedClient={selectedClient} clients={clients} themeMode={themeMode} />;
       case 'stock':
-        return <EstoqueManager estoques={apiData.estoques} projecao={apiData.projecao} loading={apiData.loading} selectedClient={selectedClient} clients={clients} themeMode={themeMode} lmcSaldos={apiData.dashboardLmcSaldos} lmcControle={apiData.dashboardLmcControle} />;
+        return <EstoqueManager estoques={apiData.estoques} projecao={apiData.projecao} loading={apiData.loading} selectedClient={selectedClient} clients={clients} themeMode={themeMode} lmcSaldos={apiData.dashboardLmcSaldos} lmcControle={apiData.dashboardLmcControle} lmcStarvlFechamento={apiData.lmcStarvlFechamento} />;
       case 'receber':
         return <Financeiro clients={clients} selectedClient={selectedClient} themeMode={themeMode} />;
       case 'goals':
@@ -17878,7 +18040,7 @@ export default function App() {
       case 'admin':
         return <Parameters clients={clients} setClients={setClients} isAdmin={isAdmin} />;
       default:
-        return <Dashboard kpis={apiData.kpis} combustiveis={apiData.combustiveis} vendasDiarias={apiData.vendasDiarias} vendasHorarias={apiData.vendasHorarias} lmcControle={apiData.dashboardLmcControle} lmcSaldos={apiData.dashboardLmcSaldos} estoques={apiData.estoques} loading={apiData.loading} clients={clients} selectedClient={selectedClient} selectedPeriod={dashboardPeriod} setSelectedPeriod={setDashboardPeriod} onRefresh={handleRefresh} themeMode={themeMode} topConvenio={apiData.topConvenio} vendasDiariasCombusFull={apiData.vendasDiariasCombusFull} abcProdutos1={apiData.abcProdutos1} abcProdutos2={apiData.abcProdutos2} goals={goals} />;
+        return <Dashboard kpis={apiData.kpis} combustiveis={apiData.combustiveis} vendasDiarias={apiData.vendasDiarias} vendasHorarias={apiData.vendasHorarias} lmcControle={apiData.dashboardLmcControle} lmcSaldos={apiData.dashboardLmcSaldos} lmcStarvlFechamento={apiData.lmcStarvlFechamento} estoques={apiData.estoques} loading={apiData.loading} clients={clients} selectedClient={selectedClient} selectedPeriod={dashboardPeriod} setSelectedPeriod={setDashboardPeriod} onRefresh={handleRefresh} themeMode={themeMode} topConvenio={apiData.topConvenio} vendasDiariasCombusFull={apiData.vendasDiariasCombusFull} abcProdutos1={apiData.abcProdutos1} abcProdutos2={apiData.abcProdutos2} goals={goals} />;
     }
   };
 

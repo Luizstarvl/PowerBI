@@ -19,6 +19,7 @@ const imagensRoutes       = require('./routes/imagens');
 const starvlUsersRoutes   = require('./routes/starvlUsers');
 const auditoriaRoutes     = require('./routes/auditoria');
 const clientsRoutes       = require('./routes/clients');
+const lmcStarvlRoutes     = require('./routes/lmcStarvl');
 
 const app = express();
 const PORT = process.env.PORT || process.env.API_PORT || 3001;
@@ -141,6 +142,7 @@ app.use('/api/imagens',        imagensRoutes);
 app.use('/api/starvl-users',   starvlUsersRoutes);
 app.use('/api/auditoria',      auditoriaRoutes);
 app.use('/api/clients',        clientsRoutes);
+app.use('/api/lmc-starvl',    lmcStarvlRoutes);
 
 if (fs.existsSync(clientBuildPath)) {
   app.use(express.static(clientBuildPath, {
