@@ -69,10 +69,11 @@ router.get('/kpis', withCache(async (req, res) => {
       [empresa, dataInicio, dataFim]
     );
 
-    // Combustível vendido (litros + valor)
+    // Combustível vendido (litros + valor + qtd de vendas com combustível)
     const combustivelResult = await query(
       `SELECT
-         COALESCE(SUM(vdit.vditqtd), 0) AS litros_vendidos,
+         COUNT(DISTINCT vda.vdacodigo)    AS total_vendas_comb,
+         COALESCE(SUM(vdit.vditqtd), 0)  AS litros_vendidos,
          COALESCE(SUM(vdit.vdittotal), 0) AS valor_combustivel
        FROM vdit
        JOIN vda ON vda.vdacodigo = vdit.vditcodigovda AND vda.vdaempresa = vdit.vditempresa
@@ -82,6 +83,23 @@ router.get('/kpis', withCache(async (req, res) => {
          AND vda.vdamovimento <= $3
          AND (vda.vdastatus IS NULL OR vda.vdastatus = 0)
          AND prod.prodtipo = 1`,
+      [empresa, dataInicio, dataFim]
+    );
+
+    // Conveniência / Produtos (prodtipo != 1)
+    const convenienciaResult = await query(
+      `SELECT
+         COUNT(DISTINCT vda.vdacodigo)    AS total_vendas_conv,
+         COALESCE(SUM(vdit.vdittotal), 0) AS valor_conv,
+         COALESCE(SUM(vdit.vditqtd), 0)  AS qtd_itens_conv
+       FROM vdit
+       JOIN vda ON vda.vdacodigo = vdit.vditcodigovda AND vda.vdaempresa = vdit.vditempresa
+       JOIN prod ON prod.prodcodigo = vdit.vditproduto
+       WHERE vdit.vditempresa = $1
+         AND vda.vdamovimento >= $2
+         AND vda.vdamovimento <= $3
+         AND (vda.vdastatus IS NULL OR vda.vdastatus = 0)
+         AND prod.prodtipo != 1`,
       [empresa, dataInicio, dataFim]
     );
 
@@ -147,8 +165,14 @@ router.get('/kpis', withCache(async (req, res) => {
         valor: parseFloat(vendasResult.rows[0].valor_total_vendas),
       },
       combustivel: {
+        total: parseInt(combustivelResult.rows[0].total_vendas_comb),
         litros: parseFloat(combustivelResult.rows[0].litros_vendidos),
         valor: parseFloat(combustivelResult.rows[0].valor_combustivel),
+      },
+      conveniencia: {
+        total: parseInt(convenienciaResult.rows[0].total_vendas_conv),
+        valor: parseFloat(convenienciaResult.rows[0].valor_conv),
+        qtd:   parseFloat(convenienciaResult.rows[0].qtd_itens_conv),
       },
       compras110: {
         total: parseInt(compras110Result.rows[0].total_compras),

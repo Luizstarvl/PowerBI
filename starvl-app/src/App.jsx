@@ -6700,33 +6700,96 @@ const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcContr
       return { ...item, tier, abcColor: PM_ABC_COLORS[tier], unitLabel: pmUnitLabel };
     });
 
-  const dashboardKpis = kpis ? [
-    { label: 'Total Vendas', value: 'R$ ' + fmt(kpis.vendas?.valor), icon: DollarSign, sub: `${(kpis.vendas?.total || 0).toLocaleString('pt-BR')} vendas` },
-    { label: 'Litros Vendidos', value: fmt(kpis.combustivel?.litros) + ' L', icon: Droplet, sub: 'R$ ' + fmt(kpis.combustivel?.valor) },
-    { label: 'Compras de Combustível', value: 'R$ ' + fmt(kpis.compras110?.valor), icon: FileText, sub: `${(kpis.compras110?.total || 0).toLocaleString('pt-BR')} compras` },
-    { label: 'Aferições', value: fmt(kpis.afericoes?.qtd) + ' L', icon: Activity, sub: `${(kpis.afericoes?.total || 0).toLocaleString('pt-BR')} aferições` },
-  ] : [
-    { label: 'Carregando...', value: '—', icon: DollarSign, sub: '' },
-    { label: 'Carregando...', value: '—', icon: Droplet, sub: '' },
-    { label: 'Carregando...', value: '—', icon: FileText, sub: '' },
-    { label: 'Carregando...', value: '—', icon: Activity, sub: '' },
-  ];
+  // KPIs divididos: Combustível (4 cards) | Conveniência (3 cards)
+  const combustivelKpis = kpis ? [
+    {
+      label: 'Total Vendas', iconClass: 'sale', icon: DollarSign,
+      value: 'R$ ' + fmt(kpis.combustivel?.valor),
+      sub: `${(kpis.combustivel?.total || 0).toLocaleString('pt-BR')} vendas`,
+    },
+    {
+      label: 'Litros Vendidos', iconClass: 'sale', icon: Droplet,
+      value: fmt(kpis.combustivel?.litros) + ' L',
+      sub: kpis.combustivel?.litros > 0
+        ? 'R$ ' + fmt(kpis.combustivel.valor / kpis.combustivel.litros, 3) + '/L'
+        : '—',
+    },
+    {
+      label: 'Compras', iconClass: 'purchase', icon: FileText,
+      value: 'R$ ' + fmt((kpis.compras110?.valor || 0) + (kpis.compras220?.valor || 0)),
+      sub: `${((kpis.compras110?.total || 0) + (kpis.compras220?.total || 0)).toLocaleString('pt-BR')} compras (110+220)`,
+    },
+    {
+      label: 'Aferições', iconClass: 'attention', icon: Activity,
+      value: fmt(kpis.afericoes?.qtd) + ' L',
+      sub: `${(kpis.afericoes?.total || 0).toLocaleString('pt-BR')} aferições`,
+    },
+  ] : [];
+
+  const convenienciaKpis = kpis ? [
+    {
+      label: 'Total Vendas', iconClass: 'sale', icon: ShoppingCart,
+      value: 'R$ ' + fmt(kpis.conveniencia?.valor),
+      sub: `${(kpis.conveniencia?.total || 0).toLocaleString('pt-BR')} vendas`,
+    },
+    {
+      label: 'Qtd Itens', iconClass: 'sale', icon: Package,
+      value: fmtNum(kpis.conveniencia?.qtd || 0, 0) + ' itens',
+      sub: 'itens vendidos no período',
+    },
+    {
+      label: 'Compras', iconClass: 'purchase', icon: FileText,
+      value: 'R$ ' + fmt(kpis.compras110?.valor),
+      sub: `${(kpis.compras110?.total || 0).toLocaleString('pt-BR')} compras (110)`,
+    },
+  ] : [];
+
+  const renderKpiCard = (kpi, keyPrefix) => (
+    <div className="kpi-card" key={`${keyPrefix}-${kpi.label}`}>
+      <div className={`kpi-icon ${kpi.iconClass || ''}`}><kpi.icon size={24} /></div>
+      <div className="kpi-content">
+        <div className="kpi-label">{kpi.label}</div>
+        <div className="kpi-value">{kpi.value}</div>
+        {kpi.sub && <div className="kpi-trend positive">{kpi.sub}</div>}
+      </div>
+    </div>
+  );
 
   const dashboardSections = {
     kpis: loading && !kpis ? (
-      <SkeletonCards count={4} />
+      <SkeletonCards count={7} />
     ) : (
-      <div className="kpi-row">
-        {dashboardKpis.map((kpi) => (
-          <div className="kpi-card" key={kpi.label}>
-            <div className={`kpi-icon ${kpi.label.includes('Compras') ? 'purchase' : kpi.label.includes('Afer') ? 'attention' : kpi.label.includes('Carregando') ? '' : 'sale'}`}><kpi.icon size={24} /></div>
-            <div className="kpi-content">
-              <div className="kpi-label">{kpi.label}</div>
-              <div className="kpi-value">{kpi.value}</div>
-              {kpi.sub && <div className="kpi-trend positive">{kpi.sub}</div>}
-            </div>
+      <div style={{ display:'flex', alignItems:'flex-start', gap:0 }}>
+
+        {/* ── COMBUSTÍVEL ── */}
+        <div style={{ flex:1, minWidth:0 }}>
+          <div style={{
+            fontSize:10, fontWeight:800, letterSpacing:'.1em', textTransform:'uppercase',
+            color:'#e31e24', marginBottom:8, display:'flex', alignItems:'center', gap:5,
+          }}>
+            <Droplet size={11}/> COMBUSTÍVEL
           </div>
-        ))}
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12 }}>
+            {combustivelKpis.map(k => renderKpiCard(k, 'comb'))}
+          </div>
+        </div>
+
+        {/* divisor */}
+        <div style={{ width:1, background:'rgba(255,255,255,0.08)', margin:'22px 14px 0', alignSelf:'stretch' }} />
+
+        {/* ── CONVENIÊNCIA ── */}
+        <div style={{ flex:'0 0 37%', minWidth:0 }}>
+          <div style={{
+            fontSize:10, fontWeight:800, letterSpacing:'.1em', textTransform:'uppercase',
+            color:'#38bdf8', marginBottom:8, display:'flex', alignItems:'center', gap:5,
+          }}>
+            <ShoppingCart size={11}/> CONVENIÊNCIA
+          </div>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12 }}>
+            {convenienciaKpis.map(k => renderKpiCard(k, 'conv'))}
+          </div>
+        </div>
+
       </div>
     ),
     salesFuel: (
