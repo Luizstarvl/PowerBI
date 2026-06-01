@@ -6759,13 +6759,13 @@ const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcContr
     kpis: loading && !kpis ? (
       <SkeletonCards count={7} />
     ) : (
-      <div style={{ display:'flex', alignItems:'flex-start', gap:0 }}>
+      <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
 
-        {/* ── COMBUSTÍVEL ── */}
-        <div style={{ flex:1, minWidth:0 }}>
+        {/* ── COMBUSTÍVEL ── topo, largura total */}
+        <div>
           <div style={{
             fontSize:10, fontWeight:800, letterSpacing:'.1em', textTransform:'uppercase',
-            color:'#e31e24', marginBottom:8, display:'flex', alignItems:'center', gap:5,
+            color:'#e31e24', marginBottom:8, display:'flex', alignItems:'center', justifyContent:'center', gap:5,
           }}>
             <Droplet size={11}/> COMBUSTÍVEL
           </div>
@@ -6774,18 +6774,18 @@ const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcContr
           </div>
         </div>
 
-        {/* divisor */}
-        <div style={{ width:1, background:'rgba(255,255,255,0.08)', margin:'22px 14px 0', alignSelf:'stretch' }} />
+        {/* divisor horizontal */}
+        <div style={{ height:1, background:'rgba(255,255,255,0.08)' }} />
 
-        {/* ── CONVENIÊNCIA ── */}
-        <div style={{ flex:'0 0 37%', minWidth:0 }}>
+        {/* ── CONVENIÊNCIA ── baixo, centralizado (3 de 4 colunas) */}
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center' }}>
           <div style={{
             fontSize:10, fontWeight:800, letterSpacing:'.1em', textTransform:'uppercase',
             color:'#38bdf8', marginBottom:8, display:'flex', alignItems:'center', gap:5,
           }}>
             <ShoppingCart size={11}/> CONVENIÊNCIA
           </div>
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12 }}>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12, width:'75%' }}>
             {convenienciaKpis.map(k => renderKpiCard(k, 'conv'))}
           </div>
         </div>
