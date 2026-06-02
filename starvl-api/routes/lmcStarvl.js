@@ -151,7 +151,7 @@ router.post('/sync', async (req, res) => {
     // 2. Busca movimentos do banco SGA (parallel queries)
     const [vendasRes, c110Res, c220Res, aferRes] = await Promise.all([
 
-      // Vendas: vda + vdit (quantidade em litros)
+      // Vendas: vda + vdit (quantidade em litros) — filtro igual ao /api/lmc/controle
       query(
         `SELECT
            DATE(v.vdadata)   AS dia,
@@ -162,7 +162,8 @@ router.post('/sync', async (req, res) => {
          JOIN prod p ON p.prodcodigo = i.vditproduto
          WHERE i.vditempresa = $1
            AND p.prodtipo   = 1
-           AND v.vdasituacao IS NULL
+           AND v.vdastatus  = 0
+           AND i.vditstatus = 0
            AND DATE(v.vdadata) BETWEEN $2 AND $3
          GROUP BY DATE(v.vdadata), i.vditproduto`,
         [empresa, dataInicio, dataFim]
@@ -233,7 +234,8 @@ router.post('/sync', async (req, res) => {
     c220Res.rows.forEach(r =>    { ensureDay(ensureProd(r.produto), toDateStr(r.dia)).compras220 += parseFloat(r.total || 0); });
     aferRes.rows.forEach(r =>    { ensureDay(ensureProd(r.produto), toDateStr(r.dia)).afericoes  += parseFloat(r.total || 0); });
 
-    // 4. Busca o último fechamento armazenado ANTES do período (para usar como abertura do dia 1)
+    // 4. Abertura do dia 1 = último fechamento salvo no starvl_lmc antes do período
+    //    Fallback: lmcabertura da tabela lmc do SGA (registro mensal)
     const ultimosRes = await mainPool.query(
       `SELECT DISTINCT ON (slmc_produto)
          slmc_produto, slmc_fechamento
@@ -247,6 +249,23 @@ router.post('/sync', async (req, res) => {
     ultimosRes.rows.forEach(r => {
       ultimoFechMap[r.slmc_produto] = parseFloat(r.slmc_fechamento || 0);
     });
+
+    // Produtos que ainda não têm histórico no starvl_lmc → busca abertura na tabela lmc do SGA
+    const semHistorico = produtos.filter(p => ultimoFechMap[p.prodcodigo] == null);
+    if (semHistorico.length > 0) {
+      const lmcAbertRes = await query(
+        `SELECT lmccombustivel AS produto, COALESCE(lmcabertura, 0) AS abertura
+         FROM lmc
+         WHERE lmcempresa = $1 AND lmcperiodo = $2`,
+        [empresa, periodoStr]   // periodoStr = "MM/YYYY"
+      );
+      lmcAbertRes.rows.forEach(r => {
+        const cod = r.produto;
+        if (ultimoFechMap[cod] == null) {
+          ultimoFechMap[cod] = parseFloat(r.abertura || 0);
+        }
+      });
+    }
 
     // 5. Gera todos os dias do período (até hoje)
     const allDays = [];
