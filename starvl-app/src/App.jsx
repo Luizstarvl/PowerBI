@@ -3,7 +3,7 @@ import logoStarvl from './logo-starvl.png';
 import logoStarvlBlack from './logo-starvl-black.png';
 import * as XLSX from 'xlsx';
 import { LineChart, Line, BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Area, AreaChart, LabelList, ComposedChart, ReferenceLine, PieChart, Pie } from 'recharts';
-import { Home, FileText, Users as UsersIcon, BookOpen, Package, LogOut, Eye, Search, Plus, Edit2, Trash2, X, Calendar, TrendingUp, TrendingDown, Droplet, DollarSign, Calculator, Bell, ChevronDown, ChevronUp, Activity, Settings, Building2, Phone, Mail, MapPin, Hash, Clock, BarChart2, Layers, CircleDollarSign, UserCheck, UserPlus, AlertCircle, Globe, Camera, Building, Tag, RefreshCw, Database, ChevronRight, ChevronLeft, Filter, Printer, Moon, Sun, Trophy, Lock, Unlock, Wallet, Download, CreditCard, AlertTriangle, Save, PiggyBank, Target, CheckCircle, Flag, Upload, Maximize2, Minimize2, ShieldCheck, FolderOpen, ImagePlus, Zap, History, ShoppingCart, Archive } from 'lucide-react';
+import { Home, FileText, Users as UsersIcon, BookOpen, Package, LogOut, Eye, Search, Plus, Edit2, Trash2, X, Calendar, TrendingUp, TrendingDown, Droplet, DollarSign, Calculator, Bell, ChevronDown, ChevronUp, Activity, Settings, Building2, Phone, Mail, MapPin, Hash, Clock, BarChart2, Layers, CircleDollarSign, UserCheck, UserPlus, AlertCircle, Globe, Camera, Building, Tag, RefreshCw, Database, ChevronRight, ChevronLeft, Filter, Printer, Moon, Sun, Trophy, Lock, Unlock, Wallet, Download, CreditCard, AlertTriangle, Save, PiggyBank, Target, CheckCircle, Flag, Upload, Maximize2, Minimize2, ShieldCheck, FolderOpen, ImagePlus, Zap, History, ShoppingCart, Archive, ClipboardList } from 'lucide-react';
 import './App.css';
 import './cr-styles.css';
 import './cp-styles.css';
@@ -292,15 +292,16 @@ const Login = ({ onLogin }) => {
 // Sidebar Component
 const Sidebar = ({ currentPage, setCurrentPage, onLogout, themeMode, collapsed, onToggleCollapse }) => {
   const menuItems = [
-    { icon: Home,         label: 'HOME',                     page: 'dashboard' },
-    { icon: Package,      label: 'ESTOQUE',                  page: 'stock'     },
-    { icon: ShoppingCart, label: 'COMPRAS',                  page: 'compras'   },
-    { icon: BookOpen,     label: 'LIVROS',                   page: 'control'   },
-    { icon: Target,       label: 'INDICADORES PATRIMONIAIS', page: 'goals'     },
-    { icon: PiggyBank,    label: 'FINANCEIRO',               page: 'receber'   },
-    { icon: FileText,     label: 'RELATÓRIOS',               page: 'reports'   },
-    { icon: ShieldCheck,  label: 'AUDITORIA',                page: 'auditoria' },
-    { icon: Settings,     label: 'CONFIGURAÇÕES',            page: 'params'    },
+    { icon: Home,          label: 'HOME',                     page: 'dashboard' },
+    { icon: Package,       label: 'ESTOQUE',                  page: 'stock'     },
+    { icon: ShoppingCart,  label: 'COMPRAS',                  page: 'compras'   },
+    { icon: BookOpen,      label: 'LIVROS',                   page: 'control'   },
+    { icon: ClipboardList, label: 'LMC',                      page: 'lmc'       },
+    { icon: Target,        label: 'INDICADORES', subLabel: 'PATRIMONIAIS',      page: 'goals'     },
+    { icon: PiggyBank,     label: 'FINANCEIRO',               page: 'receber'   },
+    { icon: FileText,      label: 'RELATÓRIOS',               page: 'reports'   },
+    { icon: ShieldCheck,   label: 'AUDITORIA',                page: 'auditoria' },
+    { icon: Settings,      label: 'CONFIGURAÇÕES',            page: 'params'    },
   ];
 
   return (
@@ -335,7 +336,10 @@ const Sidebar = ({ currentPage, setCurrentPage, onLogout, themeMode, collapsed, 
             aria-current={currentPage === item.page ? 'page' : undefined}
           >
             <item.icon size={20} aria-hidden="true" />
-            <span>{item.label}</span>
+            <span className="nav-label">
+              <span>{item.label}</span>
+              {item.subLabel && <small>{item.subLabel}</small>}
+            </span>
           </button>
         ))}
       </nav>
@@ -358,6 +362,7 @@ const PAGE_TITLES = {
   dashboard: 'Home',
   reports:   'Relatórios',
   control:   'Livros',
+  lmc:       'LMC',
   stock:     'Estoque',
   compras:   'Compras',
   receber:   'Financeiro',
@@ -373,12 +378,13 @@ const QuickNav = ({ setCurrentPage, themeMode }) => {
   const ref = useRef(null);
 
   const NAV_PAGES = [
-    { icon: Home,         label: 'Home',                       page: 'dashboard' },
-    { icon: Package,      label: 'Estoque',                    page: 'stock'     },
-    { icon: ShoppingCart, label: 'Compras',                    page: 'compras'   },
-    { icon: BookOpen,     label: 'Livros',                     page: 'control'   },
-    { icon: Target,       label: 'Indicadores Patrimoniais',   page: 'goals'     },
-    { icon: PiggyBank,    label: 'Financeiro',                 page: 'receber'   },
+    { icon: Home,          label: 'Home',                       page: 'dashboard' },
+    { icon: Package,       label: 'Estoque',                    page: 'stock'     },
+    { icon: ShoppingCart,  label: 'Compras',                    page: 'compras'   },
+    { icon: BookOpen,      label: 'Livros',                     page: 'control'   },
+    { icon: ClipboardList, label: 'LMC',                        page: 'lmc'       },
+    { icon: Target,        label: 'Indicadores Patrimoniais',   page: 'goals'     },
+    { icon: PiggyBank,     label: 'Financeiro',                 page: 'receber'   },
     { icon: FileText,     label: 'Relatórios',                 page: 'reports'   },
     { icon: Settings,     label: 'Configurações',              page: 'params'    },
   ];
@@ -13493,6 +13499,496 @@ const ControlPrintPanel = ({ fuels, filters, setFilters, onClose, onGenerate }) 
   );
 };
 
+// ─── LmcPlanilha — Livro de Movimentação de Combustíveis ────────────────────
+const LmcPlanilha = ({ selectedClient, clients, themeMode }) => {
+  const dark = themeMode !== 'light';
+
+  const getEmpresa = useCallback(() => {
+    if (!clients || !selectedClient) return null;
+    const c = clients.find(cl => cl.sc_codigo === selectedClient);
+    return c ? c.sc_codigo : selectedClient;
+  }, [clients, selectedClient]);
+
+  // Período padrão: mês atual
+  const defaultPeriod = () => {
+    const now = new Date();
+    return `${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
+  };
+  const [period, setPeriod] = useState(defaultPeriod);
+  const [selectedProd, setSelectedProd] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [sgaData, setSgaData] = useState(null);
+
+  // Edições localStorage
+  const [reguaEdits, setReguaEdits] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('starvl:lmc-regua') || '{}'); } catch { return {}; }
+  });
+  const [aberturaD1Edits, setAberturaD1Edits] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('starvl:lmc-ab-d1') || '{}'); } catch { return {}; }
+  });
+
+  const fetchData = useCallback(async (p) => {
+    const empresa = getEmpresa();
+    if (!empresa || !p) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const [m, y] = p.split('/');
+      const periodo = `${m}${y}`;
+      const resp = await fetch(`${API_URL}/api/lmc/planilha?empresa=${empresa}&periodo=${periodo}`);
+      const data = await resp.json();
+      if (data.error) { setError(data.error); return; }
+      setSgaData(data);
+      if (data.produtos?.length > 0) {
+        setSelectedProd(prev => {
+          const still = data.produtos.find(p2 => p2.codigo === prev);
+          return still ? prev : data.produtos[0].codigo;
+        });
+      }
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [getEmpresa]);
+
+  useEffect(() => { fetchData(period); }, [fetchData, period, selectedClient]);
+
+  // Formatar número BR sem símbolo (litros)
+  const fmtLit = (v) => {
+    if (v == null || isNaN(Number(v))) return '—';
+    return Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+  };
+
+  const parseLit = (s) => {
+    if (s == null || String(s).trim() === '') return null;
+    const cleaned = String(s).replace(/\./g, '').replace(',', '.');
+    const n = parseFloat(cleaned);
+    return isNaN(n) ? null : n;
+  };
+
+  // Construir linhas da tabela para o produto selecionado
+  const tableRows = useMemo(() => {
+    if (!sgaData || !selectedProd || !period) return [];
+    const [mStr, yStr] = period.split('/');
+    const month = Number(mStr), year = Number(yStr);
+    if (!month || !year) return [];
+    const today = new Date();
+    const isCurrentMonth = year === today.getFullYear() && month === today.getMonth() + 1;
+    const lastDay = isCurrentMonth ? today.getDate() : new Date(year, month, 0).getDate();
+
+    const rows = [];
+    let prevFechamento = null;
+    let prevRegua = null;
+    let prevHasRegua = false;
+
+    for (let d = 1; d <= lastDay; d++) {
+      const pad = String(d).padStart(2, '0');
+      const monthPad = String(month).padStart(2, '0');
+      const dayKey = `${year}-${monthPad}-${pad}`;
+      const abKey  = `${period}|${selectedProd}|D1`;
+      const rgKey  = `${period}|${selectedProd}|${dayKey}`;
+
+      // Abertura
+      let abertura;
+      if (d === 1) {
+        const ab1Raw = aberturaD1Edits[abKey];
+        const parsed = parseLit(ab1Raw);
+        if (parsed != null) {
+          abertura = parsed;
+        } else {
+          // Fallback: fechamento do último dia do mês anterior (starvl_lmc via API)
+          abertura = sgaData.aberturas?.[selectedProd] ?? 0;
+        }
+      } else {
+        // Usa régua do dia anterior se informada, senão fechamento
+        abertura = prevHasRegua ? (prevRegua ?? 0) : (prevFechamento ?? 0);
+      }
+
+      const compras   = sgaData.comprasMap?.[selectedProd]?.[dayKey] ?? 0;
+      const vendas    = sgaData.vendasMap?.[selectedProd]?.[dayKey] ?? 0;
+      const afericoes = sgaData.aferMap?.[selectedProd]?.[dayKey] ?? 0;
+
+      // Fechamento = Abertura + Compras - Vendas (aferições só exibição)
+      const fechamento = abertura + compras - vendas;
+
+      // Régua
+      const reguaRaw = reguaEdits[rgKey];
+      const reguaParsed = parseLit(reguaRaw);
+      const hasRegua = reguaParsed != null;
+      const regua = hasRegua ? reguaParsed : 0;
+
+      // Perdas/Sobras = Fechamento - Régua (positivo = perda; negativo = sobra)
+      const perdas = hasRegua ? (fechamento - regua) : null;
+
+      rows.push({
+        dayKey, dia: d, d1: d === 1,
+        abertura, compras, vendas, afericoes, fechamento,
+        regua, hasRegua, perdas,
+        abKey, rgKey,
+        reguaRaw: reguaRaw ?? '',
+        aberturaD1Raw: d === 1 ? (aberturaD1Edits[abKey] ?? '') : null,
+      });
+
+      prevFechamento = fechamento;
+      prevRegua = regua;
+      prevHasRegua = hasRegua;
+    }
+    return rows;
+  }, [sgaData, selectedProd, period, reguaEdits, aberturaD1Edits]);
+
+  // Totais
+  const totais = useMemo(() => {
+    return tableRows.reduce((acc, r) => ({
+      compras:   acc.compras   + r.compras,
+      vendas:    acc.vendas    + r.vendas,
+      afericoes: acc.afericoes + r.afericoes,
+      perdas:    r.hasRegua ? (acc.perdas ?? 0) + (r.perdas ?? 0) : acc.perdas,
+    }), { compras: 0, vendas: 0, afericoes: 0, perdas: null });
+  }, [tableRows]);
+
+  const handleReguaChange = (rgKey, value) => {
+    const updated = { ...reguaEdits, [rgKey]: value };
+    setReguaEdits(updated);
+    localStorage.setItem('starvl:lmc-regua', JSON.stringify(updated));
+  };
+
+  const handleAberturaD1Change = (abKey, value) => {
+    const updated = { ...aberturaD1Edits, [abKey]: value };
+    setAberturaD1Edits(updated);
+    localStorage.setItem('starvl:lmc-ab-d1', JSON.stringify(updated));
+  };
+
+  // Period picker helpers
+  const periodMonths = Array.from({ length: 12 }, (_, i) => i + 1);
+  const periodYears = [2023, 2024, 2025, 2026, 2027];
+  const [pMonth, pYear] = period.split('/').map(Number);
+
+  const applyPeriod = (m, y) => {
+    setPeriod(`${String(m).padStart(2, '0')}/${y}`);
+  };
+
+  // Styles
+  const s = {
+    page: {
+      display: 'flex', flexDirection: 'column', gap: 14, padding: '0 0 32px 0',
+    },
+    header: {
+      display: 'flex', alignItems: 'center', gap: 12, padding: '16px 20px',
+      background: dark ? '#0d1117' : '#fff',
+      border: `1px solid ${dark ? 'rgba(148,163,184,.15)' : '#e2e8f0'}`,
+      borderRadius: 12,
+    },
+    iconBox: {
+      width: 40, height: 40, borderRadius: 10, flexShrink: 0,
+      background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+    },
+    title: { fontSize: 15, fontWeight: 800, color: dark ? '#f1f5f9' : '#111827', margin: 0 },
+    sub:   { fontSize: 11, color: '#64748b', marginTop: 2 },
+    card: {
+      background: dark ? '#0d1117' : '#fff',
+      border: `1px solid ${dark ? 'rgba(148,163,184,.15)' : '#e2e8f0'}`,
+      borderRadius: 12, overflow: 'hidden',
+    },
+    tabBar: {
+      display: 'flex', gap: 6, padding: '12px 16px', flexWrap: 'wrap',
+      borderBottom: `1px solid ${dark ? 'rgba(148,163,184,.1)' : '#f1f5f9'}`,
+    },
+    tab: (active) => ({
+      padding: '6px 14px', borderRadius: 8, fontSize: 12, fontWeight: 700,
+      border: 'none', cursor: 'pointer', transition: 'all .15s',
+      background: active ? '#f59e0b' : (dark ? '#1e2530' : '#f1f5f9'),
+      color:      active ? '#000'    : (dark ? '#94a3b8' : '#475569'),
+    }),
+    table: {
+      width: '100%', borderCollapse: 'collapse', fontSize: 12,
+    },
+    th: {
+      padding: '10px 10px', textAlign: 'right', fontWeight: 700, fontSize: 10,
+      textTransform: 'uppercase', letterSpacing: '0.06em',
+      color: '#64748b',
+      background: dark ? '#121416' : '#f8fafc',
+      borderBottom: `1px solid ${dark ? 'rgba(148,163,184,.12)' : '#e2e8f0'}`,
+      whiteSpace: 'nowrap',
+    },
+    thLeft: {
+      padding: '10px 12px', textAlign: 'left', fontWeight: 700, fontSize: 10,
+      textTransform: 'uppercase', letterSpacing: '0.06em',
+      color: '#64748b',
+      background: dark ? '#121416' : '#f8fafc',
+      borderBottom: `1px solid ${dark ? 'rgba(148,163,184,.12)' : '#e2e8f0'}`,
+    },
+    td: (bg) => ({
+      padding: '7px 10px', textAlign: 'right',
+      color: dark ? '#e2e8f0' : '#1e293b',
+      borderBottom: `1px solid ${dark ? 'rgba(148,163,184,.06)' : '#f1f5f9'}`,
+      background: bg || 'transparent',
+      fontVariantNumeric: 'tabular-nums',
+    }),
+    tdLeft: {
+      padding: '7px 12px', textAlign: 'left',
+      color: dark ? '#94a3b8' : '#64748b',
+      borderBottom: `1px solid ${dark ? 'rgba(148,163,184,.06)' : '#f1f5f9'}`,
+      fontSize: 11,
+    },
+    input: {
+      background: dark ? '#1a2035' : '#eff6ff',
+      border: `1px solid ${dark ? '#334155' : '#bfdbfe'}`,
+      borderRadius: 5, padding: '3px 7px',
+      color: dark ? '#f1f5f9' : '#1e293b',
+      fontSize: 12, textAlign: 'right', width: 90,
+      outline: 'none', fontVariantNumeric: 'tabular-nums',
+    },
+    totalRow: {
+      background: dark ? '#121416' : '#f8fafc',
+      fontWeight: 700,
+    },
+  };
+
+  const produtoNome = sgaData?.produtos?.find(p2 => p2.codigo === selectedProd)?.nome ?? '—';
+
+  return (
+    <div style={s.page}>
+      {/* Header */}
+      <div style={s.header}>
+        <div style={s.iconBox}>
+          <ClipboardList size={20} color="#fff" />
+        </div>
+        <div style={{ flex: 1 }}>
+          <div style={s.title}>LMC — Livro de Movimentação de Combustíveis</div>
+          <div style={s.sub}>Compras, vendas e aferições do SGA · Abertura e Régua editáveis</div>
+        </div>
+
+        {/* Period picker */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <select
+            value={pMonth}
+            onChange={e => applyPeriod(Number(e.target.value), pYear)}
+            style={{ ...s.input, width: 70, textAlign: 'center', cursor: 'pointer' }}
+          >
+            {periodMonths.map(m => (
+              <option key={m} value={m}>
+                {['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'][m-1]}
+              </option>
+            ))}
+          </select>
+          <select
+            value={pYear}
+            onChange={e => applyPeriod(pMonth, Number(e.target.value))}
+            style={{ ...s.input, width: 70, textAlign: 'center', cursor: 'pointer' }}
+          >
+            {periodYears.map(y => <option key={y} value={y}>{y}</option>)}
+          </select>
+          <button
+            onClick={() => fetchData(period)}
+            disabled={loading}
+            style={{
+              background: '#f59e0b', color: '#000', border: 'none', borderRadius: 8,
+              padding: '6px 12px', cursor: 'pointer', fontWeight: 700, fontSize: 12,
+              display: 'flex', alignItems: 'center', gap: 5,
+              opacity: loading ? 0.6 : 1,
+            }}
+          >
+            <RefreshCw size={13} style={loading ? { animation: 'spin 1s linear infinite' } : {}} />
+            {loading ? 'Buscando...' : 'Atualizar'}
+          </button>
+        </div>
+      </div>
+
+      {error && <div className="api-error-notice"><AlertCircle size={18} /> {error}</div>}
+
+      {/* Empty state */}
+      {!loading && sgaData && sgaData.produtos?.length === 0 && (
+        <div style={{
+          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10,
+          padding: '48px 24px',
+          background: dark ? '#0d1117' : '#f8fafc',
+          border: `1px dashed ${dark ? 'rgba(148,163,184,.2)' : '#cbd5e1'}`,
+          borderRadius: 12,
+        }}>
+          <Archive size={28} style={{ color: '#475569' }} />
+          <div style={{ fontSize: 14, fontWeight: 700, color: dark ? '#e2e8f0' : '#1e293b' }}>Nenhum combustível encontrado</div>
+          <div style={{ fontSize: 12, color: '#64748b' }}>Verifique se existem produtos com prodtipo = 1 cadastrados.</div>
+        </div>
+      )}
+
+      {/* Tabela */}
+      {sgaData && sgaData.produtos?.length > 0 && (
+        <div style={s.card}>
+          {/* Tabs produtos */}
+          <div style={s.tabBar}>
+            {sgaData.produtos.map(p2 => (
+              <button
+                key={p2.codigo}
+                style={s.tab(selectedProd === p2.codigo)}
+                onClick={() => setSelectedProd(p2.codigo)}
+              >
+                {p2.nome}
+              </button>
+            ))}
+            {selectedProd && (
+              <span style={{ marginLeft: 'auto', fontSize: 11, color: '#64748b', alignSelf: 'center' }}>
+                Período: {period}
+              </span>
+            )}
+          </div>
+
+          {/* Legenda campos editáveis */}
+          <div style={{ padding: '8px 16px', display: 'flex', gap: 16, alignItems: 'center', fontSize: 10, color: '#64748b', borderBottom: `1px solid ${dark ? 'rgba(148,163,184,.08)' : '#f1f5f9'}` }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <span style={{ width: 10, height: 10, borderRadius: 2, background: dark ? '#1a2035' : '#eff6ff', border: `1px solid ${dark ? '#334155' : '#bfdbfe'}`, display: 'inline-block' }} />
+              Campo editável
+            </span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <span style={{ width: 10, height: 10, borderRadius: 2, background: dark ? '#121416' : '#f8fafc', border: `1px solid ${dark ? 'rgba(148,163,184,.1)' : '#e2e8f0'}`, display: 'inline-block' }} />
+              Calculado (SGA)
+            </span>
+          </div>
+
+          {/* Tabela */}
+          <div style={{ overflowX: 'auto' }}>
+            <table style={s.table}>
+              <thead>
+                <tr>
+                  <th style={s.thLeft}>Data</th>
+                  <th style={s.th}>Est. Abertura</th>
+                  <th style={s.th}>Compras</th>
+                  <th style={s.th}>Vendas</th>
+                  <th style={s.th}>Aferições</th>
+                  <th style={s.th}>Est. Fechamento</th>
+                  <th style={s.th}>Est. Régua</th>
+                  <th style={s.th}>Perdas/Sobras</th>
+                </tr>
+              </thead>
+              <tbody>
+                {tableRows.map(row => {
+                  const perdasColor = row.perdas == null ? '#64748b'
+                    : row.perdas > 0 ? '#ef4444'   // perda
+                    : row.perdas < 0 ? '#22c55e'   // sobra
+                    : dark ? '#e2e8f0' : '#1e293b';
+
+                  return (
+                    <tr key={row.dayKey}>
+                      {/* Data */}
+                      <td style={s.tdLeft}>
+                        {`${String(row.dia).padStart(2,'0')}/${String(pMonth).padStart(2,'0')}/${pYear}`}
+                      </td>
+
+                      {/* Estoque Abertura — editável apenas no D1 */}
+                      <td style={s.td(row.d1 ? (dark ? '#0f1a2e' : '#f0f9ff') : undefined)}>
+                        {row.d1 ? (
+                          <input
+                            type="text"
+                            style={s.input}
+                            value={row.aberturaD1Raw}
+                            placeholder={fmtLit(row.abertura)}
+                            onChange={e => handleAberturaD1Change(row.abKey, e.target.value)}
+                          />
+                        ) : (
+                          fmtLit(row.abertura)
+                        )}
+                      </td>
+
+                      {/* Compras — SGA, read-only */}
+                      <td style={s.td()}>
+                        {row.compras > 0 ? fmtLit(row.compras) : <span style={{ color: '#475569' }}>—</span>}
+                      </td>
+
+                      {/* Vendas — SGA, read-only */}
+                      <td style={s.td()}>
+                        {row.vendas > 0 ? fmtLit(row.vendas) : <span style={{ color: '#475569' }}>—</span>}
+                      </td>
+
+                      {/* Aferições — SGA, read-only */}
+                      <td style={s.td()}>
+                        {row.afericoes > 0 ? fmtLit(row.afericoes) : <span style={{ color: '#475569' }}>—</span>}
+                      </td>
+
+                      {/* Estoque Fechamento — calculado */}
+                      <td style={s.td()}>
+                        <strong>{fmtLit(row.fechamento)}</strong>
+                      </td>
+
+                      {/* Estoque Régua — editável todos os dias */}
+                      <td style={s.td(dark ? '#0f1a2e' : '#f0f9ff')}>
+                        <input
+                          type="text"
+                          style={s.input}
+                          value={row.reguaRaw}
+                          placeholder="—"
+                          onChange={e => handleReguaChange(row.rgKey, e.target.value)}
+                        />
+                      </td>
+
+                      {/* Perdas/Sobras */}
+                      <td style={{ ...s.td(), color: perdasColor, fontWeight: row.perdas != null ? 700 : 400 }}>
+                        {row.perdas == null ? <span style={{ color: '#475569' }}>—</span>
+                          : row.perdas === 0 ? <span style={{ color: '#22c55e' }}>0,000</span>
+                          : fmtLit(Math.abs(row.perdas))}
+                        {row.perdas != null && row.perdas !== 0 && (
+                          <span style={{ fontSize: 9, marginLeft: 4, opacity: 0.7 }}>
+                            {row.perdas > 0 ? 'P' : 'S'}
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+
+                {/* Linha de totais */}
+                {tableRows.length > 0 && (
+                  <tr style={s.totalRow}>
+                    <td style={{ ...s.tdLeft, fontWeight: 700, color: dark ? '#f1f5f9' : '#111827' }}>TOTAIS</td>
+                    <td style={s.td(dark ? '#121416' : '#f8fafc')} />
+                    <td style={{ ...s.td(dark ? '#121416' : '#f8fafc'), fontWeight: 700, color: dark ? '#f1f5f9' : '#111827' }}>
+                      {fmtLit(totais.compras)}
+                    </td>
+                    <td style={{ ...s.td(dark ? '#121416' : '#f8fafc'), fontWeight: 700, color: dark ? '#f1f5f9' : '#111827' }}>
+                      {fmtLit(totais.vendas)}
+                    </td>
+                    <td style={{ ...s.td(dark ? '#121416' : '#f8fafc'), fontWeight: 700, color: dark ? '#f1f5f9' : '#111827' }}>
+                      {totais.afericoes > 0 ? fmtLit(totais.afericoes) : '—'}
+                    </td>
+                    <td style={s.td(dark ? '#121416' : '#f8fafc')} />
+                    <td style={s.td(dark ? '#121416' : '#f8fafc')} />
+                    <td style={{
+                      ...s.td(dark ? '#121416' : '#f8fafc'),
+                      fontWeight: 700,
+                      color: totais.perdas == null ? '#64748b'
+                        : totais.perdas > 0 ? '#ef4444'
+                        : totais.perdas < 0 ? '#22c55e'
+                        : dark ? '#e2e8f0' : '#1e293b',
+                    }}>
+                      {totais.perdas == null ? '—' : fmtLit(totais.perdas)}
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Rodapé de info */}
+          <div style={{ padding: '10px 16px', fontSize: 10, color: '#64748b', borderTop: `1px solid ${dark ? 'rgba(148,163,184,.08)' : '#f1f5f9'}`, display: 'flex', gap: 24 }}>
+            <span>Produto: <strong style={{ color: dark ? '#e2e8f0' : '#1e293b' }}>{produtoNome}</strong></span>
+            <span>Fórmula fechamento: Abertura + Compras − Vendas</span>
+            <span>Perdas/Sobras = Fechamento − Régua</span>
+            <span style={{ color: '#ef4444' }}>P = Perda</span>
+            <span style={{ color: '#22c55e' }}>S = Sobra</span>
+          </div>
+        </div>
+      )}
+
+      {loading && !sgaData && (
+        <div style={{ textAlign: 'center', padding: 48, color: '#64748b', fontSize: 13 }}>
+          Carregando dados do SGA...
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ─── LivrosManager — seções dentro da aba Livros ────────────────────────────
 const LivrosManager = ({ lmcRegistros, lmcDiario, lmcControle, selectedPeriod, setSelectedPeriod, selectedClient, clients, themeMode, estoques = [] }) => {
   const [section, setSection] = useState('fluxo');
@@ -18140,6 +18636,8 @@ export default function App() {
         return <ComprasPage selectedClient={selectedClient} clients={clients} />;
       case 'control':
         return <LivrosManager lmcRegistros={apiData.lmcRegistros} lmcDiario={apiData.lmcDiario} lmcControle={apiData.lmcControle} selectedPeriod={controlPeriod} setSelectedPeriod={setControlPeriod} selectedClient={selectedClient} clients={clients} themeMode={themeMode} estoques={apiData.estoques} />;
+      case 'lmc':
+        return <LmcPlanilha selectedClient={selectedClient} clients={clients} themeMode={themeMode} />;
       case 'stock':
         return <EstoqueManager estoques={apiData.estoques} projecao={apiData.projecao} loading={apiData.loading} selectedClient={selectedClient} clients={clients} themeMode={themeMode} lmcSaldos={apiData.dashboardLmcSaldos} lmcControle={apiData.dashboardLmcControle} lmcStarvlFechamento={apiData.lmcStarvlFechamento} />;
       case 'receber':

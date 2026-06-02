@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { queryFor } = require('../db/poolManager');
+const { queryFor, mainPool } = require('../db/poolManager');
 
 
 
@@ -308,6 +308,131 @@ router.get('/diario', async (req, res) => {
     });
   } catch (err) {
     console.error('Error in /lmc/diario:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/lmc/planilha?empresa=7432&periodo=062026
+// Retorna compras/vendas/afericoes por dia por produto (prodtipo=1) para a planilha LMC
+router.get('/planilha', async (req, res) => {
+  const empresa = parseInt(req.query.empresa);
+  const query   = queryFor(empresa);
+  const periodo = req.query.periodo; // MMYYYY
+
+  if (!empresa || !periodo || periodo.length !== 6) {
+    return res.status(400).json({ error: 'empresa and periodo (MMYYYY) required' });
+  }
+
+  const mes = parseInt(periodo.substring(0, 2));
+  const ano = parseInt(periodo.substring(2, 6));
+  const dataInicio = `${ano}-${String(mes).padStart(2, '0')}-01`;
+  const dataFim    = `${ano}-${String(mes).padStart(2, '0')}-${new Date(ano, mes, 0).getDate()}`;
+
+  // Último dia do mês anterior (para abertura D1)
+  const prevDate   = new Date(ano, mes - 1, 0);
+  const prevLastDay = prevDate.toISOString().split('T')[0];
+
+  try {
+    // 1. Produtos combustíveis ativos
+    const prodResult = await query(
+      `SELECT prodcodigo, prodresumo
+       FROM prod
+       WHERE prodtipo = 1 AND prodinativo IS NULL
+       ORDER BY prodresumo`,
+      []
+    );
+
+    // 2. Compras por dia (entcpivol1+2+3, ambos tipos 110 e 220)
+    const comprasResult = await query(
+      `SELECT DATE(r.entcpachegada)                                   AS dia,
+              t.entcpiproduto                                           AS produto,
+              SUM(COALESCE(t.entcpivol1,0)
+                + COALESCE(t.entcpivol2,0)
+                + COALESCE(t.entcpivol3,0))                            AS total
+       FROM entcpi t
+       JOIN entcpa r ON r.entcpacodigo = t.entcpicompra
+                    AND r.entcpaempresa = $1
+       JOIN prod   p ON p.prodcodigo   = t.entcpiproduto
+       WHERE t.entcpiempresa = $1
+         AND p.prodtipo = 1
+         AND DATE(r.entcpachegada) BETWEEN $2 AND $3
+       GROUP BY DATE(r.entcpachegada), t.entcpiproduto`,
+      [empresa, dataInicio, dataFim]
+    );
+
+    // 3. Vendas por dia (vdastatus=0 AND vditstatus=0)
+    const vendasResult = await query(
+      `SELECT DATE(v.vdadata)  AS dia,
+              i.vditproduto    AS produto,
+              SUM(i.vditqtd)   AS total
+       FROM vdit i
+       JOIN vda  v ON v.vdacodigo  = i.vditcodigovda
+                  AND v.vdaempresa  = i.vditempresa
+       JOIN prod p ON p.prodcodigo  = i.vditproduto
+       WHERE i.vditempresa = $1
+         AND p.prodtipo = 1
+         AND v.vdastatus  = 0
+         AND i.vditstatus = 0
+         AND DATE(v.vdadata) BETWEEN $2 AND $3
+       GROUP BY DATE(v.vdadata), i.vditproduto`,
+      [empresa, dataInicio, dataFim]
+    );
+
+    // 4. Aferições por dia (afermovimento)
+    const aferResult = await query(
+      `SELECT DATE(a.afermovimento) AS dia,
+              a.aferproduto          AS produto,
+              SUM(a.aferqtd)         AS total
+       FROM afer a
+       JOIN prod p ON p.prodcodigo = a.aferproduto
+       WHERE a.aferempresa = $1
+         AND p.prodtipo = 1
+         AND DATE(a.afermovimento) BETWEEN $2 AND $3
+       GROUP BY DATE(a.afermovimento), a.aferproduto`,
+      [empresa, dataInicio, dataFim]
+    );
+
+    // 5. Abertura D1: fechamento do último dia do mês anterior (starvl_lmc)
+    const aberturaResult = await mainPool.query(
+      `SELECT slmc_produto AS produto, slmc_fechamento AS fechamento
+       FROM starvl_lmc
+       WHERE slmc_empresa = $1 AND slmc_data = $2`,
+      [empresa, prevLastDay]
+    );
+
+    // Montar maps: produto -> { 'YYYY-MM-DD': valor }
+    const toMap = (rows, valKey = 'total') => {
+      const m = {};
+      rows.forEach(r => {
+        const prod = r.produto;
+        const dia  = r.dia instanceof Date
+          ? r.dia.toISOString().split('T')[0]
+          : String(r.dia).substring(0, 10);
+        if (!m[prod]) m[prod] = {};
+        m[prod][dia] = parseFloat(r[valKey] || 0);
+      });
+      return m;
+    };
+
+    const aberturas = {};
+    aberturaResult.rows.forEach(r => {
+      aberturas[r.produto] = parseFloat(r.fechamento || 0);
+    });
+
+    res.json({
+      empresa,
+      periodo: { mes, ano, dataInicio, dataFim },
+      produtos: prodResult.rows.map(r => ({
+        codigo: r.prodcodigo,
+        nome:   r.prodresumo,
+      })),
+      comprasMap: toMap(comprasResult.rows),
+      vendasMap:  toMap(vendasResult.rows),
+      aferMap:    toMap(aferResult.rows),
+      aberturas,  // produto -> fechamento último dia mês anterior
+    });
+  } catch (err) {
+    console.error('Error in /lmc/planilha:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
