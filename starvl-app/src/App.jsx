@@ -3,7 +3,7 @@ import logoStarvl from './logo-starvl.png';
 import logoStarvlBlack from './logo-starvl-black.png';
 import * as XLSX from 'xlsx';
 import { LineChart, Line, BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Area, AreaChart, LabelList, ComposedChart, ReferenceLine, PieChart, Pie } from 'recharts';
-import { Home, FileText, Users as UsersIcon, BookOpen, Package, LogOut, Eye, Search, Plus, Edit2, Trash2, X, Calendar, TrendingUp, TrendingDown, Droplet, DollarSign, Calculator, Bell, ChevronDown, ChevronUp, Activity, Settings, Building2, Phone, Mail, MapPin, Hash, Clock, BarChart2, Layers, CircleDollarSign, UserCheck, UserPlus, AlertCircle, Globe, Camera, Building, Tag, RefreshCw, Database, ChevronRight, ChevronLeft, Filter, Printer, Moon, Sun, Trophy, Lock, Unlock, Wallet, Download, CreditCard, AlertTriangle, Save, PiggyBank, Target, CheckCircle, Flag, Upload, Maximize2, Minimize2, ShieldCheck, FolderOpen, ImagePlus, Zap, History, ShoppingCart } from 'lucide-react';
+import { Home, FileText, Users as UsersIcon, BookOpen, Package, LogOut, Eye, Search, Plus, Edit2, Trash2, X, Calendar, TrendingUp, TrendingDown, Droplet, DollarSign, Calculator, Bell, ChevronDown, ChevronUp, Activity, Settings, Building2, Phone, Mail, MapPin, Hash, Clock, BarChart2, Layers, CircleDollarSign, UserCheck, UserPlus, AlertCircle, Globe, Camera, Building, Tag, RefreshCw, Database, ChevronRight, ChevronLeft, Filter, Printer, Moon, Sun, Trophy, Lock, Unlock, Wallet, Download, CreditCard, AlertTriangle, Save, PiggyBank, Target, CheckCircle, Flag, Upload, Maximize2, Minimize2, ShieldCheck, FolderOpen, ImagePlus, Zap, History, ShoppingCart, Archive } from 'lucide-react';
 import './App.css';
 import './cr-styles.css';
 import './cp-styles.css';
@@ -4625,164 +4625,193 @@ const FluxoCaixa = ({ clients, selectedClient, themeMode }) => {
 
       {error && <div className="api-error-notice"><AlertCircle size={18} /> {error}</div>}
 
-      {/* ── Cards KPI ─────────────────────────────────────────────────────── */}
-      {payload && (
-        <div style={{ display: 'flex', gap: 10 }}>
-          <div style={card('#22c55e')}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
-              <TrendingUp size={11} style={{ color: '#22c55e' }} /> Entradas
-            </div>
-            <div style={{ fontSize: 20, fontWeight: 800, color: '#22c55e', fontVariantNumeric: 'tabular-nums' }}>
-              {fmtBRL(resumo.entradas || 0)}
-            </div>
+      {/* ── Empty state: sem caixas no dia ───────────────────────────────── */}
+      {!loading && caixas.length === 0 ? (
+        <div style={{
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          gap: 14, padding: '64px 24px',
+          background: dark ? '#0d1117' : '#f8fafc',
+          border: `1px dashed ${dark ? 'rgba(148,163,184,.2)' : '#cbd5e1'}`,
+          borderRadius: 12,
+        }}>
+          <div style={{
+            width: 56, height: 56, borderRadius: 14,
+            background: dark ? '#1e2530' : '#f1f5f9',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <Archive size={26} style={{ color: '#475569' }} />
           </div>
-          <div style={card('#ef4444')}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
-              <TrendingDown size={11} style={{ color: '#ef4444' }} /> Saídas
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: dark ? '#e2e8f0' : '#1e293b', marginBottom: 4 }}>
+              Nenhum caixa encontrado
             </div>
-            <div style={{ fontSize: 20, fontWeight: 800, color: '#ef4444', fontVariantNumeric: 'tabular-nums' }}>
-              {fmtBRL(resumo.saidas || 0)}
+            <div style={{ fontSize: 13, color: '#64748b', maxWidth: 320, lineHeight: 1.5 }}>
+              Não há caixas a apresentar para a data selecionada. Tente outra data ou verifique o sistema de PDV.
             </div>
-          </div>
-          <div style={card(saldo >= 0 ? '#22c55e' : '#ef4444')}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
-              Saldo Líquido
-            </div>
-            <div style={{ fontSize: 20, fontWeight: 800, color: saldo >= 0 ? '#22c55e' : '#ef4444', fontVariantNumeric: 'tabular-nums' }}>
-              {fmtBRL(saldo)}
-            </div>
-          </div>
-          <div style={card(hasDiverg ? '#f59e0b' : '#334155')}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
-              {hasDiverg && <AlertTriangle size={11} style={{ color: '#f59e0b' }} />} Divergência
-            </div>
-            <div style={{ fontSize: 20, fontWeight: 800, color: hasDiverg ? '#f59e0b' : (dark ? '#334155' : '#d1d5db'), fontVariantNumeric: 'tabular-nums' }}>
-              {hasDiverg ? fmtBRL(diverg) : '—'}
-            </div>
-            {!hasDiverg && (
-              <div style={{ fontSize: 10, color: '#22c55e', display: 'flex', alignItems: 'center', gap: 4 }}>
-                <CheckCircle size={10} /> Caixa conferido
-              </div>
-            )}
           </div>
         </div>
-      )}
-
-      {/* ── Conteúdo principal ────────────────────────────────────────────── */}
-      <div className="cpdv-main">
-        <div className="cpdv-left">
-          {loading && !payload && <div className="cpdv-empty" style={{ padding: 40 }}>Carregando...</div>}
-          {(!loading || payload) && (
-            <div className="cpdv-columns">
-              <div className="cpdv-col">
-                <div className="cpdv-col-header entradas"><TrendingUp size={12} /> ENTRADAS</div>
-                {entradas.map(item => <Row key={item.id} item={item} />)}
-                <div className="cpdv-total-row entradas">
-                  <span><TrendingUp size={11} style={{ marginRight: 4 }} />TOTAL ENTRADAS</span>
-                  <strong>{fmtBRL(resumo.entradas || 0)}</strong>
+      ) : (
+        <>
+          {/* ── Cards KPI ─────────────────────────────────────────────────── */}
+          {payload && (
+            <div style={{ display: 'flex', gap: 10 }}>
+              <div style={card('#22c55e')}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+                  <TrendingUp size={11} style={{ color: '#22c55e' }} /> Entradas
+                </div>
+                <div style={{ fontSize: 20, fontWeight: 800, color: '#22c55e', fontVariantNumeric: 'tabular-nums' }}>
+                  {fmtBRL(resumo.entradas || 0)}
                 </div>
               </div>
-              <div className="cpdv-col">
-                <div className="cpdv-col-header saidas"><TrendingDown size={12} /> SAÍDAS</div>
-                {saidas.map(item => <Row key={item.id} item={item} />)}
-                <div className="cpdv-total-row saidas">
-                  <span><TrendingDown size={11} style={{ marginRight: 4 }} />TOTAL SAÍDAS</span>
-                  <strong>{fmtBRL(resumo.saidas || 0)}</strong>
+              <div style={card('#ef4444')}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+                  <TrendingDown size={11} style={{ color: '#ef4444' }} /> Saídas
                 </div>
+                <div style={{ fontSize: 20, fontWeight: 800, color: '#ef4444', fontVariantNumeric: 'tabular-nums' }}>
+                  {fmtBRL(resumo.saidas || 0)}
+                </div>
+              </div>
+              <div style={card(saldo >= 0 ? '#22c55e' : '#ef4444')}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+                  Saldo Líquido
+                </div>
+                <div style={{ fontSize: 20, fontWeight: 800, color: saldo >= 0 ? '#22c55e' : '#ef4444', fontVariantNumeric: 'tabular-nums' }}>
+                  {fmtBRL(saldo)}
+                </div>
+              </div>
+              <div style={card(hasDiverg ? '#f59e0b' : '#334155')}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+                  {hasDiverg && <AlertTriangle size={11} style={{ color: '#f59e0b' }} />} Divergência
+                </div>
+                <div style={{ fontSize: 20, fontWeight: 800, color: hasDiverg ? '#f59e0b' : (dark ? '#334155' : '#d1d5db'), fontVariantNumeric: 'tabular-nums' }}>
+                  {hasDiverg ? fmtBRL(diverg) : '—'}
+                </div>
+                {!hasDiverg && (
+                  <div style={{ fontSize: 10, color: '#22c55e', display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <CheckCircle size={10} /> Caixa conferido
+                  </div>
+                )}
               </div>
             </div>
           )}
-        </div>
 
-        <div className="cpdv-right">
-          {/* Linha do tempo */}
-          <div className="cpdv-timeline-panel">
-            <div className="cpdv-panel-header">
-              <h4><Activity size={11} /> LINHA DO TEMPO</h4>
-              <span className="cpdv-count">{timeline.length} eventos</span>
-            </div>
-            <div className="cpdv-timeline-list">
-              {timeline.map((ev, i) => (
-                <div key={i} className="cpdv-timeline-event">
-                  <time>{fmtTime(ev.momento)}</time>
-                  <div className={`cpdv-timeline-dot ${ev.tipo}`}>
-                    {ev.tipo === 'abertura' ? <UserCheck size={9} /> : ev.tipo === 'fechamento' ? <Clock size={9} /> : <Activity size={9} />}
+          {/* ── Conteúdo principal ──────────────────────────────────────── */}
+          <div className="cpdv-main">
+            <div className="cpdv-left">
+              {loading && !payload && <div className="cpdv-empty" style={{ padding: 40 }}>Carregando...</div>}
+              {(!loading || payload) && (
+                <div className="cpdv-columns">
+                  <div className="cpdv-col">
+                    <div className="cpdv-col-header entradas"><TrendingUp size={12} /> ENTRADAS</div>
+                    {entradas.map(item => <Row key={item.id} item={item} />)}
+                    <div className="cpdv-total-row entradas">
+                      <span><TrendingUp size={11} style={{ marginRight: 4 }} />TOTAL ENTRADAS</span>
+                      <strong>{fmtBRL(resumo.entradas || 0)}</strong>
+                    </div>
                   </div>
-                  <div className="cpdv-timeline-info">
-                    <strong>
-                      {ev.titulo}
-                      <span style={{ fontWeight: 400, color: '#64748b', fontSize: 10 }}>{ev.detalhe ? ` ${ev.detalhe}` : ''}</span>
-                    </strong>
-                  </div>
-                  {ev.valor > 0 && (
-                    <span className={`cpdv-timeline-value ${ev.tipo === 'entrada' ? 'green' : 'red'}`}>
-                      {ev.tipo !== 'entrada' ? '-' : ''}{fmtBRL(ev.valor)}
-                    </span>
-                  )}
-                </div>
-              ))}
-              {!loading && timeline.length === 0 && <div className="cpdv-empty">Nenhum evento.</div>}
-            </div>
-          </div>
-
-          {/* Tanques */}
-          <div className="cpdv-tanks-panel">
-            <div className="cpdv-panel-header">
-              <h4><Droplet size={11} /> MEDIÇÃO DE TANQUES</h4>
-              <span className="cpdv-count">{tanques.length} tanques</span>
-            </div>
-            <div className="cpdv-tanks-grid">
-              {tanques.map(t => (
-                <div key={t.codigo} className="cpdv-tank-card">
-                  <Droplet size={14} style={{ color: '#ef4444' }} />
-                  <span className="cpdv-tank-name">{t.produto}</span>
-                  <span className="cpdv-tank-value">{fmtNum(t.volume)} L</span>
-                  <div className="cpdv-tank-bar">
-                    <div className="cpdv-tank-fill" style={{ width: `${Math.max(2, Math.min(100, t.percentual || 0))}%` }} />
+                  <div className="cpdv-col">
+                    <div className="cpdv-col-header saidas"><TrendingDown size={12} /> SAÍDAS</div>
+                    {saidas.map(item => <Row key={item.id} item={item} />)}
+                    <div className="cpdv-total-row saidas">
+                      <span><TrendingDown size={11} style={{ marginRight: 4 }} />TOTAL SAÍDAS</span>
+                      <strong>{fmtBRL(resumo.saidas || 0)}</strong>
+                    </div>
                   </div>
                 </div>
-              ))}
-              {!loading && tanques.length === 0 && <div className="cpdv-empty" style={{ gridColumn: '1/-1' }}>Sem medição cadastrada.</div>}
+              )}
             </div>
-          </div>
-        </div>
-      </div>
 
-      {/* ── Footer sticky ─────────────────────────────────────────────────── */}
-      <div className={`cpdv-footer${hasDiverg ? ' divergencia' : ''}`}>
-        {hasDiverg ? (
-          <>
-            <AlertTriangle size={20} style={{ color: '#f59e0b' }} />
-            <span className="cpdv-footer-label">DIVERGÊNCIA</span>
-            <span className="cpdv-footer-value">{fmtBRL(diverg)}</span>
-            <span className="cpdv-footer-sub">Conferir caixa</span>
-          </>
-        ) : (
-          <>
-            <CheckCircle size={18} style={{ color: '#22c55e' }} />
-            <span className="cpdv-footer-value" style={{ color: '#22c55e', fontSize: 14 }}>Caixa Conferido</span>
-          </>
-        )}
-        {(resumo.entradas > 0 || resumo.saidas > 0) && (
-          <div className="cpdv-footer-saldo">
-            <div className="cpdv-footer-saldo-row">
-              <span className="cpdv-footer-saldo-label"><TrendingUp size={11} /> Entradas</span>
-              <span className="cpdv-footer-saldo-val green">{fmtBRL(resumo.entradas || 0)}</span>
-            </div>
-            <div className="cpdv-footer-saldo-row">
-              <span className="cpdv-footer-saldo-label"><TrendingDown size={11} /> Saídas</span>
-              <span className="cpdv-footer-saldo-val red">{fmtBRL(resumo.saidas || 0)}</span>
-            </div>
-            <div className="cpdv-footer-saldo-bar">
-              <div className="cpdv-footer-saldo-fill" style={{ width: `${Math.min(100, resumo.entradas > 0 ? ((resumo.entradas - resumo.saidas) / resumo.entradas) * 100 : 0)}%` }} />
-            </div>
-            <div className="cpdv-footer-saldo-row" style={{ marginTop: 4 }}>
-              <span className="cpdv-footer-saldo-label">Saldo Líquido</span>
-              <span className={`cpdv-footer-saldo-val ${saldo >= 0 ? 'green' : 'red'}`}>{fmtBRL(saldo)}</span>
+            <div className="cpdv-right">
+              {/* Linha do tempo */}
+              <div className="cpdv-timeline-panel">
+                <div className="cpdv-panel-header">
+                  <h4><Activity size={11} /> LINHA DO TEMPO</h4>
+                  <span className="cpdv-count">{timeline.length} eventos</span>
+                </div>
+                <div className="cpdv-timeline-list">
+                  {timeline.map((ev, i) => (
+                    <div key={i} className="cpdv-timeline-event">
+                      <time>{fmtTime(ev.momento)}</time>
+                      <div className={`cpdv-timeline-dot ${ev.tipo}`}>
+                        {ev.tipo === 'abertura' ? <UserCheck size={9} /> : ev.tipo === 'fechamento' ? <Clock size={9} /> : <Activity size={9} />}
+                      </div>
+                      <div className="cpdv-timeline-info">
+                        <strong>
+                          {ev.titulo}
+                          <span style={{ fontWeight: 400, color: '#64748b', fontSize: 10 }}>{ev.detalhe ? ` ${ev.detalhe}` : ''}</span>
+                        </strong>
+                      </div>
+                      {ev.valor > 0 && (
+                        <span className={`cpdv-timeline-value ${ev.tipo === 'entrada' ? 'green' : 'red'}`}>
+                          {ev.tipo !== 'entrada' ? '-' : ''}{fmtBRL(ev.valor)}
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                  {!loading && timeline.length === 0 && <div className="cpdv-empty">Nenhum evento.</div>}
+                </div>
+              </div>
+
+              {/* Tanques */}
+              <div className="cpdv-tanks-panel">
+                <div className="cpdv-panel-header">
+                  <h4><Droplet size={11} /> MEDIÇÃO DE TANQUES</h4>
+                  <span className="cpdv-count">{tanques.length} tanques</span>
+                </div>
+                <div className="cpdv-tanks-grid">
+                  {tanques.map(t => (
+                    <div key={t.codigo} className="cpdv-tank-card">
+                      <Droplet size={14} style={{ color: '#ef4444' }} />
+                      <span className="cpdv-tank-name">{t.produto}</span>
+                      <span className="cpdv-tank-value">{fmtNum(t.volume)} L</span>
+                      <div className="cpdv-tank-bar">
+                        <div className="cpdv-tank-fill" style={{ width: `${Math.max(2, Math.min(100, t.percentual || 0))}%` }} />
+                      </div>
+                    </div>
+                  ))}
+                  {!loading && tanques.length === 0 && <div className="cpdv-empty" style={{ gridColumn: '1/-1' }}>Sem medição cadastrada.</div>}
+                </div>
+              </div>
             </div>
           </div>
-        )}
-      </div>
+
+          {/* ── Footer sticky ───────────────────────────────────────────── */}
+          <div className={`cpdv-footer${hasDiverg ? ' divergencia' : ''}`}>
+            {hasDiverg ? (
+              <>
+                <AlertTriangle size={20} style={{ color: '#f59e0b' }} />
+                <span className="cpdv-footer-label">DIVERGÊNCIA</span>
+                <span className="cpdv-footer-value">{fmtBRL(diverg)}</span>
+                <span className="cpdv-footer-sub">Conferir caixa</span>
+              </>
+            ) : (
+              <>
+                <CheckCircle size={18} style={{ color: '#22c55e' }} />
+                <span className="cpdv-footer-value" style={{ color: '#22c55e', fontSize: 14 }}>Caixa Conferido</span>
+              </>
+            )}
+            {(resumo.entradas > 0 || resumo.saidas > 0) && (
+              <div className="cpdv-footer-saldo">
+                <div className="cpdv-footer-saldo-row">
+                  <span className="cpdv-footer-saldo-label"><TrendingUp size={11} /> Entradas</span>
+                  <span className="cpdv-footer-saldo-val green">{fmtBRL(resumo.entradas || 0)}</span>
+                </div>
+                <div className="cpdv-footer-saldo-row">
+                  <span className="cpdv-footer-saldo-label"><TrendingDown size={11} /> Saídas</span>
+                  <span className="cpdv-footer-saldo-val red">{fmtBRL(resumo.saidas || 0)}</span>
+                </div>
+                <div className="cpdv-footer-saldo-bar">
+                  <div className="cpdv-footer-saldo-fill" style={{ width: `${Math.min(100, resumo.entradas > 0 ? ((resumo.entradas - resumo.saidas) / resumo.entradas) * 100 : 0)}%` }} />
+                </div>
+                <div className="cpdv-footer-saldo-row" style={{ marginTop: 4 }}>
+                  <span className="cpdv-footer-saldo-label">Saldo Líquido</span>
+                  <span className={`cpdv-footer-saldo-val ${saldo >= 0 ? 'green' : 'red'}`}>{fmtBRL(saldo)}</span>
+                </div>
+              </div>
+            )}
+          </div>
+        </>
+      )}
 
       {detalheItem && selectedCaixa && (
         <CpdvDetalheModal
