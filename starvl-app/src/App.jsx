@@ -13411,12 +13411,11 @@ const ControlPrintPanel = ({ fuels, filters, setFilters, onClose, onGenerate }) 
 
 // ─── LivrosManager — seções dentro da aba Livros ────────────────────────────
 const LivrosManager = ({ lmcRegistros, lmcDiario, lmcControle, selectedPeriod, setSelectedPeriod, selectedClient, clients, themeMode, estoques = [] }) => {
-  const [section, setSection] = useState('movimentacao');
+  const [section, setSection] = useState('fluxo');
 
   const sections = [
-    { id: 'movimentacao', label: '⛽ Movimentação de Combustíveis' },
-    { id: 'fluxo',        label: '💵 Fluxo de Caixa'               },
-    { id: 'conta',        label: '🏦 Conta Corrente'                },
+    { id: 'fluxo', label: '💵 Fluxo de Caixa'  },
+    { id: 'conta', label: '🏦 Conta Corrente'   },
   ];
 
   return (
@@ -13437,15 +13436,6 @@ const LivrosManager = ({ lmcRegistros, lmcDiario, lmcControle, selectedPeriod, s
         </div>
       </div>
 
-      {section === 'movimentacao' && (
-        <Control
-          selectedPeriod={selectedPeriod}
-          setSelectedPeriod={setSelectedPeriod}
-          selectedClient={selectedClient}
-          clients={clients}
-          estoques={estoques}
-        />
-      )}
       {section === 'fluxo' && (
         <FluxoCaixa clients={clients} selectedClient={selectedClient} themeMode={themeMode} />
       )}
