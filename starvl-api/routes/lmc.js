@@ -333,13 +333,17 @@ router.get('/planilha', async (req, res) => {
   const prevLastDay = prevDate.toISOString().split('T')[0];
 
   try {
-    // 1. Produtos combustíveis ativos
+    // 1. Produtos combustíveis ativos — globalmente (prod) e por empresa (e_prod)
     const prodResult = await query(
-      `SELECT prodcodigo, prodresumo
-       FROM prod
-       WHERE prodtipo = 1 AND prodinativo IS NULL
-       ORDER BY prodresumo`,
-      []
+      `SELECT p.prodcodigo, p.prodresumo
+       FROM prod p
+       JOIN e_prod ep ON ep.e_prodproduto = p.prodcodigo
+                     AND ep.e_prodempresa  = $1
+       WHERE p.prodtipo     = 1
+         AND p.prodinativo  IS NULL
+         AND ep.e_prodinativo IS NULL
+       ORDER BY p.prodresumo`,
+      [empresa]
     );
 
     // 2a. Compras 110 por dia — entcpi (vol1+vol2+vol3), data = entcpachegada
