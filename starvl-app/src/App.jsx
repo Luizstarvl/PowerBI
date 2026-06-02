@@ -6353,19 +6353,13 @@ const FuelTypeCarousel = ({ estoques, selected, onSelect, dark }) => {
 };
 
 // ─── Carrossel coverflow de seleção de combustível ────────────────────────────
-const FuelCarouselSelector = ({ estoques, selected, onSelect, dark, lmcFechamento = {} }) => {
+const FuelCarouselSelector = ({ estoques, selected, onSelect, dark, effectiveStock = {} }) => {
   const n = estoques.length;
   const [active, setActive] = useState(() => {
     const idx = estoques.findIndex(e => e.produtoCodigo === selected);
     return idx >= 0 ? idx : 0;
   });
   const [paused, setPaused] = useState(false);
-
-  // Estoque efetivo: físico do último dia do mês corrente, senão fechamento.
-  const effectiveStockMap = useMemo(
-    () => computeRealTimeEffectiveStock(lmcFechamento),
-    [lmcFechamento]
-  );
 
   useEffect(() => {
     const idx = estoques.findIndex(e => e.produtoCodigo === selected);
@@ -6404,9 +6398,9 @@ const FuelCarouselSelector = ({ estoques, selected, onSelect, dark, lmcFechament
           const isAct  = offset === 0;
           const absOff = Math.abs(offset);
           const fColor = getFuelColor(e.produtoNome, DASHBOARD_COLORS.stock);
-          // Prioridade: fechamento/físico > backend estimado
-          const rtVal  = effectiveStockMap[e.produtoCodigo];
-          const stockE = rtVal != null ? rtVal : (e.estoqueEstimado ?? e.estoqueTotal ?? 0);
+          // Valor vem do fechamento/físico efetivo, não do estoque do cliente.
+          const rtVal  = effectiveStock[e.produtoCodigo];
+          const stockE = rtVal != null ? rtVal : 0;
           const pct    = e.capacidadeTotal > 0
             ? Math.min(100, (stockE / e.capacidadeTotal) * 100)
             : Math.min(100, e.percentualEstimado ?? e.percentualOcupacao ?? 0);
@@ -6472,53 +6466,24 @@ const FuelCarouselSelector = ({ estoques, selected, onSelect, dark, lmcFechament
 };
 
 // ─── Card de Estoque de Combustível — Posto 3D com Carrossel ─────────────────
-const FuelStationCard = ({ estoques = [], lmcSaldos = [], lmcControle = [], lmcStarvlFechamento = [], themeMode = 'dark' }) => {
+const FuelStationCard = ({ estoques = [], lmcStarvlFechamento = [], themeMode = 'dark' }) => {
   const dark = themeMode !== 'light';
   const list = estoques || [];
   const [selFuel, setSelFuel]     = useState(null);
   const [slideAnim, setSlideAnim] = useState('appear');
   const [animKey, setAnimKey]     = useState(0);
 
-  // Calcula fechamento LMC igual à aba Livros: abertura + compras110 + compras220 + afericoes - vendas
-  const lmcFechamentoByProduct = useMemo(() => {
-    const result = {};
-    // Abertura de cada produto (do registro mensal lmc)
-    (lmcSaldos || []).forEach(r => {
-      const cod = Number(r.combustivelCodigo);
-      result[cod] = Number(r.abertura || 0);
-    });
-    // Agrupar movimentos diários por produto, em ordem de data
-    const movByProd = {};
-    (lmcControle || []).forEach(r => {
-      const cod = Number(r.codProduto);
-      if (!movByProd[cod]) movByProd[cod] = [];
-      movByProd[cod].push(r);
-    });
-    // Saldo acumulado = abertura + Σ(compras+afericoes-vendas) de cada dia
-    Object.entries(movByProd).forEach(([codStr, rows]) => {
-      const cod = Number(codStr);
-      rows.sort((a, b) => String(a.emissao || '').localeCompare(String(b.emissao || '')));
-      let saldo = result[cod] ?? 0;
-      rows.forEach(r => {
-        saldo += Number(r.compra110 || 0) + Number(r.compra220 || 0) + Number(r.afericao || 0) - Number(r.venda || 0);
-      });
-      result[cod] = saldo;
-    });
-    return result;
-  }, [lmcSaldos, lmcControle]);
-
-  // Estoque efetivo: físico do último dia do mês corrente, senão fechamento.
+  // Estoque efetivo: físico do último dia do mês corrente, senão fechamento salvo pelo STARVL.
   const effectiveStockMap = useMemo(
-    () => computeRealTimeEffectiveStock(lmcFechamentoByProduct),
-    [lmcFechamentoByProduct]
+    () => computeEffectiveStock(lmcStarvlFechamento),
+    [lmcStarvlFechamento]
   );
 
   const active    = list.find(e => e.produtoCodigo === selFuel) || list[0] || null;
   const activeCod = active?.produtoCodigo;
-  // Prioridade: fechamento/físico > backend estimado
   const lmcStock  = activeCod != null && effectiveStockMap[activeCod] != null
     ? effectiveStockMap[activeCod]
-    : (active?.estoqueEstimado ?? active?.estoqueTotal ?? 0);
+    : 0;
   const stockVal  = lmcStock;
   const fuelPct   = active?.capacidadeTotal > 0
     ? Math.min(100, (lmcStock / active.capacidadeTotal) * 100)
@@ -6631,7 +6596,7 @@ const FuelStationCard = ({ estoques = [], lmcSaldos = [], lmcControle = [], lmcS
         selected={selFuel || list[0]?.produtoCodigo}
         onSelect={handleSelect}
         dark={dark}
-        lmcFechamento={lmcFechamentoByProduct}
+        effectiveStock={effectiveStockMap}
       />
 
       {/* ── Tanque com animação 3D coverflow ── */}
@@ -6924,7 +6889,7 @@ const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcContr
       </div>
     ),
     stock: (
-      <FuelStationCard estoques={estoquesList} lmcSaldos={lmcSaldos} lmcControle={lmcControle} lmcStarvlFechamento={lmcStarvlFechamento} themeMode={themeMode} />
+      <FuelStationCard estoques={estoquesList} lmcStarvlFechamento={lmcStarvlFechamento} themeMode={themeMode} />
     ),
     purchases: (
       <div className="chart-card">
@@ -7250,25 +7215,6 @@ function computeEffectiveStock(starvlFechamentos = []) {
   (starvlFechamentos || []).forEach(f => {
     const cod = Number(f.codProduto);
     const fechamento = f.fechamento ?? 0;
-    const fisico = getCurrentMonthEndPhysicalStock(cod, fisicoEdits);
-    result[cod] = fisico ?? fechamento;
-  });
-  return result;
-}
-
-/**
- * Calcula o estoque efetivo em tempo real a partir de lmcSaldos + lmcControle
- * (mesma fórmula da aba Livros), sem depender do sync starvl_lmc.
- * Aplica a regra: se o usuário informou ESTOQUE FÍSICO > 0 para o último dia do mês corrente
- * usa físico. Caso contrário usa ESTOQUE FECHAMENTO.
- */
-function computeRealTimeEffectiveStock(lmcFechamentoByProduct = {}) {
-  let fisicoEdits = {};
-  try { fisicoEdits = JSON.parse(localStorage.getItem('starvl:lmc-fisico') || '{}'); } catch { /* ignore */ }
-
-  const result = {};
-  Object.entries(lmcFechamentoByProduct).forEach(([codStr, fechamento]) => {
-    const cod = Number(codStr);
     const fisico = getCurrentMonthEndPhysicalStock(cod, fisicoEdits);
     result[cod] = fisico ?? fechamento;
   });
@@ -14882,7 +14828,7 @@ const EstoqueManager = ({ estoques, projecao, loading, selectedClient, clients, 
         </div>
       </div>
       {tab === 'pista'
-        ? <StockPosition estoques={estoques} projecao={projecao} loading={loading} selectedClient={selectedClient} clients={clients} lmcSaldos={lmcSaldos} lmcControle={lmcControle} lmcStarvlFechamento={lmcStarvlFechamento} />
+        ? <StockPosition estoques={estoques} projecao={projecao} loading={loading} selectedClient={selectedClient} clients={clients} lmcStarvlFechamento={lmcStarvlFechamento} />
         : <ConvenienciaManager themeMode={themeMode} selectedClient={selectedClient} clients={clients} />
       }
     </div>
@@ -14890,7 +14836,7 @@ const EstoqueManager = ({ estoques, projecao, loading, selectedClient, clients, 
 };
 
 // Stock Position Component
-const StockPosition = ({ estoques, projecao, loading, selectedClient, clients, lmcSaldos = [], lmcControle = [], lmcStarvlFechamento = [] }) => {
+const StockPosition = ({ estoques, projecao, loading, selectedClient, clients, lmcStarvlFechamento = [] }) => {
   const [selectedFuelId, setSelectedFuelId] = useState(null);
   const getDateInput = (date) => {
     const year = date.getFullYear();
@@ -14912,30 +14858,6 @@ const StockPosition = ({ estoques, projecao, loading, selectedClient, clients, l
   const [projectionLoading, setProjectionLoading] = useState(false);
   const [projectionError, setProjectionError] = useState(null);
 
-  // Fechamento LMC = mesma fórmula da aba Livros: abertura + compras + afericoes - vendas
-  const lmcFechamentoByProduct = useMemo(() => {
-    const result = {};
-    (lmcSaldos || []).forEach(r => {
-      result[Number(r.combustivelCodigo)] = Number(r.abertura || 0);
-    });
-    const movByProd = {};
-    (lmcControle || []).forEach(r => {
-      const cod = Number(r.codProduto);
-      if (!movByProd[cod]) movByProd[cod] = [];
-      movByProd[cod].push(r);
-    });
-    Object.entries(movByProd).forEach(([codStr, rows]) => {
-      const cod = Number(codStr);
-      rows.sort((a, b) => String(a.emissao || '').localeCompare(String(b.emissao || '')));
-      let saldo = result[cod] ?? 0;
-      rows.forEach(r => {
-        saldo += Number(r.compra110 || 0) + Number(r.compra220 || 0) + Number(r.afericao || 0) - Number(r.venda || 0);
-      });
-      result[cod] = saldo;
-    });
-    return result;
-  }, [lmcSaldos, lmcControle]);
-
   const estoquesList = estoques || [];
   const activeFuel = estoquesList.find(e => e.produtoCodigo === selectedFuelId) || estoquesList[0];
   const projectionRows = projectionData.projecoes || projecao || [];
@@ -14943,15 +14865,15 @@ const StockPosition = ({ estoques, projecao, loading, selectedClient, clients, l
 
   const fmtR = fmtBRL;
 
-  // Estoque efetivo: físico do último dia do mês corrente, senão fechamento.
+  // Estoque efetivo: físico do último dia do mês corrente, senão fechamento salvo pelo STARVL.
   const effectiveStockMapSP = useMemo(
-    () => computeRealTimeEffectiveStock(lmcFechamentoByProduct),
-    [lmcFechamentoByProduct]
+    () => computeEffectiveStock(lmcStarvlFechamento),
+    [lmcStarvlFechamento]
   );
   const activeCod = activeFuel?.produtoCodigo;
   const lmcStock  = activeCod != null && effectiveStockMapSP[activeCod] != null
     ? effectiveStockMapSP[activeCod]
-    : (activeFuel?.estoqueTotal || 0);
+    : 0;
   const custoMedioEstoque = Number(activeFuel?.custoMedio || 0);
   const valorEstoqueEfetivo = custoMedioEstoque > 0
     ? lmcStock * custoMedioEstoque
