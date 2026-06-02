@@ -13503,10 +13503,9 @@ const ControlPrintPanel = ({ fuels, filters, setFilters, onClose, onGenerate }) 
 const LmcPlanilha = ({ selectedClient, clients, themeMode }) => {
   const dark = themeMode !== 'light';
 
-  const getEmpresa = useCallback(() => {
-    if (!clients || !selectedClient) return null;
-    const c = clients.find(cl => cl.sc_codigo === selectedClient);
-    return c ? c.sc_codigo : selectedClient;
+  const empresa = useMemo(() => {
+    const c = (clients || []).find(cl => cl.nome === selectedClient) || (clients || [])[0];
+    return c?.codigoEmpresa || null;
   }, [clients, selectedClient]);
 
   // Período padrão: mês atual
@@ -13529,13 +13528,12 @@ const LmcPlanilha = ({ selectedClient, clients, themeMode }) => {
   });
 
   const fetchData = useCallback(async (p) => {
-    const empresa = getEmpresa();
     if (!empresa || !p) return;
     setLoading(true);
     setError(null);
     try {
-      const [m, y] = p.split('/');
-      const periodo = `${m}${y}`;
+      const [mRaw, yRaw] = p.split('/');
+      const periodo = `${String(Number(mRaw)).padStart(2, '0')}${yRaw}`;
       const resp = await fetch(`${API_URL}/api/lmc/planilha?empresa=${empresa}&periodo=${periodo}`);
       const data = await resp.json();
       if (data.error) { setError(data.error); return; }
@@ -13551,9 +13549,9 @@ const LmcPlanilha = ({ selectedClient, clients, themeMode }) => {
     } finally {
       setLoading(false);
     }
-  }, [getEmpresa]);
+  }, [empresa]);
 
-  useEffect(() => { fetchData(period); }, [fetchData, period, selectedClient]);
+  useEffect(() => { fetchData(period); }, [fetchData, period]);
 
   // Formatar número BR sem símbolo (litros)
   const fmtLit = (v) => {
