@@ -342,21 +342,38 @@ router.get('/planilha', async (req, res) => {
       []
     );
 
-    // 2. Compras por dia (entcpivol1+2+3, ambos tipos 110 e 220)
-    const comprasResult = await query(
-      `SELECT DATE(r.entcpachegada)                                   AS dia,
-              t.entcpiproduto                                           AS produto,
+    // 2a. Compras 110 por dia — entcpi (vol1+vol2+vol3), data = entcpachegada
+    const compras110Result = await query(
+      `SELECT DATE(r.entcpachegada)                          AS dia,
+              t.entcpiproduto                                 AS produto,
               SUM(COALESCE(t.entcpivol1,0)
                 + COALESCE(t.entcpivol2,0)
-                + COALESCE(t.entcpivol3,0))                            AS total
+                + COALESCE(t.entcpivol3,0))                  AS total
        FROM entcpi t
-       JOIN entcpa r ON r.entcpacodigo = t.entcpicompra
-                    AND r.entcpaempresa = $1
-       JOIN prod   p ON p.prodcodigo   = t.entcpiproduto
+       JOIN entcpa r ON r.entcpacodigo  = t.entcpicompra
+                    AND r.entcpaempresa  = $1
+       JOIN prod   p ON p.prodcodigo    = t.entcpiproduto
        WHERE t.entcpiempresa = $1
          AND p.prodtipo = 1
          AND DATE(r.entcpachegada) BETWEEN $2 AND $3
        GROUP BY DATE(r.entcpachegada), t.entcpiproduto`,
+      [empresa, dataInicio, dataFim]
+    );
+
+    // 2b. Compras 220 por dia — pede/pedi (pediqtd), data = pededatarecebimento
+    const compras220Result = await query(
+      `SELECT DATE(d.pededatarecebimento) AS dia,
+              e.pediproduto               AS produto,
+              SUM(e.pediqtd)              AS total
+       FROM pede d
+       JOIN pedi e ON e.pedicodigopede = d.pedecodigo
+                  AND e.pediempresa    = d.pedeempresa
+       JOIN prod p ON p.prodcodigo     = e.pediproduto
+       WHERE d.pedeempresa = $1
+         AND p.prodtipo = 1
+         AND d.pededatarecebimento IS NOT NULL
+         AND DATE(d.pededatarecebimento) BETWEEN $2 AND $3
+       GROUP BY DATE(d.pededatarecebimento), e.pediproduto`,
       [empresa, dataInicio, dataFim]
     );
 
@@ -400,8 +417,8 @@ router.get('/planilha', async (req, res) => {
       [empresa, prevLastDay]
     );
 
-    // Montar maps: produto -> { 'YYYY-MM-DD': valor }
-    const toMap = (rows, valKey = 'total') => {
+    // Montar map simples: produto -> { 'YYYY-MM-DD': valor }
+    const toMap = (rows) => {
       const m = {};
       rows.forEach(r => {
         const prod = r.produto;
@@ -409,10 +426,21 @@ router.get('/planilha', async (req, res) => {
           ? r.dia.toISOString().split('T')[0]
           : String(r.dia).substring(0, 10);
         if (!m[prod]) m[prod] = {};
-        m[prod][dia] = parseFloat(r[valKey] || 0);
+        m[prod][dia] = parseFloat(r.total || 0);
       });
       return m;
     };
+
+    // Somar compras110 + compras220 no mesmo mapa (por produto e dia)
+    const comprasMap = toMap(compras110Result.rows);
+    compras220Result.rows.forEach(r => {
+      const prod = r.produto;
+      const dia  = r.dia instanceof Date
+        ? r.dia.toISOString().split('T')[0]
+        : String(r.dia).substring(0, 10);
+      if (!comprasMap[prod]) comprasMap[prod] = {};
+      comprasMap[prod][dia] = (comprasMap[prod][dia] || 0) + parseFloat(r.total || 0);
+    });
 
     const aberturas = {};
     aberturaResult.rows.forEach(r => {
@@ -426,10 +454,10 @@ router.get('/planilha', async (req, res) => {
         codigo: r.prodcodigo,
         nome:   r.prodresumo,
       })),
-      comprasMap: toMap(comprasResult.rows),
-      vendasMap:  toMap(vendasResult.rows),
-      aferMap:    toMap(aferResult.rows),
-      aberturas,  // produto -> fechamento último dia mês anterior
+      comprasMap,
+      vendasMap: toMap(vendasResult.rows),
+      aferMap:   toMap(aferResult.rows),
+      aberturas, // produto -> fechamento último dia mês anterior
     });
   } catch (err) {
     console.error('Error in /lmc/planilha:', err.message);
