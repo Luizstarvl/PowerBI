@@ -4511,101 +4511,167 @@ const FluxoCaixa = ({ clients, selectedClient, themeMode }) => {
     );
   };
 
+  const dark = themeMode !== 'light';
+  const saldo = (resumo.entradas || 0) - (resumo.saidas || 0);
+  const diverg = resumo.divergencia || 0;
+  const hasDiverg = diverg > 0;
+
+  // ── estilos inline reutilizáveis ─────────────────────────────────────────
+  const card = (accent) => ({
+    background: dark ? '#0d1117' : '#f8fafc',
+    border: `1px solid ${accent}33`,
+    borderRadius: 12,
+    padding: '14px 18px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 4,
+    flex: 1,
+    minWidth: 0,
+    borderLeft: `3px solid ${accent}`,
+  });
+
   return (
-    <div className="cpdv-page">
-      <div className="cpdv-header">
-        <div className="cpdv-header-title">
-          <Wallet size={20} style={{ color: '#ef4444' }} />
-          CONFERÊNCIA DE CAIXA (PDV)
+    <div className="cpdv-page" style={{ gap: 12 }}>
+
+      {/* ── Cabeçalho ─────────────────────────────────────────────────────── */}
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        background: dark ? '#121416' : '#fff',
+        border: `1px solid ${dark ? 'rgba(148,163,184,.16)' : '#e2e8f0'}`,
+        borderRadius: 10, padding: '12px 18px',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ width: 36, height: 36, borderRadius: 8, background: '#ef444418', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Wallet size={18} style={{ color: '#ef4444' }} />
+          </div>
+          <div>
+            <div style={{ fontSize: 15, fontWeight: 800, color: dark ? '#f1f5f9' : '#111827', letterSpacing: '0.03em' }}>
+              CONFERÊNCIA DE CAIXA
+            </div>
+            <div style={{ fontSize: 11, color: '#64748b', marginTop: 1 }}>PDV — Fluxo do caixa diário</div>
+          </div>
         </div>
-        <button
-          className="btn-primary control-print-generate cpdv-print-btn"
-          onClick={() => setImpressaoOpen(true)}
-          title="Imprimir Conferência de Caixa"
-        >
-          <Printer size={16} /> IMPRIMIR RELATÓRIO
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <input
+            type="date"
+            className="cpdv-date-input"
+            value={data}
+            onChange={e => { setData(e.target.value); setSelectedCaixa(null); setCaixaPayload(null); setPayload(null); }}
+            style={{ colorScheme: dark ? 'dark' : 'light', fontSize: 13, padding: '5px 10px' }}
+          />
+          <button
+            className="btn-primary control-print-generate cpdv-print-btn"
+            onClick={() => setImpressaoOpen(true)}
+          >
+            <Printer size={15} /> IMPRIMIR
+          </button>
+        </div>
       </div>
 
-      <div className="cpdv-caixas-bar">
-        <span className="cpdv-caixas-label">Caixas do Dia</span>
-        {caixas.map(cxa => (
-          <button
-            key={cxa.numero}
-            className={`cpdv-caixa-tab${selectedCaixa === cxa.numero ? ' active' : ''}`}
-            onClick={() => { setSelectedCaixa(cxa.numero); setCaixaPayload(null); }}
-          >
-            Caixa {cxa.numero}
-          </button>
-        ))}
-        <input
-          type="date"
-          className="cpdv-date-input"
-          value={data}
-          onChange={e => { setData(e.target.value); setSelectedCaixa(null); setCaixaPayload(null); setPayload(null); }}
-          style={{ marginLeft: 'auto', colorScheme: themeMode === 'light' ? 'light' : 'dark' }}
-        />
+      {/* ── Seletor de caixas ──────────────────────────────────────────────── */}
+      <div style={{
+        background: dark ? '#121416' : '#fff',
+        border: `1px solid ${dark ? 'rgba(148,163,184,.16)' : '#e2e8f0'}`,
+        borderRadius: 10, padding: '10px 18px',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.08em', marginRight: 4 }}>
+            Caixas do dia
+          </span>
+          {loading && !payload
+            ? <span style={{ fontSize: 11, color: '#64748b' }}>Carregando...</span>
+            : caixas.length === 0
+              ? <span style={{ fontSize: 11, color: '#64748b' }}>Nenhum caixa encontrado.</span>
+              : caixas.map(cxa => (
+                  <button
+                    key={cxa.numero}
+                    className={`cpdv-caixa-tab${selectedCaixa === cxa.numero ? ' active' : ''}`}
+                    onClick={() => { setSelectedCaixa(cxa.numero); setCaixaPayload(null); }}
+                  >
+                    Caixa {cxa.numero}
+                  </button>
+                ))
+          }
+        </div>
+
+        {/* Info do caixa selecionado */}
         {currentCaixa && (
-          <div className="cpdv-caixas-info">
-            <div className="cpdv-info-item">
-              <div>
-                <div className="cpdv-info-label">Operador</div>
-                <div className="cpdv-info-value">{currentCaixa.operador}</div>
-              </div>
+          <div style={{
+            marginTop: 10,
+            paddingTop: 10,
+            borderTop: `1px solid ${dark ? 'rgba(148,163,184,.1)' : '#f1f5f9'}`,
+            display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap',
+          }}>
+            <div>
+              <div style={{ fontSize: 9, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 2 }}>Operador</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: dark ? '#f1f5f9' : '#111827' }}>{currentCaixa.operador}</div>
             </div>
             {[
-              { label: 'Data Abertura', value: currentCaixa.abertura },
-              { label: 'Data Fechamento', value: currentCaixa.fechamento },
-              { label: 'Data Conferencia', value: currentCaixa.conferidoEm },
-            ].map(({ label, value }) => (
-              <div key={label} className="cpdv-info-item">
-                <Calendar size={11} style={{ color: '#ef4444', flexShrink: 0 }} />
+              { label: 'Abertura', value: currentCaixa.abertura, color: '#22c55e' },
+              { label: 'Fechamento', value: currentCaixa.fechamento, color: '#ef4444' },
+              { label: 'Conferência', value: currentCaixa.conferidoEm, color: '#f59e0b' },
+            ].map(({ label, value, color }) => value ? (
+              <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div style={{ width: 6, height: 6, borderRadius: '50%', background: color, flexShrink: 0 }} />
                 <div>
-                  <div className="cpdv-info-label">{label}</div>
-                  <div className="cpdv-info-value">{fmtDateTime(value)}</div>
+                  <div style={{ fontSize: 9, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 2 }}>{label}</div>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: dark ? '#e2e8f0' : '#374151' }}>{fmtDateTime(value)}</div>
                 </div>
               </div>
-            ))}
+            ) : null)}
           </div>
         )}
       </div>
 
       {error && <div className="api-error-notice"><AlertCircle size={18} /> {error}</div>}
 
-      {/* Resumo rápido */}
-      {payload && (resumo.entradas > 0 || resumo.saidas > 0) && (
-        <div className="cpdv-quick-summary">
-          <div className="cpdv-qs-item">
-            <span className="cpdv-qs-label"><TrendingUp size={11} /> Entradas</span>
-            <span className="cpdv-qs-value green">{fmtBRL(resumo.entradas || 0)}</span>
+      {/* ── Cards KPI ─────────────────────────────────────────────────────── */}
+      {payload && (
+        <div style={{ display: 'flex', gap: 10 }}>
+          <div style={card('#22c55e')}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+              <TrendingUp size={11} style={{ color: '#22c55e' }} /> Entradas
+            </div>
+            <div style={{ fontSize: 20, fontWeight: 800, color: '#22c55e', fontVariantNumeric: 'tabular-nums' }}>
+              {fmtBRL(resumo.entradas || 0)}
+            </div>
           </div>
-          <div className="cpdv-qs-sep" />
-          <div className="cpdv-qs-item">
-            <span className="cpdv-qs-label"><TrendingDown size={11} /> Saídas</span>
-            <span className="cpdv-qs-value red">{fmtBRL(resumo.saidas || 0)}</span>
+          <div style={card('#ef4444')}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+              <TrendingDown size={11} style={{ color: '#ef4444' }} /> Saídas
+            </div>
+            <div style={{ fontSize: 20, fontWeight: 800, color: '#ef4444', fontVariantNumeric: 'tabular-nums' }}>
+              {fmtBRL(resumo.saidas || 0)}
+            </div>
           </div>
-          <div className="cpdv-qs-sep" />
-          <div className="cpdv-qs-item">
-            <span className="cpdv-qs-label">Saldo Líquido</span>
-            <span className={`cpdv-qs-value ${((resumo.entradas || 0) - (resumo.saidas || 0)) >= 0 ? 'green' : 'red'}`}>
-              {fmtBRL((resumo.entradas || 0) - (resumo.saidas || 0))}
-            </span>
+          <div style={card(saldo >= 0 ? '#22c55e' : '#ef4444')}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+              Saldo Líquido
+            </div>
+            <div style={{ fontSize: 20, fontWeight: 800, color: saldo >= 0 ? '#22c55e' : '#ef4444', fontVariantNumeric: 'tabular-nums' }}>
+              {fmtBRL(saldo)}
+            </div>
           </div>
-          {(resumo.divergencia || 0) > 0 && (
-            <>
-              <div className="cpdv-qs-sep" />
-              <div className="cpdv-qs-item">
-                <span className="cpdv-qs-label"><AlertTriangle size={11} /> Divergência</span>
-                <span className="cpdv-qs-value" style={{ color: '#f59e0b' }}>{fmtBRL(resumo.divergencia)}</span>
+          <div style={card(hasDiverg ? '#f59e0b' : '#334155')}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+              {hasDiverg && <AlertTriangle size={11} style={{ color: '#f59e0b' }} />} Divergência
+            </div>
+            <div style={{ fontSize: 20, fontWeight: 800, color: hasDiverg ? '#f59e0b' : (dark ? '#334155' : '#d1d5db'), fontVariantNumeric: 'tabular-nums' }}>
+              {hasDiverg ? fmtBRL(diverg) : '—'}
+            </div>
+            {!hasDiverg && (
+              <div style={{ fontSize: 10, color: '#22c55e', display: 'flex', alignItems: 'center', gap: 4 }}>
+                <CheckCircle size={10} /> Caixa conferido
               </div>
-            </>
-          )}
+            )}
+          </div>
         </div>
       )}
 
+      {/* ── Conteúdo principal ────────────────────────────────────────────── */}
       <div className="cpdv-main">
         <div className="cpdv-left">
-          {loading && !payload && <div className="cpdv-empty">Carregando...</div>}
+          {loading && !payload && <div className="cpdv-empty" style={{ padding: 40 }}>Carregando...</div>}
           {(!loading || payload) && (
             <div className="cpdv-columns">
               <div className="cpdv-col">
@@ -4629,6 +4695,7 @@ const FluxoCaixa = ({ clients, selectedClient, themeMode }) => {
         </div>
 
         <div className="cpdv-right">
+          {/* Linha do tempo */}
           <div className="cpdv-timeline-panel">
             <div className="cpdv-panel-header">
               <h4><Activity size={11} /> LINHA DO TEMPO</h4>
@@ -4656,11 +4723,9 @@ const FluxoCaixa = ({ clients, selectedClient, themeMode }) => {
               ))}
               {!loading && timeline.length === 0 && <div className="cpdv-empty">Nenhum evento.</div>}
             </div>
-            {timeline.length > 0 && (
-              <div className="cpdv-timeline-ver-mais">Ver todos os eventos</div>
-            )}
           </div>
 
+          {/* Tanques */}
           <div className="cpdv-tanks-panel">
             <div className="cpdv-panel-header">
               <h4><Droplet size={11} /> MEDIÇÃO DE TANQUES</h4>
@@ -4677,30 +4742,28 @@ const FluxoCaixa = ({ clients, selectedClient, themeMode }) => {
                   </div>
                 </div>
               ))}
-              {!loading && tanques.length === 0 && <div className="cpdv-empty" style={{ gridColumn: '1/-1' }}>Sem medicao cadastrada.</div>}
+              {!loading && tanques.length === 0 && <div className="cpdv-empty" style={{ gridColumn: '1/-1' }}>Sem medição cadastrada.</div>}
             </div>
-            {tanques.length > 0 && (
-              <div className="cpdv-timeline-ver-mais">Ver todos os tanques</div>
-            )}
           </div>
         </div>
       </div>
 
-      <div className={`cpdv-footer${(resumo.divergencia || 0) > 0 ? ' divergencia' : ''}`}>
-        {(resumo.divergencia || 0) > 0 ? (
+      {/* ── Footer sticky ─────────────────────────────────────────────────── */}
+      <div className={`cpdv-footer${hasDiverg ? ' divergencia' : ''}`}>
+        {hasDiverg ? (
           <>
             <AlertTriangle size={20} style={{ color: '#f59e0b' }} />
             <span className="cpdv-footer-label">DIVERGÊNCIA</span>
-            <span className="cpdv-footer-value">{fmtBRL(resumo.divergencia)}</span>
+            <span className="cpdv-footer-value">{fmtBRL(diverg)}</span>
             <span className="cpdv-footer-sub">Conferir caixa</span>
           </>
         ) : (
           <>
-            <UserCheck size={20} style={{ color: '#22c55e' }} />
-            <span className="cpdv-footer-value" style={{ color: '#22c55e', fontSize: 15 }}>Caixa Conferido</span>
+            <CheckCircle size={18} style={{ color: '#22c55e' }} />
+            <span className="cpdv-footer-value" style={{ color: '#22c55e', fontSize: 14 }}>Caixa Conferido</span>
           </>
         )}
-        {resumo.entradas > 0 || resumo.saidas > 0 ? (
+        {(resumo.entradas > 0 || resumo.saidas > 0) && (
           <div className="cpdv-footer-saldo">
             <div className="cpdv-footer-saldo-row">
               <span className="cpdv-footer-saldo-label"><TrendingUp size={11} /> Entradas</span>
@@ -4711,19 +4774,14 @@ const FluxoCaixa = ({ clients, selectedClient, themeMode }) => {
               <span className="cpdv-footer-saldo-val red">{fmtBRL(resumo.saidas || 0)}</span>
             </div>
             <div className="cpdv-footer-saldo-bar">
-              <div
-                className="cpdv-footer-saldo-fill"
-                style={{ width: `${Math.min(100, resumo.entradas > 0 ? ((resumo.entradas - resumo.saidas) / resumo.entradas) * 100 : 0)}%` }}
-              />
+              <div className="cpdv-footer-saldo-fill" style={{ width: `${Math.min(100, resumo.entradas > 0 ? ((resumo.entradas - resumo.saidas) / resumo.entradas) * 100 : 0)}%` }} />
             </div>
             <div className="cpdv-footer-saldo-row" style={{ marginTop: 4 }}>
               <span className="cpdv-footer-saldo-label">Saldo Líquido</span>
-              <span className={`cpdv-footer-saldo-val ${(resumo.entradas - resumo.saidas) >= 0 ? 'green' : 'red'}`}>
-                {fmtBRL((resumo.entradas || 0) - (resumo.saidas || 0))}
-              </span>
+              <span className={`cpdv-footer-saldo-val ${saldo >= 0 ? 'green' : 'red'}`}>{fmtBRL(saldo)}</span>
             </div>
           </div>
-        ) : null}
+        )}
       </div>
 
       {detalheItem && selectedCaixa && (
