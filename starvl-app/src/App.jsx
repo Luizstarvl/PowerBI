@@ -4538,16 +4538,13 @@ const FluxoCaixa = ({ clients, selectedClient, themeMode }) => {
             Caixa {cxa.numero}
           </button>
         ))}
-        <div className="cpdv-date-wrapper" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
-          <Calendar size={14} style={{ color: '#ef4444', flexShrink: 0 }} />
-          <input
-            type="date"
-            className="cpdv-date-input"
-            value={data}
-            onChange={e => { setData(e.target.value); setSelectedCaixa(null); setCaixaPayload(null); setPayload(null); }}
-            style={{ colorScheme: themeMode === 'light' ? 'light' : 'dark' }}
-          />
-        </div>
+        <input
+          type="date"
+          className="cpdv-date-input"
+          value={data}
+          onChange={e => { setData(e.target.value); setSelectedCaixa(null); setCaixaPayload(null); setPayload(null); }}
+          style={{ marginLeft: 'auto', colorScheme: themeMode === 'light' ? 'light' : 'dark' }}
+        />
         {currentCaixa && (
           <div className="cpdv-caixas-info">
             <div className="cpdv-info-item">
