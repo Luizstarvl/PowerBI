@@ -7180,6 +7180,85 @@ function buildStarvlRows(registros = [], fuelId, fisicoEdits = {}, selectedPerio
   });
 }
 
+/**
+ * Gera linhas de entrada manual para todos os dias do período.
+ * Fonte: starvl_lmc salvo (base) + movEdits em memória (sobrescreve).
+ * Abertura do dia 1 editável; demais = fechamento do dia anterior (encadeado).
+ */
+function buildManualRows(fuelId, period, starvlRegistros, movEdits, fisicoEdits, aberturaD1Edit) {
+  if (!fuelId || !period) return [];
+  const [monthStr, yearStr] = period.split('/');
+  const month = Number(monthStr), year = Number(yearStr);
+  if (!month || !year) return [];
+
+  const today = new Date();
+  const isCurrentMonth = year === today.getFullYear() && month === today.getMonth() + 1;
+  const lastDay = isCurrentMonth
+    ? today.getDate()
+    : new Date(year, month, 0).getDate();
+
+  // starvl_lmc já salvo, indexado por dayKey
+  const starvlMap = {};
+  (starvlRegistros || [])
+    .filter(r => Number(r.codProduto) === Number(fuelId))
+    .forEach(r => { starvlMap[r.emissao] = r; });
+
+  const d1Key   = `${year}-${String(month).padStart(2, '0')}-01`;
+  const d1EditKey = `${period}|${fuelId}`;
+  const d1Raw   = aberturaD1Edit[d1EditKey];
+
+  // Abertura do dia 1: edição in-memory > starvl_lmc > 0
+  let chain = d1Raw != null
+    ? parseControlNumber(d1Raw)
+    : parseFloat(starvlMap[d1Key]?.abertura ?? 0);
+
+  const rows = [];
+  for (let d = 1; d <= lastDay; d++) {
+    const pad    = String(d).padStart(2, '0');
+    const dayKey = `${year}-${String(month).padStart(2, '0')}-${pad}`;
+    const editKey = `${period}|${fuelId}|${dayKey}`;
+    const sr     = starvlMap[dayKey];
+    const edit   = movEdits[editKey] || {};
+
+    const abertura   = chain;
+    const compras110 = edit.compras110 != null ? parseControlNumber(edit.compras110) : parseFloat(sr?.compras110 ?? 0);
+    const compras220 = edit.compras220 != null ? parseControlNumber(edit.compras220) : parseFloat(sr?.compras220 ?? 0);
+    const afericoes  = edit.afericoes  != null ? parseControlNumber(edit.afericoes)  : parseFloat(sr?.afericoes  ?? 0);
+    const vendas     = edit.vendas     != null ? parseControlNumber(edit.vendas)     : parseFloat(sr?.vendas     ?? 0);
+    const fechamento = abertura + compras110 + compras220 + afericoes - vendas;
+
+    const fisicoKey = `${period}|${fuelId}|${dayKey}`;
+    const fisicoRaw = fisicoEdits[fisicoKey];
+    const hasFisico = fisicoRaw != null && String(fisicoRaw).trim() !== '';
+    const fisico    = hasFisico ? parseControlNumber(fisicoRaw) : 0;
+    const perdas    = hasFisico ? fisico - fechamento : 0;
+
+    // Display values for inputs
+    const aberturaInput = d === 1
+      ? (d1Raw ?? (sr ? formatControlInputNumber(abertura) : ''))
+      : formatControlInputNumber(abertura);
+
+    rows.push({
+      key: editKey, dayKey, fuelId, period,
+      dia: formatDayBR(dayKey), data: formatFullDateBR(dayKey),
+      isFirstDay: d === 1,
+      abertura, compras110, compras220, afericoes, vendas, fechamento,
+      fisico, hasFisico, fisicoKey,
+      fisicoInput: hasFisico ? fisicoRaw : '',
+      perdas,
+      // Input display values
+      aberturaInput,
+      c110Input:  edit.compras110  != null ? edit.compras110  : (sr ? formatControlInputNumber(sr.compras110) : ''),
+      c220Input:  edit.compras220  != null ? edit.compras220  : (sr ? formatControlInputNumber(sr.compras220) : ''),
+      aferInput:  edit.afericoes   != null ? edit.afericoes   : (sr ? formatControlInputNumber(sr.afericoes)  : ''),
+      vendaInput: edit.vendas      != null ? edit.vendas      : (sr ? formatControlInputNumber(sr.vendas)     : ''),
+    });
+
+    chain = fechamento;
+  }
+  return rows;
+}
+
 function getCurrentDayInfo() {
   const today = new Date();
   const year = today.getFullYear();
@@ -12785,183 +12864,103 @@ const DREFFilterPanel = ({ filters, setFilters, onClose, onGenerate }) => (
 );
 
 // Control Component
-const Control = ({ lmcRegistros, lmcDiario, lmcControle, selectedPeriod, setSelectedPeriod, selectedClient, clients }) => {
+const Control = ({ selectedPeriod, setSelectedPeriod, selectedClient, clients, estoques = [] }) => {
   const [selectedFuelId, setSelectedFuelId] = useState(null);
   const [showPrintPanel, setShowPrintPanel] = useState(false);
   const [printFilters, setPrintFilters] = useState({
-    dataInicial: '',
-    dataFinal: '',
-    tipo: 'resumido',
-    produto: 'all',
-    formato: 'pdf',
+    dataInicial: '', dataFinal: '', tipo: 'resumido', produto: 'all', formato: 'pdf',
   });
-  const [fisicoEdits, setFisicoEdits] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem('starvl:lmc-fisico') || '{}');
-    } catch {
-      return {};
-    }
-  });
-  const [aberturaEdits, setAberturaEdits] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem('starvl:lmc-abertura') || '{}');
-    } catch {
-      return {};
-    }
-  });
-  // anchoredDays: { [aberturaKey]: true } — dias "ancorados" têm abertura editável
-  const [anchoredDays, setAnchoredDays] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem('starvl:lmc-anchors') || '{}');
-    } catch {
-      return {};
-    }
-  });
-  // selectedRowKey: qual linha está destacada no momento
-  const [selectedRowKey, setSelectedRowKey] = useState(null);
-  const [savedEditKey, setSavedEditKey] = useState(null);
 
-  // ── STARVL LMC — dados sincronizados do banco do cliente ──────────────────
+  // Físico: persiste em localStorage (salvo imediatamente ao digitar)
+  const [fisicoEdits, setFisicoEdits] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('starvl:lmc-fisico') || '{}'); } catch { return {}; }
+  });
+
+  // Movimentos: em memória (descartado ao mudar período/cliente; salvo com SALVAR)
+  const [movEdits,      setMovEdits]      = useState({});
+  const [aberturaD1Edit, setAberturaD1Edit] = useState({});
+
+  // starvl_lmc
   const [starvlRegistros, setStarvlRegistros] = useState([]);
-  const [syncing,         setSyncing]         = useState(false);
-  const [lastSync,        setLastSync]        = useState(null);
-  const [syncError,       setSyncError]       = useState(null);
+  const [loadingData,  setLoadingData]  = useState(false);
+  const [saving,       setSaving]       = useState(false);
+  const [saveError,    setSaveError]    = useState(null);
+  const [lastSaved,    setLastSaved]    = useState(null);
+  const [selectedRowKey, setSelectedRowKey] = useState(null);
 
   const getEmpresa = useCallback(() => {
     const c = (clients || []).find(cl => cl.nome === selectedClient) || (clients || [])[0];
     return c?.codigoEmpresa || null;
   }, [clients, selectedClient]);
 
-  const syncAndFetch = useCallback(async (period) => {
+  // Carrega apenas do starvl_lmc (sem sync com SGA)
+  const fetchStarvlData = useCallback(async (period) => {
     const empresa = getEmpresa();
     if (!empresa || !period) return;
-    const [monthRaw, yearRaw] = (period || '').split('/');
-    const month = Number(monthRaw);
-    const year  = Number(yearRaw);
-    if (!month || !year) return;
-    const periodo = `${String(month).padStart(2, '0')}${year}`; // MMYYYY
-
-    setSyncing(true);
-    setSyncError(null);
+    const [monthRaw, yearRaw] = period.split('/');
+    const periodo = `${String(Number(monthRaw)).padStart(2, '0')}${yearRaw}`;
+    setLoadingData(true);
     try {
-      await fetch(`${API_URL}/api/lmc-starvl/sync?empresa=${empresa}&periodo=${periodo}`, { method: 'POST' });
       const resp = await fetch(`${API_URL}/api/lmc-starvl?empresa=${empresa}&periodo=${periodo}`);
       const data = await resp.json();
-      if (!data.error) {
-        setStarvlRegistros(data.registros || []);
-        setLastSync(new Date());
-      } else {
-        setSyncError(data.error);
-      }
+      if (!data.error) setStarvlRegistros(data.registros || []);
     } catch (err) {
-      setSyncError(err.message);
+      console.error('fetchStarvlData:', err.message);
     } finally {
-      setSyncing(false);
+      setLoadingData(false);
     }
   }, [getEmpresa]);
 
   useEffect(() => {
     setStarvlRegistros([]);
-    syncAndFetch(selectedPeriod);
+    setMovEdits({});
+    setAberturaD1Edit({});
+    fetchStarvlData(selectedPeriod);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedPeriod, selectedClient]);
-  // ──────────────────────────────────────────────────────────────────────────
 
-  const fuels = [];
-  const seenFuels = new Set();
-  // Inclui produtos do starvl (fonte autoritativa)
-  (starvlRegistros || []).forEach(r => {
-    const codigo = Number(r.codProduto);
-    if (!seenFuels.has(codigo)) {
-      seenFuels.add(codigo);
-      fuels.push({ codigo, nome: r.descricaoProduto });
-    }
-  });
-  // Fallback: inclui produtos das fontes originais
-  (lmcControle || []).forEach(r => {
-    const codigo = Number(r.codProduto);
-    if (!seenFuels.has(codigo)) {
-      seenFuels.add(codigo);
-      fuels.push({ codigo, nome: r.descricaoProduto });
-    }
-  });
-  (lmcRegistros || []).forEach(r => {
-    const codigo = Number(r.combustivelCodigo);
-    if (!seenFuels.has(codigo)) {
-      seenFuels.add(codigo);
-      fuels.push({ codigo, nome: r.combustivelNome });
-    }
-  });
+  // Lista de combustíveis: estoques (tanques ativos) + starvl_lmc já salvo
+  const fuels = useMemo(() => {
+    const list = [], seen = new Set();
+    (estoques || []).filter(e => e.produtoNome).forEach(e => {
+      const cod = Number(e.produtoCodigo);
+      if (!seen.has(cod)) { seen.add(cod); list.push({ codigo: cod, nome: e.produtoNome }); }
+    });
+    (starvlRegistros || []).forEach(r => {
+      const cod = Number(r.codProduto);
+      if (!seen.has(cod)) { seen.add(cod); list.push({ codigo: cod, nome: r.descricaoProduto }); }
+    });
+    return list;
+  }, [estoques, starvlRegistros]);
 
   const activeFuelId = fuels.some(f => f.codigo === selectedFuelId)
     ? selectedFuelId
     : (fuels[0]?.codigo ?? null);
 
-  function getPeriodDateRange() {
-    const [monthRaw, yearRaw] = (selectedPeriod || '').split('/');
-    const month = Number(monthRaw);
-    const year = Number(yearRaw);
-    if (!month || !year) return { dataInicial: '', dataFinal: '' };
-    const lastDay = new Date(year, month, 0).getDate();
-    return {
-      dataInicial: `${year}-${String(month).padStart(2, '0')}-01`,
-      dataFinal: `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`,
-    };
+  // Linhas da tabela: todos os dias do período, entrada manual
+  const tableRows = useMemo(() => buildManualRows(
+    activeFuelId, selectedPeriod, starvlRegistros, movEdits, fisicoEdits, aberturaD1Edit
+  ), [activeFuelId, selectedPeriod, starvlRegistros, movEdits, fisicoEdits, aberturaD1Edit]);
+
+  const totals = tableRows.reduce((acc, r) => ({
+    compras110: acc.compras110 + r.compras110,
+    compras220: acc.compras220 + r.compras220,
+    afericoes:  acc.afericoes  + r.afericoes,
+    vendas:     acc.vendas     + r.vendas,
+    fisico:     acc.fisico     + r.fisico,
+    perdas:     acc.perdas     + r.perdas,
+  }), { compras110: 0, compras220: 0, afericoes: 0, vendas: 0, fisico: 0, perdas: 0 });
+
+  const hasUnsavedChanges = Object.keys(movEdits).length > 0 || Object.keys(aberturaD1Edit).length > 0;
+
+  // ── Handlers de edição ──────────────────────────────────────────────────────
+  function handleMovEdit(editKey, field, value) {
+    setMovEdits(prev => ({ ...prev, [editKey]: { ...(prev[editKey] || {}), [field]: value } }));
   }
 
-  function openPrintPanel() {
-    const range = getPeriodDateRange();
-    setPrintFilters(prev => ({
-      ...prev,
-      dataInicial: prev.dataInicial || range.dataInicial,
-      dataFinal: prev.dataFinal || range.dataFinal,
-      produto: activeFuelId ? String(activeFuelId) : prev.produto,
-    }));
-    setShowPrintPanel(true);
-  }
-
-  async function handleGeneratePrint() {
-    const client = (clients || []).find(c => c.nome === selectedClient) || (clients || [])[0];
-    const empresa = client ? client.codigoEmpresa : null;
-    if (!empresa) return;
-    const range = getPeriodDateRange();
-    const filters = {
-      ...printFilters,
-      dataInicial: printFilters.dataInicial || range.dataInicial,
-      dataFinal: printFilters.dataFinal || range.dataFinal,
-    };
-    if (filters.dataInicial > filters.dataFinal) {
-      toast('A data inicial não pode ser maior que a data final.', 'warn');
-      return;
-    }
-    try {
-      const reportData = await fetchControlDataForDateRange(empresa, filters.dataInicial, filters.dataFinal);
-      const reportFuels = getControlFuels(reportData.lmcRegistros, reportData.lmcControle);
-      const productName = filters.produto === 'all'
-        ? 'Todos os combustiveis'
-        : (reportFuels.find(f => String(f.codigo) === filters.produto)?.nome || fuels.find(f => String(f.codigo) === filters.produto)?.nome || 'Produto selecionado');
-      const rows = buildControlReportRows({
-        lmcRegistros: reportData.lmcRegistros,
-        lmcControle: reportData.lmcControle,
-        lmcDiario: reportData.lmcDiario,
-        selectedPeriod,
-        fisicoPeriodByDay: reportData.fisicoPeriodByDay,
-        fisicoEdits,
-        aberturaEdits,
-        produto: filters.produto,
-        dataInicial: filters.dataInicial,
-        dataFinal: filters.dataFinal,
-      });
-      exportControlReport({
-        rows,
-        filters,
-        productName,
-        clientName: selectedClient,
-      });
-      setShowPrintPanel(false);
-    } catch (err) {
-      toast(`Erro ao gerar relatório: ${getFriendlyApiError(err)}`, 'error');
-    }
+  function handleAberturaD1(value) {
+    const key = `${selectedPeriod}|${activeFuelId}`;
+    setAberturaD1Edit(prev => ({ ...prev, [key]: value }));
   }
 
   function persistFisicoEdit(key, value) {
@@ -12970,65 +12969,101 @@ const Control = ({ lmcRegistros, lmcDiario, lmcControle, selectedPeriod, setSele
       localStorage.setItem('starvl:lmc-fisico', JSON.stringify(next));
       return next;
     });
-    const savedKey = `fisico:${key}`;
-    setSavedEditKey(savedKey);
-    window.setTimeout(() => setSavedEditKey(current => current === savedKey ? null : current), 1200);
   }
 
-  function persistAberturaEdit(key, value) {
-    setAberturaEdits(prev => {
-      const next = { ...prev, [key]: value };
-      localStorage.setItem('starvl:lmc-abertura', JSON.stringify(next));
-      return next;
-    });
-    const savedKey = `abertura:${key}`;
-    setSavedEditKey(savedKey);
-    window.setTimeout(() => setSavedEditKey(current => current === savedKey ? null : current), 1200);
+  // ── Salvar no starvl_lmc ────────────────────────────────────────────────────
+  async function handleSave() {
+    const empresa = getEmpresa();
+    if (!empresa || !activeFuelId || tableRows.length === 0) return;
+    const fuelNome = fuels.find(f => f.codigo === activeFuelId)?.nome || 'Produto';
+    const [monthRaw, yearRaw] = selectedPeriod.split('/');
+    const periodo = `${String(Number(monthRaw)).padStart(2, '0')}${yearRaw}`;
+
+    setSaving(true);
+    setSaveError(null);
+    try {
+      const resp = await fetch(
+        `${API_URL}/api/lmc-starvl/save-period?empresa=${empresa}&periodo=${periodo}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            codProduto:  activeFuelId,
+            nomeProduto: fuelNome,
+            dias: tableRows.map(r => ({
+              data:       r.dayKey,
+              abertura:   r.abertura,
+              compras110: r.compras110,
+              compras220: r.compras220,
+              afericoes:  r.afericoes,
+              vendas:     r.vendas,
+              fechamento: r.fechamento,
+            })),
+          }),
+        }
+      );
+      const data = await resp.json();
+      if (data.ok) {
+        setLastSaved(new Date());
+        setMovEdits({});
+        setAberturaD1Edit({});
+        await fetchStarvlData(selectedPeriod);
+      } else {
+        setSaveError(data.error || 'Erro ao salvar');
+      }
+    } catch (err) {
+      setSaveError(err.message);
+    } finally {
+      setSaving(false);
+    }
   }
 
-  function toggleAnchor(aberturaKey) {
-    setAnchoredDays(prev => {
-      const next = { ...prev, [aberturaKey]: !prev[aberturaKey] };
-      localStorage.setItem('starvl:lmc-anchors', JSON.stringify(next));
-      return next;
-    });
-  }
-
-  function handleRowClick(key) {
-    setSelectedRowKey(prev => (prev === key ? null : key));
-  }
-
-  // Usa dados do STARVL quando disponíveis (abertura/fechamento já calculados)
-  // Fallback: buildControlReportRows com dados do banco do cliente
-  const hasStarvlData = starvlRegistros.length > 0;
-  const tableRows = hasStarvlData && activeFuelId
-    ? buildStarvlRows(starvlRegistros, activeFuelId, fisicoEdits, selectedPeriod)
-    : buildControlReportRows({
-        lmcRegistros,
-        lmcControle,
-        lmcDiario,
-        selectedPeriod,
-        fisicoEdits,
-        aberturaEdits,
-        produto: activeFuelId ? String(activeFuelId) : 'all',
-      });
-
-  const totals = tableRows.reduce((acc, r) => ({
-    compras110: acc.compras110 + r.compras110,
-    compras220: acc.compras220 + r.compras220,
-    afericoes: acc.afericoes + r.afericoes,
-    vendas: acc.vendas + r.vendas,
-    fisico: acc.fisico + r.fisico,
-    perdas: acc.perdas + r.perdas,
-  }), { compras110: 0, compras220: 0, afericoes: 0, vendas: 0, fisico: 0, perdas: 0 });
-
+  // ── Período ─────────────────────────────────────────────────────────────────
   const [periodoMes, periodoAno] = (selectedPeriod || '').split('/');
   function updatePeriod(nextMonth, nextYear) {
     const month = nextMonth || periodoMes || MONTH_OPTIONS[0].value;
-    const year = nextYear || periodoAno || String(new Date().getFullYear());
+    const year  = nextYear  || periodoAno  || String(new Date().getFullYear());
     setSelectedPeriod(`${month}/${year}`);
   }
 
+  function getPeriodDateRange() {
+    const [monthRaw, yearRaw] = (selectedPeriod || '').split('/');
+    const month = Number(monthRaw), year = Number(yearRaw);
+    if (!month || !year) return { dataInicial: '', dataFinal: '' };
+    const lastDay = new Date(year, month, 0).getDate();
+    return {
+      dataInicial: `${year}-${String(month).padStart(2, '0')}-01`,
+      dataFinal:   `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`,
+    };
+  }
+
+  function openPrintPanel() {
+    const range = getPeriodDateRange();
+    setPrintFilters(prev => ({
+      ...prev,
+      dataInicial: prev.dataInicial || range.dataInicial,
+      dataFinal:   prev.dataFinal   || range.dataFinal,
+      produto: activeFuelId ? String(activeFuelId) : prev.produto,
+    }));
+    setShowPrintPanel(true);
+  }
+
+  async function handleGeneratePrint() {
+    const fuelNome = fuels.find(f => f.codigo === activeFuelId)?.nome || 'Produto selecionado';
+    try {
+      exportControlReport({
+        rows: tableRows,
+        filters: printFilters,
+        productName: fuelNome,
+        clientName: selectedClient,
+      });
+      setShowPrintPanel(false);
+    } catch (err) {
+      toast(`Erro ao gerar relatório: ${getFriendlyApiError(err)}`, 'error');
+    }
+  }
+
+  // ── Render ──────────────────────────────────────────────────────────────────
   return (
     <div className="page-content">
       <style>{FUEL_STATION_CSS}</style>
@@ -13039,10 +13074,8 @@ const Control = ({ lmcRegistros, lmcDiario, lmcControle, selectedPeriod, setSele
             <label className="control-filter-label">ANO</label>
             <div className="control-filter-select">
               <Calendar size={15} />
-              <select value={periodoAno || ''} onChange={(e) => updatePeriod(periodoMes, e.target.value)}>
-                {PERIOD_YEARS.map(year => (
-                  <option key={year} value={year}>{year}</option>
-                ))}
+              <select value={periodoAno || ''} onChange={e => updatePeriod(periodoMes, e.target.value)}>
+                {PERIOD_YEARS.map(y => <option key={y} value={y}>{y}</option>)}
               </select>
             </div>
           </div>
@@ -13050,10 +13083,8 @@ const Control = ({ lmcRegistros, lmcDiario, lmcControle, selectedPeriod, setSele
             <label className="control-filter-label">MÊS</label>
             <div className="control-filter-select">
               <Calendar size={15} />
-              <select value={periodoMes || ''} onChange={(e) => updatePeriod(e.target.value, periodoAno)}>
-                {MONTH_OPTIONS.map(month => (
-                  <option key={month.value} value={month.value}>{month.label}</option>
-                ))}
+              <select value={periodoMes || ''} onChange={e => updatePeriod(e.target.value, periodoAno)}>
+                {MONTH_OPTIONS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
               </select>
             </div>
           </div>
@@ -13061,7 +13092,7 @@ const Control = ({ lmcRegistros, lmcDiario, lmcControle, selectedPeriod, setSele
             <label className="control-filter-label">COMBUSTÍVEL</label>
             <div className="control-filter-select">
               <Droplet size={15} style={{ color: '#E31E24' }} />
-              <select value={activeFuelId || ''} onChange={(e) => setSelectedFuelId(parseInt(e.target.value))}>
+              <select value={activeFuelId || ''} onChange={e => setSelectedFuelId(parseInt(e.target.value))}>
                 {fuels.map(f => <option key={f.codigo} value={f.codigo}>{f.nome}</option>)}
                 {fuels.length === 0 && <option value="">—</option>}
               </select>
@@ -13070,14 +13101,13 @@ const Control = ({ lmcRegistros, lmcDiario, lmcControle, selectedPeriod, setSele
           <button
             type="button"
             className="btn-secondary"
-            style={{ alignSelf: 'flex-end', minWidth: 120, gap: 6 }}
-            disabled={syncing}
-            onClick={() => syncAndFetch(selectedPeriod)}
-            title={lastSync ? `Última sincronização: ${lastSync.toLocaleTimeString('pt-BR')}` : 'Sincronizar com o banco do cliente'}
+            style={{ alignSelf: 'flex-end', minWidth: 120, gap: 6, borderColor: hasUnsavedChanges ? '#f59e0b' : undefined }}
+            disabled={saving || !activeFuelId}
+            onClick={handleSave}
           >
-            {syncing
-              ? <><span className="lmc-sync-spinner" /> SINCRONIZANDO...</>
-              : <><RefreshCw size={15} /> SINCRONIZAR</>}
+            {saving
+              ? <><span className="lmc-sync-spinner" /> SALVANDO...</>
+              : <><Save size={15} /> SALVAR</>}
           </button>
           <button type="button" className="btn-secondary" style={{ alignSelf: 'flex-end' }} onClick={openPrintPanel}>
             <Printer size={18} />
@@ -13086,24 +13116,20 @@ const Control = ({ lmcRegistros, lmcDiario, lmcControle, selectedPeriod, setSele
         </div>
       </div>
 
-      {/* Indicador de fonte dos dados */}
-      {hasStarvlData && (
-        <div style={{ display:'flex', alignItems:'center', gap:8, padding:'4px 0 8px', fontSize:11 }}>
-          <span style={{ color:'#22c55e', fontWeight:700 }}>● STARVL</span>
-          <span style={{ color:'#64748b' }}>
-            Abertura/Fechamento calculados pelo sistema
-            {lastSync && ` · Sincronizado às ${lastSync.toLocaleTimeString('pt-BR')}`}
-          </span>
-          {syncError && <span style={{ color:'#ef4444' }}>⚠ {syncError}</span>}
-        </div>
-      )}
-      {!hasStarvlData && syncError && (
-        <div style={{ color:'#ef4444', fontSize:11, padding:'4px 0 8px' }}>⚠ Erro na sincronização: {syncError}</div>
-      )}
+      {/* Barra de status */}
+      <div style={{ display:'flex', alignItems:'center', gap:8, padding:'4px 0 8px', fontSize:11, flexWrap:'wrap' }}>
+        <span style={{ color:'#22c55e', fontWeight:700 }}>● STARVL</span>
+        <span style={{ color:'#64748b' }}>
+          Entrada manual — Abertura/Fechamento calculados pelo sistema
+          {lastSaved && ` · Salvo às ${lastSaved.toLocaleTimeString('pt-BR')}`}
+        </span>
+        {hasUnsavedChanges && <span style={{ color:'#f59e0b', fontWeight:600 }}>⚠ Alterações não salvas — clique em SALVAR</span>}
+        {saveError && <span style={{ color:'#ef4444' }}>⚠ {saveError}</span>}
+      </div>
 
       {tableRows.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '48px', color: '#666' }}>
-          {syncing ? 'Sincronizando dados...' : !lmcRegistros && !lmcControle ? 'Carregando dados...' : 'Nenhum registro LMC encontrado para o período selecionado.'}
+        <div style={{ textAlign:'center', padding:'48px', color:'#666' }}>
+          {loadingData ? 'Carregando...' : fuels.length === 0 ? 'Nenhum combustível cadastrado.' : 'Selecione o período e combustível.'}
         </div>
       ) : (
         <>
@@ -13123,62 +13149,97 @@ const Control = ({ lmcRegistros, lmcDiario, lmcControle, selectedPeriod, setSele
                 </tr>
               </thead>
               <tbody>
-                {tableRows.map((row) => {
-                  const isAnchored = !!anchoredDays[row.aberturaKey];
+                {tableRows.map(row => {
                   const isSelected = selectedRowKey === row.key;
-                  // buildControlReportRows já popula aberturaInput com o valor calculado
-                  // quando não há edição do usuário — pode ser usado diretamente
-                  const aberturaDisplayValue = row.aberturaInput;
                   return (
                     <tr
                       key={row.key}
-                      className={`lmc-row${isSelected ? ' lmc-row-selected' : ''}${isAnchored ? ' lmc-row-anchored' : ''}`}
-                      onClick={() => handleRowClick(row.key)}
+                      className={`lmc-row${isSelected ? ' lmc-row-selected' : ''}`}
+                      onClick={() => setSelectedRowKey(prev => prev === row.key ? null : row.key)}
                     >
-                      <td>
-                        <div className="lmc-day-cell">
-                          <button
-                            type="button"
-                            className={`lmc-anchor-btn${isAnchored ? ' unlocked' : ''}`}
-                            title={isAnchored ? 'Bloquear — clique para impedir edição da abertura' : 'Ancorar — clique para liberar edição da abertura'}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              toggleAnchor(row.aberturaKey);
-                              setSelectedRowKey(row.key);
-                            }}
-                          >
-                            {isAnchored ? <Unlock size={13} /> : <Lock size={13} />}
-                          </button>
-                          <span>{row.dia}</span>
-                        </div>
-                      </td>
+                      <td><span className="lmc-day-label">{row.dia}</span></td>
+
+                      {/* ABERTURA: editável só no dia 1 */}
                       <td>
                         <input
-                          className={`lmc-fisico-input${savedEditKey === `abertura:${row.aberturaKey}` ? ' saved' : ''}${!isAnchored ? ' lmc-input-locked' : ''}`}
-                          type="text"
-                          inputMode="decimal"
-                          value={aberturaDisplayValue}
-                          readOnly={!isAnchored}
-                          onChange={isAnchored ? (e) => persistAberturaEdit(row.aberturaKey, e.target.value) : undefined}
+                          className={`lmc-fisico-input${row.isFirstDay ? '' : ' lmc-input-locked'}`}
+                          type="text" inputMode="decimal"
+                          value={row.aberturaInput}
+                          readOnly={!row.isFirstDay}
+                          onChange={row.isFirstDay ? e => handleAberturaD1(e.target.value) : undefined}
                           aria-label={`Estoque abertura ${row.dia}`}
                         />
                       </td>
-                      <td>{fmt2(row.compras110)}</td>
-                      <td>{fmt2(row.compras220)}</td>
-                      <td>{fmt2(row.afericoes)}</td>
-                      <td>{fmt2(row.vendas)}</td>
-                      <td>{fmt2(row.fechamento)}</td>
+
+                      {/* COMPRAS 110 */}
                       <td>
                         <input
-                          className={`lmc-fisico-input${savedEditKey === `fisico:${row.fisicoKey}` ? ' saved' : ''}`}
-                          type="text"
-                          inputMode="decimal"
-                          value={row.fisicoInput}
+                          className="lmc-fisico-input"
+                          type="text" inputMode="decimal"
+                          value={row.c110Input}
                           placeholder="0,00"
-                          onChange={(e) => persistFisicoEdit(row.fisicoKey, e.target.value)}
-                          aria-label={`Estoque fisico ${row.dia}`}
+                          onChange={e => handleMovEdit(row.key, 'compras110', e.target.value)}
+                          onClick={e => e.stopPropagation()}
+                          aria-label={`Compras 110 ${row.dia}`}
                         />
                       </td>
+
+                      {/* COMPRAS 220 */}
+                      <td>
+                        <input
+                          className="lmc-fisico-input"
+                          type="text" inputMode="decimal"
+                          value={row.c220Input}
+                          placeholder="0,00"
+                          onChange={e => handleMovEdit(row.key, 'compras220', e.target.value)}
+                          onClick={e => e.stopPropagation()}
+                          aria-label={`Compras 220 ${row.dia}`}
+                        />
+                      </td>
+
+                      {/* AFERIÇÕES */}
+                      <td>
+                        <input
+                          className="lmc-fisico-input"
+                          type="text" inputMode="decimal"
+                          value={row.aferInput}
+                          placeholder="0,00"
+                          onChange={e => handleMovEdit(row.key, 'afericoes', e.target.value)}
+                          onClick={e => e.stopPropagation()}
+                          aria-label={`Aferições ${row.dia}`}
+                        />
+                      </td>
+
+                      {/* VENDAS */}
+                      <td>
+                        <input
+                          className="lmc-fisico-input"
+                          type="text" inputMode="decimal"
+                          value={row.vendaInput}
+                          placeholder="0,00"
+                          onChange={e => handleMovEdit(row.key, 'vendas', e.target.value)}
+                          onClick={e => e.stopPropagation()}
+                          aria-label={`Vendas ${row.dia}`}
+                        />
+                      </td>
+
+                      {/* FECHAMENTO: calculado, somente leitura */}
+                      <td>{fmt2(row.fechamento)}</td>
+
+                      {/* FÍSICO */}
+                      <td>
+                        <input
+                          className="lmc-fisico-input"
+                          type="text" inputMode="decimal"
+                          value={row.fisicoInput}
+                          placeholder="0,00"
+                          onChange={e => persistFisicoEdit(row.fisicoKey, e.target.value)}
+                          onClick={e => e.stopPropagation()}
+                          aria-label={`Estoque físico ${row.dia}`}
+                        />
+                      </td>
+
+                      {/* PERDAS/SOBRAS */}
                       <td style={{ color: row.perdas < -0.01 ? '#f87171' : row.perdas > 0.01 ? '#22c55e' : 'inherit' }}>
                         {fmt2(row.perdas)}
                       </td>
@@ -13204,13 +13265,8 @@ const Control = ({ lmcRegistros, lmcDiario, lmcControle, selectedPeriod, setSele
             </table>
           </div>
           <div className="table-footer">
-            {savedEditKey && <div className="save-feedback">Alteracao salva</div>}
-            <div className="table-info">Exibindo {tableRows.length} dias — {fuels.find(f => f.codigo === activeFuelId)?.nome || ''}</div>
-            <div className="lmc-anchor-legend">
-              <Lock size={11} />
-              <span>Bloqueado — clique no cadeado para liberar edição da abertura</span>
-              <Unlock size={11} style={{ marginLeft: 8, color: '#22c55e' }} />
-              <span style={{ color: '#22c55e' }}>Ancorado — abertura editável</span>
+            <div className="table-info">
+              Exibindo {tableRows.length} dias — {fuels.find(f => f.codigo === activeFuelId)?.nome || ''}
             </div>
           </div>
         </>
@@ -13354,7 +13410,7 @@ const ControlPrintPanel = ({ fuels, filters, setFilters, onClose, onGenerate }) 
 };
 
 // ─── LivrosManager — seções dentro da aba Livros ────────────────────────────
-const LivrosManager = ({ lmcRegistros, lmcDiario, lmcControle, selectedPeriod, setSelectedPeriod, selectedClient, clients, themeMode }) => {
+const LivrosManager = ({ lmcRegistros, lmcDiario, lmcControle, selectedPeriod, setSelectedPeriod, selectedClient, clients, themeMode, estoques = [] }) => {
   const [section, setSection] = useState('movimentacao');
 
   const sections = [
@@ -13383,13 +13439,11 @@ const LivrosManager = ({ lmcRegistros, lmcDiario, lmcControle, selectedPeriod, s
 
       {section === 'movimentacao' && (
         <Control
-          lmcRegistros={lmcRegistros}
-          lmcDiario={lmcDiario}
-          lmcControle={lmcControle}
           selectedPeriod={selectedPeriod}
           setSelectedPeriod={setSelectedPeriod}
           selectedClient={selectedClient}
           clients={clients}
+          estoques={estoques}
         />
       )}
       {section === 'fluxo' && (
@@ -18011,7 +18065,7 @@ export default function App() {
       case 'compras':
         return <ComprasPage selectedClient={selectedClient} clients={clients} />;
       case 'control':
-        return <LivrosManager lmcRegistros={apiData.lmcRegistros} lmcDiario={apiData.lmcDiario} lmcControle={apiData.lmcControle} selectedPeriod={controlPeriod} setSelectedPeriod={setControlPeriod} selectedClient={selectedClient} clients={clients} themeMode={themeMode} />;
+        return <LivrosManager lmcRegistros={apiData.lmcRegistros} lmcDiario={apiData.lmcDiario} lmcControle={apiData.lmcControle} selectedPeriod={controlPeriod} setSelectedPeriod={setControlPeriod} selectedClient={selectedClient} clients={clients} themeMode={themeMode} estoques={apiData.estoques} />;
       case 'stock':
         return <EstoqueManager estoques={apiData.estoques} projecao={apiData.projecao} loading={apiData.loading} selectedClient={selectedClient} clients={clients} themeMode={themeMode} lmcSaldos={apiData.dashboardLmcSaldos} lmcControle={apiData.dashboardLmcControle} lmcStarvlFechamento={apiData.lmcStarvlFechamento} />;
       case 'receber':

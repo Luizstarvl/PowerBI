@@ -327,4 +327,52 @@ router.post('/sync', async (req, res) => {
   }
 });
 
+// ── POST /api/lmc-starvl/save-period?empresa=X&periodo=MMYYYY ─────────────────
+// Salva entradas manuais (sem buscar no banco SGA)
+router.post('/save-period', async (req, res) => {
+  const empresa = parseInt(req.query.empresa);
+  const periodo = req.query.periodo;
+  if (!empresa || !periodo || periodo.length !== 6)
+    return res.status(400).json({ error: 'empresa e periodo (MMYYYY) são obrigatórios' });
+
+  const { codProduto, nomeProduto, dias } = req.body;
+  if (!codProduto || !Array.isArray(dias) || dias.length === 0)
+    return res.status(400).json({ error: 'codProduto e dias são obrigatórios' });
+
+  const { periodoStr } = getPeriodoRange(periodo);
+
+  try {
+    for (const dia of dias) {
+      await mainPool.query(
+        `INSERT INTO starvl_lmc
+           (slmc_empresa, slmc_produto, slmc_produto_nome, slmc_data,
+            slmc_abertura, slmc_compras110, slmc_compras220,
+            slmc_vendas, slmc_afericoes, slmc_fechamento, slmc_synced_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,NOW())
+         ON CONFLICT (slmc_empresa, slmc_produto, slmc_data) DO UPDATE SET
+           slmc_produto_nome = EXCLUDED.slmc_produto_nome,
+           slmc_abertura     = EXCLUDED.slmc_abertura,
+           slmc_compras110   = EXCLUDED.slmc_compras110,
+           slmc_compras220   = EXCLUDED.slmc_compras220,
+           slmc_vendas       = EXCLUDED.slmc_vendas,
+           slmc_afericoes    = EXCLUDED.slmc_afericoes,
+           slmc_fechamento   = EXCLUDED.slmc_fechamento,
+           slmc_synced_at    = NOW()`,
+        [empresa, codProduto, nomeProduto || 'Produto', dia.data,
+         dia.abertura   ?? 0,
+         dia.compras110 ?? 0,
+         dia.compras220 ?? 0,
+         dia.vendas     ?? 0,
+         dia.afericoes  ?? 0,
+         dia.fechamento ?? 0]
+      );
+    }
+    console.log(`[lmc-starvl] save-period OK: empresa=${empresa} periodo=${periodoStr} dias=${dias.length}`);
+    res.json({ ok: true, empresa, periodo: periodoStr, saved: dias.length });
+  } catch (err) {
+    console.error('POST /lmc-starvl/save-period:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
