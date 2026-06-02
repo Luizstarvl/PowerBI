@@ -6473,7 +6473,7 @@ const FuelStationCard = ({ estoques = [], lmcStarvlFechamento = [], themeMode = 
   const [slideAnim, setSlideAnim] = useState('appear');
   const [animKey, setAnimKey]     = useState(0);
 
-  // Estoque efetivo: físico do último dia do mês corrente, senão fechamento salvo pelo STARVL.
+  // Estoque efetivo: físico do dia corrente, senão fechamento salvo pelo STARVL.
   const effectiveStockMap = useMemo(
     () => computeEffectiveStock(lmcStarvlFechamento),
     [lmcStarvlFechamento]
@@ -7180,21 +7180,21 @@ function buildStarvlRows(registros = [], fuelId, fisicoEdits = {}, selectedPerio
   });
 }
 
-function getCurrentMonthEndInfo() {
+function getCurrentDayInfo() {
   const today = new Date();
   const year = today.getFullYear();
   const month = today.getMonth() + 1;
-  const lastDay = new Date(year, month, 0).getDate();
+  const day = today.getDate();
   const monthStr = String(month).padStart(2, '0');
-  const dayStr = String(lastDay).padStart(2, '0');
+  const dayStr = String(day).padStart(2, '0');
   return {
     period: `${monthStr}/${year}`,
     dayKey: `${year}-${monthStr}-${dayStr}`,
   };
 }
 
-function getCurrentMonthEndPhysicalStock(fuelId, fisicoEdits = {}) {
-  const { period, dayKey } = getCurrentMonthEndInfo();
+function getCurrentDayPhysicalStock(fuelId, fisicoEdits = {}) {
+  const { period, dayKey } = getCurrentDayInfo();
   const fisicoKey = `${period}|${Number(fuelId)}|${dayKey}`;
   const raw = fisicoEdits[fisicoKey];
   if (raw === undefined || String(raw).trim() === '') return null;
@@ -7203,7 +7203,7 @@ function getCurrentMonthEndPhysicalStock(fuelId, fisicoEdits = {}) {
 }
 
 /**
- * Regra: se o usuário informou ESTOQUE FÍSICO > 0 para o último dia do mês corrente
+ * Regra: se o usuário informou ESTOQUE FÍSICO > 0 para o dia corrente
  * usa físico. Caso contrário usa ESTOQUE FECHAMENTO do starvl_lmc.
  * O físico é lido do localStorage (starvl:lmc-fisico) e nunca enviado ao backend.
  */
@@ -7215,7 +7215,7 @@ function computeEffectiveStock(starvlFechamentos = []) {
   (starvlFechamentos || []).forEach(f => {
     const cod = Number(f.codProduto);
     const fechamento = f.fechamento ?? 0;
-    const fisico = getCurrentMonthEndPhysicalStock(cod, fisicoEdits);
+    const fisico = getCurrentDayPhysicalStock(cod, fisicoEdits);
     result[cod] = fisico ?? fechamento;
   });
   return result;
@@ -14865,7 +14865,7 @@ const StockPosition = ({ estoques, projecao, loading, selectedClient, clients, l
 
   const fmtR = fmtBRL;
 
-  // Estoque efetivo: físico do último dia do mês corrente, senão fechamento salvo pelo STARVL.
+  // Estoque efetivo: físico do dia corrente, senão fechamento salvo pelo STARVL.
   const effectiveStockMapSP = useMemo(
     () => computeEffectiveStock(lmcStarvlFechamento),
     [lmcStarvlFechamento]
