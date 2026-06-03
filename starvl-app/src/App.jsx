@@ -363,6 +363,99 @@ const Sidebar = ({
         </div>
       </div>
 
+      <div className="menu-toolbar">
+        <QuickNav setCurrentPage={setCurrentPage} themeMode={themeMode} />
+
+        <select
+          className="topbar-select"
+          value={selectedClient}
+          onChange={(e) => setSelectedClient(e.target.value)}
+          title="Empresa"
+          aria-label="Empresa"
+        >
+          {clients.map((c) => (
+            <option key={c.id} value={c.nome}>{c.nome}</option>
+          ))}
+        </select>
+
+        <div className="sidebar-tool-row">
+          <button
+            type="button"
+            className={`connection-status ${isConnected ? 'connected' : 'disconnected'}`}
+            title={isConnected ? 'API conectada' : (apiError || 'API desconectada')}
+            onClick={onRefresh}
+          >
+            <span className={`connection-dot${isConnected ? ' pulse-green' : ''}`} />
+            <span>{connectionLabel}</span>
+          </button>
+
+          <button
+            type="button"
+            className="top-bar-icon-btn"
+            title={autoRefresh ? 'Auto-atualização ativa (5 min) — clique para desativar' : 'Auto-atualização desativada — clique para ativar'}
+            aria-label="Auto-atualização"
+            onClick={() => setAutoRefresh && setAutoRefresh(v => !v)}
+            style={{ color: autoRefresh ? '#22c55e' : undefined, position: 'relative' }}
+          >
+            <RefreshCw size={19} />
+            {autoRefresh && (
+              <span style={{ position:'absolute', top:4, right:4, width:7, height:7, borderRadius:'50%', background:'#22c55e', border:'1.5px solid #111' }} />
+            )}
+          </button>
+
+          <div className="theme-toggle-group" aria-label="Tema">
+            <button
+              type="button"
+              className={`theme-toggle-btn ${themeMode === 'dark' ? 'active' : ''}`}
+              onClick={() => setThemeMode('dark')}
+              title="Modo dark"
+              aria-label="Modo dark"
+            >
+              <Moon size={18} />
+            </button>
+            <button
+              type="button"
+              className={`theme-toggle-btn ${themeMode === 'light' ? 'active' : ''}`}
+              onClick={() => setThemeMode('light')}
+              title="Modo white"
+              aria-label="Modo white"
+            >
+              <Sun size={18} />
+            </button>
+          </div>
+
+          <div className="top-bar-user" style={{ position: 'relative' }} onClick={() => setShowAdminMenu((v) => !v)}>
+            {profileImg
+              ? <img src={profileImg} alt="avatar" className="user-avatar-sm user-avatar-sm-img" />
+              : <div className="user-avatar-sm">{(loggedUser?.usuario || 'U').charAt(0).toUpperCase()}</div>
+            }
+            <span>{loggedUser?.usuario || 'Usuário'}</span>
+            <ChevronDown size={14} />
+            {showAdminMenu && (
+              <div className="admin-dropdown" onClick={(e) => e.stopPropagation()}>
+                <button
+                  type="button"
+                  className="admin-dropdown-item"
+                  onClick={() => { setCurrentPage('users'); setShowAdminMenu(false); }}
+                >
+                  <UsersIcon size={15} />
+                  Gerenciar Usuários
+                </button>
+                <div className="admin-dropdown-divider" />
+                <button
+                  type="button"
+                  className="admin-dropdown-item danger"
+                  onClick={() => { setShowAdminMenu(false); onLogout(); }}
+                >
+                  <LogOut size={15} />
+                  Sair
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
       <nav className="sidebar-nav">
         {menuItems.map((item) => (
           <button
@@ -381,97 +474,6 @@ const Sidebar = ({
           </button>
         ))}
       </nav>
-
-      <div className="menu-toolbar">
-        <QuickNav setCurrentPage={setCurrentPage} themeMode={themeMode} />
-
-        <select
-          className="topbar-select"
-          value={selectedClient}
-          onChange={(e) => setSelectedClient(e.target.value)}
-          title="Empresa"
-          aria-label="Empresa"
-        >
-          {clients.map((c) => (
-            <option key={c.id} value={c.nome}>{c.nome}</option>
-          ))}
-        </select>
-
-        <button
-          type="button"
-          className={`connection-status ${isConnected ? 'connected' : 'disconnected'}`}
-          title={isConnected ? 'API conectada' : (apiError || 'API desconectada')}
-          onClick={onRefresh}
-        >
-          <span className={`connection-dot${isConnected ? ' pulse-green' : ''}`} />
-          <span>{connectionLabel}</span>
-        </button>
-
-        <button
-          type="button"
-          className="top-bar-icon-btn"
-          title={autoRefresh ? 'Auto-atualização ativa (5 min) — clique para desativar' : 'Auto-atualização desativada — clique para ativar'}
-          aria-label="Auto-atualização"
-          onClick={() => setAutoRefresh && setAutoRefresh(v => !v)}
-          style={{ color: autoRefresh ? '#22c55e' : undefined, position: 'relative' }}
-        >
-          <RefreshCw size={19} />
-          {autoRefresh && (
-            <span style={{ position:'absolute', top:4, right:4, width:7, height:7, borderRadius:'50%', background:'#22c55e', border:'1.5px solid #111' }} />
-          )}
-        </button>
-
-        <div className="theme-toggle-group" aria-label="Tema">
-          <button
-            type="button"
-            className={`theme-toggle-btn ${themeMode === 'dark' ? 'active' : ''}`}
-            onClick={() => setThemeMode('dark')}
-            title="Modo dark"
-            aria-label="Modo dark"
-          >
-            <Moon size={18} />
-          </button>
-          <button
-            type="button"
-            className={`theme-toggle-btn ${themeMode === 'light' ? 'active' : ''}`}
-            onClick={() => setThemeMode('light')}
-            title="Modo white"
-            aria-label="Modo white"
-          >
-            <Sun size={18} />
-          </button>
-        </div>
-
-        <div className="top-bar-user" style={{ position: 'relative' }} onClick={() => setShowAdminMenu((v) => !v)}>
-          {profileImg
-            ? <img src={profileImg} alt="avatar" className="user-avatar-sm user-avatar-sm-img" />
-            : <div className="user-avatar-sm">{(loggedUser?.usuario || 'U').charAt(0).toUpperCase()}</div>
-          }
-          <span>{loggedUser?.usuario || 'Usuário'}</span>
-          <ChevronDown size={14} />
-          {showAdminMenu && (
-            <div className="admin-dropdown" onClick={(e) => e.stopPropagation()}>
-              <button
-                type="button"
-                className="admin-dropdown-item"
-                onClick={() => { setCurrentPage('users'); setShowAdminMenu(false); }}
-              >
-                <UsersIcon size={15} />
-                Gerenciar Usuários
-              </button>
-              <div className="admin-dropdown-divider" />
-              <button
-                type="button"
-                className="admin-dropdown-item danger"
-                onClick={() => { setShowAdminMenu(false); onLogout(); }}
-              >
-                <LogOut size={15} />
-                Sair
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
 
       <button
         className="nav-item logout-btn"
