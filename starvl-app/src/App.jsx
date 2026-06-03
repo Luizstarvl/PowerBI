@@ -18506,7 +18506,7 @@ export default function App() {
       fetch(`${API_URL}/api/dashboard/vendas-diarias-full?empresa=${empresa}&periodo=${dashboardPeriodo}`).then(r => r.json()),
       fetch(`${API_URL}/api/dashboard/abc-produtos?empresa=${empresa}&periodo=${dashboardPeriodo}&prodtipo=1`).then(r => r.json()),
       fetch(`${API_URL}/api/dashboard/abc-produtos?empresa=${empresa}&periodo=${dashboardPeriodo}&prodtipo=2`).then(r => r.json()),
-      fetch(`${API_URL}/api/lmc-starvl/fechamento?empresa=${empresa}`).then(r => r.json()).catch(() => ({ fechamentos: [] })),
+      fetch(`${API_URL}/api/lmc/saldo-atual?empresa=${empresa}`).then(r => r.json()).catch(() => ({ saldos: [] })),
     ]).then(([kpis, combustiveis, vendasDiarias, vendasHorarias, dashboardLmcControle, dashboardLmcSaldosResp, lmcResp, lmcDiario, lmcControle, estoqueResp, projecaoResp, topConvenioResp, vendasDiariasFullResp, abcProd1Resp, abcProd2Resp, lmcStarvlResp]) => {
       setIsConnected(true);
       setApiData({
@@ -18516,7 +18516,7 @@ export default function App() {
         vendasHorarias: Array.isArray(vendasHorarias) ? vendasHorarias : [],
         dashboardLmcControle: dashboardLmcControle.registros || [],
         dashboardLmcSaldos: dashboardLmcSaldosResp.registros || [],
-        lmcStarvlFechamento: lmcStarvlResp.fechamentos || [],
+        lmcStarvlFechamento: lmcStarvlResp.saldos || [],
         lmcRegistros: lmcResp.registros || [],
         lmcDiario: lmcDiario || null,
         lmcControle: lmcControle.registros || [],
@@ -18561,7 +18561,7 @@ export default function App() {
       fetch(`${API_URL}/api/dashboard/vendas-diarias-full?empresa=${empresa}&periodo=${dashboardPeriodo}`).then(r => r.json()),
       fetch(`${API_URL}/api/dashboard/abc-produtos?empresa=${empresa}&periodo=${dashboardPeriodo}&prodtipo=1`).then(r => r.json()),
       fetch(`${API_URL}/api/dashboard/abc-produtos?empresa=${empresa}&periodo=${dashboardPeriodo}&prodtipo=2`).then(r => r.json()),
-      fetch(`${API_URL}/api/lmc-starvl/fechamento?empresa=${empresa}`).then(r => r.json()).catch(() => ({ fechamentos: [] })),
+      fetch(`${API_URL}/api/lmc/saldo-atual?empresa=${empresa}`).then(r => r.json()).catch(() => ({ saldos: [] })),
     ]).then(([kpis, combustiveis, vendasDiarias, vendasHorarias, dashboardLmcControle, dashboardLmcSaldosResp, lmcResp, lmcDiario, lmcControle, estoqueResp, projecaoResp, topConvenioResp, vendasDiariasFullResp, abcProd1Resp, abcProd2Resp, lmcStarvlResp]) => {
       setIsConnected(true);
       setApiData({
@@ -18571,7 +18571,7 @@ export default function App() {
         vendasHorarias: Array.isArray(vendasHorarias) ? vendasHorarias : [],
         dashboardLmcControle: dashboardLmcControle.registros || [],
         dashboardLmcSaldos: dashboardLmcSaldosResp.registros || [],
-        lmcStarvlFechamento: lmcStarvlResp.fechamentos || [],
+        lmcStarvlFechamento: lmcStarvlResp.saldos || [],
         lmcRegistros: lmcResp.registros || [],
         lmcDiario: lmcDiario || null,
         lmcControle: lmcControle.registros || [],
