@@ -1,5 +1,6 @@
 /* ═══════════════════════════════════════════════════════════════════════════
    LMC — Livro de Movimentação de Combustíveis   (lmc-plan.css)
+   Accent: #E31E24 (vermelho) — igual às demais telas do sistema
    ═══════════════════════════════════════════════════════════════════════════ */
 
 /* ── Page ─────────────────────────────────────────────────────────────────── */
@@ -25,11 +26,12 @@
   width: 42px;
   height: 42px;
   border-radius: 10px;
-  background: linear-gradient(135deg, #f59e0b, #d97706);
+  background: rgba(227, 30, 36, 0.15);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  color: #E31E24;
 }
 .lmc-plan-title-block { flex: 1; }
 .lmc-plan-title {
@@ -63,25 +65,25 @@
   transition: border-color 0.15s;
   font-family: inherit;
 }
-.lmc-plan-sel:focus { border-color: #f59e0b; }
+.lmc-plan-sel:focus { border-color: #E31E24; }
 
 .lmc-plan-btn-refresh {
   display: flex;
   align-items: center;
   gap: 6px;
   padding: 8px 14px;
-  background: #f59e0b;
+  background: #E31E24;
   border: none;
   border-radius: 8px;
-  color: #000;
+  color: #fff;
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
-  transition: background 0.15s;
+  transition: opacity 0.15s;
   font-family: inherit;
 }
-.lmc-plan-btn-refresh:hover { background: #d97706; }
-.lmc-plan-btn-refresh:disabled { opacity: 0.6; cursor: not-allowed; }
+.lmc-plan-btn-refresh:hover  { opacity: 0.85; }
+.lmc-plan-btn-refresh:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* ── Toolbar (seleção de produto) ─────────────────────────────────────────── */
 .lmc-plan-toolbar {
@@ -121,26 +123,26 @@
   background-repeat: no-repeat;
   background-position: right 10px center;
 }
-.lmc-plan-prod-select:focus { border-color: #f59e0b; }
+.lmc-plan-prod-select:focus { border-color: #E31E24; }
 
 .lmc-plan-prod-badge {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   padding: 4px 12px;
-  background: rgba(245,158,11,0.12);
-  border: 1px solid rgba(245,158,11,0.3);
+  background: rgba(227, 30, 36, 0.1);
+  border: 1px solid rgba(227, 30, 36, 0.3);
   border-radius: 20px;
   font-size: 11px;
   font-weight: 700;
-  color: #f59e0b;
+  color: #E31E24;
   white-space: nowrap;
 }
 .lmc-plan-prod-dot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #f59e0b;
+  background: #E31E24;
   flex-shrink: 0;
 }
 .lmc-plan-periodo-tag {
@@ -179,7 +181,7 @@
   border-radius: 3px;
   border: 1px solid #3a3a3a;
 }
-.lmc-plan-legend-box.edit { background: #1a2a4a; border-color: #334155; }
+.lmc-plan-legend-box.edit { background: rgba(227,30,36,0.08); border-color: rgba(227,30,36,0.25); }
 .lmc-plan-legend-box.calc { background: #111111; border-color: #2a2a2a; }
 
 /* ── Tabela ───────────────────────────────────────────────────────────────── */
@@ -189,13 +191,13 @@
   border-collapse: collapse;
   font-size: 12.5px;
 }
-.lmc-plan-table thead tr { background: #f59e0b; }
+.lmc-plan-table thead tr { background: #E31E24; }
 .lmc-plan-table thead th {
-  padding: 10px 12px;
+  padding: 11px 12px;
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.07em;
-  color: #000;
+  color: #fff;
   white-space: nowrap;
   text-align: right;
 }
@@ -218,14 +220,14 @@
   font-size: 12px;
   white-space: nowrap;
 }
-.lmc-plan-td-edit { background: rgba(30, 58, 138, 0.12); }
+.lmc-plan-td-edit { background: rgba(227, 30, 36, 0.06); }
 .lmc-plan-td-strong { color: #f8fafc; font-weight: 700; }
 .lmc-plan-td-dash { color: #475569; }
 
 /* Inputs editáveis */
 .lmc-plan-input {
-  background: #1e3a5f;
-  border: 1px solid #334155;
+  background: #2a1a1a;
+  border: 1px solid #4a2020;
   border-radius: 5px;
   padding: 4px 8px;
   color: #f1f5f9;
@@ -237,7 +239,7 @@
   font-variant-numeric: tabular-nums;
   transition: border-color 0.15s;
 }
-.lmc-plan-input:focus { border-color: #f59e0b; }
+.lmc-plan-input:focus { border-color: #E31E24; }
 .lmc-plan-input::placeholder { color: #475569; }
 
 /* Perdas / Sobras */
@@ -290,11 +292,11 @@
   width: 56px;
   height: 56px;
   border-radius: 14px;
-  background: #1a1a1a;
+  background: rgba(227,30,36,0.08);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #475569;
+  color: #E31E24;
 }
 .lmc-plan-empty-title {
   font-size: 15px;
@@ -312,7 +314,9 @@
   background: #ffffff;
   border-color: #e5e7eb;
 }
-.theme-light .lmc-plan-title  { color: #111827; }
+.theme-light .lmc-plan-title   { color: #111827; }
+.theme-light .lmc-plan-sub     { color: #6b7280; }
+.theme-light .lmc-plan-toolbar-label { color: #9ca3af; }
 .theme-light .lmc-plan-sel,
 .theme-light .lmc-plan-prod-select {
   background: #f8fafc;
@@ -320,28 +324,42 @@
   color: #111827;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
 }
+.theme-light .lmc-plan-sel:focus,
+.theme-light .lmc-plan-prod-select:focus { border-color: #E31E24; }
+.theme-light .lmc-plan-prod-badge {
+  background: rgba(227,30,36,0.07);
+  border-color: rgba(227,30,36,0.25);
+  color: #c91b20;
+}
+.theme-light .lmc-plan-prod-dot { background: #c91b20; }
+.theme-light .lmc-plan-periodo-tag { color: #9ca3af; }
 .theme-light .lmc-plan-legend { border-bottom-color: #f1f5f9; }
-.theme-light .lmc-plan-legend-box.edit { background: #eff6ff; border-color: #bfdbfe; }
+.theme-light .lmc-plan-legend-item { color: #6b7280; }
+.theme-light .lmc-plan-legend-box.edit { background: rgba(227,30,36,0.05); border-color: rgba(227,30,36,0.2); }
 .theme-light .lmc-plan-legend-box.calc { background: #f8fafc; border-color: #e5e7eb; }
-.theme-light .lmc-plan-table thead tr  { background: #f59e0b; }
+.theme-light .lmc-plan-table thead tr { background: #E31E24; }
+.theme-light .lmc-plan-table thead th { color: #fff; }
 .theme-light .lmc-plan-tr { border-bottom-color: #f1f5f9; }
 .theme-light .lmc-plan-tr:hover { background: rgba(0,0,0,0.02); }
-.theme-light .lmc-plan-td      { color: #374151; }
-.theme-light .lmc-plan-td-date { color: #6b7280; }
-.theme-light .lmc-plan-td-edit { background: rgba(239,246,255,0.8); }
+.theme-light .lmc-plan-td       { color: #374151; }
+.theme-light .lmc-plan-td-date  { color: #6b7280; }
+.theme-light .lmc-plan-td-edit  { background: rgba(227,30,36,0.04); }
 .theme-light .lmc-plan-td-strong { color: #111827; }
+.theme-light .lmc-plan-td-dash  { color: #9ca3af; }
 .theme-light .lmc-plan-input {
-  background: #eff6ff;
-  border-color: #bfdbfe;
+  background: #fff5f5;
+  border-color: #fecaca;
   color: #1e293b;
 }
-.theme-light .lmc-plan-input:focus { border-color: #f59e0b; }
+.theme-light .lmc-plan-input:focus { border-color: #E31E24; }
+.theme-light .lmc-plan-input::placeholder { color: #9ca3af; }
 .theme-light .lmc-plan-totals td {
   background: #f8fafc;
   border-top-color: #e5e7eb;
   color: #111827;
 }
-.theme-light .lmc-plan-footer { border-top-color: #f1f5f9; }
+.theme-light .lmc-plan-footer { border-top-color: #f1f5f9; color: #9ca3af; }
 .theme-light .lmc-plan-footer strong { color: #374151; }
-.theme-light .lmc-plan-empty-icon { background: #f8fafc; }
+.theme-light .lmc-plan-empty-icon { background: rgba(227,30,36,0.06); color: #E31E24; }
 .theme-light .lmc-plan-empty-title { color: #374151; }
+.theme-light .lmc-plan-loading { color: #6b7280; }
