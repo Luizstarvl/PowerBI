@@ -470,160 +470,73 @@ router.get('/planilha', async (req, res) => {
 });
 
 // GET /api/lmc/saldo-atual?empresa=X
-// Calcula o fechamento acumulado de cada produto até hoje (mês corrente),
-// usando SGA em tempo real — sem depender de sincronização do starvl_lmc.
+// Lê o último fechamento salvo por produto direto do starvl_lmc.
+// Alimentado pelo POST /api/lmc/salvar-saldos (chamado pelo LMC Planilha).
 router.get('/saldo-atual', async (req, res) => {
   const empresa = parseInt(req.query.empresa);
-  const query   = queryFor(empresa);
-
   if (!empresa) return res.status(400).json({ error: 'empresa is required' });
 
-  const today      = new Date();
-  const mes        = today.getMonth() + 1;
-  const ano        = today.getFullYear();
-  const monthStr   = String(mes).padStart(2, '0');
-  const dataInicio = `${ano}-${monthStr}-01`;
-  const todayStr   = today.toISOString().split('T')[0];
-
-  // Último dia do mês anterior → abertura do dia 1
-  const prevLastDay = new Date(ano, mes - 1, 0).toISOString().split('T')[0];
-
   try {
-    // 1. Produtos combustíveis ativos na empresa
-    const prodResult = await query(
-      `SELECT p.prodcodigo, p.prodresumo
-       FROM prod p
-       JOIN e_prod ep ON ep.e_prodproduto = p.prodcodigo
-                     AND ep.e_prodempresa  = $1
-       WHERE p.prodtipo = 1
-         AND p.prodinativo  IS NULL
-         AND ep.e_prodinativo IS NULL
-       ORDER BY p.prodresumo`,
+    const { rows } = await mainPool.query(
+      `SELECT DISTINCT ON (slmc_produto)
+         slmc_produto      AS cod_produto,
+         slmc_produto_nome AS descricao_produto,
+         slmc_data         AS data,
+         slmc_fechamento   AS fechamento
+       FROM starvl_lmc
+       WHERE slmc_empresa = $1
+       ORDER BY slmc_produto, slmc_data DESC`,
       [empresa]
     );
 
-    if (prodResult.rows.length === 0) {
-      return res.json({ empresa, data: todayStr, saldos: [] });
-    }
+    const saldos = rows.map(r => ({
+      codProduto:       r.cod_produto,
+      descricaoProduto: r.descricao_produto || 'Produto',
+      data:             r.data instanceof Date
+        ? r.data.toISOString().split('T')[0]
+        : String(r.data).substring(0, 10),
+      fechamento: parseFloat(r.fechamento || 0),
+    }));
 
-    // 2. Abertura D1 = fechamento do último dia do mês anterior (starvl_lmc)
-    const abRes = await mainPool.query(
-      `SELECT slmc_produto AS produto, slmc_fechamento AS fechamento
-       FROM starvl_lmc
-       WHERE slmc_empresa = $1 AND slmc_data = $2`,
-      [empresa, prevLastDay]
-    );
-    const aberturaMap = {};
-    abRes.rows.forEach(r => { aberturaMap[r.produto] = parseFloat(r.fechamento || 0); });
-
-    // Fallback: lmcabertura da tabela lmc do SGA quando não há histórico no starvl_lmc
-    const semHistorico = prodResult.rows.filter(p => aberturaMap[p.prodcodigo] == null);
-    if (semHistorico.length > 0) {
-      const lmcPeriodoStr = `${monthStr}/${ano}`;
-      const lmcAbRes = await query(
-        `SELECT lmccombustivel AS produto, COALESCE(lmcabertura, 0) AS abertura
-         FROM lmc WHERE lmcempresa = $1 AND lmcperiodo = $2`,
-        [empresa, lmcPeriodoStr]
-      );
-      lmcAbRes.rows.forEach(r => {
-        if (aberturaMap[r.produto] == null) aberturaMap[r.produto] = parseFloat(r.abertura || 0);
-      });
-    }
-
-    // 3. Compras e vendas do mês até hoje (paralelo)
-    // Aferições NÃO entram no fechamento — fórmula: Abertura + Compras - Vendas
-    const [c110Res, c220Res, vendasRes] = await Promise.all([
-      query(
-        `SELECT DATE(r.entcpachegada) AS dia, t.entcpiproduto AS produto,
-                SUM(COALESCE(t.entcpivol1,0)+COALESCE(t.entcpivol2,0)+COALESCE(t.entcpivol3,0)) AS total
-         FROM entcpi t
-         JOIN entcpa r ON r.entcpacodigo = t.entcpicompra AND r.entcpaempresa = $1
-         JOIN prod   p ON p.prodcodigo   = t.entcpiproduto
-         WHERE t.entcpiempresa = $1 AND p.prodtipo = 1
-           AND DATE(r.entcpachegada) BETWEEN $2 AND $3
-         GROUP BY DATE(r.entcpachegada), t.entcpiproduto`,
-        [empresa, dataInicio, todayStr]
-      ),
-      query(
-        `SELECT DATE(d.pededatarecebimento) AS dia, e.pediproduto AS produto,
-                SUM(e.pediqtd) AS total
-         FROM pede d
-         JOIN pedi e ON e.pedicodigopede = d.pedecodigo AND e.pediempresa = d.pedeempresa
-         JOIN prod p ON p.prodcodigo     = e.pediproduto
-         WHERE d.pedeempresa = $1 AND p.prodtipo = 1
-           AND d.pededatarecebimento IS NOT NULL
-           AND DATE(d.pededatarecebimento) BETWEEN $2 AND $3
-         GROUP BY DATE(d.pededatarecebimento), e.pediproduto`,
-        [empresa, dataInicio, todayStr]
-      ),
-      query(
-        `SELECT DATE(v.vdadata) AS dia, i.vditproduto AS produto, SUM(i.vditqtd) AS total
-         FROM vdit i
-         JOIN vda  v ON v.vdacodigo = i.vditcodigovda AND v.vdaempresa = i.vditempresa
-         JOIN prod p ON p.prodcodigo = i.vditproduto
-         WHERE i.vditempresa = $1 AND p.prodtipo = 1
-           AND v.vdastatus = 0 AND i.vditstatus = 0
-           AND DATE(v.vdadata) BETWEEN $2 AND $3
-         GROUP BY DATE(v.vdadata), i.vditproduto`,
-        [empresa, dataInicio, todayStr]
-      ),
-    ]);
-
-    // 4. Organiza em maps: produto -> { 'YYYY-MM-DD': valor }
-    const toMap = (rows) => {
-      const m = {};
-      rows.forEach(r => {
-        const prod = r.produto;
-        const dia  = r.dia instanceof Date
-          ? r.dia.toISOString().split('T')[0]
-          : String(r.dia).substring(0, 10);
-        if (!m[prod]) m[prod] = {};
-        m[prod][dia] = (m[prod][dia] || 0) + parseFloat(r.total || 0);
-      });
-      return m;
-    };
-
-    const comprasMap = toMap(c110Res.rows);
-    c220Res.rows.forEach(r => {
-      const prod = r.produto;
-      const dia  = r.dia instanceof Date
-        ? r.dia.toISOString().split('T')[0]
-        : String(r.dia).substring(0, 10);
-      if (!comprasMap[prod]) comprasMap[prod] = {};
-      comprasMap[prod][dia] = (comprasMap[prod][dia] || 0) + parseFloat(r.total || 0);
-    });
-    const vendasMap = toMap(vendasRes.rows);
-
-    // 5. Para cada produto, encadeia abertura → fechamento dia a dia até hoje
-    const saldos = prodResult.rows.map(p => {
-      const cod     = p.prodcodigo;
-      let abertura  = aberturaMap[cod] ?? 0;
-      let fechamento = abertura;
-
-      const cur = new Date(dataInicio + 'T12:00:00Z');
-      const end = new Date(todayStr   + 'T12:00:00Z');
-      while (cur <= end) {
-        const dia = cur.toISOString().split('T')[0];
-        // Mesma fórmula do LMC Planilha: Abertura + Compras - Vendas (aferições não entram no fechamento)
-        fechamento = abertura
-          + (comprasMap[cod]?.[dia] || 0)
-          - (vendasMap[cod]?.[dia]  || 0);
-        abertura = fechamento;
-        cur.setUTCDate(cur.getUTCDate() + 1);
-      }
-
-      return {
-        codProduto:       cod,
-        descricaoProduto: p.prodresumo,
-        data:             todayStr,
-        fechamento,
-      };
-    });
-
-    res.json({ empresa, data: todayStr, saldos });
-
+    res.json({ empresa, saldos });
   } catch (err) {
     console.error('GET /lmc/saldo-atual:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/lmc/salvar-saldos?empresa=X
+// Recebe os fechamentos calculados pelo LMC Planilha e persiste no starvl_lmc.
+// Body: { data: 'YYYY-MM-DD', saldos: [{ codProduto, nomeProduto, fechamento }] }
+router.post('/salvar-saldos', async (req, res) => {
+  const empresa = parseInt(req.query.empresa);
+  if (!empresa) return res.status(400).json({ error: 'empresa is required' });
+
+  const { data, saldos } = req.body;
+  if (!data || !Array.isArray(saldos) || saldos.length === 0) {
+    return res.status(400).json({ error: 'data e saldos[] são obrigatórios' });
+  }
+
+  try {
+    for (const s of saldos) {
+      await mainPool.query(
+        `INSERT INTO starvl_lmc
+           (slmc_empresa, slmc_produto, slmc_produto_nome, slmc_data,
+            slmc_abertura, slmc_compras110, slmc_compras220,
+            slmc_vendas, slmc_afericoes, slmc_fechamento, slmc_synced_at)
+         VALUES ($1, $2, $3, $4, 0, 0, 0, 0, 0, $5, NOW())
+         ON CONFLICT (slmc_empresa, slmc_produto, slmc_data) DO UPDATE SET
+           slmc_produto_nome = EXCLUDED.slmc_produto_nome,
+           slmc_fechamento   = EXCLUDED.slmc_fechamento,
+           slmc_synced_at    = NOW()`,
+        [empresa, s.codProduto, s.nomeProduto || 'Produto', data, s.fechamento ?? 0]
+      );
+    }
+
+    console.log(`[lmc/salvar-saldos] empresa=${empresa} data=${data} produtos=${saldos.length}`);
+    res.json({ ok: true, empresa, data, salvos: saldos.length });
+  } catch (err) {
+    console.error('POST /lmc/salvar-saldos:', err.message);
     res.status(500).json({ error: err.message });
   }
 });

@@ -7406,27 +7406,20 @@ function getCurrentDayReguaStock(fuelId, reguaEdits = {}) {
 
 /**
  * Regra (por prioridade):
- *  1. Régua do dia corrente em starvl:lmc-regua  → leitura física do bocal
- *  2. Fechamento calculado pelo LMC Planilha     → starvl:lmc-fechamento-atual (localStorage)
- *  3. Fechamento calculado pelo backend via SGA  → saldos recebidos como argumento
+ *  1. Régua do dia corrente em starvl:lmc-regua → leitura física do bocal (localStorage)
+ *  2. Fechamento salvo no backend via POST /api/lmc/salvar-saldos → starvlFechamentos
  *
- * Fontes 1 e 2 são salvas pelo LMC Planilha no localStorage.
- * Fonte 3 é fallback para quando o LMC ainda não foi aberto na sessão atual.
+ * O LMC Planilha salva automaticamente no backend ao carregar — funciona em qualquer dispositivo.
  */
 function computeEffectiveStock(starvlFechamentos = []) {
-  let reguaEdits    = {};
-  let fechAtual     = {};
-  try { reguaEdits  = JSON.parse(localStorage.getItem('starvl:lmc-regua')            || '{}'); } catch { /* ignore */ }
-  try { fechAtual   = JSON.parse(localStorage.getItem('starvl:lmc-fechamento-atual')  || '{}'); } catch { /* ignore */ }
+  let reguaEdits = {};
+  try { reguaEdits = JSON.parse(localStorage.getItem('starvl:lmc-regua') || '{}'); } catch { /* ignore */ }
 
   const result = {};
   (starvlFechamentos || []).forEach(f => {
-    const cod        = Number(f.codProduto);
-    const regua      = getCurrentDayReguaStock(cod, reguaEdits);
-    const lmcFech    = fechAtual[String(cod)] ?? fechAtual[cod];
-    const apiFech    = f.fechamento ?? 0;
-    // Prioridade: régua > fechamento do LMC Planilha > cálculo do backend
-    result[cod] = regua ?? (lmcFech != null ? lmcFech : apiFech);
+    const cod      = Number(f.codProduto);
+    const regua    = getCurrentDayReguaStock(cod, reguaEdits);
+    result[cod] = regua ?? (f.fechamento ?? 0);
   });
   return result;
 }
@@ -13610,6 +13603,77 @@ const LmcPlanilha = ({ selectedClient, clients, themeMode }) => {
   }, [empresa]);
 
   useEffect(() => { fetchData(period); }, [fetchData, period]);
+
+  // Salva fechamentos de TODOS os produtos no backend sempre que sgaData muda
+  // (garante que dashboard e estoque mostrem valores corretos em qualquer dispositivo)
+  useEffect(() => {
+    if (!sgaData || !period || !empresa) return;
+
+    const [mStr, yStr] = period.split('/');
+    const month = Number(mStr), year = Number(yStr);
+    if (!month || !year) return;
+
+    const today = new Date();
+    // Só salva o mês corrente
+    if (year !== today.getFullYear() || month !== today.getMonth() + 1) return;
+
+    const todayKey = `${year}-${String(month).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+
+    const parseLitLocal = (s) => {
+      if (s == null || String(s).trim() === '') return null;
+      const cleaned = String(s).replace(/\./g, '').replace(',', '.');
+      const n = parseFloat(cleaned);
+      return isNaN(n) ? null : n;
+    };
+
+    const saldos = (sgaData.produtos || []).map(prod => {
+      const cod = prod.codigo;
+      let abertura = sgaData.aberturas?.[cod] ?? 0;
+      let prevHasReguaLocal = false;
+      let prevReguaLocal = null;
+
+      for (let d = 1; d <= today.getDate(); d++) {
+        const pad      = String(d).padStart(2, '0');
+        const monthPad = String(month).padStart(2, '0');
+        const dayKey   = `${year}-${monthPad}-${pad}`;
+        const abKey    = `${period}|${cod}|${dayKey}`;
+
+        // Abertura: respeita overrides manuais do cadeado
+        let aberturaDay;
+        if (d === 1) {
+          aberturaDay = abertura;
+        } else {
+          aberturaDay = prevHasReguaLocal ? (prevReguaLocal ?? 0) : abertura;
+        }
+        const isUnlocked = !!aberturaUnlocked[abKey];
+        const abRaw      = aberturaEdits[abKey] ?? '';
+        const abParsed   = parseLitLocal(abRaw);
+        if (isUnlocked && abParsed != null) aberturaDay = abParsed;
+
+        const compras = sgaData.comprasMap?.[cod]?.[dayKey] ?? 0;
+        const vendas  = sgaData.vendasMap?.[cod]?.[dayKey]  ?? 0;
+        const fechamento = aberturaDay + compras - vendas;
+
+        // Régua
+        const rgKey      = `${period}|${cod}|${dayKey}`;
+        const reguaRaw   = reguaEdits[rgKey];
+        const reguaParsed = parseLitLocal(reguaRaw);
+        prevHasReguaLocal = reguaParsed != null;
+        prevReguaLocal    = reguaParsed;
+
+        abertura = fechamento; // próximo dia
+      }
+
+      return { codProduto: cod, nomeProduto: prod.nome, fechamento: abertura };
+    });
+
+    fetch(`${API_URL}/api/lmc/salvar-saldos?empresa=${empresa}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ data: todayKey, saldos }),
+    }).catch(() => {}); // silencioso — não bloqueia a UI
+
+  }, [sgaData, period, empresa, aberturaEdits, aberturaUnlocked, reguaEdits]);
 
   // Formatar número BR sem símbolo (litros)
   const fmtLit = (v) => {
