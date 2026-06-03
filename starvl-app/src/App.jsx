@@ -347,8 +347,6 @@ const TopBar = ({
     <div className={`app-topbar${sidebarCollapsed ? ' sidebar-collapsed' : ''}`}>
       <QuickNav setCurrentPage={setCurrentPage} themeMode={themeMode} />
 
-      <div className="topbar-spacer" />
-
       <select
         className="topbar-select"
         value={selectedClient}

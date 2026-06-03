@@ -1814,14 +1814,7 @@ body.theme-light-body {
   width: 100%;
 }
 
-/* Espaçador — separa busca (esquerda) dos itens fixos (direita) */
-.app-topbar .topbar-spacer {
-  flex: 1;
-  min-width: 12px;
-  max-width: 40px;
-}
-
-/* Empresa fica colada ao lado do status, tamanho automático */
+/* Empresa — margin-left auto empurra todo o grupo direito para a borda */
 .app-topbar .topbar-select {
   flex: 0 0 auto;
   min-width: 100px;
@@ -1829,6 +1822,7 @@ body.theme-light-body {
   height: 34px;
   padding: 0 10px;
   box-sizing: border-box;
+  margin-left: auto;
 }
 
 .app-topbar .connection-status {
