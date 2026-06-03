@@ -330,7 +330,6 @@ const Sidebar = ({
     { icon: Package,       label: 'ESTOQUE',                  page: 'stock'     },
     { icon: ShoppingCart,  label: 'COMPRAS',                  page: 'compras'   },
     { icon: BookOpen,      label: 'LIVROS',                   page: 'control'   },
-    { icon: ClipboardList, label: 'LMC',                      page: 'lmc'       },
     { icon: Target,        label: 'INDICADORES', subLabel: 'PATRIMONIAIS',      page: 'goals'     },
     { icon: PiggyBank,     label: 'FINANCEIRO',               page: 'receber'   },
     { icon: FileText,      label: 'RELATÓRIOS',               page: 'reports'   },
@@ -499,7 +498,6 @@ const QuickNav = ({ setCurrentPage, themeMode }) => {
     { icon: Package,       label: 'Estoque',                    page: 'stock'     },
     { icon: ShoppingCart,  label: 'Compras',                    page: 'compras'   },
     { icon: BookOpen,      label: 'Livros',                     page: 'control'   },
-    { icon: ClipboardList, label: 'LMC',                        page: 'lmc'       },
     { icon: Target,        label: 'Indicadores Patrimoniais',   page: 'goals'     },
     { icon: PiggyBank,     label: 'Financeiro',                 page: 'receber'   },
     { icon: FileText,     label: 'Relatórios',                 page: 'reports'   },
@@ -13901,6 +13899,7 @@ const LivrosManager = ({ lmcRegistros, lmcDiario, lmcControle, selectedPeriod, s
   const sections = [
     { id: 'fluxo', label: '💵 Fluxo de Caixa'  },
     { id: 'conta', label: '🏦 Conta Corrente'   },
+    { id: 'lmc',   label: '📋 LMC'              },
   ];
 
   return (
@@ -13926,6 +13925,9 @@ const LivrosManager = ({ lmcRegistros, lmcDiario, lmcControle, selectedPeriod, s
       )}
       {section === 'conta' && (
         <ContaCorrente clients={clients} selectedClient={selectedClient} themeMode={themeMode} />
+      )}
+      {section === 'lmc' && (
+        <LmcPlanilha selectedClient={selectedClient} clients={clients} themeMode={themeMode} />
       )}
     </div>
   );
@@ -18541,8 +18543,6 @@ export default function App() {
         return <ComprasPage selectedClient={selectedClient} clients={clients} />;
       case 'control':
         return <LivrosManager lmcRegistros={apiData.lmcRegistros} lmcDiario={apiData.lmcDiario} lmcControle={apiData.lmcControle} selectedPeriod={controlPeriod} setSelectedPeriod={setControlPeriod} selectedClient={selectedClient} clients={clients} themeMode={themeMode} estoques={apiData.estoques} />;
-      case 'lmc':
-        return <LmcPlanilha selectedClient={selectedClient} clients={clients} themeMode={themeMode} />;
       case 'stock':
         return <EstoqueManager estoques={apiData.estoques} projecao={apiData.projecao} loading={apiData.loading} selectedClient={selectedClient} clients={clients} themeMode={themeMode} lmcSaldos={apiData.dashboardLmcSaldos} lmcControle={apiData.dashboardLmcControle} lmcStarvlFechamento={apiData.lmcStarvlFechamento} />;
       case 'receber':
