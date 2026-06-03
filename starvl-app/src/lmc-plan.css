@@ -247,13 +247,17 @@
 .lmc-plan-input:focus { border-color: #E31E24; }
 .lmc-plan-input::placeholder { color: #475569; }
 
-/* ── Cadeado no cabeçalho Est. Abertura ───────────────────────────────────── */
-.lmc-plan-th-inner {
+/* ── Célula de abertura: valor + cadeado por linha ────────────────────────── */
+.lmc-plan-ab-cell {
   display: inline-flex;
   align-items: center;
   justify-content: flex-end;
   gap: 6px;
   width: 100%;
+}
+/* Input de abertura um pouco menor para caber com o ícone */
+.lmc-plan-input-ab {
+  width: 82px;
 }
 .lmc-plan-lock-btn {
   display: inline-flex;

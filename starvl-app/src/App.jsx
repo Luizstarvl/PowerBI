@@ -13521,19 +13521,26 @@ const LmcPlanilha = ({ selectedClient, clients, themeMode }) => {
   const [reguaEdits, setReguaEdits] = useState(() => {
     try { return JSON.parse(localStorage.getItem('starvl:lmc-regua') || '{}'); } catch { return {}; }
   });
-  const [aberturaD1Edits, setAberturaD1Edits] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('starvl:lmc-ab-d1') || '{}'); } catch { return {}; }
+  // Abertura: valores editados por dia (chave: period|prod|dayKey)
+  const [aberturaEdits, setAberturaEdits] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('starvl:lmc-ab-edits') || '{}'); } catch { return {}; }
+  });
+  // Cadeado por dia — true = desbloqueado
+  const [aberturaUnlocked, setAberturaUnlocked] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('starvl:lmc-ab-unlocked') || '{}'); } catch { return {}; }
   });
 
-  // Cadeado do Estoque de Abertura — bloqueado por padrão
-  const [aberturaLocked, setAberturaLocked] = useState(() => {
-    try { return localStorage.getItem('starvl:lmc-ab-locked') !== 'false'; } catch { return true; }
-  });
-  const toggleAberturaLock = () => {
-    setAberturaLocked(prev => {
-      const next = !prev;
-      localStorage.setItem('starvl:lmc-ab-locked', String(next));
-      return next;
+  const handleAberturaChange = (abKey, value) => {
+    const updated = { ...aberturaEdits, [abKey]: value };
+    setAberturaEdits(updated);
+    localStorage.setItem('starvl:lmc-ab-edits', JSON.stringify(updated));
+  };
+
+  const toggleAberturaDay = (abKey) => {
+    setAberturaUnlocked(prev => {
+      const updated = { ...prev, [abKey]: !prev[abKey] };
+      localStorage.setItem('starvl:lmc-ab-unlocked', JSON.stringify(updated));
+      return updated;
     });
   };
 
@@ -13595,48 +13602,47 @@ const LmcPlanilha = ({ selectedClient, clients, themeMode }) => {
       const pad = String(d).padStart(2, '0');
       const monthPad = String(month).padStart(2, '0');
       const dayKey = `${year}-${monthPad}-${pad}`;
-      const abKey  = `${period}|${selectedProd}|D1`;
+      const abKey  = `${period}|${selectedProd}|${dayKey}`;   // chave por dia
       const rgKey  = `${period}|${selectedProd}|${dayKey}`;
 
-      // Abertura
-      let abertura;
+      // Abertura calculada (padrão)
+      let calculatedAbertura;
       if (d === 1) {
-        const ab1Raw = aberturaD1Edits[abKey];
-        const parsed = parseLit(ab1Raw);
-        if (parsed != null) {
-          abertura = parsed;
-        } else {
-          // Fallback: fechamento do último dia do mês anterior (starvl_lmc via API)
-          abertura = sgaData.aberturas?.[selectedProd] ?? 0;
-        }
+        calculatedAbertura = sgaData.aberturas?.[selectedProd] ?? 0;
       } else {
-        // Usa régua do dia anterior se informada, senão fechamento
-        abertura = prevHasRegua ? (prevRegua ?? 0) : (prevFechamento ?? 0);
+        calculatedAbertura = prevHasRegua ? (prevRegua ?? 0) : (prevFechamento ?? 0);
       }
+
+      // Se o dia está desbloqueado e há valor editado, usa o valor editado
+      const isUnlocked = !!aberturaUnlocked[abKey];
+      const abRaw      = aberturaEdits[abKey] ?? '';
+      const abParsed   = parseLit(abRaw);
+      const abertura   = (isUnlocked && abParsed != null) ? abParsed : calculatedAbertura;
 
       const compras   = sgaData.comprasMap?.[selectedProd]?.[dayKey] ?? 0;
       const vendas    = sgaData.vendasMap?.[selectedProd]?.[dayKey] ?? 0;
       const afericoes = sgaData.aferMap?.[selectedProd]?.[dayKey] ?? 0;
 
-      // Fechamento = Abertura + Compras - Vendas (aferições só exibição)
+      // Fechamento = Abertura + Compras - Vendas
       const fechamento = abertura + compras - vendas;
 
       // Régua
-      const reguaRaw = reguaEdits[rgKey];
+      const reguaRaw    = reguaEdits[rgKey];
       const reguaParsed = parseLit(reguaRaw);
-      const hasRegua = reguaParsed != null;
-      const regua = hasRegua ? reguaParsed : 0;
+      const hasRegua    = reguaParsed != null;
+      const regua       = hasRegua ? reguaParsed : 0;
 
-      // Perdas/Sobras = Fechamento - Régua (positivo = perda; negativo = sobra)
+      // Perdas/Sobras = Fechamento - Régua
       const perdas = hasRegua ? (fechamento - regua) : null;
 
       rows.push({
         dayKey, dia: d, d1: d === 1,
-        abertura, compras, vendas, afericoes, fechamento,
+        abertura, calculatedAbertura, isUnlocked,
+        compras, vendas, afericoes, fechamento,
         regua, hasRegua, perdas,
         abKey, rgKey,
+        abRaw,
         reguaRaw: reguaRaw ?? '',
-        aberturaD1Raw: d === 1 ? (aberturaD1Edits[abKey] ?? '') : null,
       });
 
       prevFechamento = fechamento;
@@ -13644,7 +13650,7 @@ const LmcPlanilha = ({ selectedClient, clients, themeMode }) => {
       prevHasRegua = hasRegua;
     }
     return rows;
-  }, [sgaData, selectedProd, period, reguaEdits, aberturaD1Edits]);
+  }, [sgaData, selectedProd, period, reguaEdits, aberturaEdits, aberturaUnlocked]);
 
   // Totais
   const totais = useMemo(() => {
@@ -13660,12 +13666,6 @@ const LmcPlanilha = ({ selectedClient, clients, themeMode }) => {
     const updated = { ...reguaEdits, [rgKey]: value };
     setReguaEdits(updated);
     localStorage.setItem('starvl:lmc-regua', JSON.stringify(updated));
-  };
-
-  const handleAberturaD1Change = (abKey, value) => {
-    const updated = { ...aberturaD1Edits, [abKey]: value };
-    setAberturaD1Edits(updated);
-    localStorage.setItem('starvl:lmc-ab-d1', JSON.stringify(updated));
   };
 
   // Period picker helpers
@@ -13778,18 +13778,7 @@ const LmcPlanilha = ({ selectedClient, clients, themeMode }) => {
                 <thead>
                   <tr>
                     <th>Data</th>
-                    <th>
-                      <span className="lmc-plan-th-inner">
-                        Est. Abertura
-                        <button
-                          className={`lmc-plan-lock-btn${aberturaLocked ? '' : ' unlocked'}`}
-                          onClick={toggleAberturaLock}
-                          title={aberturaLocked ? 'Bloqueado — clique para editar' : 'Desbloqueado — clique para bloquear'}
-                        >
-                          {aberturaLocked ? <Lock size={11} /> : <Unlock size={11} />}
-                        </button>
-                      </span>
-                    </th>
+                    <th>Est. Abertura</th>
                     <th>Compras</th>
                     <th>Vendas</th>
                     <th>Aferições</th>
@@ -13807,19 +13796,28 @@ const LmcPlanilha = ({ selectedClient, clients, themeMode }) => {
                         {`${String(row.dia).padStart(2,'0')}/${String(pMonth).padStart(2,'0')}/${pYear}`}
                       </td>
 
-                      {/* Estoque Abertura — editável no D1 apenas quando desbloqueado */}
-                      <td className={`lmc-plan-td${row.d1 && !aberturaLocked ? ' lmc-plan-td-edit' : ''}`}>
-                        {row.d1 && !aberturaLocked ? (
-                          <input
-                            type="text"
-                            className="lmc-plan-input"
-                            value={row.aberturaD1Raw}
-                            placeholder={fmtLit(row.abertura)}
-                            onChange={e => handleAberturaD1Change(row.abKey, e.target.value)}
-                          />
-                        ) : (
-                          <span className="lmc-plan-td-strong">{fmtLit(row.abertura)}</span>
-                        )}
+                      {/* Estoque Abertura — cadeado por dia */}
+                      <td className={`lmc-plan-td${row.isUnlocked ? ' lmc-plan-td-edit' : ''}`}>
+                        <span className="lmc-plan-ab-cell">
+                          {row.isUnlocked ? (
+                            <input
+                              type="text"
+                              className="lmc-plan-input lmc-plan-input-ab"
+                              value={row.abRaw}
+                              placeholder={fmtLit(row.calculatedAbertura)}
+                              onChange={e => handleAberturaChange(row.abKey, e.target.value)}
+                            />
+                          ) : (
+                            <span className="lmc-plan-td-strong">{fmtLit(row.abertura)}</span>
+                          )}
+                          <button
+                            className={`lmc-plan-lock-btn${row.isUnlocked ? ' unlocked' : ''}`}
+                            onClick={() => toggleAberturaDay(row.abKey)}
+                            title={row.isUnlocked ? 'Bloquear — usar valor calculado' : 'Desbloquear para editar abertura'}
+                          >
+                            {row.isUnlocked ? <Unlock size={11} /> : <Lock size={11} />}
+                          </button>
+                        </span>
                       </td>
 
                       {/* Compras — SGA */}
