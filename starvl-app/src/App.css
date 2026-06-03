@@ -1800,9 +1800,12 @@ body.theme-light-body {
 }
 
 /* Itens do topbar */
+
+/* QuickNav cresce para preencher o espaço disponível à esquerda */
 .app-topbar .quicknav {
-  flex: 0 0 200px;
+  flex: 1 1 0;
   min-width: 0;
+  max-width: 600px;
 }
 
 /* Sobrescreve o min-width global de 480px dentro do topbar */
@@ -1811,17 +1814,21 @@ body.theme-light-body {
   width: 100%;
 }
 
+/* Espaçador — separa busca (esquerda) dos itens fixos (direita) */
+.app-topbar .topbar-spacer {
+  flex: 1;
+  min-width: 12px;
+  max-width: 40px;
+}
+
+/* Empresa fica colada ao lado do status, tamanho automático */
 .app-topbar .topbar-select {
-  flex: 0 0 180px;
-  min-width: 0;
+  flex: 0 0 auto;
+  min-width: 100px;
+  max-width: 200px;
   height: 34px;
   padding: 0 10px;
   box-sizing: border-box;
-}
-
-/* Espaçador — empurra itens à direita */
-.app-topbar .topbar-spacer {
-  flex: 1;
 }
 
 .app-topbar .connection-status {
