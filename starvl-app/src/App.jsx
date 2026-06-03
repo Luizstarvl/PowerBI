@@ -359,6 +359,8 @@ const TopBar = ({
         ))}
       </select>
 
+      <div className="topbar-spacer" />
+
       <button
         type="button"
         className={`connection-status ${isConnected ? 'connected' : 'disconnected'}`}
