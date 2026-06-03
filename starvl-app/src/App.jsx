@@ -7406,22 +7406,27 @@ function getCurrentDayReguaStock(fuelId, reguaEdits = {}) {
 
 /**
  * Regra (por prioridade):
- *  1. Régua do dia corrente em starvl:lmc-regua → leitura direta do bocal
- *  2. slmc_fechamento do último dia sincronizado no starvl_lmc (backend)
+ *  1. Régua do dia corrente em starvl:lmc-regua  → leitura física do bocal
+ *  2. Fechamento calculado pelo LMC Planilha     → starvl:lmc-fechamento-atual (localStorage)
+ *  3. Fechamento calculado pelo backend via SGA  → saldos recebidos como argumento
  *
- * A régua é salva no localStorage pelo LMC Planilha e reflete o estoque
- * medido fisicamente; o fechamento é o valor calculado pelo sistema.
+ * Fontes 1 e 2 são salvas pelo LMC Planilha no localStorage.
+ * Fonte 3 é fallback para quando o LMC ainda não foi aberto na sessão atual.
  */
 function computeEffectiveStock(starvlFechamentos = []) {
-  let reguaEdits = {};
-  try { reguaEdits = JSON.parse(localStorage.getItem('starvl:lmc-regua') || '{}'); } catch { /* ignore */ }
+  let reguaEdits    = {};
+  let fechAtual     = {};
+  try { reguaEdits  = JSON.parse(localStorage.getItem('starvl:lmc-regua')            || '{}'); } catch { /* ignore */ }
+  try { fechAtual   = JSON.parse(localStorage.getItem('starvl:lmc-fechamento-atual')  || '{}'); } catch { /* ignore */ }
 
   const result = {};
   (starvlFechamentos || []).forEach(f => {
-    const cod      = Number(f.codProduto);
-    const fechamento = f.fechamento ?? 0;
-    const regua    = getCurrentDayReguaStock(cod, reguaEdits);
-    result[cod] = regua ?? fechamento;
+    const cod        = Number(f.codProduto);
+    const regua      = getCurrentDayReguaStock(cod, reguaEdits);
+    const lmcFech    = fechAtual[String(cod)] ?? fechAtual[cod];
+    const apiFech    = f.fechamento ?? 0;
+    // Prioridade: régua > fechamento do LMC Planilha > cálculo do backend
+    result[cod] = regua ?? (lmcFech != null ? lmcFech : apiFech);
   });
   return result;
 }
@@ -13697,6 +13702,18 @@ const LmcPlanilha = ({ selectedClient, clients, themeMode }) => {
       perdas:    r.hasRegua ? (acc.perdas ?? 0) + (r.perdas ?? 0) : acc.perdas,
     }), { compras: 0, vendas: 0, afericoes: 0, perdas: null });
   }, [tableRows]);
+
+  // Persiste o fechamento do produto atual no localStorage para o dashboard/estoque
+  useEffect(() => {
+    if (!tableRows.length || selectedProd == null) return;
+    const lastRow = tableRows[tableRows.length - 1];
+    if (!lastRow) return;
+    try {
+      const saved = JSON.parse(localStorage.getItem('starvl:lmc-fechamento-atual') || '{}');
+      saved[String(selectedProd)] = lastRow.fechamento;
+      localStorage.setItem('starvl:lmc-fechamento-atual', JSON.stringify(saved));
+    } catch { /* ignore */ }
+  }, [tableRows, selectedProd]);
 
   const handleReguaChange = (rgKey, value) => {
     const updated = { ...reguaEdits, [rgKey]: value };
