@@ -530,8 +530,9 @@ router.get('/saldo-atual', async (req, res) => {
       });
     }
 
-    // 3. Compras, vendas e aferições do mês até hoje (paralelo)
-    const [c110Res, c220Res, vendasRes, aferRes] = await Promise.all([
+    // 3. Compras e vendas do mês até hoje (paralelo)
+    // Aferições NÃO entram no fechamento — fórmula: Abertura + Compras - Vendas
+    const [c110Res, c220Res, vendasRes] = await Promise.all([
       query(
         `SELECT DATE(r.entcpachegada) AS dia, t.entcpiproduto AS produto,
                 SUM(COALESCE(t.entcpivol1,0)+COALESCE(t.entcpivol2,0)+COALESCE(t.entcpivol3,0)) AS total
@@ -566,15 +567,6 @@ router.get('/saldo-atual', async (req, res) => {
          GROUP BY DATE(v.vdadata), i.vditproduto`,
         [empresa, dataInicio, todayStr]
       ),
-      query(
-        `SELECT DATE(a.afermovimento) AS dia, a.aferproduto AS produto, SUM(a.aferqtd) AS total
-         FROM afer a
-         JOIN prod p ON p.prodcodigo = a.aferproduto
-         WHERE a.aferempresa = $1 AND p.prodtipo = 1
-           AND DATE(a.afermovimento) BETWEEN $2 AND $3
-         GROUP BY DATE(a.afermovimento), a.aferproduto`,
-        [empresa, dataInicio, todayStr]
-      ),
     ]);
 
     // 4. Organiza em maps: produto -> { 'YYYY-MM-DD': valor }
@@ -600,8 +592,7 @@ router.get('/saldo-atual', async (req, res) => {
       if (!comprasMap[prod]) comprasMap[prod] = {};
       comprasMap[prod][dia] = (comprasMap[prod][dia] || 0) + parseFloat(r.total || 0);
     });
-    const vendasMap  = toMap(vendasRes.rows);
-    const aferMap    = toMap(aferRes.rows);
+    const vendasMap = toMap(vendasRes.rows);
 
     // 5. Para cada produto, encadeia abertura → fechamento dia a dia até hoje
     const saldos = prodResult.rows.map(p => {
@@ -613,10 +604,10 @@ router.get('/saldo-atual', async (req, res) => {
       const end = new Date(todayStr   + 'T12:00:00Z');
       while (cur <= end) {
         const dia = cur.toISOString().split('T')[0];
+        // Mesma fórmula do LMC Planilha: Abertura + Compras - Vendas (aferições não entram no fechamento)
         fechamento = abertura
           + (comprasMap[cod]?.[dia] || 0)
-          - (vendasMap[cod]?.[dia]  || 0)
-          + (aferMap[cod]?.[dia]    || 0);
+          - (vendasMap[cod]?.[dia]  || 0);
         abertura = fechamento;
         cur.setUTCDate(cur.getUTCDate() + 1);
       }
