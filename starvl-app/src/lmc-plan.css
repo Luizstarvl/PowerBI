@@ -247,6 +247,58 @@
 .lmc-plan-input:focus { border-color: #E31E24; }
 .lmc-plan-input::placeholder { color: #475569; }
 
+/* ── Cadeado no cabeçalho Est. Abertura ───────────────────────────────────── */
+.lmc-plan-th-inner {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  width: 100%;
+}
+.lmc-plan-lock-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: none;
+  border-radius: 4px;
+  background: rgba(255,255,255,0.12);
+  color: rgba(255,255,255,0.7);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s, color 0.15s;
+  padding: 0;
+  line-height: 0;
+}
+.lmc-plan-lock-btn:hover {
+  background: rgba(255,255,255,0.25);
+  color: #fff;
+}
+/* Desbloqueado — destaque âmbar para chamar atenção */
+.lmc-plan-lock-btn.unlocked {
+  background: rgba(251,191,36,0.22);
+  color: #fbbf24;
+}
+.lmc-plan-lock-btn.unlocked:hover {
+  background: rgba(251,191,36,0.35);
+  color: #fde68a;
+}
+
+/* Light theme — cadeado */
+.theme-light .lmc-plan-lock-btn {
+  background: rgba(0,0,0,0.08);
+  color: rgba(0,0,0,0.5);
+}
+.theme-light .lmc-plan-lock-btn:hover {
+  background: rgba(0,0,0,0.15);
+  color: #111;
+}
+.theme-light .lmc-plan-lock-btn.unlocked {
+  background: rgba(217,119,6,0.12);
+  color: #b45309;
+}
+
 /* Perdas / Sobras */
 .lmc-plan-perda  { color: #ef4444; font-weight: 700; }
 .lmc-plan-sobra  { color: #22c55e; font-weight: 700; }

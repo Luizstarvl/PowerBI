@@ -13525,6 +13525,18 @@ const LmcPlanilha = ({ selectedClient, clients, themeMode }) => {
     try { return JSON.parse(localStorage.getItem('starvl:lmc-ab-d1') || '{}'); } catch { return {}; }
   });
 
+  // Cadeado do Estoque de Abertura — bloqueado por padrão
+  const [aberturaLocked, setAberturaLocked] = useState(() => {
+    try { return localStorage.getItem('starvl:lmc-ab-locked') !== 'false'; } catch { return true; }
+  });
+  const toggleAberturaLock = () => {
+    setAberturaLocked(prev => {
+      const next = !prev;
+      localStorage.setItem('starvl:lmc-ab-locked', String(next));
+      return next;
+    });
+  };
+
   const fetchData = useCallback(async (p) => {
     if (!empresa || !p) return;
     setLoading(true);
@@ -13766,7 +13778,18 @@ const LmcPlanilha = ({ selectedClient, clients, themeMode }) => {
                 <thead>
                   <tr>
                     <th>Data</th>
-                    <th>Est. Abertura</th>
+                    <th>
+                      <span className="lmc-plan-th-inner">
+                        Est. Abertura
+                        <button
+                          className={`lmc-plan-lock-btn${aberturaLocked ? '' : ' unlocked'}`}
+                          onClick={toggleAberturaLock}
+                          title={aberturaLocked ? 'Bloqueado — clique para editar' : 'Desbloqueado — clique para bloquear'}
+                        >
+                          {aberturaLocked ? <Lock size={11} /> : <Unlock size={11} />}
+                        </button>
+                      </span>
+                    </th>
                     <th>Compras</th>
                     <th>Vendas</th>
                     <th>Aferições</th>
@@ -13784,9 +13807,9 @@ const LmcPlanilha = ({ selectedClient, clients, themeMode }) => {
                         {`${String(row.dia).padStart(2,'0')}/${String(pMonth).padStart(2,'0')}/${pYear}`}
                       </td>
 
-                      {/* Estoque Abertura — editável apenas D1 */}
-                      <td className={`lmc-plan-td${row.d1 ? ' lmc-plan-td-edit' : ''}`}>
-                        {row.d1 ? (
+                      {/* Estoque Abertura — editável no D1 apenas quando desbloqueado */}
+                      <td className={`lmc-plan-td${row.d1 && !aberturaLocked ? ' lmc-plan-td-edit' : ''}`}>
+                        {row.d1 && !aberturaLocked ? (
                           <input
                             type="text"
                             className="lmc-plan-input"
