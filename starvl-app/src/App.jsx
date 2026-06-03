@@ -6589,7 +6589,7 @@ const FuelStationCard = ({ estoques = [], lmcStarvlFechamento = [], themeMode = 
   const [slideAnim, setSlideAnim] = useState('appear');
   const [animKey, setAnimKey]     = useState(0);
 
-  // Estoque efetivo: físico do dia corrente, senão fechamento salvo pelo STARVL.
+  // Estoque efetivo: régua do dia corrente (LMC Planilha), senão fechamento salvo pelo STARVL.
   const effectiveStockMap = useMemo(
     () => computeEffectiveStock(lmcStarvlFechamento),
     [lmcStarvlFechamento]
@@ -7388,30 +7388,40 @@ function getCurrentDayInfo() {
   };
 }
 
-function getCurrentDayPhysicalStock(fuelId, fisicoEdits = {}) {
+/**
+ * Lê a régua do dia corrente para um produto no LMC Planilha (localStorage).
+ * Chave: "MM/YYYY|prodCodigo|YYYY-MM-DD"
+ * Formato de entrada: string numérica brasileira (ex: "15.254,300" ou "15254.3")
+ */
+function getCurrentDayReguaStock(fuelId, reguaEdits = {}) {
   const { period, dayKey } = getCurrentDayInfo();
-  const fisicoKey = `${period}|${Number(fuelId)}|${dayKey}`;
-  const raw = fisicoEdits[fisicoKey];
+  const key = `${period}|${Number(fuelId)}|${dayKey}`;
+  const raw = reguaEdits[key];
   if (raw === undefined || String(raw).trim() === '') return null;
-  const parsed = parseControlNumber(raw);
-  return parsed > 0 ? parsed : null;
+  // Parseia formato BR: remove pontos de milhar, troca vírgula por ponto
+  const cleaned = String(raw).replace(/\./g, '').replace(',', '.');
+  const parsed = parseFloat(cleaned);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
 }
 
 /**
- * Regra: se o usuário informou ESTOQUE FÍSICO > 0 para o dia corrente
- * usa físico. Caso contrário usa ESTOQUE FECHAMENTO do starvl_lmc.
- * O físico é lido do localStorage (starvl:lmc-fisico) e nunca enviado ao backend.
+ * Regra (por prioridade):
+ *  1. Régua do dia corrente em starvl:lmc-regua → leitura direta do bocal
+ *  2. slmc_fechamento do último dia sincronizado no starvl_lmc (backend)
+ *
+ * A régua é salva no localStorage pelo LMC Planilha e reflete o estoque
+ * medido fisicamente; o fechamento é o valor calculado pelo sistema.
  */
 function computeEffectiveStock(starvlFechamentos = []) {
-  let fisicoEdits = {};
-  try { fisicoEdits = JSON.parse(localStorage.getItem('starvl:lmc-fisico') || '{}'); } catch { /* ignore */ }
+  let reguaEdits = {};
+  try { reguaEdits = JSON.parse(localStorage.getItem('starvl:lmc-regua') || '{}'); } catch { /* ignore */ }
 
   const result = {};
   (starvlFechamentos || []).forEach(f => {
-    const cod = Number(f.codProduto);
+    const cod      = Number(f.codProduto);
     const fechamento = f.fechamento ?? 0;
-    const fisico = getCurrentDayPhysicalStock(cod, fisicoEdits);
-    result[cod] = fisico ?? fechamento;
+    const regua    = getCurrentDayReguaStock(cod, reguaEdits);
+    result[cod] = regua ?? fechamento;
   });
   return result;
 }
@@ -15443,7 +15453,7 @@ const StockPosition = ({ estoques, projecao, loading, selectedClient, clients, l
 
   const fmtR = fmtBRL;
 
-  // Estoque efetivo: físico do dia corrente, senão fechamento salvo pelo STARVL.
+  // Estoque efetivo: régua do dia corrente (LMC Planilha), senão fechamento salvo pelo STARVL.
   const effectiveStockMapSP = useMemo(
     () => computeEffectiveStock(lmcStarvlFechamento),
     [lmcStarvlFechamento]
