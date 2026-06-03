@@ -59,11 +59,16 @@
   border-radius: 8px;
   color: #f8fafc;
   font-size: 13px;
-  padding: 7px 10px;
+  padding: 7px 28px 7px 10px;
   outline: none;
   cursor: pointer;
   transition: border-color 0.15s;
   font-family: inherit;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
 }
 .lmc-plan-sel:focus { border-color: #E31E24; }
 
@@ -308,58 +313,107 @@
 /* ═══════════════════════════════════════════════════════════════════════════
    LIGHT THEME OVERRIDES
    ═══════════════════════════════════════════════════════════════════════════ */
-.theme-light .lmc-plan-header,
-.theme-light .lmc-plan-toolbar,
+
+/* ── Containers ─────────────────────────────────────────────────────────────*/
+.theme-light .lmc-plan-page {
+  background: transparent;
+}
+.theme-light .lmc-plan-header {
+  background: #ffffff;
+  border-color: #d1d5db;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+.theme-light .lmc-plan-toolbar {
+  background: #ffffff;
+  border-color: #d1d5db;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
 .theme-light .lmc-plan-card {
   background: #ffffff;
-  border-color: #e5e7eb;
+  border-color: #d1d5db;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
 }
-.theme-light .lmc-plan-title   { color: #111827; }
-.theme-light .lmc-plan-sub     { color: #6b7280; }
-.theme-light .lmc-plan-toolbar-label { color: #9ca3af; }
-.theme-light .lmc-plan-sel,
-.theme-light .lmc-plan-prod-select {
-  background: #f8fafc;
+
+/* ── Texto ──────────────────────────────────────────────────────────────────*/
+.theme-light .lmc-plan-title        { color: #111827; }
+.theme-light .lmc-plan-sub          { color: #6b7280; }
+.theme-light .lmc-plan-toolbar-label{ color: #6b7280; }
+.theme-light .lmc-plan-periodo-tag  { color: #9ca3af; }
+
+/* ── Selects do header ──────────────────────────────────────────────────────*/
+.theme-light .lmc-plan-sel {
+  background: #f9fafb;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
   border-color: #d1d5db;
   color: #111827;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
 }
-.theme-light .lmc-plan-sel:focus,
+.theme-light .lmc-plan-sel:focus { border-color: #E31E24; }
+
+/* ── Botão Atualizar ────────────────────────────────────────────────────────*/
+.theme-light .lmc-plan-btn-refresh {
+  background: #E31E24;
+  color: #fff;
+}
+
+/* ── Toolbar produto ────────────────────────────────────────────────────────*/
+.theme-light .lmc-plan-prod-select {
+  background: #f9fafb;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  border-color: #d1d5db;
+  color: #111827;
+}
 .theme-light .lmc-plan-prod-select:focus { border-color: #E31E24; }
 .theme-light .lmc-plan-prod-badge {
   background: rgba(227,30,36,0.07);
-  border-color: rgba(227,30,36,0.25);
+  border-color: rgba(227,30,36,0.3);
   color: #c91b20;
 }
 .theme-light .lmc-plan-prod-dot { background: #c91b20; }
-.theme-light .lmc-plan-periodo-tag { color: #9ca3af; }
-.theme-light .lmc-plan-legend { border-bottom-color: #f1f5f9; }
-.theme-light .lmc-plan-legend-item { color: #6b7280; }
-.theme-light .lmc-plan-legend-box.edit { background: rgba(227,30,36,0.05); border-color: rgba(227,30,36,0.2); }
-.theme-light .lmc-plan-legend-box.calc { background: #f8fafc; border-color: #e5e7eb; }
-.theme-light .lmc-plan-table thead tr { background: #E31E24; }
-.theme-light .lmc-plan-table thead th { color: #fff; }
-.theme-light .lmc-plan-tr { border-bottom-color: #f1f5f9; }
-.theme-light .lmc-plan-tr:hover { background: rgba(0,0,0,0.02); }
-.theme-light .lmc-plan-td       { color: #374151; }
-.theme-light .lmc-plan-td-date  { color: #6b7280; }
-.theme-light .lmc-plan-td-edit  { background: rgba(227,30,36,0.04); }
-.theme-light .lmc-plan-td-strong { color: #111827; }
-.theme-light .lmc-plan-td-dash  { color: #9ca3af; }
+
+/* ── Legenda ────────────────────────────────────────────────────────────────*/
+.theme-light .lmc-plan-legend        { border-bottom-color: #e5e7eb; background: #f9fafb; }
+.theme-light .lmc-plan-legend-item   { color: #6b7280; }
+.theme-light .lmc-plan-legend-box.edit { background: rgba(227,30,36,0.06); border-color: rgba(227,30,36,0.25); }
+.theme-light .lmc-plan-legend-box.calc { background: #f3f4f6;             border-color: #d1d5db; }
+
+/* ── Tabela ─────────────────────────────────────────────────────────────────*/
+.theme-light .lmc-plan-table thead tr { background: #E31E24 !important; }
+.theme-light .lmc-plan-table thead th { color: #ffffff !important; letter-spacing: 0.07em; }
+
+.theme-light .lmc-plan-tr            { border-bottom-color: #e5e7eb; }
+.theme-light .lmc-plan-tr:hover      { background: rgba(0,0,0,0.025); }
+
+.theme-light .lmc-plan-td            { color: #1f2937; }
+.theme-light .lmc-plan-td-date       { color: #6b7280; }
+.theme-light .lmc-plan-td-edit       { background: rgba(227,30,36,0.05); }
+.theme-light .lmc-plan-td-strong     { color: #111827; font-weight: 700; }
+.theme-light .lmc-plan-td-dash       { color: #9ca3af; }
+
+/* ── Inputs editáveis ───────────────────────────────────────────────────────*/
 .theme-light .lmc-plan-input {
   background: #fff5f5;
-  border-color: #fecaca;
-  color: #1e293b;
-}
-.theme-light .lmc-plan-input:focus { border-color: #E31E24; }
-.theme-light .lmc-plan-input::placeholder { color: #9ca3af; }
-.theme-light .lmc-plan-totals td {
-  background: #f8fafc;
-  border-top-color: #e5e7eb;
+  border-color: #fca5a5;
   color: #111827;
 }
-.theme-light .lmc-plan-footer { border-top-color: #f1f5f9; color: #9ca3af; }
-.theme-light .lmc-plan-footer strong { color: #374151; }
-.theme-light .lmc-plan-empty-icon { background: rgba(227,30,36,0.06); color: #E31E24; }
-.theme-light .lmc-plan-empty-title { color: #374151; }
-.theme-light .lmc-plan-loading { color: #6b7280; }
+.theme-light .lmc-plan-input:focus       { border-color: #E31E24; }
+.theme-light .lmc-plan-input::placeholder{ color: #9ca3af; }
+
+/* ── Totais ─────────────────────────────────────────────────────────────────*/
+.theme-light .lmc-plan-totals td {
+  background: #f3f4f6;
+  border-top-color: #d1d5db;
+  color: #111827;
+}
+
+/* ── Footer ─────────────────────────────────────────────────────────────────*/
+.theme-light .lmc-plan-footer         { border-top-color: #e5e7eb; color: #6b7280; background: #f9fafb; }
+.theme-light .lmc-plan-footer strong  { color: #374151; }
+
+/* ── Empty / Loading ────────────────────────────────────────────────────────*/
+.theme-light .lmc-plan-empty-icon   { background: rgba(227,30,36,0.06); color: #E31E24; }
+.theme-light .lmc-plan-empty-title  { color: #374151; }
+.theme-light .lmc-plan-loading      { color: #6b7280; }

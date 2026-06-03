@@ -13894,12 +13894,12 @@ const LmcPlanilha = ({ selectedClient, clients, themeMode }) => {
 
 // ─── LivrosManager — seções dentro da aba Livros ────────────────────────────
 const LivrosManager = ({ lmcRegistros, lmcDiario, lmcControle, selectedPeriod, setSelectedPeriod, selectedClient, clients, themeMode, estoques = [] }) => {
-  const [section, setSection] = useState('fluxo');
+  const [section, setSection] = useState('lmc');
 
   const sections = [
+    { id: 'lmc',   label: '📋 LMC'              },
     { id: 'fluxo', label: '💵 Fluxo de Caixa'  },
     { id: 'conta', label: '🏦 Conta Corrente'   },
-    { id: 'lmc',   label: '📋 LMC'              },
   ];
 
   return (
