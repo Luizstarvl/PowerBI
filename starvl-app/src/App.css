@@ -1778,85 +1778,83 @@ body.theme-light-body {
   color: #fff;
 }
 
-/* ── Toolbar na sidebar vertical (topo, abaixo do logo) ────────────────────── */
-.menu-toolbar {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 10px 10px 12px;
+/* ── TopBar — cabeçalho fixo horizontal ────────────────────────────────────── */
+.app-topbar {
+  position: fixed;
+  top: 0;
+  left: 252px;
+  right: 0;
+  height: 56px;
+  z-index: 110;
+  background: #0d0e11;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 20px 0 16px;
+  transition: left 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Itens do toolbar adaptados à largura da sidebar (252 px) */
-.menu-toolbar .quicknav { width: 100%; }
+.app-topbar.sidebar-collapsed {
+  left: 76px;
+}
 
-.menu-toolbar .topbar-select {
-  width: 100%;
-  box-sizing: border-box;
+/* Itens do topbar */
+.app-topbar .quicknav {
+  flex: 0 0 220px;
+  min-width: 0;
+}
+
+.app-topbar .topbar-select {
+  flex: 0 1 200px;
+  min-width: 120px;
   height: 34px;
   padding: 0 10px;
+  box-sizing: border-box;
 }
 
-/* Linha inferior: status + ícones + tema + usuário */
-.menu-toolbar .sidebar-tool-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
+.app-topbar .connection-status {
+  flex: 0 0 auto;
+  height: 32px;
+  font-size: 12px;
+  padding: 0 10px;
+  white-space: nowrap;
 }
 
-.menu-toolbar .connection-status {
-  flex: 1 1 auto;
-  height: 30px;
-  font-size: 11px;
+.app-topbar .top-bar-icon-btn {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+}
+
+.app-topbar .theme-toggle-group {
+  flex: 0 0 auto;
+  height: 32px;
+}
+
+.app-topbar .theme-toggle-btn {
+  width: 28px;
+  height: 28px;
+}
+
+.app-topbar .top-bar-user {
+  flex: 0 0 auto;
+  height: 34px;
   padding: 0 8px;
+  gap: 6px;
+  margin-left: auto;
 }
 
-.menu-toolbar .top-bar-icon-btn {
-  width: 30px;
-  height: 30px;
-}
-
-.menu-toolbar .theme-toggle-group {
-  height: 30px;
-}
-
-.menu-toolbar .theme-toggle-btn {
-  width: 26px;
-  height: 26px;
-}
-
-.menu-toolbar .top-bar-user {
-  height: 30px;
-  padding: 0 6px;
-  gap: 5px;
-  max-width: 100%;
-}
-
-/* Sidebar collapsed: toolbar apenas com ícones */
-.sidebar.collapsed .menu-toolbar {
-  padding: 8px 4px 10px;
-  gap: 4px;
-  align-items: center;
-}
-.sidebar.collapsed .menu-toolbar .quicknav,
-.sidebar.collapsed .menu-toolbar .topbar-select,
-.sidebar.collapsed .menu-toolbar .connection-status span,
-.sidebar.collapsed .menu-toolbar .top-bar-user span,
-.sidebar.collapsed .menu-toolbar .top-bar-user svg:last-child {
-  display: none;
-}
-.sidebar.collapsed .menu-toolbar .top-bar-user {
-  width: 36px;
-  height: 36px;
-  padding: 0;
-  justify-content: center;
+/* Admin dropdown from topbar should open downward */
+.app-topbar .admin-dropdown {
+  top: calc(100% + 6px);
+  bottom: auto;
 }
 
 /* MAIN CONTENT */
 .main-content {
   margin-left: 252px;
+  padding-top: 56px;
   flex: 1;
   background: #0a0a0a;
   min-height: 100vh;
@@ -5561,6 +5559,30 @@ body.theme-light-body {
 
 .theme-light .main-content {
   background: #f4f6f8;
+}
+
+.theme-light .app-topbar {
+  background: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.theme-light .app-topbar .top-bar-user {
+  color: #111827;
+}
+
+.theme-light .app-topbar .top-bar-icon-btn {
+  color: #374151;
+}
+
+.theme-light .app-topbar .connection-status {
+  border-color: #e2e8f0;
+  color: #374151;
+}
+
+.theme-light .app-topbar .topbar-select {
+  background: #f8fafc;
+  color: #111827;
+  border-color: #e2e8f0;
 }
 
 .theme-light .sidebar {

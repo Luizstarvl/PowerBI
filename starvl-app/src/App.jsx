@@ -303,6 +303,144 @@ const Login = ({ onLogin }) => {
   );
 };
 
+// TopBar Component — fixed header with search, company, status, theme, user
+const TopBar = ({
+  setCurrentPage,
+  themeMode,
+  setThemeMode,
+  clients,
+  selectedClient,
+  setSelectedClient,
+  isConnected,
+  apiError,
+  onRefresh,
+  autoRefresh,
+  setAutoRefresh,
+  loggedUser,
+  onLogout,
+  sidebarCollapsed,
+}) => {
+  const [showAdminMenu, setShowAdminMenu] = useState(false);
+  const [profileImg, setProfileImg] = useState(null);
+  const adminRef = useRef(null);
+
+  const connectionLabel = isConnected ? 'Conectado' : (apiError ? 'Servidor offline' : 'Desconectado');
+
+  useEffect(() => {
+    if (loggedUser?.id) {
+      userImgLoadOne(loggedUser.id).then(img => setProfileImg(img || null)).catch(() => {});
+    }
+  }, [loggedUser?.id]);
+
+  // Close admin dropdown when clicking outside
+  useEffect(() => {
+    const handler = (e) => {
+      if (adminRef.current && !adminRef.current.contains(e.target)) {
+        setShowAdminMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  return (
+    <div className={`app-topbar${sidebarCollapsed ? ' sidebar-collapsed' : ''}`}>
+      <QuickNav setCurrentPage={setCurrentPage} themeMode={themeMode} />
+
+      <select
+        className="topbar-select"
+        value={selectedClient}
+        onChange={(e) => setSelectedClient(e.target.value)}
+        title="Empresa"
+        aria-label="Empresa"
+      >
+        {clients.map((c) => (
+          <option key={c.id} value={c.nome}>{c.nome}</option>
+        ))}
+      </select>
+
+      <button
+        type="button"
+        className={`connection-status ${isConnected ? 'connected' : 'disconnected'}`}
+        title={isConnected ? 'API conectada' : (apiError || 'API desconectada')}
+        onClick={onRefresh}
+      >
+        <span className={`connection-dot${isConnected ? ' pulse-green' : ''}`} />
+        <span>{connectionLabel}</span>
+      </button>
+
+      <button
+        type="button"
+        className="top-bar-icon-btn"
+        title={autoRefresh ? 'Auto-atualização ativa (5 min) — clique para desativar' : 'Auto-atualização desativada — clique para ativar'}
+        aria-label="Auto-atualização"
+        onClick={() => setAutoRefresh && setAutoRefresh(v => !v)}
+        style={{ color: autoRefresh ? '#22c55e' : undefined, position: 'relative' }}
+      >
+        <RefreshCw size={19} />
+        {autoRefresh && (
+          <span style={{ position:'absolute', top:4, right:4, width:7, height:7, borderRadius:'50%', background:'#22c55e', border:'1.5px solid #111' }} />
+        )}
+      </button>
+
+      <div className="theme-toggle-group" aria-label="Tema">
+        <button
+          type="button"
+          className={`theme-toggle-btn ${themeMode === 'dark' ? 'active' : ''}`}
+          onClick={() => setThemeMode('dark')}
+          title="Modo dark"
+          aria-label="Modo dark"
+        >
+          <Moon size={18} />
+        </button>
+        <button
+          type="button"
+          className={`theme-toggle-btn ${themeMode === 'light' ? 'active' : ''}`}
+          onClick={() => setThemeMode('light')}
+          title="Modo white"
+          aria-label="Modo white"
+        >
+          <Sun size={18} />
+        </button>
+      </div>
+
+      <div
+        ref={adminRef}
+        className="top-bar-user"
+        onClick={() => setShowAdminMenu((v) => !v)}
+      >
+        {profileImg
+          ? <img src={profileImg} alt="avatar" className="user-avatar-sm user-avatar-sm-img" />
+          : <div className="user-avatar-sm">{(loggedUser?.usuario || 'U').charAt(0).toUpperCase()}</div>
+        }
+        <span>{loggedUser?.usuario || 'Usuário'}</span>
+        <ChevronDown size={14} />
+        {showAdminMenu && (
+          <div className="admin-dropdown" onClick={(e) => e.stopPropagation()}>
+            <button
+              type="button"
+              className="admin-dropdown-item"
+              onClick={() => { setCurrentPage('users'); setShowAdminMenu(false); }}
+            >
+              <UsersIcon size={15} />
+              Gerenciar Usuários
+            </button>
+            <div className="admin-dropdown-divider" />
+            <button
+              type="button"
+              className="admin-dropdown-item danger"
+              onClick={() => { setShowAdminMenu(false); onLogout(); }}
+            >
+              <LogOut size={15} />
+              Sair
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 // Sidebar Component
 const Sidebar = ({
   currentPage,
@@ -311,20 +449,7 @@ const Sidebar = ({
   themeMode,
   collapsed,
   onToggleCollapse,
-  isConnected,
-  apiError,
-  clients,
-  selectedClient,
-  setSelectedClient,
-  loggedUser,
-  setThemeMode,
-  autoRefresh,
-  setAutoRefresh,
-  onRefresh,
 }) => {
-  const [showAdminMenu, setShowAdminMenu] = useState(false);
-  const [profileImg, setProfileImg] = useState(null);
-  const connectionLabel = isConnected ? 'Conectado' : (apiError ? 'Servidor offline' : 'Desconectado');
   const menuItems = [
     { icon: Home,          label: 'HOME',                     page: 'dashboard' },
     { icon: Package,       label: 'ESTOQUE',                  page: 'stock'     },
@@ -336,12 +461,6 @@ const Sidebar = ({
     { icon: ShieldCheck,   label: 'AUDITORIA',                page: 'auditoria' },
     { icon: Settings,      label: 'CONFIGURAÇÕES',            page: 'params'    },
   ];
-
-  useEffect(() => {
-    if (loggedUser?.id) {
-      userImgLoadOne(loggedUser.id).then(img => setProfileImg(img || null)).catch(() => {});
-    }
-  }, [loggedUser?.id]);
 
   return (
     <div className={`sidebar${collapsed ? ' collapsed' : ''}`}>
@@ -380,99 +499,6 @@ const Sidebar = ({
           </button>
         ))}
       </nav>
-
-      <div className="menu-toolbar">
-        <QuickNav setCurrentPage={setCurrentPage} themeMode={themeMode} />
-
-        <select
-          className="topbar-select"
-          value={selectedClient}
-          onChange={(e) => setSelectedClient(e.target.value)}
-          title="Empresa"
-          aria-label="Empresa"
-        >
-          {clients.map((c) => (
-            <option key={c.id} value={c.nome}>{c.nome}</option>
-          ))}
-        </select>
-
-        <div className="sidebar-tool-row">
-          <button
-            type="button"
-            className={`connection-status ${isConnected ? 'connected' : 'disconnected'}`}
-            title={isConnected ? 'API conectada' : (apiError || 'API desconectada')}
-            onClick={onRefresh}
-          >
-            <span className={`connection-dot${isConnected ? ' pulse-green' : ''}`} />
-            <span>{connectionLabel}</span>
-          </button>
-
-          <button
-            type="button"
-            className="top-bar-icon-btn"
-            title={autoRefresh ? 'Auto-atualização ativa (5 min) — clique para desativar' : 'Auto-atualização desativada — clique para ativar'}
-            aria-label="Auto-atualização"
-            onClick={() => setAutoRefresh && setAutoRefresh(v => !v)}
-            style={{ color: autoRefresh ? '#22c55e' : undefined, position: 'relative' }}
-          >
-            <RefreshCw size={19} />
-            {autoRefresh && (
-              <span style={{ position:'absolute', top:4, right:4, width:7, height:7, borderRadius:'50%', background:'#22c55e', border:'1.5px solid #111' }} />
-            )}
-          </button>
-
-          <div className="theme-toggle-group" aria-label="Tema">
-            <button
-              type="button"
-              className={`theme-toggle-btn ${themeMode === 'dark' ? 'active' : ''}`}
-              onClick={() => setThemeMode('dark')}
-              title="Modo dark"
-              aria-label="Modo dark"
-            >
-              <Moon size={18} />
-            </button>
-            <button
-              type="button"
-              className={`theme-toggle-btn ${themeMode === 'light' ? 'active' : ''}`}
-              onClick={() => setThemeMode('light')}
-              title="Modo white"
-              aria-label="Modo white"
-            >
-              <Sun size={18} />
-            </button>
-          </div>
-
-          <div className="top-bar-user" style={{ position: 'relative' }} onClick={() => setShowAdminMenu((v) => !v)}>
-            {profileImg
-              ? <img src={profileImg} alt="avatar" className="user-avatar-sm user-avatar-sm-img" />
-              : <div className="user-avatar-sm">{(loggedUser?.usuario || 'U').charAt(0).toUpperCase()}</div>
-            }
-            <span>{loggedUser?.usuario || 'Usuário'}</span>
-            <ChevronDown size={14} />
-            {showAdminMenu && (
-              <div className="admin-dropdown" onClick={(e) => e.stopPropagation()}>
-                <button
-                  type="button"
-                  className="admin-dropdown-item"
-                  onClick={() => { setCurrentPage('users'); setShowAdminMenu(false); }}
-                >
-                  <UsersIcon size={15} />
-                  Gerenciar Usuários
-                </button>
-                <div className="admin-dropdown-divider" />
-                <button
-                  type="button"
-                  className="admin-dropdown-item danger"
-                  onClick={() => { setShowAdminMenu(false); onLogout(); }}
-                >
-                  <LogOut size={15} />
-                  Sair
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
 
       <button
         className="nav-item logout-btn"
@@ -18594,22 +18620,28 @@ export default function App() {
         setCurrentPage={setCurrentPage}
         onLogout={handleLogoutRequest}
         themeMode={themeMode}
-        setThemeMode={setThemeMode}
         collapsed={sidebarCollapsed}
-        isConnected={isConnected}
-        apiError={apiData.error}
-        clients={clients}
-        selectedClient={selectedClient}
-        setSelectedClient={setSelectedClient}
-        loggedUser={loggedUser}
-        autoRefresh={autoRefresh}
-        setAutoRefresh={setAutoRefresh}
-        onRefresh={handleRefresh}
         onToggleCollapse={() => setSidebarCollapsed(prev => {
           const next = !prev;
           localStorage.setItem('starvl-sidebar-collapsed', String(next));
           return next;
         })}
+      />
+      <TopBar
+        setCurrentPage={setCurrentPage}
+        themeMode={themeMode}
+        setThemeMode={setThemeMode}
+        clients={clients}
+        selectedClient={selectedClient}
+        setSelectedClient={setSelectedClient}
+        isConnected={isConnected}
+        apiError={apiData.error}
+        onRefresh={handleRefresh}
+        autoRefresh={autoRefresh}
+        setAutoRefresh={setAutoRefresh}
+        loggedUser={loggedUser}
+        onLogout={handleLogoutRequest}
+        sidebarCollapsed={sidebarCollapsed}
       />
       <main className={`main-content${sidebarCollapsed ? ' sidebar-collapsed' : ''}`}>
         {apiData.error && <ApiErrorNotice message={apiData.error} onRetry={handleRefresh} />}
