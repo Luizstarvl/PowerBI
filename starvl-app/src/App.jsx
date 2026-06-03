@@ -362,6 +362,25 @@ const Sidebar = ({
         </div>
       </div>
 
+      <nav className="sidebar-nav">
+        {menuItems.map((item) => (
+          <button
+            key={item.page}
+            className={`nav-item ${currentPage === item.page ? 'active' : ''}`}
+            onClick={() => setCurrentPage(item.page)}
+            title={item.label}
+            aria-label={item.subLabel ? `${item.label} ${item.subLabel}` : item.label}
+            aria-current={currentPage === item.page ? 'page' : undefined}
+          >
+            <item.icon size={20} aria-hidden="true" />
+            <span className="nav-label">
+              <span>{item.label}</span>
+              {item.subLabel && <small>{item.subLabel}</small>}
+            </span>
+          </button>
+        ))}
+      </nav>
+
       <div className="menu-toolbar">
         <QuickNav setCurrentPage={setCurrentPage} themeMode={themeMode} />
 
@@ -454,25 +473,6 @@ const Sidebar = ({
           </div>
         </div>
       </div>
-
-      <nav className="sidebar-nav">
-        {menuItems.map((item) => (
-          <button
-            key={item.page}
-            className={`nav-item ${currentPage === item.page ? 'active' : ''}`}
-            onClick={() => setCurrentPage(item.page)}
-            title={item.label}
-            aria-label={item.subLabel ? `${item.label} ${item.subLabel}` : item.label}
-            aria-current={currentPage === item.page ? 'page' : undefined}
-          >
-            <item.icon size={20} aria-hidden="true" />
-            <span className="nav-label">
-              <span>{item.label}</span>
-              {item.subLabel && <small>{item.subLabel}</small>}
-            </span>
-          </button>
-        ))}
-      </nav>
 
       <button
         className="nav-item logout-btn"
