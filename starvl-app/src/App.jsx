@@ -14768,6 +14768,7 @@ const ConvenienciaManager = ({ themeMode, selectedClient, clients }) => {
   // Produtos carregados da API
   const [apiProds, setApiProds]       = useState([]);
   const [loadingConvenio, setLoadingConvenio] = useState(false);
+  const [sprocats, setSprocats]       = useState([]);
   // Inicializa do cache localStorage de forma síncrona — sem flash ao abrir
   const [productImages, setProductImages] = useState(() => {
     try { return JSON.parse(localStorage.getItem(IMG_LS_KEY) || 'null') || {}; }
@@ -14835,6 +14836,15 @@ const ConvenienciaManager = ({ themeMode, selectedClient, clients }) => {
     const c = (clients || []).find(cl => cl.nome === selectedClient) || (clients || [])[0];
     return c?.codigoEmpresa || null;
   }, [clients, selectedClient]);
+
+  // Busca categorias (spro sprotipo=2) uma vez por empresa
+  useEffect(() => {
+    if (!empresa) return;
+    fetch(`${API_URL}/api/estoque/categorias-convenio?empresa=${empresa}`)
+      .then(r => r.ok ? r.json() : Promise.reject(r))
+      .then(data => setSprocats((data.categorias || []).map(c => c.descricao)))
+      .catch(() => {});
+  }, [empresa]);
 
   // Busca produtos da conveniência na API sempre que a empresa mudar
   useEffect(() => {
@@ -15011,7 +15021,12 @@ const ConvenienciaManager = ({ themeMode, selectedClient, clients }) => {
   ];
   const donutBg = pmBuildDonut(donutParts);
 
-  const cats = useMemo(() => ['Todas', ...new Set(apiProds.map(p => p.cat).filter(Boolean))].sort((a,b) => a === 'Todas' ? -1 : a.localeCompare(b)), [apiProds]);
+  const cats = useMemo(() => {
+    const base = sprocats.length > 0
+      ? sprocats
+      : [...new Set(apiProds.map(p => p.cat).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+    return ['Todas', ...base];
+  }, [sprocats, apiProds]);
   const fors = useMemo(() => ['Todos', ...new Set(apiProds.map(p => p.forn).filter(Boolean))].sort((a,b) => a === 'Todos' ? -1 : a.localeCompare(b)), [apiProds]);
 
   // Pagination helper

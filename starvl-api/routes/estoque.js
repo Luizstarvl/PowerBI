@@ -373,4 +373,26 @@ router.get('/convenio', async (req, res) => {
   }
 });
 
+// GET /api/estoque/categorias-convenio?empresa=7432
+// Retorna seções da tabela spro onde sprotipo = 2
+router.get('/categorias-convenio', async (req, res) => {
+  const empresa = parseInt(req.query.empresa);
+  const query = queryFor(empresa);
+  if (!empresa) return res.status(400).json({ error: 'empresa is required' });
+
+  try {
+    const result = await query(
+      `SELECT sprocodigo AS codigo, sprodescricao AS descricao
+       FROM spro
+       WHERE sprotipo = 2
+       ORDER BY sprodescricao`,
+      []
+    );
+    res.json({ categorias: result.rows });
+  } catch (err) {
+    console.error('Error in /estoque/categorias-convenio:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
