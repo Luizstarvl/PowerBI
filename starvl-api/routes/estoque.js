@@ -395,4 +395,28 @@ router.get('/categorias-convenio', async (req, res) => {
   }
 });
 
+// GET /api/estoque/grupos-convenio?empresa=7432
+// Retorna grupos da tabela gpro cujo gprosecao pertence a spro sprotipo=2
+router.get('/grupos-convenio', async (req, res) => {
+  const empresa = parseInt(req.query.empresa);
+  const query = queryFor(empresa);
+  if (!empresa) return res.status(400).json({ error: 'empresa is required' });
+
+  try {
+    const result = await query(
+      `SELECT g.gprocodigo AS codigo, g.gprodescricao AS descricao
+       FROM gpro g
+       WHERE g.gprosecao IN (
+         SELECT sprocodigo FROM spro WHERE sprotipo = 2
+       )
+       ORDER BY g.gprodescricao`,
+      []
+    );
+    res.json({ grupos: result.rows });
+  } catch (err) {
+    console.error('Error in /estoque/grupos-convenio:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

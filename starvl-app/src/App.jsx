@@ -14769,6 +14769,7 @@ const ConvenienciaManager = ({ themeMode, selectedClient, clients }) => {
   const [apiProds, setApiProds]       = useState([]);
   const [loadingConvenio, setLoadingConvenio] = useState(false);
   const [sprocats, setSprocats]       = useState([]);
+  const [sprogroups, setSprogroups]   = useState([]);
   // Inicializa do cache localStorage de forma síncrona — sem flash ao abrir
   const [productImages, setProductImages] = useState(() => {
     try { return JSON.parse(localStorage.getItem(IMG_LS_KEY) || 'null') || {}; }
@@ -14837,12 +14838,16 @@ const ConvenienciaManager = ({ themeMode, selectedClient, clients }) => {
     return c?.codigoEmpresa || null;
   }, [clients, selectedClient]);
 
-  // Busca categorias (spro sprotipo=2) uma vez por empresa
+  // Busca seções (spro sprotipo=2) e grupos (gpro) uma vez por empresa
   useEffect(() => {
     if (!empresa) return;
     fetch(`${API_URL}/api/estoque/categorias-convenio?empresa=${empresa}`)
       .then(r => r.ok ? r.json() : Promise.reject(r))
       .then(data => setSprocats((data.categorias || []).map(c => c.descricao)))
+      .catch(() => {});
+    fetch(`${API_URL}/api/estoque/grupos-convenio?empresa=${empresa}`)
+      .then(r => r.ok ? r.json() : Promise.reject(r))
+      .then(data => setSprogroups((data.grupos || []).map(g => g.descricao)))
       .catch(() => {});
   }, [empresa]);
 
@@ -14978,7 +14983,7 @@ const ConvenienciaManager = ({ themeMode, selectedClient, clients }) => {
     let list = allProds;
     if (search)              { const q = search.toLowerCase(); list = list.filter(p => p.nome.toLowerCase().includes(q) || p.codigo.includes(q)); }
     if (categoria !== 'Todas')  list = list.filter(p => p.cat  === categoria);
-    if (fornecedor !== 'Todos') list = list.filter(p => p.forn === fornecedor);
+    if (fornecedor !== 'Todos') list = list.filter(p => p.sub === fornecedor);
     if (statusFilt !== 'Todos') list = list.filter(p => p.status === statusFilt);
     if (dataInicio)             list = list.filter(p => p.venc >= dataInicio);
     if (dataFim)                list = list.filter(p => p.venc <= dataFim);
@@ -15027,7 +15032,12 @@ const ConvenienciaManager = ({ themeMode, selectedClient, clients }) => {
       : [...new Set(apiProds.map(p => p.cat).filter(Boolean))].sort((a, b) => a.localeCompare(b));
     return ['Todas', ...base];
   }, [sprocats, apiProds]);
-  const fors = useMemo(() => ['Todos', ...new Set(apiProds.map(p => p.forn).filter(Boolean))].sort((a,b) => a === 'Todos' ? -1 : a.localeCompare(b)), [apiProds]);
+  const fors = useMemo(() => {
+    const base = sprogroups.length > 0
+      ? sprogroups
+      : [...new Set(apiProds.map(p => p.sub).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+    return ['Todos', ...base];
+  }, [sprogroups, apiProds]);
 
   // Pagination helper
   const pagBtns = () => {
@@ -15102,11 +15112,11 @@ const ConvenienciaManager = ({ themeMode, selectedClient, clients }) => {
           <Search size={14} className="pm-search-icon" />
           <input className="pm-search" placeholder="Buscar produto, código, marca..." value={search} onChange={e => setSearch(e.target.value)} />
         </div>
-        <span className="pm-filter-label">Categoria</span>
+        <span className="pm-filter-label">Seção</span>
         <select className="pm-select" value={categoria} onChange={e => setCategoria(e.target.value)}>
           {cats.map(c => <option key={c}>{c}</option>)}
         </select>
-        <span className="pm-filter-label">Fornecedor</span>
+        <span className="pm-filter-label">Grupo</span>
         <select className="pm-select" value={fornecedor} onChange={e => setFornecedor(e.target.value)}>
           {fors.map(f => <option key={f}>{f}</option>)}
         </select>
@@ -18708,8 +18718,10 @@ export default function App() {
   const [reportReopenFn,     setReportReopenFn]     = useState(null);
   const reportIframeRef  = React.useRef(null);
   const reportBlobUrlRef = React.useRef(null);
+  const reportHtmlRef    = React.useRef(null); // HTML original para impressão
 
   const showReportPreview = (html, title, reopenFn) => {
+    reportHtmlRef.current = html;
     if (reportBlobUrlRef.current) URL.revokeObjectURL(reportBlobUrlRef.current);
     const blob = new Blob([html], { type: 'text/html; charset=utf-8' });
     const url  = URL.createObjectURL(blob);
@@ -19049,8 +19061,13 @@ export default function App() {
             <div style={{ display:'flex', gap:8 }}>
               <button type="button"
                 onClick={() => {
-                  const w = window.open(reportPreviewUrl, '_blank');
-                  if (w) w.addEventListener('load', () => w.print(), { once: true });
+                  const html = reportHtmlRef.current;
+                  if (!html) return;
+                  const printHtml = html.replace('</body>', '<script>window.addEventListener("load",function(){window.print();},{once:true});<\/script></body>');
+                  const blob = new Blob([printHtml], { type: 'text/html; charset=utf-8' });
+                  const url  = URL.createObjectURL(blob);
+                  window.open(url, '_blank');
+                  setTimeout(() => URL.revokeObjectURL(url), 30000);
                 }}
                 style={{ display:'flex', alignItems:'center', gap:6, padding:'8px 18px', background:'#e31e24', color:'#fff', border:'none', borderRadius:6, fontSize:12, fontWeight:700, cursor:'pointer' }}>
                 <Printer size={14} /> Imprimir
