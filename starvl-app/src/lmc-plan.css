@@ -563,6 +563,10 @@
 .lmc-print-sel {
   width: 100%;
 }
+.lmc-print-period-row {
+  display: flex;
+  gap: 8px;
+}
 .lmc-print-mode-group {
   display: flex;
   gap: 6px;

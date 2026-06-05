@@ -10693,7 +10693,7 @@ const ComprasPage = ({ selectedClient, clients }) => {
 };
 // ── fim ComprasPage ───────────────────────────────────────────────────────────
 
-const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients }) => {
+const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients, showReportPreview, closeReportPreview }) => {
   const [activeTab, setActiveTab] = useState('vendas');
   const [data, setData] = useState({ vendas: null, historico: null, consolidado: null, controle: null });
   const [loading, setLoading] = useState({});
@@ -10722,29 +10722,6 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
   const [dreFilters,      setDreFilters]      = useState({ visao:'Sintética', dataInicial:'', dataFinal:'' });
   const [drePreviewUrl,         setDrePreviewUrl]         = useState(null);
   const dreIframeRef = React.useRef(null);
-  // ── Preview inline compartilhado REL 1-10 ────────────────────────────────────
-  const [reportPreviewUrl,   setReportPreviewUrl]   = useState(null);
-  const [reportPreviewTitle, setReportPreviewTitle] = useState('');
-  const [reportReopenFn,     setReportReopenFn]     = useState(null);
-  const reportIframeRef  = React.useRef(null);
-  const reportBlobUrlRef = React.useRef(null); // para cleanup correto
-
-  const showReportPreview = (html, title, reopenFn) => {
-    if (reportBlobUrlRef.current) URL.revokeObjectURL(reportBlobUrlRef.current);
-    const blob = new Blob([html], { type: 'text/html; charset=utf-8' });
-    const url  = URL.createObjectURL(blob);
-    reportBlobUrlRef.current = url;
-    setReportPreviewUrl(url);
-    setReportPreviewTitle(title);
-    setReportReopenFn(reopenFn ? () => reopenFn : null);
-  };
-
-  const closeReportPreview = () => {
-    if (reportBlobUrlRef.current) URL.revokeObjectURL(reportBlobUrlRef.current);
-    reportBlobUrlRef.current = null;
-    setReportPreviewUrl(null);
-    setReportReopenFn(null);
-  };
   const [showDrefPanel,         setShowDrefPanel]         = useState(false);
   const [drefFilters,     setDrefFilters]     = useState({ modalidade:'Todos', dataInicial:'', dataFinal:'' });
   const [drefPreviewUrl,        setDrefPreviewUrl]        = useState(null);
@@ -12471,50 +12448,6 @@ const Reports = ({ selectedClient, selectedPeriod, setSelectedPeriod, clients })
         </div>
       )}
 
-      {/* REL 1-10 — Preview inline compartilhado */}
-      {reportPreviewUrl && (
-        <div style={{ position:'fixed', inset:0, zIndex:1200, display:'flex', flexDirection:'column', background:'#f3f4f6' }}>
-          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'10px 20px', background:'#ffffff', borderBottom:'3px solid #e31e24', flexShrink:0 }}>
-            <div style={{ display:'flex', alignItems:'center', gap:12 }}>
-              <div style={{ width:36, height:36, borderRadius:8, background:'#fff5f5', border:'1px solid #fecaca', display:'grid', placeItems:'end center', padding:6, gap:2, gridTemplateColumns:'repeat(3,1fr)', flexShrink:0 }}>
-                <span style={{ display:'block', width:6, height:11, borderRadius:'3px 3px 0 0', background:'#e31e24', opacity:.75 }} />
-                <span style={{ display:'block', width:6, height:19, borderRadius:'3px 3px 0 0', background:'#e31e24' }} />
-                <span style={{ display:'block', width:6, height:26, borderRadius:'3px 3px 0 0', background:'#e31e24', opacity:.85 }} />
-              </div>
-              <div>
-                <div style={{ fontWeight:900, fontSize:13, color:'#111827', letterSpacing:0.5 }}>{reportPreviewTitle}</div>
-                <div style={{ fontSize:10, color:'#6b7280', marginTop:1 }}>Pré-visualização de impressão</div>
-              </div>
-            </div>
-            <div style={{ display:'flex', gap:8 }}>
-              <button type="button"
-                onClick={() => reportIframeRef.current?.contentWindow?.print()}
-                style={{ display:'flex', alignItems:'center', gap:6, padding:'8px 18px', background:'#e31e24', color:'#fff', border:'none', borderRadius:6, fontSize:12, fontWeight:700, cursor:'pointer' }}>
-                <Printer size={14} /> Imprimir
-              </button>
-              {reportReopenFn && (
-                <button type="button"
-                  onClick={() => { closeReportPreview(); reportReopenFn(); }}
-                  style={{ display:'flex', alignItems:'center', gap:6, padding:'8px 14px', background:'#f9fafb', color:'#374151', border:'1px solid #e5e7eb', borderRadius:6, fontSize:12, fontWeight:700, cursor:'pointer' }}>
-                  <ChevronLeft size={14} /> Filtros
-                </button>
-              )}
-              <button type="button"
-                onClick={closeReportPreview}
-                style={{ display:'flex', alignItems:'center', gap:6, padding:'8px 14px', background:'#f9fafb', color:'#374151', border:'1px solid #e5e7eb', borderRadius:6, fontSize:12, fontWeight:700, cursor:'pointer' }}>
-                <X size={14} /> Fechar
-              </button>
-            </div>
-          </div>
-          <iframe
-            ref={reportIframeRef}
-            src={reportPreviewUrl}
-            title={reportPreviewTitle}
-            style={{ flex:1, border:'none', width:'100%', background:'#f3f4f6' }}
-          />
-        </div>
-      )}
-
     </div>
   );
 
@@ -13683,7 +13616,7 @@ const ControlPrintPanel = ({ fuels, filters, setFilters, onClose, onGenerate }) 
 };
 
 // ─── LmcPlanilha — Livro de Movimentação de Combustíveis ────────────────────
-const LmcPlanilha = ({ selectedClient, clients, themeMode }) => {
+const LmcPlanilha = ({ selectedClient, clients, themeMode, showReportPreview }) => {
   const empresa = useMemo(() => {
     const c = (clients || []).find(cl => cl.nome === selectedClient) || (clients || [])[0];
     return c?.codigoEmpresa || null;
@@ -13938,15 +13871,32 @@ const LmcPlanilha = ({ selectedClient, clients, themeMode }) => {
   const [showLmcPrintPanel, setShowLmcPrintPanel] = useState(false);
   const [reportProdCod, setReportProdCod] = useState('todos');
   const [reportModo, setReportModo] = useState('detalhado');
+  const [reportPeriod, setReportPeriod] = useState(period);
+  const [reportLoading, setReportLoading] = useState(false);
 
-  const handleGenerateLmcReport = useCallback(() => {
-    if (!sgaData) return;
+  // Sync reportPeriod when main period changes (e.g. user troca o mês na tela)
+  useEffect(() => { setReportPeriod(period); }, [period]);
+
+  const handleGenerateLmcReport = useCallback(async () => {
+    setReportLoading(true);
+    let data = sgaData;
+    // Se o período do relatório for diferente do carregado, busca os dados
+    if (reportPeriod !== period) {
+      try {
+        const [mRaw, yRaw] = reportPeriod.split('/');
+        const periodo = `${String(Number(mRaw)).padStart(2, '0')}${yRaw}`;
+        const resp = await fetch(`${API_URL}/api/lmc/planilha?empresa=${empresa}&periodo=${periodo}`);
+        const json = await resp.json();
+        if (!json.error) data = json;
+      } catch { /* usa sgaData atual */ }
+    }
+    if (!data) { setReportLoading(false); return; }
     const codigos = reportProdCod === 'todos'
-      ? sgaData.produtos.map(p => p.codigo)
+      ? data.produtos.map(p => p.codigo)
       : [Number(reportProdCod)];
     const produtos = codigos.map(cod => {
-      const prod = sgaData.produtos.find(p => p.codigo === cod);
-      const rows = computeLmcRowsForProd(sgaData, cod, period, reguaEdits, aberturaEdits, aberturaUnlocked);
+      const prod = data.produtos.find(p => p.codigo === cod);
+      const rows = computeLmcRowsForProd(data, cod, reportPeriod, reguaEdits, aberturaEdits, aberturaUnlocked);
       const totais = rows.reduce((acc, r) => ({
         compras:   acc.compras   + r.compras,
         vendas:    acc.vendas    + r.vendas,
@@ -13956,13 +13906,17 @@ const LmcPlanilha = ({ selectedClient, clients, themeMode }) => {
       return { nome: prod?.nome ?? '—', codigo: cod, rows, totais };
     });
     const logoUrl = `${window.location.origin}/logo-starvl.png`;
-    const html = buildLmcReportHtml({ produtos, period, clientName: selectedClient, modo: reportModo, logoUrl });
+    const html = buildLmcReportHtml({ produtos, period: reportPeriod, clientName: selectedClient, modo: reportModo, logoUrl });
+    setReportLoading(false);
     if (!html) return;
-    const blob = new Blob([html], { type: 'text/html; charset=utf-8' });
-    const url  = URL.createObjectURL(blob);
-    window.open(url, '_blank');
+    if (showReportPreview) {
+      showReportPreview(html, 'LMC — Livro de Movimentação de Combustíveis', () => setShowLmcPrintPanel(true));
+    } else {
+      const blob = new Blob([html], { type: 'text/html; charset=utf-8' });
+      window.open(URL.createObjectURL(blob), '_blank');
+    }
     setShowLmcPrintPanel(false);
-  }, [sgaData, reportProdCod, reportModo, period, reguaEdits, aberturaEdits, aberturaUnlocked, selectedClient]);
+  }, [sgaData, reportProdCod, reportModo, reportPeriod, period, reguaEdits, aberturaEdits, aberturaUnlocked, selectedClient, empresa, showReportPreview]);
 
   // Period picker helpers
   const periodMonths = Array.from({ length: 12 }, (_, i) => i + 1);
@@ -14058,7 +14012,7 @@ const LmcPlanilha = ({ selectedClient, clients, themeMode }) => {
               onClick={() => setShowLmcPrintPanel(true)}
             >
               <Printer size={13} />
-              Relatório
+              Imprimir
             </button>
           </div>
 
@@ -14067,10 +14021,32 @@ const LmcPlanilha = ({ selectedClient, clients, themeMode }) => {
             <div className="lmc-print-overlay" onClick={() => setShowLmcPrintPanel(false)}>
               <div className="lmc-print-panel" onClick={e => e.stopPropagation()}>
                 <div className="lmc-print-panel-header">
-                  <span>Gerar Relatório LMC</span>
+                  <span>Imprimir LMC</span>
                   <button className="lmc-print-close" onClick={() => setShowLmcPrintPanel(false)}><X size={16} /></button>
                 </div>
                 <div className="lmc-print-panel-body">
+                  <label className="lmc-print-label">Período</label>
+                  <div className="lmc-print-period-row">
+                    <select
+                      className="lmc-plan-sel"
+                      style={{ flex: 1 }}
+                      value={Number(reportPeriod.split('/')[0])}
+                      onChange={e => setReportPeriod(`${String(e.target.value).padStart(2,'0')}/${reportPeriod.split('/')[1]}`)}
+                    >
+                      {['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'].map((m, i) => (
+                        <option key={i+1} value={i+1}>{m}</option>
+                      ))}
+                    </select>
+                    <select
+                      className="lmc-plan-sel"
+                      style={{ flex: 1 }}
+                      value={Number(reportPeriod.split('/')[1])}
+                      onChange={e => setReportPeriod(`${reportPeriod.split('/')[0]}/${e.target.value}`)}
+                    >
+                      {[2023,2024,2025,2026,2027].map(y => <option key={y} value={y}>{y}</option>)}
+                    </select>
+                  </div>
+
                   <label className="lmc-print-label">Produto</label>
                   <select
                     className="lmc-plan-sel lmc-print-sel"
@@ -14108,9 +14084,9 @@ const LmcPlanilha = ({ selectedClient, clients, themeMode }) => {
                 </div>
                 <div className="lmc-print-panel-footer">
                   <button className="lmc-print-cancel" onClick={() => setShowLmcPrintPanel(false)}>Cancelar</button>
-                  <button className="lmc-print-generate" onClick={handleGenerateLmcReport}>
+                  <button className="lmc-print-generate" onClick={handleGenerateLmcReport} disabled={reportLoading}>
                     <Printer size={13} />
-                    Gerar Relatório
+                    {reportLoading ? 'Carregando...' : 'Imprimir'}
                   </button>
                 </div>
               </div>
@@ -14272,7 +14248,7 @@ const LmcPlanilha = ({ selectedClient, clients, themeMode }) => {
 };
 
 // ─── LivrosManager — seções dentro da aba Livros ────────────────────────────
-const LivrosManager = ({ lmcRegistros, lmcDiario, lmcControle, selectedPeriod, setSelectedPeriod, selectedClient, clients, themeMode, estoques = [] }) => {
+const LivrosManager = ({ lmcRegistros, lmcDiario, lmcControle, selectedPeriod, setSelectedPeriod, selectedClient, clients, themeMode, estoques = [], showReportPreview }) => {
   const [section, setSection] = useState('lmc');
 
   const sections = [
@@ -14306,7 +14282,7 @@ const LivrosManager = ({ lmcRegistros, lmcDiario, lmcControle, selectedPeriod, s
         <ContaCorrente clients={clients} selectedClient={selectedClient} themeMode={themeMode} />
       )}
       {section === 'lmc' && (
-        <LmcPlanilha selectedClient={selectedClient} clients={clients} themeMode={themeMode} />
+        <LmcPlanilha selectedClient={selectedClient} clients={clients} themeMode={themeMode} showReportPreview={showReportPreview} />
       )}
     </div>
   );
@@ -18711,6 +18687,30 @@ export default function App() {
   const autoRefreshRef = useRef(null);
   const [goals, setGoals]           = useState(INITIAL_GOALS);
 
+  // ── Preview inline compartilhado — todos os relatórios ───────────────────
+  const [reportPreviewUrl,   setReportPreviewUrl]   = useState(null);
+  const [reportPreviewTitle, setReportPreviewTitle] = useState('');
+  const [reportReopenFn,     setReportReopenFn]     = useState(null);
+  const reportIframeRef  = React.useRef(null);
+  const reportBlobUrlRef = React.useRef(null);
+
+  const showReportPreview = (html, title, reopenFn) => {
+    if (reportBlobUrlRef.current) URL.revokeObjectURL(reportBlobUrlRef.current);
+    const blob = new Blob([html], { type: 'text/html; charset=utf-8' });
+    const url  = URL.createObjectURL(blob);
+    reportBlobUrlRef.current = url;
+    setReportPreviewUrl(url);
+    setReportPreviewTitle(title);
+    setReportReopenFn(reopenFn ? () => reopenFn : null);
+  };
+
+  const closeReportPreview = () => {
+    if (reportBlobUrlRef.current) URL.revokeObjectURL(reportBlobUrlRef.current);
+    reportBlobUrlRef.current = null;
+    setReportPreviewUrl(null);
+    setReportReopenFn(null);
+  };
+
   // Carrega usuários da API na inicialização do app
   useEffect(() => {
     suLoadAll()
@@ -18917,11 +18917,11 @@ export default function App() {
       case 'dashboard':
         return <Dashboard kpis={apiData.kpis} combustiveis={apiData.combustiveis} vendasDiarias={apiData.vendasDiarias} vendasHorarias={apiData.vendasHorarias} lmcControle={apiData.dashboardLmcControle} lmcSaldos={apiData.dashboardLmcSaldos} lmcStarvlFechamento={apiData.lmcStarvlFechamento} estoques={apiData.estoques} loading={apiData.loading} clients={clients} selectedClient={selectedClient} selectedPeriod={dashboardPeriod} setSelectedPeriod={setDashboardPeriod} onRefresh={handleRefresh} themeMode={themeMode} topConvenio={apiData.topConvenio} vendasDiariasCombusFull={apiData.vendasDiariasCombusFull} abcProdutos1={apiData.abcProdutos1} abcProdutos2={apiData.abcProdutos2} goals={goals} />;
       case 'reports':
-        return <Reports selectedClient={selectedClient} selectedPeriod={reportsPeriod} setSelectedPeriod={setReportsPeriod} clients={clients} />;
+        return <Reports selectedClient={selectedClient} selectedPeriod={reportsPeriod} setSelectedPeriod={setReportsPeriod} clients={clients} showReportPreview={showReportPreview} closeReportPreview={closeReportPreview} />;
       case 'compras':
         return <ComprasPage selectedClient={selectedClient} clients={clients} />;
       case 'control':
-        return <LivrosManager lmcRegistros={apiData.lmcRegistros} lmcDiario={apiData.lmcDiario} lmcControle={apiData.lmcControle} selectedPeriod={controlPeriod} setSelectedPeriod={setControlPeriod} selectedClient={selectedClient} clients={clients} themeMode={themeMode} estoques={apiData.estoques} />;
+        return <LivrosManager lmcRegistros={apiData.lmcRegistros} lmcDiario={apiData.lmcDiario} lmcControle={apiData.lmcControle} selectedPeriod={controlPeriod} setSelectedPeriod={setControlPeriod} selectedClient={selectedClient} clients={clients} themeMode={themeMode} estoques={apiData.estoques} showReportPreview={showReportPreview} />;
       case 'stock':
         return <EstoqueManager estoques={apiData.estoques} projecao={apiData.projecao} loading={apiData.loading} selectedClient={selectedClient} clients={clients} themeMode={themeMode} lmcSaldos={apiData.dashboardLmcSaldos} lmcControle={apiData.dashboardLmcControle} lmcStarvlFechamento={apiData.lmcStarvlFechamento} />;
       case 'receber':
@@ -19016,6 +19016,50 @@ export default function App() {
           </div>
         </div>
       )}
+      {/* Preview inline compartilhado — todos os relatórios */}
+      {reportPreviewUrl && (
+        <div style={{ position:'fixed', inset:0, zIndex:9000, display:'flex', flexDirection:'column', background:'#f3f4f6' }}>
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'10px 20px', background:'#ffffff', borderBottom:'3px solid #e31e24', flexShrink:0 }}>
+            <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+              <div style={{ width:36, height:36, borderRadius:8, background:'#fff5f5', border:'1px solid #fecaca', display:'grid', placeItems:'end center', padding:6, gap:2, gridTemplateColumns:'repeat(3,1fr)', flexShrink:0 }}>
+                <span style={{ display:'block', width:6, height:11, borderRadius:'3px 3px 0 0', background:'#e31e24', opacity:.75 }} />
+                <span style={{ display:'block', width:6, height:19, borderRadius:'3px 3px 0 0', background:'#e31e24' }} />
+                <span style={{ display:'block', width:6, height:26, borderRadius:'3px 3px 0 0', background:'#e31e24', opacity:.85 }} />
+              </div>
+              <div>
+                <div style={{ fontWeight:900, fontSize:13, color:'#111827', letterSpacing:0.5 }}>{reportPreviewTitle}</div>
+                <div style={{ fontSize:10, color:'#6b7280', marginTop:1 }}>Pré-visualização de impressão</div>
+              </div>
+            </div>
+            <div style={{ display:'flex', gap:8 }}>
+              <button type="button"
+                onClick={() => reportIframeRef.current?.contentWindow?.print()}
+                style={{ display:'flex', alignItems:'center', gap:6, padding:'8px 18px', background:'#e31e24', color:'#fff', border:'none', borderRadius:6, fontSize:12, fontWeight:700, cursor:'pointer' }}>
+                <Printer size={14} /> Imprimir
+              </button>
+              {reportReopenFn && (
+                <button type="button"
+                  onClick={() => { closeReportPreview(); reportReopenFn(); }}
+                  style={{ display:'flex', alignItems:'center', gap:6, padding:'8px 14px', background:'#f9fafb', color:'#374151', border:'1px solid #e5e7eb', borderRadius:6, fontSize:12, fontWeight:700, cursor:'pointer' }}>
+                  <ChevronLeft size={14} /> Filtros
+                </button>
+              )}
+              <button type="button"
+                onClick={closeReportPreview}
+                style={{ display:'flex', alignItems:'center', gap:6, padding:'8px 14px', background:'#f9fafb', color:'#374151', border:'1px solid #e5e7eb', borderRadius:6, fontSize:12, fontWeight:700, cursor:'pointer' }}>
+                <X size={14} /> Fechar
+              </button>
+            </div>
+          </div>
+          <iframe
+            ref={reportIframeRef}
+            src={reportPreviewUrl}
+            title={reportPreviewTitle}
+            style={{ flex:1, border:'none', width:'100%', background:'#f3f4f6' }}
+          />
+        </div>
+      )}
+
       <ToastContainer />
     </div>
   );
