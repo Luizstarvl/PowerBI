@@ -14847,7 +14847,7 @@ const ConvenienciaManager = ({ themeMode, selectedClient, clients }) => {
       .catch(() => {});
     fetch(`${API_URL}/api/estoque/grupos-convenio?empresa=${empresa}`)
       .then(r => r.ok ? r.json() : Promise.reject(r))
-      .then(data => setSprogroups((data.grupos || []).map(g => g.descricao)))
+      .then(data => setSprogroups(data.grupos || []))
       .catch(() => {});
   }, [empresa]);
 
@@ -15033,11 +15033,17 @@ const ConvenienciaManager = ({ themeMode, selectedClient, clients }) => {
     return ['Todas', ...base];
   }, [sprocats, apiProds]);
   const fors = useMemo(() => {
-    const base = sprogroups.length > 0
-      ? sprogroups
-      : [...new Set(apiProds.map(p => p.sub).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+    let base;
+    if (sprogroups.length > 0) {
+      const filtered = categoria === 'Todas'
+        ? sprogroups
+        : sprogroups.filter(g => g.secao === categoria);
+      base = filtered.map(g => g.descricao);
+    } else {
+      base = [...new Set(apiProds.map(p => p.sub).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+    }
     return ['Todos', ...base];
-  }, [sprogroups, apiProds]);
+  }, [sprogroups, apiProds, categoria]);
 
   // Pagination helper
   const pagBtns = () => {
@@ -15113,7 +15119,7 @@ const ConvenienciaManager = ({ themeMode, selectedClient, clients }) => {
           <input className="pm-search" placeholder="Buscar produto, código, marca..." value={search} onChange={e => setSearch(e.target.value)} />
         </div>
         <span className="pm-filter-label">Seção</span>
-        <select className="pm-select" value={categoria} onChange={e => setCategoria(e.target.value)}>
+        <select className="pm-select" value={categoria} onChange={e => { setCategoria(e.target.value); setFornecedor('Todos'); }}>
           {cats.map(c => <option key={c}>{c}</option>)}
         </select>
         <span className="pm-filter-label">Grupo</span>

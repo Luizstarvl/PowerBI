@@ -404,11 +404,10 @@ router.get('/grupos-convenio', async (req, res) => {
 
   try {
     const result = await query(
-      `SELECT g.gprocodigo AS codigo, g.gprodescricao AS descricao
+      `SELECT g.gprocodigo AS codigo, g.gprodescricao AS descricao, s.sprodescricao AS secao
        FROM gpro g
-       WHERE g.gprosecao IN (
-         SELECT sprocodigo FROM spro WHERE sprotipo = 2
-       )
+       JOIN spro s ON s.sprocodigo = g.gprosecao
+       WHERE s.sprotipo = 2
        ORDER BY g.gprodescricao`,
       []
     );
