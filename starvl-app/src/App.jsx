@@ -13967,7 +13967,7 @@ const LmcPlanilha = ({ selectedClient, clients, themeMode }) => {
                           type="text"
                           className="lmc-plan-input"
                           value={row.reguaRaw}
-                          placeholder="—"
+                          placeholder={fmtLit(row.fechamento)}
                           onChange={e => handleReguaChange(row.rgKey, e.target.value)}
                         />
                       </td>
