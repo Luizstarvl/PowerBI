@@ -5381,7 +5381,14 @@ body.theme-light-body {
   border-color: #E31E24;
 }
 
-/* Botão de seção (Combustível / Conveniência) — mesmo vermelho do padrão */
+/* Botão de seção — tamanho maior que os botões de período */
+.vp-secao-btn {
+  padding: 9px 20px;
+  font-size: 14px;
+  border-radius: 8px;
+  border-width: 1.5px;
+}
+
 .vp-secao-btn.active {
   background: #E31E24;
   border-color: #E31E24;
