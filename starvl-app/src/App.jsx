@@ -14850,9 +14850,8 @@ const ConvenienciaManager = ({ themeMode, selectedClient, clients, showReportPre
   const [search, setSearch]       = useState('');
   const [categoria, setCategoria] = useState('Todas');
   const [fornecedor, setFornecedor] = useState('Todos');
-  const [statusFilt, setStatusFilt] = useState('Todos');
-  const [dataInicio, setDataInicio] = useState('');
-  const [dataFim, setDataFim]       = useState('');
+  const [statusFilt, setStatusFilt]     = useState('Todos');
+  const [situacaoFilt, setSituacaoFilt] = useState('ATIVO');
   const [viewProd, setViewProd]     = useState(null);
   const [editProd, setEditProd]     = useState(null);
   const [editForm, setEditForm]     = useState({});
@@ -14993,7 +14992,7 @@ const ConvenienciaManager = ({ themeMode, selectedClient, clients, showReportPre
   }, [localEdits]);
 
   // Reset page on filter change
-  useEffect(() => { setPage(1); }, [search, categoria, fornecedor, statusFilt, dataInicio, dataFim, hideZeroStock, limit]);
+  useEffect(() => { setPage(1); }, [search, categoria, fornecedor, statusFilt, situacaoFilt, hideZeroStock, limit]);
 
   // Compute status for all products (merge localEdits + images from IndexedDB)
   const allProds = useMemo(() => {
@@ -15070,15 +15069,14 @@ const ConvenienciaManager = ({ themeMode, selectedClient, clients, showReportPre
   // Filter
   const filtered = useMemo(() => {
     let list = allProds;
-    if (hideZeroStock)           list = list.filter(p => (p.estoque || 0) > 0);
-    if (search)                  { const q = search.toLowerCase(); list = list.filter(p => p.nome.toLowerCase().includes(q) || p.codigo.includes(q)); }
-    if (categoria !== 'Todas')   list = list.filter(p => p.cat === categoria);
-    if (fornecedor !== 'Todos')  list = list.filter(p => p.sub === fornecedor);
-    if (statusFilt !== 'Todos')  list = list.filter(p => p.status === statusFilt);
-    if (dataInicio)              list = list.filter(p => p.venc >= dataInicio);
-    if (dataFim)                 list = list.filter(p => p.venc <= dataFim);
+    if (situacaoFilt !== 'TODOS') list = list.filter(p => p.situacao === situacaoFilt);
+    if (hideZeroStock)            list = list.filter(p => (p.estoque || 0) > 0);
+    if (search)                   { const q = search.toLowerCase(); list = list.filter(p => p.nome.toLowerCase().includes(q) || p.codigo.includes(q)); }
+    if (categoria !== 'Todas')    list = list.filter(p => p.cat === categoria);
+    if (fornecedor !== 'Todos')   list = list.filter(p => p.sub === fornecedor);
+    if (statusFilt !== 'Todos')   list = list.filter(p => p.status === statusFilt);
     return list;
-  }, [allProds, hideZeroStock, search, categoria, fornecedor, statusFilt, dataInicio, dataFim]);
+  }, [allProds, situacaoFilt, hideZeroStock, search, categoria, fornecedor, statusFilt]);
 
   // Sort
   const sorted = useMemo(() => {
@@ -15204,7 +15202,7 @@ const ConvenienciaManager = ({ themeMode, selectedClient, clients, showReportPre
           <div className="pm-kpi-body">
             <div className="pm-kpi-label">Total de Produtos</div>
             <div className="pm-kpi-value" style={{ color:'#818cf8' }}>{kpis.n}</div>
-            <div className="pm-kpi-sub">ativos cadastrados</div>
+            <div className="pm-kpi-sub">{situacaoFilt === 'ATIVO' ? 'ativos' : situacaoFilt === 'INATIVO' ? 'inativos' : 'cadastrados'}</div>
           </div>
         </div>
         <div className="pm-kpi">
@@ -15255,6 +15253,16 @@ const ConvenienciaManager = ({ themeMode, selectedClient, clients, showReportPre
         <select className="pm-select" value={fornecedor} onChange={e => setFornecedor(e.target.value)}>
           {fors.map(f => <option key={f}>{f}</option>)}
         </select>
+        <span className="pm-filter-label">Situação</span>
+        <div className="vp-toggle-group">
+          {[['ATIVO','Ativos'],['INATIVO','Inativos'],['TODOS','Todos']].map(([val, label]) => (
+            <button key={val} type="button"
+              className={`vp-period-btn${situacaoFilt === val ? ' active' : ''}`}
+              style={{ padding:'4px 12px', fontSize:'12px' }}
+              onClick={() => setSituacaoFilt(val)}
+            >{label}</button>
+          ))}
+        </div>
         <span className="pm-filter-label">Status</span>
         <select className="pm-select" value={statusFilt} onChange={e => setStatusFilt(e.target.value)}>
           <option value="Todos">Todos</option>
@@ -15263,12 +15271,6 @@ const ConvenienciaManager = ({ themeMode, selectedClient, clients, showReportPre
           <option value="vencendo_hoje">Vencendo Hoje</option>
           <option value="vencido">Vencido</option>
         </select>
-        <div className="pm-date-range">
-          <span className="pm-filter-label">Vencimento de</span>
-          <input type="date" className="pm-date-input" value={dataInicio} onChange={e => setDataInicio(e.target.value)} />
-          <span className="pm-filter-label">até</span>
-          <input type="date" className="pm-date-input" value={dataFim} onChange={e => setDataFim(e.target.value)} />
-        </div>
         <button
           className="pm-clear-btn"
           style={{ background: hideZeroStock ? '#e31e24' : undefined, color: hideZeroStock ? '#fff' : undefined, borderColor: hideZeroStock ? '#e31e24' : undefined }}
@@ -15276,8 +15278,8 @@ const ConvenienciaManager = ({ themeMode, selectedClient, clients, showReportPre
         >
           {hideZeroStock ? '✓ ' : ''}SEM ESTOQUE
         </button>
-        {(search || categoria !== 'Todas' || fornecedor !== 'Todos' || statusFilt !== 'Todos' || dataInicio || dataFim || hideZeroStock) && (
-          <button className="pm-clear-btn" onClick={() => { setSearch(''); setCategoria('Todas'); setFornecedor('Todos'); setStatusFilt('Todos'); setDataInicio(''); setDataFim(''); setHideZeroStock(false); }}>LIMPAR</button>
+        {(search || categoria !== 'Todas' || fornecedor !== 'Todos' || statusFilt !== 'Todos' || situacaoFilt !== 'ATIVO' || hideZeroStock) && (
+          <button className="pm-clear-btn" onClick={() => { setSearch(''); setCategoria('Todas'); setFornecedor('Todos'); setStatusFilt('Todos'); setSituacaoFilt('ATIVO'); setHideZeroStock(false); }}>LIMPAR</button>
         )}
       </div>
 
