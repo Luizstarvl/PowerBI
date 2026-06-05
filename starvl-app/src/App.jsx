@@ -14753,7 +14753,99 @@ function printProductCard({ prod, editForm, editImg }) {
   pw.document.close();
 }
 
-const ConvenienciaManager = ({ themeMode, selectedClient, clients }) => {
+function buildConvenienciaReportHtml({ prods, filters, clientName, logoUrl = '/logo-starvl.png' }) {
+  if (!prods || !prods.length) return null;
+  const generatedAt = new Date().toLocaleString('pt-BR');
+  const fmtN = (v) => v == null ? '—' : Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const fmtI = (v) => v == null ? '—' : Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  const statusLabel = { ok: 'OK', prox_vencer: 'Próx. Vencer', vencendo_hoje: 'Vencendo Hoje', vencido: 'VENCIDO' };
+  const statusColor = { ok: '#16a34a', prox_vencer: '#d97706', vencendo_hoje: '#ea580c', vencido: '#dc2626' };
+  const totalEstoque = prods.reduce((s, p) => s + (p.valorEstoque || 0), 0);
+  const trs = prods.map(p => `
+    <tr>
+      <td>${escapeHtml(p.nome)}</td>
+      <td style="font-family:monospace;font-size:9px;color:#667085">${escapeHtml(p.codigo || '—')}</td>
+      <td>${escapeHtml(p.cat || '—')}</td>
+      <td>${escapeHtml(p.sub || '—')}</td>
+      <td class="num">${fmtI(p.estoque)}</td>
+      <td class="num">R$ ${fmtN(p.preco)}</td>
+      <td class="num">R$ ${fmtN(p.custo)}</td>
+      <td class="num fw">R$ ${fmtN(p.valorEstoque)}</td>
+      <td style="color:${statusColor[p.status] || '#111827'};font-weight:700;text-align:center">${statusLabel[p.status] || '—'}</td>
+    </tr>`).join('');
+  const filterParts = [];
+  if (filters.secao && filters.secao !== 'Todas') filterParts.push(`Seção: ${filters.secao}`);
+  if (filters.grupo && filters.grupo !== 'Todos')  filterParts.push(`Grupo: ${filters.grupo}`);
+  if (filters.status && filters.status !== 'Todos') filterParts.push(`Status: ${filters.status}`);
+  if (filters.search) filterParts.push(`Busca: "${filters.search}"`);
+  if (filters.hideZeroStock) filterParts.push('Ocultar sem estoque');
+  const filterLine = filterParts.length ? filterParts.join(' | ') : 'Todos os produtos';
+  return `<!doctype html><html><head><meta charset="utf-8"/>
+  <title>Estoque Conveniência</title>
+  <style>
+    @page{size:297mm 210mm;margin:10mm}
+    *{box-sizing:border-box}
+    html,body,.report,.header,.panel,table,th,td,tfoot td{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important}
+    body{margin:0;font-family:Arial,Helvetica,sans-serif;color:#111827;background:#fff}
+    .report{min-height:100vh;padding:18px;background:#fff}
+    .header{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:16px 18px;border:1px solid #e5e7eb;border-bottom:3px solid #e31e24;border-radius:8px;background:#fff;margin-bottom:14px}
+    .header-left{display:flex;align-items:center;gap:14px}
+    h1{margin:0;font-size:18px;line-height:1.15}
+    .header-meta{color:#667085;font-size:11px;line-height:1.6;text-align:right}
+    .panel{border:1px solid #e5e7eb;border-radius:8px;background:#fff;padding:18px}
+    .panel-title{margin:0 0 12px;color:#111827;font-size:13px;font-weight:800}
+    table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:10px}
+    th,td{border:1px solid #d0d5dd;padding:6px 7px;word-break:break-word}
+    th{background:#e31e24;color:#fff;text-align:left;font-size:9px;font-weight:700}
+    td{color:#111827;background:#fff}
+    td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+    td.fw{font-weight:700}
+    tfoot td{color:#111827;background:#f3f4f6;font-weight:700}
+    .footer{margin-top:10px;color:#667085;font-size:10px;text-align:right}
+    @media screen{body{background:#f3f4f6;padding:18px}.report{max-width:1180px;margin:0 auto;box-shadow:0 18px 50px rgba(15,23,42,.12)}}
+    @media print{.panel,.header,tr{break-inside:avoid;page-break-inside:avoid}body{background:#fff!important}.report{background:#fff!important;box-shadow:none!important}}
+  </style></head><body>
+  <main class="report">
+    <section class="header">
+      <div class="header-left">
+        <img src="${logoUrl}" alt="STARVL" style="width:90px;height:auto;object-fit:contain;margin-right:14px;flex-shrink:0"/>
+        <div>
+          <h1>ESTOQUE CONVENIÊNCIA</h1>
+          <div class="header-meta" style="text-align:left">${escapeHtml(clientName || 'Cliente')} | ${escapeHtml(filterLine)}</div>
+        </div>
+      </div>
+      <div class="header-meta">
+        <div>${prods.length} produto${prods.length !== 1 ? 's' : ''}</div>
+        <div>Gerado em ${escapeHtml(generatedAt)}</div>
+      </div>
+    </section>
+    <section class="panel">
+      <table>
+        <thead><tr>
+          <th style="width:22%">PRODUTO</th>
+          <th style="width:10%">CÓDIGO</th>
+          <th style="width:12%">SEÇÃO</th>
+          <th style="width:12%">GRUPO</th>
+          <th class="num" style="width:7%">ESTOQUE</th>
+          <th class="num" style="width:9%">PREÇO VENDA</th>
+          <th class="num" style="width:9%">CUSTO MÉDIO</th>
+          <th class="num" style="width:10%">VALOR ESTOQUE</th>
+          <th style="width:9%;text-align:center">STATUS</th>
+        </tr></thead>
+        <tbody>${trs}</tbody>
+        <tfoot><tr>
+          <td colspan="7" style="font-size:10px">TOTAL</td>
+          <td class="num">R$ ${fmtN(totalEstoque)}</td>
+          <td></td>
+        </tr></tfoot>
+      </table>
+    </section>
+    <div class="footer">Gerado pelo STARVL em ${escapeHtml(generatedAt)}</div>
+  </main>
+  </body></html>`;
+}
+
+const ConvenienciaManager = ({ themeMode, selectedClient, clients, showReportPreview }) => {
   const [page, setPage]           = useState(1);
   const [search, setSearch]       = useState('');
   const [categoria, setCategoria] = useState('Todas');
@@ -14786,7 +14878,10 @@ const ConvenienciaManager = ({ themeMode, selectedClient, clients }) => {
     } catch { return {}; }
   });
   const imgInputRef = useRef(null);
-  const LIMIT = 7;
+  const [limit, setLimit]             = useState(15);
+  const [sortCol, setSortCol]         = useState('nome');
+  const [sortDir, setSortDir]         = useState('asc');
+  const [hideZeroStock, setHideZeroStock] = useState(false);
 
   // Repositório de imagens — picker no edit de produto
   const [repoPickerOpen,        setRepoPickerOpen]        = useState(false);
@@ -14898,7 +14993,7 @@ const ConvenienciaManager = ({ themeMode, selectedClient, clients }) => {
   }, [localEdits]);
 
   // Reset page on filter change
-  useEffect(() => { setPage(1); }, [search, categoria, fornecedor, statusFilt, dataInicio, dataFim]);
+  useEffect(() => { setPage(1); }, [search, categoria, fornecedor, statusFilt, dataInicio, dataFim, hideZeroStock, limit]);
 
   // Compute status for all products (merge localEdits + images from IndexedDB)
   const allProds = useMemo(() => {
@@ -14965,34 +15060,54 @@ const ConvenienciaManager = ({ themeMode, selectedClient, clients }) => {
     setEditProd(null);
   }, [editProd, editForm, editImg, productImages]);
 
-  // KPIs
-  const kpis = useMemo(() => {
-    const n = allProds.length;
-    const valorTotal = allProds.reduce((s, p) => s + p.valorEstoque, 0);
-    const proxVencer = allProds.filter(p => p.status === 'prox_vencer').length;
-    const vencidos   = allProds.filter(p => p.status === 'vencido').length;
-    const comPreco   = allProds.filter(p => p.preco > 0);
-    const margem     = comPreco.length > 0
-      ? comPreco.reduce((s, p) => s + (p.preco - p.custo) / p.preco * 100, 0) / comPreco.length
-      : 0;
-    return { n, valorTotal, proxVencer, vencidos, margem };
-  }, [allProds]);
+  const handleSort = (col) => {
+    if (sortCol === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortCol(col); setSortDir('asc'); }
+    setPage(1);
+  };
+  const sortArrow = (col) => sortCol === col ? (sortDir === 'asc' ? ' ↑' : ' ↓') : '';
 
   // Filter
   const filtered = useMemo(() => {
     let list = allProds;
-    if (search)              { const q = search.toLowerCase(); list = list.filter(p => p.nome.toLowerCase().includes(q) || p.codigo.includes(q)); }
-    if (categoria !== 'Todas')  list = list.filter(p => p.cat  === categoria);
-    if (fornecedor !== 'Todos') list = list.filter(p => p.sub === fornecedor);
-    if (statusFilt !== 'Todos') list = list.filter(p => p.status === statusFilt);
-    if (dataInicio)             list = list.filter(p => p.venc >= dataInicio);
-    if (dataFim)                list = list.filter(p => p.venc <= dataFim);
+    if (hideZeroStock)           list = list.filter(p => (p.estoque || 0) > 0);
+    if (search)                  { const q = search.toLowerCase(); list = list.filter(p => p.nome.toLowerCase().includes(q) || p.codigo.includes(q)); }
+    if (categoria !== 'Todas')   list = list.filter(p => p.cat === categoria);
+    if (fornecedor !== 'Todos')  list = list.filter(p => p.sub === fornecedor);
+    if (statusFilt !== 'Todos')  list = list.filter(p => p.status === statusFilt);
+    if (dataInicio)              list = list.filter(p => p.venc >= dataInicio);
+    if (dataFim)                 list = list.filter(p => p.venc <= dataFim);
     return list;
-  }, [allProds, search, categoria, fornecedor, statusFilt, dataInicio, dataFim]);
+  }, [allProds, hideZeroStock, search, categoria, fornecedor, statusFilt, dataInicio, dataFim]);
 
-  const totalPages = Math.ceil(filtered.length / LIMIT);
-  const paginated  = filtered.slice((page - 1) * LIMIT, page * LIMIT);
-  const totalValor = paginated.reduce((s, p) => s + p.valorEstoque, 0);
+  // Sort
+  const sorted = useMemo(() => {
+    return [...filtered].sort((a, b) => {
+      let va = a[sortCol] ?? '', vb = b[sortCol] ?? '';
+      if (typeof va === 'string') va = va.toLowerCase();
+      if (typeof vb === 'string') vb = vb.toLowerCase();
+      if (va < vb) return sortDir === 'asc' ? -1 : 1;
+      if (va > vb) return sortDir === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }, [filtered, sortCol, sortDir]);
+
+  // KPIs — reflete os filtros ativos
+  const kpis = useMemo(() => {
+    const n = filtered.length;
+    const valorTotal = filtered.reduce((s, p) => s + p.valorEstoque, 0);
+    const proxVencer = filtered.filter(p => p.status === 'prox_vencer').length;
+    const vencidos   = filtered.filter(p => p.status === 'vencido').length;
+    const comPreco   = filtered.filter(p => p.preco > 0);
+    const margem     = comPreco.length > 0
+      ? comPreco.reduce((s, p) => s + (p.preco - p.custo) / p.preco * 100, 0) / comPreco.length
+      : 0;
+    return { n, valorTotal, proxVencer, vencidos, margem };
+  }, [filtered]);
+
+  const effLimit   = limit === 0 ? sorted.length : limit;
+  const totalPages = Math.ceil(sorted.length / effLimit);
+  const paginated  = sorted.slice((page - 1) * effLimit, page * effLimit);
 
   // Analytics
   const analytics = useMemo(() => {
@@ -15066,6 +15181,20 @@ const ConvenienciaManager = ({ themeMode, selectedClient, clients }) => {
           <div className="pm-header-icon"><Package size={22} color="#E31E24" /></div>
           <h2 className="pm-title">GERENCIAMENTO DE PRODUTOS — CONVENIÊNCIA</h2>
         </div>
+        {showReportPreview && (
+          <button className="pm-btn-primary" style={{ marginLeft:'auto' }} onClick={() => {
+            const logoUrl = `${window.location.origin}/logo-starvl.png`;
+            const html = buildConvenienciaReportHtml({
+              prods: sorted,
+              filters: { secao: categoria, grupo: fornecedor, status: statusFilt, search, hideZeroStock },
+              clientName: selectedClient,
+              logoUrl,
+            });
+            if (html) showReportPreview(html, 'Estoque Conveniência', null);
+          }}>
+            <Printer size={14} /> IMPRIMIR
+          </button>
+        )}
       </div>
 
       {/* KPIs */}
@@ -15140,8 +15269,15 @@ const ConvenienciaManager = ({ themeMode, selectedClient, clients }) => {
           <span className="pm-filter-label">até</span>
           <input type="date" className="pm-date-input" value={dataFim} onChange={e => setDataFim(e.target.value)} />
         </div>
-        {(search || categoria !== 'Todas' || fornecedor !== 'Todos' || statusFilt !== 'Todos' || dataInicio || dataFim) && (
-          <button className="pm-clear-btn" onClick={() => { setSearch(''); setCategoria('Todas'); setFornecedor('Todos'); setStatusFilt('Todos'); setDataInicio(''); setDataFim(''); }}>LIMPAR</button>
+        <button
+          className="pm-clear-btn"
+          style={{ background: hideZeroStock ? '#e31e24' : undefined, color: hideZeroStock ? '#fff' : undefined, borderColor: hideZeroStock ? '#e31e24' : undefined }}
+          onClick={() => setHideZeroStock(v => !v)}
+        >
+          {hideZeroStock ? '✓ ' : ''}SEM ESTOQUE
+        </button>
+        {(search || categoria !== 'Todas' || fornecedor !== 'Todos' || statusFilt !== 'Todos' || dataInicio || dataFim || hideZeroStock) && (
+          <button className="pm-clear-btn" onClick={() => { setSearch(''); setCategoria('Todas'); setFornecedor('Todos'); setStatusFilt('Todos'); setDataInicio(''); setDataFim(''); setHideZeroStock(false); }}>LIMPAR</button>
         )}
       </div>
 
@@ -15158,15 +15294,16 @@ const ConvenienciaManager = ({ themeMode, selectedClient, clients }) => {
             <thead>
               <tr>
                 <th>FOTO</th>
-                <th>PRODUTO</th>
-                <th>CÓDIGO</th>
-                <th>CATEGORIA</th>
-                <th className="num">ESTOQUE</th>
-                <th className="num">PREÇO VENDA</th>
-                <th className="num">CUSTO MÉDIO</th>
-                <th className="num">VALOR ESTOQUE</th>
+                <th style={{cursor:'pointer'}} onClick={() => handleSort('nome')}>PRODUTO{sortArrow('nome')}</th>
+                <th style={{cursor:'pointer'}} onClick={() => handleSort('codigo')}>CÓDIGO{sortArrow('codigo')}</th>
+                <th style={{cursor:'pointer'}} onClick={() => handleSort('cat')}>SEÇÃO{sortArrow('cat')}</th>
+                <th style={{cursor:'pointer'}} onClick={() => handleSort('sub')}>GRUPO{sortArrow('sub')}</th>
+                <th className="num" style={{cursor:'pointer'}} onClick={() => handleSort('estoque')}>ESTOQUE{sortArrow('estoque')}</th>
+                <th className="num" style={{cursor:'pointer'}} onClick={() => handleSort('preco')}>PREÇO VENDA{sortArrow('preco')}</th>
+                <th className="num" style={{cursor:'pointer'}} onClick={() => handleSort('custo')}>CUSTO MÉDIO{sortArrow('custo')}</th>
+                <th className="num" style={{cursor:'pointer'}} onClick={() => handleSort('valorEstoque')}>VALOR ESTOQUE{sortArrow('valorEstoque')}</th>
                 <th>VENCIMENTO</th>
-                <th className="num">DIAS</th>
+                <th className="num" style={{cursor:'pointer'}} onClick={() => handleSort('dias')}>DIAS{sortArrow('dias')}</th>
                 <th>STATUS</th>
                 <th>AÇÕES</th>
               </tr>
@@ -15190,6 +15327,7 @@ const ConvenienciaManager = ({ themeMode, selectedClient, clients }) => {
                   </td>
                   <td style={{ fontFamily:'monospace', fontSize:'11px', color:'#64748b' }}>{p.codigo}</td>
                   <td>{p.cat}</td>
+                  <td style={{ color:'#94a3b8', fontSize:'11px' }}>{p.sub || '—'}</td>
                   <td className="pm-num">{p.estoque}</td>
                   <td className="pm-num">{fmtBRL(p.preco)}</td>
                   <td className="pm-num">{fmtBRL(p.custo)}</td>
@@ -15210,8 +15348,8 @@ const ConvenienciaManager = ({ themeMode, selectedClient, clients }) => {
             </tbody>
             <tfoot>
               <tr className="pm-totals">
-                <td colSpan={7} style={{ color:'#64748b', fontSize:'12px' }}>Mostrando {(page-1)*LIMIT+1} a {Math.min(page*LIMIT, filtered.length)} de {filtered.length} produto{filtered.length !== 1 ? 's' : ''}</td>
-                <td className="pm-num">{fmtBRL(filtered.reduce((s,p) => s+p.valorEstoque, 0))}</td>
+                <td colSpan={8} style={{ color:'#64748b', fontSize:'12px' }}>Mostrando {(page-1)*effLimit+1} a {Math.min(page*effLimit, sorted.length)} de {sorted.length} produto{sorted.length !== 1 ? 's' : ''}</td>
+                <td className="pm-num">{fmtBRL(sorted.reduce((s,p) => s+p.valorEstoque, 0))}</td>
                 <td colSpan={4} />
               </tr>
             </tfoot>
@@ -15220,21 +15358,27 @@ const ConvenienciaManager = ({ themeMode, selectedClient, clients }) => {
       </div>
 
       {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="pm-pagination">
-          <span className="pm-pag-info">Página {page} de {totalPages}</span>
-          <div className="pm-pag-btns">
-            <button className="pm-pag-btn" disabled={page===1} onClick={() => setPage(1)}>«</button>
-            <button className="pm-pag-btn" disabled={page===1} onClick={() => setPage(p => p-1)}>‹</button>
-            {pagBtns().map((b,i) => b === '…'
-              ? <span key={`e${i}`} className="pm-pag-ellipsis">…</span>
-              : <button key={b} className={`pm-pag-btn${page===b?' active':''}`} onClick={() => setPage(b)}>{b}</button>
-            )}
-            <button className="pm-pag-btn" disabled={page===totalPages} onClick={() => setPage(p => p+1)}>›</button>
-            <button className="pm-pag-btn" disabled={page===totalPages} onClick={() => setPage(totalPages)}>»</button>
-          </div>
+      <div className="pm-pagination">
+        <span className="pm-pag-info">Página {page} de {Math.max(totalPages,1)}</span>
+        <div className="pm-pag-btns">
+          <button className="pm-pag-btn" disabled={page===1} onClick={() => setPage(1)}>«</button>
+          <button className="pm-pag-btn" disabled={page===1} onClick={() => setPage(p => p-1)}>‹</button>
+          {pagBtns().map((b,i) => b === '…'
+            ? <span key={`e${i}`} className="pm-pag-ellipsis">…</span>
+            : <button key={b} className={`pm-pag-btn${page===b?' active':''}`} onClick={() => setPage(b)}>{b}</button>
+          )}
+          <button className="pm-pag-btn" disabled={page===totalPages||totalPages===0} onClick={() => setPage(p => p+1)}>›</button>
+          <button className="pm-pag-btn" disabled={page===totalPages||totalPages===0} onClick={() => setPage(totalPages)}>»</button>
         </div>
-      )}
+        <div style={{ display:'flex', alignItems:'center', gap:6, marginLeft:'auto' }}>
+          <span className="pm-pag-info">Itens por página:</span>
+          {[7, 15, 30, 0].map(v => (
+            <button key={v} className={`pm-pag-btn${limit===v?' active':''}`} onClick={() => setLimit(v)}>
+              {v === 0 ? 'Todos' : v}
+            </button>
+          ))}
+        </div>
+      </div>
 
       {/* Analytics */}
       <div className="pm-analytics">
@@ -15734,7 +15878,7 @@ const ConvenienciaManager = ({ themeMode, selectedClient, clients }) => {
 };
 
 // ─── EstoqueManager — wraps Pista (StockPosition) + Conveniência ───────────
-const EstoqueManager = ({ estoques, projecao, loading, selectedClient, clients, themeMode, lmcSaldos, lmcControle, lmcStarvlFechamento }) => {
+const EstoqueManager = ({ estoques, projecao, loading, selectedClient, clients, themeMode, lmcSaldos, lmcControle, lmcStarvlFechamento, showReportPreview }) => {
   const [tab, setTab] = useState('conveniencia');
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
@@ -15746,7 +15890,7 @@ const EstoqueManager = ({ estoques, projecao, loading, selectedClient, clients, 
       </div>
       {tab === 'pista'
         ? <StockPosition estoques={estoques} projecao={projecao} loading={loading} selectedClient={selectedClient} clients={clients} lmcStarvlFechamento={lmcStarvlFechamento} />
-        : <ConvenienciaManager themeMode={themeMode} selectedClient={selectedClient} clients={clients} />
+        : <ConvenienciaManager themeMode={themeMode} selectedClient={selectedClient} clients={clients} showReportPreview={showReportPreview} />
       }
     </div>
   );
@@ -18956,7 +19100,7 @@ export default function App() {
       case 'control':
         return <LivrosManager lmcRegistros={apiData.lmcRegistros} lmcDiario={apiData.lmcDiario} lmcControle={apiData.lmcControle} selectedPeriod={controlPeriod} setSelectedPeriod={setControlPeriod} selectedClient={selectedClient} clients={clients} themeMode={themeMode} estoques={apiData.estoques} showReportPreview={showReportPreview} />;
       case 'stock':
-        return <EstoqueManager estoques={apiData.estoques} projecao={apiData.projecao} loading={apiData.loading} selectedClient={selectedClient} clients={clients} themeMode={themeMode} lmcSaldos={apiData.dashboardLmcSaldos} lmcControle={apiData.dashboardLmcControle} lmcStarvlFechamento={apiData.lmcStarvlFechamento} />;
+        return <EstoqueManager estoques={apiData.estoques} projecao={apiData.projecao} loading={apiData.loading} selectedClient={selectedClient} clients={clients} themeMode={themeMode} lmcSaldos={apiData.dashboardLmcSaldos} lmcControle={apiData.dashboardLmcControle} lmcStarvlFechamento={apiData.lmcStarvlFechamento} showReportPreview={showReportPreview} />;
       case 'receber':
         return <Financeiro clients={clients} selectedClient={selectedClient} themeMode={themeMode} />;
       case 'goals':
