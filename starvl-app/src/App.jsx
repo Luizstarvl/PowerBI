@@ -7424,6 +7424,48 @@ function computeEffectiveStock(starvlFechamentos = []) {
   return result;
 }
 
+function computeLmcRowsForProd(sgaData, prodCod, period, reguaEdits, aberturaEdits, aberturaUnlocked) {
+  if (!sgaData || !prodCod || !period) return [];
+  const [mStr, yStr] = period.split('/');
+  const month = Number(mStr), year = Number(yStr);
+  if (!month || !year) return [];
+  const today = new Date();
+  const isCurrentMonth = year === today.getFullYear() && month === today.getMonth() + 1;
+  const lastDay = isCurrentMonth ? today.getDate() : new Date(year, month, 0).getDate();
+  const parseLit = (s) => {
+    if (s == null || String(s).trim() === '') return null;
+    const cleaned = String(s).replace(/\./g, '').replace(',', '.');
+    const n = parseFloat(cleaned);
+    return isNaN(n) ? null : n;
+  };
+  const rows = [];
+  let prevFechamento = null, prevRegua = null, prevHasRegua = false;
+  for (let d = 1; d <= lastDay; d++) {
+    const pad = String(d).padStart(2, '0');
+    const monthPad = String(month).padStart(2, '0');
+    const dayKey = `${year}-${monthPad}-${pad}`;
+    const abKey  = `${period}|${prodCod}|${dayKey}`;
+    const rgKey  = `${period}|${prodCod}|${dayKey}`;
+    let calculatedAbertura = d === 1
+      ? (sgaData.aberturas?.[prodCod] ?? 0)
+      : (prevHasRegua ? (prevRegua ?? 0) : (prevFechamento ?? 0));
+    const isUnlocked = !!aberturaUnlocked[abKey];
+    const abParsed   = parseLit(aberturaEdits[abKey] ?? '');
+    const abertura   = (isUnlocked && abParsed != null) ? abParsed : calculatedAbertura;
+    const compras    = sgaData.comprasMap?.[prodCod]?.[dayKey] ?? 0;
+    const vendas     = sgaData.vendasMap?.[prodCod]?.[dayKey]  ?? 0;
+    const afericoes  = sgaData.aferMap?.[prodCod]?.[dayKey]    ?? 0;
+    const fechamento = abertura + compras - vendas;
+    const reguaParsed = parseLit(reguaEdits[rgKey]);
+    const hasRegua    = reguaParsed != null;
+    const regua       = hasRegua ? reguaParsed : 0;
+    const perdas      = hasRegua ? (fechamento - regua) : null;
+    rows.push({ dia: d, abertura, compras, vendas, afericoes, fechamento, regua, hasRegua, perdas });
+    prevFechamento = fechamento; prevRegua = regua; prevHasRegua = hasRegua;
+  }
+  return rows;
+}
+
 function getPeriodDateRange(period) {
   const [monthRaw, yearRaw] = (period || '').split('/');
   const month = Number(monthRaw);
@@ -8085,6 +8127,113 @@ function buildRankingSalesReportHtml({ report, filters, clientName, sellerLabel,
 </html>`;
 
   return html;
+}
+
+function buildLmcReportHtml({ produtos, period, clientName, modo, logoUrl = '/logo-starvl.png' }) {
+  if (!produtos || !produtos.length) return null;
+  const fmtL = (v) => v == null ? '—' : Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+  const [mStr, yStr] = period.split('/');
+  const monthNames = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  const periodLabel = `${monthNames[Number(mStr) - 1]} / ${yStr}`;
+  const mNum = Number(mStr), pYear = Number(yStr);
+  const mPad = String(mNum).padStart(2, '0');
+  const generatedAt = new Date().toLocaleString('pt-BR');
+
+  let content = '';
+  if (modo === 'resumido') {
+    const trs = produtos.map(p => {
+      const cor = p.totais.perdas == null ? '' : p.totais.perdas > 0 ? 'color:#dc2626;font-weight:700' : 'color:#16a34a;font-weight:700';
+      const perdasLabel = p.totais.perdas == null ? '—' : fmtL(Math.abs(p.totais.perdas)) + (p.totais.perdas > 0 ? ' P' : ' S');
+      return `<tr><td>${escapeHtml(p.nome)}</td><td class="num">${escapeHtml(fmtL(p.totais.compras))}</td><td class="num">${escapeHtml(fmtL(p.totais.vendas))}</td><td class="num" style="${cor}">${escapeHtml(perdasLabel)}</td></tr>`;
+    }).join('');
+    content = `<section class="panel"><div class="panel-head"><h2 class="panel-title">RESUMO — ${escapeHtml(periodLabel.toUpperCase())}</h2></div>
+      <table><thead><tr><th>PRODUTO</th><th class="num">TOTAL COMPRAS (L)</th><th class="num">TOTAL VENDAS (L)</th><th class="num">PERDAS / SOBRAS (L)</th></tr></thead>
+      <tbody>${trs}</tbody></table></section>`;
+  } else {
+    content = produtos.map(p => {
+      const trs = p.rows.map(row => {
+        const cor = row.perdas == null ? '' : row.perdas > 0 ? 'color:#dc2626;font-weight:700' : 'color:#16a34a;font-weight:700';
+        const pl  = row.perdas == null ? '—' : fmtL(Math.abs(row.perdas)) + (row.perdas > 0 ? ' P' : ' S');
+        const rg  = row.hasRegua ? fmtL(row.regua) : fmtL(row.fechamento);
+        return `<tr>
+          <td class="dt">${String(row.dia).padStart(2,'0')}/${mPad}/${pYear}</td>
+          <td class="num">${escapeHtml(fmtL(row.abertura))}</td>
+          <td class="num">${row.compras > 0 ? escapeHtml(fmtL(row.compras)) : '—'}</td>
+          <td class="num">${row.vendas > 0 ? escapeHtml(fmtL(row.vendas)) : '—'}</td>
+          <td class="num">${row.afericoes > 0 ? escapeHtml(fmtL(row.afericoes)) : '—'}</td>
+          <td class="num fw">${escapeHtml(fmtL(row.fechamento))}</td>
+          <td class="num">${escapeHtml(rg)}</td>
+          <td class="num" style="${cor}">${escapeHtml(pl)}</td>
+        </tr>`;
+      }).join('');
+      const pc = p.totais.perdas == null ? '' : p.totais.perdas > 0 ? 'color:#dc2626;font-weight:700' : 'color:#16a34a;font-weight:700';
+      const pl = p.totais.perdas == null ? '—' : fmtL(Math.abs(p.totais.perdas)) + (p.totais.perdas > 0 ? ' P' : ' S');
+      return `<section class="panel" style="margin-top:14px">
+        <div class="panel-head"><h2 class="panel-title">${escapeHtml(p.nome.toUpperCase())}</h2></div>
+        <table>
+          <thead><tr>
+            <th style="width:74px">DATA</th><th class="num">EST. ABERTURA</th><th class="num">COMPRAS</th>
+            <th class="num">VENDAS</th><th class="num">AFERIÇÕES</th><th class="num">EST. FECHAMENTO</th>
+            <th class="num">EST. RÉGUA</th><th class="num">PERDAS/SOBRAS</th>
+          </tr></thead>
+          <tbody>${trs}</tbody>
+          <tfoot><tr>
+            <td colspan="2">TOTAIS DO PERÍODO</td>
+            <td class="num">${escapeHtml(fmtL(p.totais.compras))}</td>
+            <td class="num">${escapeHtml(fmtL(p.totais.vendas))}</td>
+            <td class="num">${p.totais.afericoes > 0 ? escapeHtml(fmtL(p.totais.afericoes)) : '—'}</td>
+            <td></td><td></td>
+            <td class="num" style="${pc}">${escapeHtml(pl)}</td>
+          </tr></tfoot>
+        </table>
+      </section>`;
+    }).join('');
+  }
+
+  return `<!doctype html><html><head><meta charset="utf-8"/>
+  <title>LMC — Livro de Movimentação de Combustíveis</title>
+  <style>
+    @page{size:A4 landscape;margin:10mm}
+    *{box-sizing:border-box}
+    html,body,.report,.header,.panel,table,th,td,tfoot td{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important}
+    body{margin:0;font-family:Arial,Helvetica,sans-serif;color:#111827;background:#fff}
+    .report{min-height:100vh;padding:18px;background:#fff}
+    .header{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:16px 18px;border:1px solid #e5e7eb;border-bottom:3px solid #e31e24;border-radius:8px;background:#fff;margin-bottom:14px}
+    .header-left{display:flex;align-items:center;gap:14px}
+    h1{margin:0;font-size:20px;line-height:1.15}
+    .header-meta{color:#667085;font-size:11px;line-height:1.6;text-align:right}
+    .panel{border:1px solid #e5e7eb;border-radius:8px;background:#fff;padding:18px}
+    .panel-head{display:flex;align-items:center;margin-bottom:12px}
+    .panel-title{margin:0;color:#111827;font-size:13px;font-weight:800}
+    table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:10px}
+    th,td{border:1px solid #d0d5dd;padding:6px 7px;word-break:break-word}
+    th{background:#e31e24;color:#fff;text-align:left;font-size:9px;font-weight:700}
+    td{color:#111827;background:#fff}
+    td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+    td.dt{color:#667085;white-space:nowrap}
+    td.fw{font-weight:700}
+    tfoot td{color:#111827;background:#f3f4f6;font-weight:700}
+    .footer{margin-top:10px;color:#667085;font-size:10px;text-align:right}
+    @media screen{body{background:#f3f4f6;padding:18px}.report{max-width:1180px;min-height:auto;margin:0 auto;box-shadow:0 18px 50px rgba(15,23,42,.12)}}
+    @media print{.panel,.header,tr{break-inside:avoid;page-break-inside:avoid}body{background:#fff!important}.report{background:#fff!important;box-shadow:none!important}}
+  </style></head><body>
+  <main class="report">
+    <section class="header">
+      <div class="header-left">
+        <img src="${logoUrl}" alt="STARVL" style="width:90px;height:auto;object-fit:contain;margin-right:14px;flex-shrink:0"/>
+        <div>
+          <h1>LMC — LIVRO DE MOVIMENTAÇÃO DE COMBUSTÍVEIS</h1>
+          <div class="header-meta" style="text-align:left">${escapeHtml(clientName || 'Cliente')} | ${escapeHtml(periodLabel)}</div>
+        </div>
+      </div>
+      <div class="header-meta">
+        <div>Modo: ${modo === 'detalhado' ? 'Detalhado' : 'Resumido'}</div>
+        <div>Gerado em ${escapeHtml(generatedAt)}</div>
+      </div>
+    </section>
+    ${content}
+    <footer class="footer">STARVL | LMC — Livro de Movimentação de Combustíveis</footer>
+  </main></body></html>`;
 }
 
 function exportRankingSalesReport({ report, filters, clientName, sellerLabel }) {
@@ -13785,6 +13934,36 @@ const LmcPlanilha = ({ selectedClient, clients, themeMode }) => {
     localStorage.setItem('starvl:lmc-regua', JSON.stringify(updated));
   };
 
+  // Relatório
+  const [showLmcPrintPanel, setShowLmcPrintPanel] = useState(false);
+  const [reportProdCod, setReportProdCod] = useState('todos');
+  const [reportModo, setReportModo] = useState('detalhado');
+
+  const handleGenerateLmcReport = useCallback(() => {
+    if (!sgaData) return;
+    const codigos = reportProdCod === 'todos'
+      ? sgaData.produtos.map(p => p.codigo)
+      : [Number(reportProdCod)];
+    const produtos = codigos.map(cod => {
+      const prod = sgaData.produtos.find(p => p.codigo === cod);
+      const rows = computeLmcRowsForProd(sgaData, cod, period, reguaEdits, aberturaEdits, aberturaUnlocked);
+      const totais = rows.reduce((acc, r) => ({
+        compras:   acc.compras   + r.compras,
+        vendas:    acc.vendas    + r.vendas,
+        afericoes: acc.afericoes + r.afericoes,
+        perdas:    r.hasRegua ? (acc.perdas ?? 0) + (r.perdas ?? 0) : acc.perdas,
+      }), { compras: 0, vendas: 0, afericoes: 0, perdas: null });
+      return { nome: prod?.nome ?? '—', codigo: cod, rows, totais };
+    });
+    const logoUrl = `${window.location.origin}/logo-starvl.png`;
+    const html = buildLmcReportHtml({ produtos, period, clientName: selectedClient, modo: reportModo, logoUrl });
+    if (!html) return;
+    const blob = new Blob([html], { type: 'text/html; charset=utf-8' });
+    const url  = URL.createObjectURL(blob);
+    window.open(url, '_blank');
+    setShowLmcPrintPanel(false);
+  }, [sgaData, reportProdCod, reportModo, period, reguaEdits, aberturaEdits, aberturaUnlocked, selectedClient]);
+
   // Period picker helpers
   const periodMonths = Array.from({ length: 12 }, (_, i) => i + 1);
   const periodYears = [2023, 2024, 2025, 2026, 2027];
@@ -13874,7 +14053,69 @@ const LmcPlanilha = ({ selectedClient, clients, themeMode }) => {
               </span>
             )}
             <span className="lmc-plan-periodo-tag">Período: {period}</span>
+            <button
+              className="lmc-plan-btn-report"
+              onClick={() => setShowLmcPrintPanel(true)}
+            >
+              <Printer size={13} />
+              Relatório
+            </button>
           </div>
+
+          {/* Modal de impressão */}
+          {showLmcPrintPanel && (
+            <div className="lmc-print-overlay" onClick={() => setShowLmcPrintPanel(false)}>
+              <div className="lmc-print-panel" onClick={e => e.stopPropagation()}>
+                <div className="lmc-print-panel-header">
+                  <span>Gerar Relatório LMC</span>
+                  <button className="lmc-print-close" onClick={() => setShowLmcPrintPanel(false)}><X size={16} /></button>
+                </div>
+                <div className="lmc-print-panel-body">
+                  <label className="lmc-print-label">Produto</label>
+                  <select
+                    className="lmc-plan-sel lmc-print-sel"
+                    value={reportProdCod}
+                    onChange={e => setReportProdCod(e.target.value)}
+                  >
+                    <option value="todos">Todos os Produtos</option>
+                    {sgaData.produtos.map(p => (
+                      <option key={p.codigo} value={p.codigo}>{p.nome}</option>
+                    ))}
+                  </select>
+
+                  <label className="lmc-print-label">Modo</label>
+                  <div className="lmc-print-mode-group">
+                    <button
+                      type="button"
+                      className={`lmc-print-mode-btn${reportModo === 'detalhado' ? ' active' : ''}`}
+                      onClick={() => setReportModo('detalhado')}
+                    >
+                      Detalhado
+                    </button>
+                    <button
+                      type="button"
+                      className={`lmc-print-mode-btn${reportModo === 'resumido' ? ' active' : ''}`}
+                      onClick={() => setReportModo('resumido')}
+                    >
+                      Resumido
+                    </button>
+                  </div>
+                  <p className="lmc-print-hint">
+                    {reportModo === 'detalhado'
+                      ? 'Todas as colunas da tabela, dia a dia.'
+                      : 'Apenas totais: Compras, Vendas e Perdas/Sobras por produto.'}
+                  </p>
+                </div>
+                <div className="lmc-print-panel-footer">
+                  <button className="lmc-print-cancel" onClick={() => setShowLmcPrintPanel(false)}>Cancelar</button>
+                  <button className="lmc-print-generate" onClick={handleGenerateLmcReport}>
+                    <Printer size={13} />
+                    Gerar Relatório
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="lmc-plan-card">
             {/* Legenda */}

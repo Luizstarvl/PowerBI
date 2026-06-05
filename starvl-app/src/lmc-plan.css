@@ -473,3 +473,171 @@
 .theme-light .lmc-plan-empty-icon   { background: rgba(227,30,36,0.06); color: #E31E24; }
 .theme-light .lmc-plan-empty-title  { color: #374151; }
 .theme-light .lmc-plan-loading      { color: #6b7280; }
+
+/* ── Botão Relatório ──────────────────────────────────────────────────────── */
+.lmc-plan-btn-report {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: transparent;
+  border: 1px solid #3a3a3a;
+  border-radius: 8px;
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: inherit;
+  white-space: nowrap;
+}
+.lmc-plan-btn-report:hover {
+  border-color: #E31E24;
+  color: #E31E24;
+}
+.theme-light .lmc-plan-btn-report {
+  border-color: #d1d5db;
+  color: #6b7280;
+}
+.theme-light .lmc-plan-btn-report:hover {
+  border-color: #E31E24;
+  color: #E31E24;
+}
+
+/* ── Modal de impressão ───────────────────────────────────────────────────── */
+.lmc-print-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+.lmc-print-panel {
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
+  border-radius: 14px;
+  width: 360px;
+  max-width: 95vw;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.5);
+  display: flex;
+  flex-direction: column;
+}
+.lmc-print-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid #2a2a2a;
+  font-size: 14px;
+  font-weight: 700;
+  color: #f8fafc;
+}
+.lmc-print-close {
+  background: none;
+  border: none;
+  color: #64748b;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: 4px;
+  border-radius: 6px;
+  transition: color 0.15s;
+}
+.lmc-print-close:hover { color: #f8fafc; }
+.lmc-print-panel-body {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.lmc-print-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #64748b;
+  margin-top: 6px;
+}
+.lmc-print-sel {
+  width: 100%;
+}
+.lmc-print-mode-group {
+  display: flex;
+  gap: 6px;
+}
+.lmc-print-mode-btn {
+  flex: 1;
+  padding: 9px 12px;
+  background: #2a2a2a;
+  border: 1.5px solid #3a3a3a;
+  border-radius: 8px;
+  color: #94a3b8;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: inherit;
+}
+.lmc-print-mode-btn:hover { border-color: #E31E24; color: #E31E24; }
+.lmc-print-mode-btn.active { background: #E31E24; border-color: #E31E24; color: #fff; }
+.lmc-print-hint {
+  font-size: 11px;
+  color: #475569;
+  margin: 0;
+}
+.lmc-print-panel-footer {
+  display: flex;
+  gap: 8px;
+  padding: 16px 20px;
+  border-top: 1px solid #2a2a2a;
+}
+.lmc-print-cancel {
+  flex: 1;
+  padding: 9px;
+  background: transparent;
+  border: 1px solid #3a3a3a;
+  border-radius: 8px;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+.lmc-print-cancel:hover { border-color: #475569; color: #94a3b8; }
+.lmc-print-generate {
+  flex: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 9px;
+  background: #E31E24;
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: opacity 0.15s;
+}
+.lmc-print-generate:hover { opacity: 0.85; }
+
+/* Light theme — modal */
+.theme-light .lmc-print-panel {
+  background: #ffffff;
+  border-color: #e2e8f0;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.15);
+}
+.theme-light .lmc-print-panel-header { border-bottom-color: #e5e7eb; color: #111827; }
+.theme-light .lmc-print-close { color: #9ca3af; }
+.theme-light .lmc-print-close:hover { color: #111827; }
+.theme-light .lmc-print-label { color: #6b7280; }
+.theme-light .lmc-print-mode-btn { background: #f9fafb; border-color: #d1d5db; color: #374151; }
+.theme-light .lmc-print-mode-btn.active { background: #E31E24; border-color: #E31E24; color: #fff; }
+.theme-light .lmc-print-hint { color: #9ca3af; }
+.theme-light .lmc-print-panel-footer { border-top-color: #e5e7eb; }
+.theme-light .lmc-print-cancel { border-color: #d1d5db; color: #6b7280; }
