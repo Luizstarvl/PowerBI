@@ -6336,3 +6336,155 @@ body.theme-light-body {
   border-top-color: #e5e7eb;
   background: #ffffff;
 }
+
+/* ══════════════════════════════════════════════════════════
+   MOBILE — botão hamburger (oculto no desktop)
+══════════════════════════════════════════════════════════ */
+.topbar-mobile-menu-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid #2a2a2a;
+  color: #888;
+  width: 38px;
+  height: 38px;
+  min-width: 38px;
+  border-radius: 10px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: border-color 0.2s, color 0.2s;
+}
+.topbar-mobile-menu-btn:hover {
+  border-color: #E31E24;
+  color: #E31E24;
+}
+.theme-light .topbar-mobile-menu-btn {
+  border-color: #e2e8f0;
+  color: #6b7280;
+}
+
+/* Backdrop mobile (oculto no desktop) */
+.sidebar-mobile-backdrop { display: none; }
+
+/* ══════════════════════════════════════════════════════════
+   MOBILE — breakpoint principal ≤ 768px
+══════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+
+  /* ── Hamburger visível ──────────────────────────────── */
+  .topbar-mobile-menu-btn { display: flex; }
+
+  /* ── Sidebar como drawer lateral ───────────────────── */
+  .sidebar {
+    width: 252px !important;
+    transform: translateX(0);
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 200;
+    box-shadow: 6px 0 28px rgba(0, 0, 0, 0.55);
+  }
+  .sidebar.collapsed {
+    transform: translateX(-100%) !important;
+    width: 252px !important;
+    box-shadow: none;
+  }
+  /* Garante que labels ficam visíveis no drawer mobile */
+  .sidebar.collapsed .nav-label { display: flex !important; }
+  .sidebar.collapsed .sidebar-header { padding: 8px 18px 22px !important; }
+  .sidebar.collapsed .sidebar-header-inner { justify-content: space-between !important; }
+  .sidebar.collapsed .logout-btn { justify-content: flex-start !important; padding: 9px 11px !important; gap: 11px !important; }
+
+  /* ── Backdrop ───────────────────────────────────────── */
+  .sidebar-mobile-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.52);
+    z-index: 99;
+    animation: backdropFadeIn 0.2s ease;
+  }
+  @keyframes backdropFadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+
+  /* ── TopBar largura total ───────────────────────────── */
+  .app-topbar,
+  .app-topbar.sidebar-collapsed {
+    left: 0 !important;
+    padding: 0 12px;
+    gap: 8px;
+  }
+  /* QuickNav encolhe em mobile */
+  .app-topbar .quicknav { max-width: none; }
+  .quicknav-wrap { min-width: 0 !important; }
+  /* Esconde texto do status de conexão, mantém só o dot */
+  .app-topbar .connection-status { padding: 0 8px; }
+  .app-topbar .connection-status span:not(.connection-dot) { display: none; }
+  /* Oculta select de empresa no topbar (fica acessível via Parâmetros) */
+  .app-topbar .topbar-select { display: none; }
+
+  /* ── Conteúdo principal largura total ───────────────── */
+  .main-content,
+  .main-content.sidebar-collapsed {
+    margin-left: 0 !important;
+  }
+
+  /* ── Padding de páginas ─────────────────────────────── */
+  .page-content { padding: 14px 14px 32px; }
+
+  /* ── Page header ────────────────────────────────────── */
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .page-header h2 { font-size: var(--fs-xl); }
+  .header-actions { width: 100%; flex-wrap: wrap; }
+  .header-actions .btn-primary,
+  .header-actions .btn-secondary { flex: 1; justify-content: center; min-width: 120px; }
+
+  /* ── KPI cards ──────────────────────────────────────── */
+  .kpi-row { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+
+  /* ── Dashboard grid ─────────────────────────────────── */
+  .dashboard-grid { grid-template-columns: 1fr; gap: 14px; }
+  .chart-card.large,
+  .dashboard-static-wide,
+  .dashboard-static-full { grid-column: span 1; }
+  .dashboard-controls { flex-wrap: wrap; gap: 8px; }
+
+  /* ── Skeleton ───────────────────────────────────────── */
+  .skeleton-grid { grid-template-columns: repeat(2, 1fr); }
+
+  /* ── Params ─────────────────────────────────────────── */
+  .params-grid { grid-template-columns: 1fr; }
+  .params-span2, .params-span3 { grid-column: span 1; }
+  .params-image-group { grid-row: auto; }
+  .params-section-block { padding: 16px; }
+
+  /* ── Tabelas — scroll horizontal ───────────────────── */
+  .table-toolbar { flex-direction: column; align-items: flex-start; }
+
+  /* ── Modais — largura total ─────────────────────────── */
+  .control-print-panel { width: 96vw; }
+  .control-print-grid { grid-template-columns: 1fr; }
+
+  /* ── API error bar ──────────────────────────────────── */
+  .api-error-notice { margin: 10px 14px 0; flex-wrap: wrap; }
+
+  /* ── Fin tab bar ────────────────────────────────────── */
+  .fin-tab-bar { overflow-x: auto; flex-wrap: nowrap; padding: 12px 14px 0; gap: 6px; scrollbar-width: none; }
+  .fin-tab-bar::-webkit-scrollbar { display: none; }
+}
+
+/* ══════════════════════════════════════════════════════════
+   MOBILE — breakpoint pequeno ≤ 480px
+══════════════════════════════════════════════════════════ */
+@media (max-width: 480px) {
+  .kpi-row { grid-template-columns: 1fr; }
+  .page-content { padding: 10px 10px 24px; }
+  .app-topbar .connection-status { display: none; }
+  .app-topbar .top-bar-icon-btn { display: none; }
+}

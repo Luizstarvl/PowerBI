@@ -645,3 +645,17 @@
 .theme-light .lmc-print-hint { color: #9ca3af; }
 .theme-light .lmc-print-panel-footer { border-top-color: #e5e7eb; }
 .theme-light .lmc-print-cancel { border-color: #d1d5db; color: #6b7280; }
+
+@media (max-width: 768px) {
+  .lmc-plan-page { padding: 12px; gap: 12px; }
+  .lmc-plan-header { flex-wrap: wrap; gap: 10px; padding: 12px; }
+  .lmc-plan-header-right { flex-wrap: wrap; gap: 6px; width: 100%; }
+  .lmc-plan-sel { flex: 1; min-width: 0; }
+  .lmc-plan-btn-refresh,
+  .lmc-plan-btn-report { flex: 1; justify-content: center; }
+  .lmc-plan-toolbar { padding: 10px 12px; gap: 8px; }
+  .lmc-plan-prod-select { min-width: 0; width: 100%; }
+  .lmc-plan-periodo-tag { margin-left: 0; width: 100%; }
+  .lmc-plan-legend { flex-wrap: wrap; gap: 8px; }
+  .lmc-print-period-row { flex-direction: column; }
+}

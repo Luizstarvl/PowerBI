@@ -3,7 +3,7 @@ import logoStarvl from './logo-starvl.png';
 import logoStarvlBlack from './logo-starvl-black.png';
 import * as XLSX from 'xlsx';
 import { LineChart, Line, BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Area, AreaChart, LabelList, ComposedChart, ReferenceLine, PieChart, Pie } from 'recharts';
-import { Home, FileText, Users as UsersIcon, BookOpen, Package, LogOut, Eye, Search, Plus, Edit2, Trash2, X, Calendar, TrendingUp, TrendingDown, Droplet, DollarSign, Calculator, ChevronDown, ChevronUp, Activity, Settings, Building2, Phone, Mail, MapPin, Hash, Clock, BarChart2, Layers, CircleDollarSign, UserCheck, UserPlus, AlertCircle, Globe, Camera, Building, Tag, RefreshCw, Database, ChevronRight, ChevronLeft, Filter, Printer, Moon, Sun, Trophy, Lock, Unlock, Wallet, Download, CreditCard, AlertTriangle, Save, PiggyBank, Target, CheckCircle, Flag, Upload, Maximize2, Minimize2, ShieldCheck, FolderOpen, ImagePlus, Zap, History, ShoppingCart, Archive, ClipboardList } from 'lucide-react';
+import { Menu, Home, FileText, Users as UsersIcon, BookOpen, Package, LogOut, Eye, Search, Plus, Edit2, Trash2, X, Calendar, TrendingUp, TrendingDown, Droplet, DollarSign, Calculator, ChevronDown, ChevronUp, Activity, Settings, Building2, Phone, Mail, MapPin, Hash, Clock, BarChart2, Layers, CircleDollarSign, UserCheck, UserPlus, AlertCircle, Globe, Camera, Building, Tag, RefreshCw, Database, ChevronRight, ChevronLeft, Filter, Printer, Moon, Sun, Trophy, Lock, Unlock, Wallet, Download, CreditCard, AlertTriangle, Save, PiggyBank, Target, CheckCircle, Flag, Upload, Maximize2, Minimize2, ShieldCheck, FolderOpen, ImagePlus, Zap, History, ShoppingCart, Archive, ClipboardList } from 'lucide-react';
 import './App.css';
 import './cr-styles.css';
 import './cp-styles.css';
@@ -319,6 +319,7 @@ const TopBar = ({
   loggedUser,
   onLogout,
   sidebarCollapsed,
+  onToggleSidebar,
 }) => {
   const [showAdminMenu, setShowAdminMenu] = useState(false);
   const [profileImg, setProfileImg] = useState(null);
@@ -345,6 +346,14 @@ const TopBar = ({
 
   return (
     <div className={`app-topbar${sidebarCollapsed ? ' sidebar-collapsed' : ''}`}>
+      <button
+        type="button"
+        className="topbar-mobile-menu-btn"
+        onClick={onToggleSidebar}
+        aria-label="Menu principal"
+      >
+        <Menu size={22} />
+      </button>
       <QuickNav setCurrentPage={setCurrentPage} themeMode={themeMode} />
 
       <select
@@ -449,6 +458,7 @@ const Sidebar = ({
   themeMode,
   collapsed,
   onToggleCollapse,
+  onNavigate,
 }) => {
   const menuItems = [
     { icon: Home,          label: 'HOME',                     page: 'dashboard' },
@@ -486,7 +496,7 @@ const Sidebar = ({
           <button
             key={item.page}
             className={`nav-item ${currentPage === item.page ? 'active' : ''}`}
-            onClick={() => setCurrentPage(item.page)}
+            onClick={() => { setCurrentPage(item.page); onNavigate?.(); }}
             title={item.label}
             aria-label={item.subLabel ? `${item.label} ${item.subLabel}` : item.label}
             aria-current={currentPage === item.page ? 'page' : undefined}
@@ -19041,6 +19051,12 @@ export default function App() {
           localStorage.setItem('starvl-sidebar-collapsed', String(next));
           return next;
         })}
+        onNavigate={() => {
+          if (window.innerWidth <= 768) {
+            setSidebarCollapsed(true);
+            localStorage.setItem('starvl-sidebar-collapsed', 'true');
+          }
+        }}
       />
       <TopBar
         setCurrentPage={setCurrentPage}
@@ -19057,7 +19073,21 @@ export default function App() {
         loggedUser={loggedUser}
         onLogout={handleLogoutRequest}
         sidebarCollapsed={sidebarCollapsed}
+        onToggleSidebar={() => setSidebarCollapsed(prev => {
+          const next = !prev;
+          localStorage.setItem('starvl-sidebar-collapsed', String(next));
+          return next;
+        })}
       />
+      {!sidebarCollapsed && (
+        <div
+          className="sidebar-mobile-backdrop"
+          onClick={() => {
+            setSidebarCollapsed(true);
+            localStorage.setItem('starvl-sidebar-collapsed', 'true');
+          }}
+        />
+      )}
       <main className={`main-content${sidebarCollapsed ? ' sidebar-collapsed' : ''}`}>
         {apiData.error && <ApiErrorNotice message={apiData.error} onRetry={handleRefresh} />}
         {renderPage()}

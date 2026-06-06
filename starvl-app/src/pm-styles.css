@@ -317,4 +317,20 @@
 @media (max-width: 768px) {
   .pm-kpi-row   { grid-template-columns: 1fr 1fr; }
   .pm-analytics { grid-template-columns: 1fr; }
+  .pm-page { padding: 12px 14px; }
+  .pm-header { flex-direction: column; align-items: flex-start; }
+  .pm-header-actions { width: 100%; }
+  .pm-btn-primary, .pm-btn-outline { flex: 1; justify-content: center; }
+  /* Filtros empilhados */
+  .pm-filters { flex-direction: column; align-items: stretch; }
+  .pm-search-wrap { min-width: 0; }
+  .pm-date-range { flex-wrap: wrap; }
+  /* Edit overlay tela cheia */
+  .pm-edit-overlay { padding: 0; align-items: flex-end; }
+  .pm-edit-modal { max-width: 100%; max-height: 96dvh; border-radius: 16px 16px 0 0; }
+  .pm-edit-grid { grid-template-columns: 1fr; }
+  .pm-edit-fg2 { grid-template-columns: 1fr; }
+  .pm-edit-fg3 { grid-template-columns: 1fr 1fr; }
+  .pm-edit-addl { grid-template-columns: 1fr 1fr; }
+  .pm-edit-imgs-row { grid-template-columns: 1fr; }
 }
