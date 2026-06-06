@@ -667,3 +667,19 @@
   .cc-two-col   { grid-template-columns: 1fr; }
   .cc-three-col { grid-template-columns: 1fr 1fr; }
 }
+
+@media (max-width: 768px) {
+  .cc-tab-bar { overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; }
+  .cc-tab-bar::-webkit-scrollbar { display: none; }
+  .cc-tab { white-space: nowrap; font-size: 11px; padding: 8px 12px; }
+  .cc-tab-content { padding: 12px; }
+  .cc-kpi-grid   { grid-template-columns: 1fr; }
+  .cc-two-col    { grid-template-columns: 1fr; }
+  .cc-three-col  { grid-template-columns: 1fr; }
+  .cc-sub-tabs   { overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; }
+  .cc-sub-tabs::-webkit-scrollbar { display: none; }
+  .cc-toolbar    { flex-direction: column; align-items: stretch; }
+  .cc-extratos-summary { gap: 12px; }
+  .cc-chart-overlay { padding: 0; }
+  .cc-chart-modal { max-width: 100%; max-height: 100dvh; border-radius: 0; }
+}

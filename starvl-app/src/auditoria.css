@@ -700,4 +700,18 @@
   .audit-filter-input[type="search"] { width: 140px; }
   .audit-filter-select { width: 110px; }
   .audit-kpis { grid-template-columns: repeat(2, 1fr); }
+  /* Tabs scroll horizontal */
+  .audit-tabs { overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; padding-bottom: 0; }
+  .audit-tabs::-webkit-scrollbar { display: none; }
+  .audit-tab { white-space: nowrap; }
+  /* Filtros empilhados */
+  .audit-filters { flex-direction: column; align-items: stretch; }
+  .audit-filter-group { flex-wrap: wrap; }
+  .audit-filter-input[type="search"] { width: 100%; flex: 1; }
+  .audit-filter-divider { display: none; }
+  /* Alertas — 1 coluna */
+  .alertas-grid { grid-template-columns: 1fr; }
+  /* Header */
+  .audit-header { flex-direction: column; align-items: flex-start; }
+  .audit-header-actions { flex-wrap: wrap; }
 }

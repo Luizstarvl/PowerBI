@@ -192,3 +192,15 @@
   .cp-kpi-row { grid-template-columns: 1fr 1fr; }
   .cp-analytics { grid-template-columns: 1fr; }
 }
+@media (max-width: 480px) {
+  .cp-page { padding: 12px; }
+  .cp-kpi-row { grid-template-columns: 1fr; }
+  .cp-header { flex-direction: column; align-items: flex-start; }
+  /* Filtros em coluna */
+  .cp-filters { flex-direction: column; align-items: stretch; }
+  .cp-search-wrap { min-width: 0; }
+  .cp-date-range { flex-wrap: wrap; }
+  /* Modal largura total */
+  .cp-modal { max-width: 100%; border-radius: 16px 16px 0 0; }
+  .cp-modal-overlay { align-items: flex-end; padding: 0; }
+}

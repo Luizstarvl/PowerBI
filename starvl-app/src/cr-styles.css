@@ -168,3 +168,13 @@
   .cr-kpi-row   { grid-template-columns: 1fr 1fr; }
   .cr-analytics { grid-template-columns: 1fr; }
 }
+@media (max-width: 480px) {
+  .cr-page { padding: 12px; }
+  .cr-kpi-row { grid-template-columns: 1fr; }
+  .cr-header { flex-direction: column; align-items: flex-start; }
+  .cr-filters { flex-direction: column; align-items: stretch; }
+  .cr-search-wrap { min-width: 0; }
+  .cr-date-range { flex-wrap: wrap; }
+  .cr-modal { width: 100%; border-radius: 16px 16px 0 0; }
+  .cr-modal-overlay { align-items: flex-end; }
+}
