@@ -14856,6 +14856,7 @@ const ConvenienciaManager = ({ themeMode, selectedClient, clients, showReportPre
   const [editProd, setEditProd]     = useState(null);
   const [editForm, setEditForm]     = useState({});
   const [editImg, setEditImg]         = useState(null);
+  const [imgExplicitRemoved, setImgExplicitRemoved] = useState(false);
   // Produtos carregados da API
   const [apiProds, setApiProds]       = useState([]);
   const [loadingConvenio, setLoadingConvenio] = useState(false);
@@ -15012,6 +15013,7 @@ const ConvenienciaManager = ({ themeMode, selectedClient, clients, showReportPre
     const merged = { ...p, ...(localEdits[p.id] || {}) };
     setEditProd(merged);
     setEditImg(productImages[p.id] || null);
+    setImgExplicitRemoved(false);
     setEditForm({
       local:       merged.local  || '',
       marca:       merged.marca  || merged.sub || '',
@@ -15051,13 +15053,13 @@ const ConvenienciaManager = ({ themeMode, selectedClient, clients, showReportPre
           toast('Imagem salva!', 'success');
         })
         .catch(err => toast(`Erro ao salvar imagem: ${err.message}`, 'error'));
-    } else if (productImages[editProd.id]) {
+    } else if (imgExplicitRemoved && productImages[editProd.id]) {
       imgDelete(editProd.id)
         .then(() => setProductImages(prev => { const next = { ...prev }; delete next[editProd.id]; return next; }))
         .catch(err => toast(`Erro ao remover imagem: ${err.message}`, 'error'));
     }
     setEditProd(null);
-  }, [editProd, editForm, editImg, productImages]);
+  }, [editProd, editForm, editImg, imgExplicitRemoved, productImages]);
 
   const handleSort = (col) => {
     if (sortCol === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
@@ -15418,7 +15420,7 @@ const ConvenienciaManager = ({ themeMode, selectedClient, clients, showReportPre
                     </button>
                     <button className="pm-edit-img-btn"
                       style={{ background: 'transparent', border: '1px solid #3a3a3a', color: '#ef4444' }}
-                      onClick={() => setEditImg(null)}>
+                      onClick={() => { setEditImg(null); setImgExplicitRemoved(true); }}>
                       <Trash2 size={11} /> REMOVER
                     </button>
                     <button className="pm-edit-img-btn"
