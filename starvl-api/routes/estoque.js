@@ -30,8 +30,12 @@ router.get('/', async (req, res) => {
          COALESCE(ep.e_prodcusto, 0) AS custo
        FROM tanq
        JOIN prod ON prod.prodcodigo    = tanq.tanqproduto
+                AND prod.prodtipo      = 1
        LEFT JOIN e_prod ep ON ep.e_prodproduto = tanq.tanqproduto
                           AND ep.e_prodempresa  = $1
+                          AND ep.e_prodproduto IN (
+                            SELECT prodcodigo FROM prod WHERE prodtipo = 1
+                          )
        WHERE tanq.tanqempresa = $1
          AND tanq.tanqinativo IS NULL
        ORDER BY tanq.tanqproduto, tanq.tanqcodigo`,
@@ -175,6 +179,7 @@ router.get('/', async (req, res) => {
 
       return {
         ...p,
+        custoMedio: p.custo,
         valorEstoque,
         percentualOcupacao,
         margem,
