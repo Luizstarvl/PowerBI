@@ -6400,7 +6400,7 @@ body.theme-light-body {
     position: fixed;
     inset: 0;
     background: rgba(0, 0, 0, 0.52);
-    z-index: 99;
+    z-index: 150;
     animation: backdropFadeIn 0.2s ease;
   }
   @keyframes backdropFadeIn {

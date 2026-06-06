@@ -18771,9 +18771,10 @@ export default function App() {
   const [adminUsers, setAdminUsers] = useState(initialAdminUsers);
   const [themeMode, setThemeMode] = useState(() => localStorage.getItem('starvl-theme-mode') || 'dark');
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(
-    () => localStorage.getItem('starvl-sidebar-collapsed') === 'true'
-  );
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    if (window.innerWidth <= 768) return true;
+    return localStorage.getItem('starvl-sidebar-collapsed') === 'true';
+  });
   const [autoRefresh, setAutoRefresh] = useState(() => localStorage.getItem('starvl-auto-refresh') === 'true');
   const autoRefreshRef = useRef(null);
   const [goals, setGoals]           = useState(INITIAL_GOALS);
@@ -18845,6 +18846,18 @@ export default function App() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoggedIn]);
 
+  // Fecha sidebar ao entrar em viewport mobile (rotação portrait)
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth <= 768) {
+        setSidebarCollapsed(true);
+        localStorage.setItem('starvl-sidebar-collapsed', 'true');
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   // Auto-refresh a cada 5 minutos quando ativo
   useEffect(() => {
     localStorage.setItem('starvl-auto-refresh', String(autoRefresh));
@@ -18862,7 +18875,7 @@ export default function App() {
     setIsLoggedIn(false);
     setLoggedUser(null);
     setCurrentPage('dashboard');
-    setSidebarCollapsed(false);
+    setSidebarCollapsed(window.innerWidth <= 768);
     // Tenta fechar a guia como bônus (bloqueado pelo browser se não foi aberta por script)
     try { window.close(); } catch { /* ignorar */ }
   }, []);
