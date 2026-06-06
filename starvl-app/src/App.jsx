@@ -15107,38 +15107,6 @@ const ConvenienciaManager = ({ themeMode, selectedClient, clients, showReportPre
   const totalPages = Math.ceil(sorted.length / effLimit);
   const paginated  = sorted.slice((page - 1) * effLimit, page * effLimit);
 
-  // Analytics
-  const analytics = useMemo(() => {
-    const total = allProds.length;
-    const sc = { ok:0, prox:0, hoje:0, vencido:0 };
-    allProds.forEach(p => {
-      if (p.status === 'ok') sc.ok++;
-      else if (p.status === 'prox_vencer') sc.prox++;
-      else if (p.status === 'vencendo_hoje') sc.hoje++;
-      else sc.vencido++;
-    });
-    const notExp = allProds.filter(p => p.dias >= 0);
-    const exp = {
-      e7:    notExp.filter(p => p.dias <= 7).length,
-      e8_15: notExp.filter(p => p.dias >= 8  && p.dias <= 15).length,
-      e16_30:notExp.filter(p => p.dias >= 16 && p.dias <= 30).length,
-      e30p:  notExp.filter(p => p.dias > 30).length,
-    };
-    const catMap = {};
-    allProds.forEach(p => { catMap[p.cat] = (catMap[p.cat] || 0) + p.valorEstoque; });
-    const cats = Object.entries(catMap).map(([nome, val]) => ({ nome, val })).sort((a,b) => b.val - a.val).slice(0, 4);
-    return { sc, total, exp, cats };
-  }, [allProds]);
-
-  const { sc, total: aTotal, exp, cats: catList } = analytics;
-  const donutParts = [
-    { label:'OK (Válidos)',          count: sc.ok,      pct: aTotal > 0 ? sc.ok/aTotal*100      : 0, color:'#22c55e' },
-    { label:'Próx. Vencer (7 dias)', count: sc.prox,    pct: aTotal > 0 ? sc.prox/aTotal*100    : 0, color:'#f59e0b' },
-    { label:'Vencendo Hoje',         count: sc.hoje,    pct: aTotal > 0 ? sc.hoje/aTotal*100    : 0, color:'#fb923c' },
-    { label:'Vencidos',              count: sc.vencido, pct: aTotal > 0 ? sc.vencido/aTotal*100 : 0, color:'#ef4444' },
-  ];
-  const donutBg = pmBuildDonut(donutParts);
-
   const cats = useMemo(() => {
     const base = sprocats.length > 0
       ? sprocats
@@ -15382,72 +15350,6 @@ const ConvenienciaManager = ({ themeMode, selectedClient, clients, showReportPre
         </div>
       </div>
 
-      {/* Analytics */}
-      <div className="pm-analytics">
-        {/* Donut status */}
-        <div className="pm-panel">
-          <div className="pm-panel-title">Distribuição por Status de Vencimento</div>
-          <div className="pm-donut-wrap">
-            <div className="pm-donut" style={{ background: donutBg }}>
-              <div className="pm-donut-center">
-                <span>{aTotal > 0 ? ((sc.ok / aTotal)*100).toFixed(0) : 0}%</span>
-                <small>válidos</small>
-              </div>
-            </div>
-            <div className="pm-legend">
-              {donutParts.map(dp => (
-                <div key={dp.label} className="pm-legend-item">
-                  <div className="pm-legend-dot" style={{ background: dp.color }} />
-                  <span className="pm-legend-label">{dp.label}</span>
-                  <span className="pm-legend-val">{dp.count}</span>
-                  <span className="pm-legend-pct">{dp.pct.toFixed(1)}%</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Expiration by period */}
-        <div className="pm-panel">
-          <div className="pm-panel-title">▶ Expiração por Período</div>
-          {[
-            { label:'Até 7 dias',    count: exp.e7    },
-            { label:'De 8 a 15 dias',count: exp.e8_15 },
-            { label:'De 16 a 30 dias',count:exp.e16_30},
-            { label:'Acima de 30 dias',count:exp.e30p },
-          ].map(row => (
-            <div key={row.label} className="pm-exp-row">
-              <span className="pm-exp-label">{row.label}</span>
-              <div className="pm-exp-right">
-                <span className="pm-exp-count">{row.count}</span>
-                <span className="pm-exp-pct">({(aTotal > 0 ? (row.count/aTotal)*100 : 0).toFixed(1)}%)</span>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Categories by stock value */}
-        <div className="pm-panel">
-          <div className="pm-panel-title">▶ Categorias (Valor em Estoque)</div>
-          {catList.map((c, i) => (
-            <div key={c.nome} className="pm-cat-row">
-              <span className="pm-cat-rank">{i+1}.</span>
-              <span className="pm-cat-nome">{c.nome}</span>
-              <span className="pm-cat-val">{fmtBRL(c.val)}</span>
-            </div>
-          ))}
-        </div>
-
-        {/* Vencimento CTA */}
-        <div className="pm-panel">
-          <div className="pm-panel-title">▶ Controle de Vencimento</div>
-          <div className="pm-venc-icon"><Calendar size={20} color="#E31E24" /></div>
-          <p className="pm-venc-desc">Mantenha o controle dos produtos próximos do vencimento para evitar perdas.</p>
-          <button className="pm-venc-cta" onClick={() => { setStatusFilt('prox_vencer'); setPage(1); }}>
-            VER PRODUTOS PRÓXIMOS DO VENCIMENTO
-          </button>
-        </div>
-      </div>
 
       {/* ─── EDIT OVERLAY ─── */}
       {editProd && (
