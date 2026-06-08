@@ -62,9 +62,7 @@
 
 /* ── Linha agrupada por cliente ──────────────────────────────────────────── */
 .cr-group-row { cursor: default; }
-.cr-group-row td { border-left: 3px solid transparent; }
 .cr-group-row:hover td { background: rgba(248,250,252,0.04); }
-.cr-group-row.cr-expanded td { border-left-color: #E31E24; background: rgba(227,30,36,0.04); }
 
 .cr-badge-qtd { display: inline-flex; align-items: center; justify-content: center;
   min-width: 24px; height: 22px; padding: 0 7px; border-radius: 12px;
@@ -74,7 +72,11 @@
 
 .cr-action-active { border-color: #E31E24 !important; color: #E31E24 !important; background: rgba(227,30,36,0.08) !important; }
 
-/* ── Sub-tabela de registros (expand) ────────────────────────────────────── */
+/* ── Modal registros por cliente ─────────────────────────────────────────── */
+.cr-client-modal { width: 820px !important; max-width: 96vw !important; }
+.cr-client-modal-table { overflow-x: auto; margin: 6px -22px 0; padding: 0 22px; }
+
+/* ── Sub-tabela de registros ─────────────────────────────────────────────── */
 .cr-sub-wrap td { padding: 0 0 8px 28px; background: #141414; border-bottom: 1px solid #242424; }
 .cr-sub-table { width: 100%; border-collapse: collapse; font-size: 11.5px; border-radius: 8px; overflow: hidden; }
 .cr-sub-table thead tr { background: #2a2a2a; }
@@ -150,7 +152,6 @@
 .cr-modal-val { color: #f8fafc; font-weight: 600; text-align: right; }
 
 /* Light theme overrides for grouped view */
-.theme-light .cr-group-row.cr-expanded td { background: rgba(227,30,36,0.04); }
 .theme-light .cr-sub-wrap td { background: #f8fafc; }
 .theme-light .cr-sub-table thead tr { background: #f1f5f9; }
 .theme-light .cr-sub-table thead th { color: #64748b; }

@@ -2242,7 +2242,7 @@ const ContasReceber = ({ clients, selectedClient }) => {
   const [dataFim,     setDataFim]    = useState(todayStr);
   const [loading,     setLoading]    = useState(false);
   const [usingMock,   setUsingMock]  = useState(false);
-  const [expandedClientes, setExpandedClientes] = useState(new Set());
+  const [clienteModal, setClienteModal] = useState(null);
   const [viewConta,   setViewConta]  = useState(null);
   const [regModal,    setRegModal]   = useState(null);
   const [regDate,     setRegDate]    = useState('');
@@ -2300,7 +2300,7 @@ const ContasReceber = ({ clients, selectedClient }) => {
 
   // Busca todos os registros — agrupamento por cliente feito no frontend
   useEffect(() => {
-    setExpandedClientes(new Set());
+    setClienteModal(null);
     if (usingMock || !empresa) {
       let filtered = CR_ALL_MOCK;
       if (search)       filtered = filtered.filter(c => c.cliente.toLowerCase().includes(search.toLowerCase()) || c.documento.toLowerCase().includes(search.toLowerCase()) || c.cnpj.includes(search));
@@ -2355,14 +2355,6 @@ const ContasReceber = ({ clients, selectedClient }) => {
     }).sort((a, b) => (SP[b.piorStatus] ?? 0) - (SP[a.piorStatus] ?? 0) || b.totalAReceber - a.totalAReceber);
   }, [contas]);
 
-  const toggleExpand = (key) => {
-    setExpandedClientes(prev => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
-  };
 
   // Dados do gráfico pizza
   const pizzaData = analiticos ? [
@@ -2462,90 +2454,30 @@ const ContasReceber = ({ clients, selectedClient }) => {
           </thead>
           <tbody>
             {contasByCliente.map(g => (
-              <React.Fragment key={g.key}>
-                <tr className={`cr-row cr-group-row${expandedClientes.has(g.key) ? ' cr-expanded' : ''}`}>
-                  <td>
-                    <div className="cr-cli-cell">
-                      <span className="cr-cli-nome">{g.cliente}</span>
-                      {g.cnpj && <span className="cr-cli-doc">{g.cnpj}</span>}
-                    </div>
-                  </td>
-                  <td className="cr-center">
-                    <span className="cr-badge-qtd">{g.qtd}</span>
-                  </td>
-                  <td className="cr-mono">
-                    {g.proxVenc ? fmtDate(g.proxVenc) : '—'}
-                    {g.maxDiasAtraso > 0 && <span className="cr-dias-atraso"> +{g.maxDiasAtraso}d</span>}
-                  </td>
-                  <td className="cr-mono cr-right cr-bold">{fmtBRL(g.totalAReceber)}</td>
-                  <td className="cr-center">
-                    <span className={`cr-badge ${CR_STATUS_CLS[g.piorStatus]}`}>{CR_STATUS_LABEL[g.piorStatus]}</span>
-                  </td>
-                  <td className="cr-center">
-                    <button
-                      className={`cr-action-btn${expandedClientes.has(g.key) ? ' cr-action-active' : ''}`}
-                      title={expandedClientes.has(g.key) ? 'Recolher' : 'Ver registros'}
-                      onClick={() => toggleExpand(g.key)}
-                    ><Eye size={15}/></button>
-                  </td>
-                </tr>
-                {expandedClientes.has(g.key) && (
-                  <tr className="cr-sub-wrap">
-                    <td colSpan={6}>
-                      <table className="cr-sub-table">
-                        <thead>
-                          <tr>
-                            <th>DOC</th>
-                            <th>VENCIMENTO</th>
-                            <th className="cr-th-right">ATRASO</th>
-                            <th className="cr-th-right">VALOR</th>
-                            <th className="cr-th-right">JUROS</th>
-                            <th className="cr-th-right">DESCONTO</th>
-                            <th className="cr-th-right">A RECEBER</th>
-                            <th className="cr-th-center">STATUS</th>
-                            <th className="cr-th-center">AÇÕES</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {g.registros.map(r => (
-                            <tr key={r.id} className="cr-sub-row">
-                              <td className="cr-mono">{r.documento}</td>
-                              <td className="cr-mono">{fmtDate(r.vencimento)}</td>
-                              <td className={`cr-mono cr-right${r.diasAtraso > 0 ? ' cr-red' : ''}`}>
-                                {r.diasAtraso > 0 ? `${r.diasAtraso}d` : r.status === 'vence_hoje' ? 'Hoje' : '—'}
-                              </td>
-                              <td className="cr-mono cr-right">{fmtBRL(r.valor)}</td>
-                              <td className="cr-mono cr-right cr-green">{fmtBRL(r.juros)}</td>
-                              <td className="cr-mono cr-right cr-amber">{fmtBRL(r.desconto)}</td>
-                              <td className="cr-mono cr-right cr-bold">{fmtBRL(r.valorAReceber)}</td>
-                              <td className="cr-center">
-                                <span className={`cr-badge ${CR_STATUS_CLS[r.status]}`}>{CR_STATUS_LABEL[r.status]}</span>
-                              </td>
-                              <td>
-                                <div className="cr-actions">
-                                  <button className="cr-action-btn" title="Visualizar" onClick={()=>setViewConta(r)}><Eye size={14}/></button>
-                                  <button className="cr-action-btn" title="Exportar" onClick={()=>handleExportRow(r)}><FileText size={14}/></button>
-                                  <button className="cr-action-btn cr-action-down" title="Registrar Recebimento" onClick={()=>openRegModal(r)} disabled={r.status==='recebido'}><Download size={14}/></button>
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                        <tfoot>
-                          <tr className="cr-sub-totals">
-                            <td colSpan={3}><strong>{g.qtd} nota{g.qtd !== 1 ? 's' : ''}</strong></td>
-                            <td className="cr-mono cr-right"><strong>{fmtBRL(g.registros.reduce((s,r)=>s+r.valor,0))}</strong></td>
-                            <td className="cr-mono cr-right cr-green"><strong>{fmtBRL(g.registros.reduce((s,r)=>s+r.juros,0))}</strong></td>
-                            <td className="cr-mono cr-right cr-amber"><strong>{fmtBRL(g.registros.reduce((s,r)=>s+r.desconto,0))}</strong></td>
-                            <td className="cr-mono cr-right cr-bold"><strong>{fmtBRL(g.totalAReceber)}</strong></td>
-                            <td colSpan={2}></td>
-                          </tr>
-                        </tfoot>
-                      </table>
-                    </td>
-                  </tr>
-                )}
-              </React.Fragment>
+              <tr key={g.key} className="cr-row cr-group-row">
+                <td>
+                  <div className="cr-cli-cell">
+                    <span className="cr-cli-nome">{g.cliente}</span>
+                    {g.cnpj && <span className="cr-cli-doc">{g.cnpj}</span>}
+                  </div>
+                </td>
+                <td className="cr-center">
+                  <span className="cr-badge-qtd">{g.qtd}</span>
+                </td>
+                <td className="cr-mono">
+                  {g.proxVenc ? fmtDate(g.proxVenc) : '—'}
+                  {g.maxDiasAtraso > 0 && <span className="cr-dias-atraso"> +{g.maxDiasAtraso}d</span>}
+                </td>
+                <td className="cr-mono cr-right cr-bold">{fmtBRL(g.totalAReceber)}</td>
+                <td className="cr-center">
+                  <span className={`cr-badge ${CR_STATUS_CLS[g.piorStatus]}`}>{CR_STATUS_LABEL[g.piorStatus]}</span>
+                </td>
+                <td className="cr-center">
+                  <button className="cr-action-btn" title="Ver registros" onClick={() => setClienteModal(g)}>
+                    <Eye size={15}/>
+                  </button>
+                </td>
+              </tr>
             ))}
           </tbody>
           {contasByCliente.length > 0 && (
@@ -2662,6 +2594,88 @@ const ContasReceber = ({ clients, selectedClient }) => {
                 <span className={`cr-idx-val ${idx.red ? 'cr-red' : ''}`}>{idx.value}</span>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal Registros por Cliente ──────────────────────────────────── */}
+      {clienteModal && (
+        <div className="ct-modal-overlay" onClick={() => setClienteModal(null)}>
+          <div className="ct-modal cr-client-modal" onClick={e => e.stopPropagation()}>
+            <div className="ct-modal-header">
+              <h3><UsersIcon size={18} color="#E31E24"/> {clienteModal.cliente}</h3>
+              <button className="ct-modal-close" onClick={() => setClienteModal(null)}><X size={18}/></button>
+            </div>
+            <div className="ct-modal-body">
+              <div className="ct-modal-section">Resumo</div>
+              {[
+                ['CNPJ / CPF',      clienteModal.cnpj || '—'],
+                ['Total a Receber', fmtBRL(clienteModal.totalAReceber)],
+                ['Notas em Aberto', `${clienteModal.qtd} nota${clienteModal.qtd !== 1 ? 's' : ''}`],
+                ...(clienteModal.maxDiasAtraso > 0 ? [['Maior Atraso', `${clienteModal.maxDiasAtraso} dias`]] : []),
+              ].map(([k, v]) => (
+                <div key={k} className="ct-modal-row">
+                  <span className="ct-modal-key">{k}</span>
+                  <span className="ct-modal-val">{v}</span>
+                </div>
+              ))}
+              <div className="ct-modal-section">Registros</div>
+              <div className="cr-client-modal-table">
+                <table className="cr-sub-table">
+                  <thead>
+                    <tr>
+                      <th>DOC</th>
+                      <th>VENCIMENTO</th>
+                      <th className="cr-th-right">ATRASO</th>
+                      <th className="cr-th-right">VALOR</th>
+                      <th className="cr-th-right">JUROS</th>
+                      <th className="cr-th-right">DESCONTO</th>
+                      <th className="cr-th-right">A RECEBER</th>
+                      <th className="cr-th-center">STATUS</th>
+                      <th className="cr-th-center">AÇÕES</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {clienteModal.registros.map(r => (
+                      <tr key={r.id} className="cr-sub-row">
+                        <td className="cr-mono">{r.documento}</td>
+                        <td className="cr-mono">{fmtDate(r.vencimento)}</td>
+                        <td className={`cr-mono cr-right${r.diasAtraso > 0 ? ' cr-red' : ''}`}>
+                          {r.diasAtraso > 0 ? `${r.diasAtraso}d` : r.status === 'vence_hoje' ? 'Hoje' : '—'}
+                        </td>
+                        <td className="cr-mono cr-right">{fmtBRL(r.valor)}</td>
+                        <td className="cr-mono cr-right cr-green">{fmtBRL(r.juros)}</td>
+                        <td className="cr-mono cr-right cr-amber">{fmtBRL(r.desconto)}</td>
+                        <td className="cr-mono cr-right cr-bold">{fmtBRL(r.valorAReceber)}</td>
+                        <td className="cr-center">
+                          <span className={`cr-badge ${CR_STATUS_CLS[r.status]}`}>{CR_STATUS_LABEL[r.status]}</span>
+                        </td>
+                        <td>
+                          <div className="cr-actions">
+                            <button className="cr-action-btn" title="Visualizar" onClick={() => setViewConta(r)}><Eye size={14}/></button>
+                            <button className="cr-action-btn" title="Exportar" onClick={() => handleExportRow(r)}><FileText size={14}/></button>
+                            <button className="cr-action-btn cr-action-down" title="Registrar Recebimento" onClick={() => openRegModal(r)} disabled={r.status === 'recebido'}><Download size={14}/></button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="cr-sub-totals">
+                      <td colSpan={3}><strong>{clienteModal.qtd} nota{clienteModal.qtd !== 1 ? 's' : ''}</strong></td>
+                      <td className="cr-mono cr-right"><strong>{fmtBRL(clienteModal.registros.reduce((s,r)=>s+r.valor,0))}</strong></td>
+                      <td className="cr-mono cr-right cr-green"><strong>{fmtBRL(clienteModal.registros.reduce((s,r)=>s+r.juros,0))}</strong></td>
+                      <td className="cr-mono cr-right cr-amber"><strong>{fmtBRL(clienteModal.registros.reduce((s,r)=>s+r.desconto,0))}</strong></td>
+                      <td className="cr-mono cr-right cr-bold"><strong>{fmtBRL(clienteModal.totalAReceber)}</strong></td>
+                      <td colSpan={2}></td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+            <div className="ct-modal-footer">
+              <button className="ct-modal-cancel" onClick={() => setClienteModal(null)}>Fechar</button>
+            </div>
           </div>
         </div>
       )}
