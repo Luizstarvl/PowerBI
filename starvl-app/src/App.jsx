@@ -2233,16 +2233,16 @@ function imprimirBoleto(conta, tipo) {
 const ContasReceber = ({ clients, selectedClient }) => {
   const [resumo,      setResumo]     = useState(null);
   const [contas,      setContas]     = useState([]);
-  const [pagination,  setPagination] = useState({ page:1, totalPages:1, total:0, limit:10 });
+  const [totalCount,  setTotalCount] = useState(0);
   const [analiticos,  setAnaliticos] = useState(null);
   const todayStr = new Date().toISOString().split('T')[0];
   const [search,      setSearch]     = useState('');
   const [statusFiltro,setStatusFiltro] = useState('todos');
   const [dataInicio,  setDataInicio] = useState('');
   const [dataFim,     setDataFim]    = useState(todayStr);
-  const [page,        setPage]       = useState(1);
   const [loading,     setLoading]    = useState(false);
   const [usingMock,   setUsingMock]  = useState(false);
+  const [expandedClientes, setExpandedClientes] = useState(new Set());
   const [viewConta,   setViewConta]  = useState(null);
   const [regModal,    setRegModal]   = useState(null);
   const [regDate,     setRegDate]    = useState('');
@@ -2298,31 +2298,27 @@ const ContasReceber = ({ clients, selectedClient }) => {
     });
   }, [empresa]);
 
-  // Busca tabela paginada
+  // Busca todos os registros — agrupamento por cliente feito no frontend
   useEffect(() => {
+    setExpandedClientes(new Set());
     if (usingMock || !empresa) {
-      // Filtro local no mock
       let filtered = CR_ALL_MOCK;
       if (search)       filtered = filtered.filter(c => c.cliente.toLowerCase().includes(search.toLowerCase()) || c.documento.toLowerCase().includes(search.toLowerCase()) || c.cnpj.includes(search));
       if (statusFiltro !== 'todos') filtered = filtered.filter(c => c.status === statusFiltro);
       if (dataInicio)   filtered = filtered.filter(c => c.vencimento >= dataInicio);
       if (dataFim)      filtered = filtered.filter(c => c.vencimento <= dataFim);
-      const limit = 10;
-      const total = filtered.length;
-      const totalPages = Math.max(1, Math.ceil(total / limit));
-      const slice = filtered.slice((page-1)*limit, page*limit);
-      setContas(slice);
-      setPagination({ page, totalPages, total, limit });
+      setContas(filtered);
+      setTotalCount(filtered.length);
       return;
     }
     setLoading(true);
-    const qs = new URLSearchParams({ empresa, page, limit:10, search, status:statusFiltro, ...(dataInicio&&{dataInicio}), ...(dataFim&&{dataFim}) });
+    const qs = new URLSearchParams({ empresa, page:1, limit:500, search, status:statusFiltro, ...(dataInicio&&{dataInicio}), ...(dataFim&&{dataFim}) });
     fetch(`${API_URL}/api/receber/contas?${qs}`)
       .then(r=>r.json())
-      .then(data => { setContas(data.data||[]); setPagination(data.pagination||{page,totalPages:1,total:0,limit:10}); })
+      .then(data => { setContas(data.data||[]); setTotalCount(data.pagination?.total||0); })
       .catch(() => setUsingMock(true))
       .finally(() => setLoading(false));
-  }, [empresa, usingMock, page, search, statusFiltro, dataInicio, dataFim]);
+  }, [empresa, usingMock, search, statusFiltro, dataInicio, dataFim]);
 
   const fmtPct = v => `${Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}%`;
 
@@ -2332,33 +2328,40 @@ const ContasReceber = ({ clients, selectedClient }) => {
     return t;
   }, [contas]);
 
-  // Paginação renderizada
-  const renderPagination = () => {
-    const { page:pg, totalPages:tp, total } = pagination;
-    const pages = [];
-    if (tp <= 7) { for(let i=1;i<=tp;i++) pages.push(i); }
-    else {
-      pages.push(1);
-      if (pg > 3) pages.push('...');
-      for(let i=Math.max(2,pg-1); i<=Math.min(tp-1,pg+1); i++) pages.push(i);
-      if (pg < tp - 2) pages.push('...');
-      pages.push(tp);
-    }
-    return (
-      <div className="cr-pagination">
-        <span className="cr-pag-info">Mostrando {(pg-1)*pagination.limit+1} a {Math.min(pg*pagination.limit,total)} de {total} contas</span>
-        <div className="cr-pag-btns">
-          <button className="cr-pag-btn" disabled={pg<=1} onClick={()=>setPage(1)}>«</button>
-          <button className="cr-pag-btn" disabled={pg<=1} onClick={()=>setPage(pg-1)}><ChevronLeft size={14}/></button>
-          {pages.map((p,i) => p==='...'
-            ? <span key={`e${i}`} className="cr-pag-ellipsis">...</span>
-            : <button key={p} className={`cr-pag-btn${pg===p?' active':''}`} onClick={()=>setPage(p)}>{p}</button>
-          )}
-          <button className="cr-pag-btn" disabled={pg>=tp} onClick={()=>setPage(pg+1)}><ChevronRight size={14}/></button>
-          <button className="cr-pag-btn" disabled={pg>=tp} onClick={()=>setPage(tp)}>»</button>
-        </div>
-      </div>
-    );
+  const contasByCliente = useMemo(() => {
+    const SP = { atrasado: 3, vence_hoje: 2, a_vencer: 1, recebido: 0 };
+    const map = {};
+    contas.forEach(c => {
+      const key = c.cliente + '||' + c.cnpj;
+      if (!map[key]) map[key] = { key, cliente: c.cliente, cnpj: c.cnpj, registros: [] };
+      map[key].registros.push(c);
+    });
+    return Object.values(map).map(g => {
+      const piorStatus = g.registros.reduce((w, r) =>
+        (SP[r.status] ?? 0) > (SP[w] ?? 0) ? r.status : w, 'recebido');
+      const pendentes = g.registros.filter(r => r.status !== 'recebido');
+      const urgentes = (pendentes.length ? pendentes : g.registros).slice().sort((a, b) => {
+        const da = SP[a.status] ?? 0, db = SP[b.status] ?? 0;
+        return db !== da ? db - da : a.vencimento.localeCompare(b.vencimento);
+      });
+      return {
+        ...g,
+        totalAReceber: g.registros.reduce((s, r) => s + (r.valorAReceber ?? r.valor), 0),
+        qtd: g.registros.length,
+        piorStatus,
+        proxVenc: urgentes[0]?.vencimento || '',
+        maxDiasAtraso: Math.max(0, ...g.registros.map(r => r.diasAtraso || 0)),
+      };
+    }).sort((a, b) => (SP[b.piorStatus] ?? 0) - (SP[a.piorStatus] ?? 0) || b.totalAReceber - a.totalAReceber);
+  }, [contas]);
+
+  const toggleExpand = (key) => {
+    setExpandedClientes(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
   };
 
   // Dados do gráfico pizza
@@ -2425,9 +2428,9 @@ const ContasReceber = ({ clients, selectedClient }) => {
         <div className="cr-search-wrap">
           <Search size={15} className="cr-search-icon"/>
           <input className="cr-search" placeholder="Buscar cliente, descrição, nº documento..."
-            value={search} onChange={e=>{ setSearch(e.target.value); setPage(1); }} />
+            value={search} onChange={e=>setSearch(e.target.value)} />
         </div>
-        <select className="cr-select" value={statusFiltro} onChange={e=>{ setStatusFiltro(e.target.value); setPage(1); }}>
+        <select className="cr-select" value={statusFiltro} onChange={e=>setStatusFiltro(e.target.value)}>
           <option value="todos">Todos os Status</option>
           <option value="a_vencer">A Vencer</option>
           <option value="vence_hoje">Vence Hoje</option>
@@ -2436,84 +2439,136 @@ const ContasReceber = ({ clients, selectedClient }) => {
         </select>
         <div className="cr-date-range">
           <span className="cr-date-label">Vencimento de</span>
-          <input type="date" className="cr-date-input" value={dataInicio} onChange={e=>{ setDataInicio(e.target.value); setPage(1); }} />
+          <input type="date" className="cr-date-input" value={dataInicio} onChange={e=>setDataInicio(e.target.value)} />
           <span className="cr-date-label">até</span>
-          <input type="date" className="cr-date-input" value={dataFim}    onChange={e=>{ setDataFim(e.target.value);    setPage(1); }} />
-          {(dataInicio || dataFim !== todayStr) && <button className="cr-clear-btn" onClick={()=>{ setDataInicio(''); setDataFim(todayStr); setPage(1); }}><X size={13}/></button>}
+          <input type="date" className="cr-date-input" value={dataFim}    onChange={e=>setDataFim(e.target.value)} />
+          {(dataInicio || dataFim !== todayStr) && <button className="cr-clear-btn" onClick={()=>{ setDataInicio(''); setDataFim(todayStr); }}><X size={13}/></button>}
         </div>
       </div>
 
-      {/* ── Tabela ────────────────────────────────────────────────────────── */}
+      {/* ── Tabela agrupada por cliente ───────────────────────────────────── */}
       <div className="cr-table-wrap">
         {loading && <div className="cr-loading">Carregando...</div>}
         <table className="cr-table">
           <thead>
             <tr>
               <th>CLIENTE</th>
-              <th>CNPJ</th>
-              <th>TOTAL POR CLIENTE</th>
-              <th>VENCIMENTO</th>
-              <th>DIAS DE ATRASO</th>
-              <th>VALOR CONSUMIDO</th>
-              <th>JUROS</th>
-              <th>DESCONTOS</th>
-              <th>VALOR A RECEBER</th>
-              <th>STATUS</th>
-              <th>AÇÕES</th>
+              <th className="cr-th-center">NOTAS</th>
+              <th>PRÓX. VENCIMENTO</th>
+              <th className="cr-th-right">TOTAL A RECEBER</th>
+              <th className="cr-th-center">STATUS</th>
+              <th className="cr-th-center"></th>
             </tr>
           </thead>
           <tbody>
-            {contas.map(c => (
-              <tr key={c.id} className="cr-row">
-                <td>
-                  <div className="cr-cli-cell">
-                    <span className="cr-cli-nome">{c.cliente}</span>
-                    <span className="cr-cli-doc">{c.documento}</span>
-                  </div>
-                </td>
-                <td className="cr-mono">{c.cnpj}</td>
-                <td className="cr-mono cr-right">{fmtBRL(c.valor)}</td>
-                <td className="cr-mono">{fmtDate(c.vencimento)}</td>
-                <td className={`cr-mono cr-right ${c.diasAtraso > 0 ? 'cr-red' : c.diasAtraso === 0 && c.status !== 'recebido' ? 'cr-amber' : ''}`}>
-                  {c.status === 'recebido' ? '-' : c.diasAtraso > 0 ? c.diasAtraso : c.status === 'vence_hoje' ? '0' : `-${Math.ceil((new Date(c.vencimento)-new Date('2026-05-26'))/(86400000))}`}
-                </td>
-                <td className="cr-mono cr-right">{fmtBRL(c.valor)}</td>
-                <td className="cr-mono cr-right cr-green">{fmtBRL(c.juros)}</td>
-                <td className="cr-mono cr-right cr-amber">{fmtBRL(c.desconto)}</td>
-                <td className="cr-mono cr-right cr-bold">{fmtBRL(c.valorAReceber)}</td>
-                <td><span className={`cr-badge ${CR_STATUS_CLS[c.status]}`}>{CR_STATUS_LABEL[c.status]}</span></td>
-                <td>
-                  <div className="cr-actions">
-                    <button className="cr-action-btn" title="Visualizar" onClick={()=>setViewConta(c)}><Eye size={15}/></button>
-                    <button className="cr-action-btn" title="Exportar linha" onClick={()=>handleExportRow(c)}><FileText size={15}/></button>
-                    <button className="cr-action-btn cr-action-down" title="Registrar Recebimento" onClick={()=>openRegModal(c)} disabled={c.status==='recebido'}><Download size={15}/></button>
-                  </div>
-                </td>
-              </tr>
+            {contasByCliente.map(g => (
+              <React.Fragment key={g.key}>
+                <tr className={`cr-row cr-group-row${expandedClientes.has(g.key) ? ' cr-expanded' : ''}`}>
+                  <td>
+                    <div className="cr-cli-cell">
+                      <span className="cr-cli-nome">{g.cliente}</span>
+                      {g.cnpj && <span className="cr-cli-doc">{g.cnpj}</span>}
+                    </div>
+                  </td>
+                  <td className="cr-center">
+                    <span className="cr-badge-qtd">{g.qtd}</span>
+                  </td>
+                  <td className="cr-mono">
+                    {g.proxVenc ? fmtDate(g.proxVenc) : '—'}
+                    {g.maxDiasAtraso > 0 && <span className="cr-dias-atraso"> +{g.maxDiasAtraso}d</span>}
+                  </td>
+                  <td className="cr-mono cr-right cr-bold">{fmtBRL(g.totalAReceber)}</td>
+                  <td className="cr-center">
+                    <span className={`cr-badge ${CR_STATUS_CLS[g.piorStatus]}`}>{CR_STATUS_LABEL[g.piorStatus]}</span>
+                  </td>
+                  <td className="cr-center">
+                    <button
+                      className={`cr-action-btn${expandedClientes.has(g.key) ? ' cr-action-active' : ''}`}
+                      title={expandedClientes.has(g.key) ? 'Recolher' : 'Ver registros'}
+                      onClick={() => toggleExpand(g.key)}
+                    ><Eye size={15}/></button>
+                  </td>
+                </tr>
+                {expandedClientes.has(g.key) && (
+                  <tr className="cr-sub-wrap">
+                    <td colSpan={6}>
+                      <table className="cr-sub-table">
+                        <thead>
+                          <tr>
+                            <th>DOC</th>
+                            <th>VENCIMENTO</th>
+                            <th className="cr-th-right">ATRASO</th>
+                            <th className="cr-th-right">VALOR</th>
+                            <th className="cr-th-right">JUROS</th>
+                            <th className="cr-th-right">DESCONTO</th>
+                            <th className="cr-th-right">A RECEBER</th>
+                            <th className="cr-th-center">STATUS</th>
+                            <th className="cr-th-center">AÇÕES</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {g.registros.map(r => (
+                            <tr key={r.id} className="cr-sub-row">
+                              <td className="cr-mono">{r.documento}</td>
+                              <td className="cr-mono">{fmtDate(r.vencimento)}</td>
+                              <td className={`cr-mono cr-right${r.diasAtraso > 0 ? ' cr-red' : ''}`}>
+                                {r.diasAtraso > 0 ? `${r.diasAtraso}d` : r.status === 'vence_hoje' ? 'Hoje' : '—'}
+                              </td>
+                              <td className="cr-mono cr-right">{fmtBRL(r.valor)}</td>
+                              <td className="cr-mono cr-right cr-green">{fmtBRL(r.juros)}</td>
+                              <td className="cr-mono cr-right cr-amber">{fmtBRL(r.desconto)}</td>
+                              <td className="cr-mono cr-right cr-bold">{fmtBRL(r.valorAReceber)}</td>
+                              <td className="cr-center">
+                                <span className={`cr-badge ${CR_STATUS_CLS[r.status]}`}>{CR_STATUS_LABEL[r.status]}</span>
+                              </td>
+                              <td>
+                                <div className="cr-actions">
+                                  <button className="cr-action-btn" title="Visualizar" onClick={()=>setViewConta(r)}><Eye size={14}/></button>
+                                  <button className="cr-action-btn" title="Exportar" onClick={()=>handleExportRow(r)}><FileText size={14}/></button>
+                                  <button className="cr-action-btn cr-action-down" title="Registrar Recebimento" onClick={()=>openRegModal(r)} disabled={r.status==='recebido'}><Download size={14}/></button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                        <tfoot>
+                          <tr className="cr-sub-totals">
+                            <td colSpan={3}><strong>{g.qtd} nota{g.qtd !== 1 ? 's' : ''}</strong></td>
+                            <td className="cr-mono cr-right"><strong>{fmtBRL(g.registros.reduce((s,r)=>s+r.valor,0))}</strong></td>
+                            <td className="cr-mono cr-right cr-green"><strong>{fmtBRL(g.registros.reduce((s,r)=>s+r.juros,0))}</strong></td>
+                            <td className="cr-mono cr-right cr-amber"><strong>{fmtBRL(g.registros.reduce((s,r)=>s+r.desconto,0))}</strong></td>
+                            <td className="cr-mono cr-right cr-bold"><strong>{fmtBRL(g.totalAReceber)}</strong></td>
+                            <td colSpan={2}></td>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </td>
+                  </tr>
+                )}
+              </React.Fragment>
             ))}
           </tbody>
-          {contas.length > 0 && (
+          {contasByCliente.length > 0 && (
             <tfoot>
               <tr className="cr-totals">
-                <td colSpan={2}><strong>TOTAIS</strong></td>
-                <td className="cr-mono cr-right"><strong>{fmtBRL(totaisTabela.valor)}</strong></td>
-                <td>-</td>
-                <td>-</td>
-                <td className="cr-mono cr-right"><strong>{fmtBRL(totaisTabela.valor)}</strong></td>
-                <td className="cr-mono cr-right cr-green"><strong>{fmtBRL(totaisTabela.juros)}</strong></td>
-                <td className="cr-mono cr-right cr-amber"><strong>{fmtBRL(totaisTabela.desconto)}</strong></td>
+                <td colSpan={2}><strong>TOTAIS — {contasByCliente.length} cliente{contasByCliente.length !== 1 ? 's' : ''}</strong></td>
+                <td>—</td>
                 <td className="cr-mono cr-right cr-bold"><strong>{fmtBRL(totaisTabela.valorAReceber)}</strong></td>
                 <td colSpan={2}></td>
               </tr>
             </tfoot>
           )}
         </table>
-        {contas.length === 0 && !loading && (
+        {contasByCliente.length === 0 && !loading && (
           <div className="cr-empty">Nenhuma conta encontrada para os filtros aplicados.</div>
         )}
       </div>
 
-      {renderPagination()}
+      {totalCount > 0 && (
+        <div className="cr-count-info">
+          {contasByCliente.length} cliente{contasByCliente.length !== 1 ? 's' : ''} · {totalCount} registro{totalCount !== 1 ? 's' : ''}
+        </div>
+      )}
 
       {/* ── Painéis Analíticos ─────────────────────────────────────────── */}
       {analiticos && (
