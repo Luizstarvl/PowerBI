@@ -78,6 +78,7 @@ router.get('/contas', async (req, res) => {
 
   if (!empresa) return res.status(400).json({ error: 'empresa required' });
 
+  const query = queryFor(empresa);
   const d = today();
 
   try {
