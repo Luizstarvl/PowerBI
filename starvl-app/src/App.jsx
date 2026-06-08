@@ -2230,7 +2230,7 @@ function imprimirBoleto(conta, tipo) {
   win.document.close();
 }
 
-const ContasReceber = ({ clients, selectedClient }) => {
+const ContasReceber = ({ clients, selectedClient, themeMode }) => {
   const [resumo,      setResumo]     = useState(null);
   const [contas,      setContas]     = useState([]);
   const [totalCount,  setTotalCount] = useState(0);
@@ -2243,6 +2243,7 @@ const ContasReceber = ({ clients, selectedClient }) => {
   const [loading,     setLoading]    = useState(false);
   const [usingMock,   setUsingMock]  = useState(false);
   const [clienteModal, setClienteModal] = useState(null);
+  const [clienteTab,   setClienteTab]   = useState('Todos');
   const [viewConta,   setViewConta]  = useState(null);
   const [regModal,    setRegModal]   = useState(null);
   const [regDate,     setRegDate]    = useState('');
@@ -2599,86 +2600,128 @@ const ContasReceber = ({ clients, selectedClient }) => {
       )}
 
       {/* ── Modal Registros por Cliente ──────────────────────────────────── */}
-      {clienteModal && (
-        <div className="ct-modal-overlay" onClick={() => setClienteModal(null)}>
-          <div className="ct-modal cr-client-modal" onClick={e => e.stopPropagation()}>
-            <div className="ct-modal-header">
-              <h3><UsersIcon size={18} color="#E31E24"/> {clienteModal.cliente}</h3>
-              <button className="ct-modal-close" onClick={() => setClienteModal(null)}><X size={18}/></button>
-            </div>
-            <div className="ct-modal-body">
-              <div className="ct-modal-section">Resumo</div>
-              {[
-                ['CNPJ / CPF',      clienteModal.cnpj || '—'],
-                ['Total a Receber', fmtBRL(clienteModal.totalAReceber)],
-                ['Notas em Aberto', `${clienteModal.qtd} nota${clienteModal.qtd !== 1 ? 's' : ''}`],
-                ...(clienteModal.maxDiasAtraso > 0 ? [['Maior Atraso', `${clienteModal.maxDiasAtraso} dias`]] : []),
-              ].map(([k, v]) => (
-                <div key={k} className="ct-modal-row">
-                  <span className="ct-modal-key">{k}</span>
-                  <span className="ct-modal-val">{v}</span>
+      {clienteModal && (() => {
+        const isLightM = themeMode === 'light';
+        const bd  = isLightM ? '#e2e8f0' : '#1e2430';
+        const bg1 = isLightM ? '#f8fafc' : '#0e1318';
+        const bg2 = isLightM ? '#f1f5f9' : '#131820';
+        const tx1 = isLightM ? '#111827' : '#e2e8f0';
+        const tx2 = isLightM ? '#6b7280' : '#94a3b8';
+        const tx3 = isLightM ? '#6b7280' : '#475569';
+        const SC  = { a_vencer:'#3b82f6', vence_hoje:'#f59e0b', atrasado:'#ef4444', recebido:'#22c55e' };
+        const SL  = { a_vencer:'A Vencer', vence_hoje:'Vence Hoje', atrasado:'Atrasado', recebido:'Recebido' };
+        const tabs   = ['Todos','a_vencer','vence_hoje','atrasado','recebido'];
+        const tabLbl = { Todos:'Todos', a_vencer:'A Vencer', vence_hoje:'Vence Hoje', atrasado:'Atrasado', recebido:'Recebido' };
+        const regs   = clienteTab === 'Todos' ? clienteModal.registros : clienteModal.registros.filter(r => r.status === clienteTab);
+        const closeM = () => { setClienteModal(null); setClienteTab('Todos'); };
+        const tValor    = clienteModal.registros.reduce((s,r) => s + r.valor, 0);
+        const tJuros    = clienteModal.registros.reduce((s,r) => s + r.juros, 0);
+        const tReceber  = clienteModal.totalAReceber;
+        return (
+          <div className="ct-modal-overlay" onClick={closeM}>
+            <div className="ct-modal" style={{maxWidth:900,width:'95vw'}} onClick={e => e.stopPropagation()}>
+              {/* Header */}
+              <div className="ct-modal-header">
+                <div style={{display:'flex',alignItems:'center',gap:14}}>
+                  <div style={{width:42,height:42,borderRadius:10,background:'rgba(227,30,36,0.12)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                    <UsersIcon size={20} color="#E31E24"/>
+                  </div>
+                  <div>
+                    <h3 style={{margin:0,fontSize:15,fontWeight:700,color:tx1}}>{clienteModal.cliente}</h3>
+                    <span style={{fontSize:11,color:tx2}}>
+                      {clienteModal.cnpj || 'CNPJ não informado'}&nbsp;|&nbsp;{clienteModal.qtd} nota{clienteModal.qtd!==1?'s':''} em aberto
+                    </span>
+                  </div>
                 </div>
-              ))}
-              <div className="ct-modal-section">Registros</div>
-              <div className="cr-client-modal-table">
-                <table className="cr-sub-table">
+                <button className="ct-modal-close" onClick={closeM}><X size={18}/></button>
+              </div>
+              {/* KPIs */}
+              <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10,padding:'12px 20px',borderBottom:`1px solid ${bd}`}}>
+                {[
+                  {label:'Total Valor',     value:fmtBRL(tValor),   color:tx1},
+                  {label:'Total Juros',     value:fmtBRL(tJuros),   color:'#ef4444'},
+                  {label:'Total a Receber', value:fmtBRL(tReceber), color:'#22c55e'},
+                  {label:'Notas',           value:String(clienteModal.qtd), color:'#60a5fa'},
+                ].map(k => (
+                  <div key={k.label} style={{textAlign:'center',padding:'8px',background:bg1,borderRadius:8,border:`1px solid ${bd}`}}>
+                    <div style={{fontSize:10,color:tx2,marginBottom:4}}>{k.label}</div>
+                    <div style={{fontSize:15,fontWeight:700,color:k.color}}>{k.value}</div>
+                  </div>
+                ))}
+              </div>
+              {/* Abas de filtro */}
+              <div style={{display:'flex',gap:6,padding:'10px 20px',borderBottom:`1px solid ${bd}`,flexWrap:'wrap'}}>
+                {tabs.map(t => (
+                  <button key={t} type="button"
+                    style={{fontSize:11,padding:'4px 12px',borderRadius:6,cursor:'pointer',transition:'all 0.15s',
+                      border:`1px solid ${clienteTab===t?'rgba(227,30,36,0.8)':bd}`,
+                      background:clienteTab===t?'rgba(227,30,36,0.12)':bg2,
+                      color:clienteTab===t?'#e31e24':tx2,fontWeight:clienteTab===t?700:400}}
+                    onClick={() => setClienteTab(t)}>{tabLbl[t]}
+                  </button>
+                ))}
+              </div>
+              {/* Tabela */}
+              <div style={{maxHeight:'52vh',overflowY:'auto'}}>
+                <table style={{width:'100%',borderCollapse:'collapse',fontSize:12}}>
                   <thead>
-                    <tr>
-                      <th>DOC</th>
-                      <th>VENCIMENTO</th>
-                      <th className="cr-th-right">ATRASO</th>
-                      <th className="cr-th-right">VALOR</th>
-                      <th className="cr-th-right">JUROS</th>
-                      <th className="cr-th-right">DESCONTO</th>
-                      <th className="cr-th-right">A RECEBER</th>
-                      <th className="cr-th-center">STATUS</th>
-                      <th className="cr-th-center">AÇÕES</th>
+                    <tr style={{background:bg1,position:'sticky',top:0,zIndex:1}}>
+                      {[
+                        {h:'Vencimento',right:false},{h:'Documento',right:false},
+                        {h:'Valor',right:true},{h:'Juros',right:true},{h:'Desconto',right:true},
+                        {h:'A Receber',right:true},{h:'Atraso',right:true},
+                        {h:'Status',right:false},{h:'Ações',right:false},
+                      ].map(({h,right}) => (
+                        <th key={h} style={{padding:'9px 12px',textAlign:right?'right':'left',
+                          color:tx3,fontSize:10,fontWeight:700,borderBottom:`1px solid ${bd}`,whiteSpace:'nowrap'}}>{h}</th>
+                      ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {clienteModal.registros.map(r => (
-                      <tr key={r.id} className="cr-sub-row">
-                        <td className="cr-mono">{r.documento}</td>
-                        <td className="cr-mono">{fmtDate(r.vencimento)}</td>
-                        <td className={`cr-mono cr-right${r.diasAtraso > 0 ? ' cr-red' : ''}`}>
-                          {r.diasAtraso > 0 ? `${r.diasAtraso}d` : r.status === 'vence_hoje' ? 'Hoje' : '—'}
+                    {regs.length === 0 && (
+                      <tr><td colSpan={9} style={{textAlign:'center',padding:32,color:tx2,fontSize:13}}>Nenhum registro encontrado.</td></tr>
+                    )}
+                    {regs.map(r => (
+                      <tr key={r.id} style={{borderBottom:`1px solid ${bd}`,transition:'background 0.15s'}}
+                        onMouseEnter={e=>e.currentTarget.style.background=bg2}
+                        onMouseLeave={e=>e.currentTarget.style.background=''}>
+                        <td style={{padding:'8px 12px',color:tx2,whiteSpace:'nowrap'}}>{fmtDate(r.vencimento)}</td>
+                        <td style={{padding:'8px 12px',color:tx1}}>{r.documento}</td>
+                        <td style={{padding:'8px 12px',textAlign:'right',color:tx1,whiteSpace:'nowrap'}}>{fmtBRL(r.valor)}</td>
+                        <td style={{padding:'8px 12px',textAlign:'right',color:'#ef4444',whiteSpace:'nowrap'}}>{fmtBRL(r.juros)}</td>
+                        <td style={{padding:'8px 12px',textAlign:'right',color:'#f59e0b',whiteSpace:'nowrap'}}>{fmtBRL(r.desconto)}</td>
+                        <td style={{padding:'8px 12px',textAlign:'right',color:'#22c55e',fontWeight:700,whiteSpace:'nowrap'}}>{fmtBRL(r.valorAReceber)}</td>
+                        <td style={{padding:'8px 12px',textAlign:'right',whiteSpace:'nowrap',color:r.diasAtraso>0?'#ef4444':tx2}}>
+                          {r.diasAtraso>0?`${r.diasAtraso}d`:r.status==='vence_hoje'?'Hoje':'—'}
                         </td>
-                        <td className="cr-mono cr-right">{fmtBRL(r.valor)}</td>
-                        <td className="cr-mono cr-right cr-green">{fmtBRL(r.juros)}</td>
-                        <td className="cr-mono cr-right cr-amber">{fmtBRL(r.desconto)}</td>
-                        <td className="cr-mono cr-right cr-bold">{fmtBRL(r.valorAReceber)}</td>
-                        <td className="cr-center">
-                          <span className={`cr-badge ${CR_STATUS_CLS[r.status]}`}>{CR_STATUS_LABEL[r.status]}</span>
+                        <td style={{padding:'8px 12px'}}>
+                          <span style={{display:'inline-flex',alignItems:'center',gap:5,padding:'2px 9px',borderRadius:12,
+                            background:`${SC[r.status]}18`,border:`1px solid ${SC[r.status]}44`,
+                            color:SC[r.status],fontSize:10,fontWeight:600,whiteSpace:'nowrap'}}>
+                            <span style={{width:5,height:5,borderRadius:'50%',background:SC[r.status],flexShrink:0}}/>
+                            {SL[r.status]}
+                          </span>
                         </td>
-                        <td>
-                          <div className="cr-actions">
-                            <button className="cr-action-btn" title="Visualizar" onClick={() => setViewConta(r)}><Eye size={14}/></button>
-                            <button className="cr-action-btn" title="Exportar" onClick={() => handleExportRow(r)}><FileText size={14}/></button>
-                            <button className="cr-action-btn cr-action-down" title="Registrar Recebimento" onClick={() => openRegModal(r)} disabled={r.status === 'recebido'}><Download size={14}/></button>
+                        <td style={{padding:'8px 12px'}}>
+                          <div style={{display:'flex',gap:5}}>
+                            <button style={{background:'transparent',border:`1px solid ${bd}`,borderRadius:5,color:tx3,cursor:'pointer',padding:'4px 6px',display:'flex',alignItems:'center'}}
+                              title="Detalhes" onClick={()=>setViewConta(r)}><Eye size={13}/></button>
+                            <button style={{background:'transparent',border:`1px solid ${bd}`,borderRadius:5,color:tx3,cursor:'pointer',padding:'4px 6px',display:'flex',alignItems:'center',opacity:r.status==='recebido'?0.35:1}}
+                              title="Registrar Recebimento" onClick={()=>openRegModal(r)} disabled={r.status==='recebido'}><Download size={13}/></button>
                           </div>
                         </td>
                       </tr>
                     ))}
                   </tbody>
-                  <tfoot>
-                    <tr className="cr-sub-totals">
-                      <td colSpan={3}><strong>{clienteModal.qtd} nota{clienteModal.qtd !== 1 ? 's' : ''}</strong></td>
-                      <td className="cr-mono cr-right"><strong>{fmtBRL(clienteModal.registros.reduce((s,r)=>s+r.valor,0))}</strong></td>
-                      <td className="cr-mono cr-right cr-green"><strong>{fmtBRL(clienteModal.registros.reduce((s,r)=>s+r.juros,0))}</strong></td>
-                      <td className="cr-mono cr-right cr-amber"><strong>{fmtBRL(clienteModal.registros.reduce((s,r)=>s+r.desconto,0))}</strong></td>
-                      <td className="cr-mono cr-right cr-bold"><strong>{fmtBRL(clienteModal.totalAReceber)}</strong></td>
-                      <td colSpan={2}></td>
-                    </tr>
-                  </tfoot>
                 </table>
               </div>
-            </div>
-            <div className="ct-modal-footer">
-              <button className="ct-modal-cancel" onClick={() => setClienteModal(null)}>Fechar</button>
+              <div className="ct-modal-footer">
+                <button className="ct-modal-cancel" onClick={closeM}>Fechar</button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* ── Modal de Visualização ─────────────────────────────────────────── */}
       {viewConta && (
@@ -5906,7 +5949,7 @@ const Financeiro = ({ clients, selectedClient, themeMode }) => {
           💳 Cartões
         </button>
       </div>
-      {tab === 'receber' && <ContasReceber clients={clients} selectedClient={selectedClient} />}
+      {tab === 'receber' && <ContasReceber clients={clients} selectedClient={selectedClient} themeMode={themeMode} />}
       {tab === 'pagar' && <ContasPagar clients={clients} selectedClient={selectedClient} />}
       {tab === 'cartoes' && <ControleCartoes themeMode={themeMode} />}
     </div>
