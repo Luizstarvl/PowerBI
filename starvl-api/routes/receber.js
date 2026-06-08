@@ -29,7 +29,8 @@ router.get('/resumo', async (req, res) => {
          COALESCE(SUM(rece.recevalor + COALESCE(rece.recejuros,0) - COALESCE(rece.recedesconto,0)), 0) AS total_aberto,
          COUNT(*)::int AS qtd_aberto
        FROM rece
-       WHERE rece.receempresa = $1`,
+       WHERE rece.receempresa = $1
+         AND rece.receorigem  = 0`,
       [empresa, d]
     );
 
@@ -80,7 +81,7 @@ router.get('/contas', async (req, res) => {
   const d = today();
 
   try {
-    const conditions = ['rece.receempresa = $1'];
+    const conditions = ['rece.receempresa = $1', 'rece.receorigem = 0'];
     const params     = [empresa];
     let   pidx       = 2;
 
@@ -187,7 +188,8 @@ router.get('/analiticos', async (req, res) => {
          COALESCE(SUM(CASE WHEN rece.recevencimento > $2 THEN rece.recevalor END), 0)  AS a_vencer,
          COUNT(*) AS total
        FROM rece
-       WHERE rece.receempresa = $1`,
+       WHERE rece.receempresa = $1
+         AND rece.receorigem  = 0`,
       [empresa, d]
     );
 
@@ -200,6 +202,7 @@ router.get('/analiticos', async (req, res) => {
          COALESCE(SUM(rece.recevalor), 0) AS total_atraso
        FROM rece
        WHERE rece.receempresa = $1
+         AND rece.receorigem  = 0
          AND rece.recevencimento < $2`,
       [empresa, d]
     );
@@ -211,6 +214,7 @@ router.get('/analiticos', async (req, res) => {
        FROM rece
        LEFT JOIN part ON part.partcodigo = rece.rececliente
        WHERE rece.receempresa = $1
+         AND rece.receorigem  = 0
        GROUP BY part.partrazao
        ORDER BY divida DESC
        LIMIT 5`,
@@ -226,7 +230,8 @@ router.get('/analiticos', async (req, res) => {
                  NULLIF(COUNT(recj.recjcodigo), 0) * 100
             FROM recj WHERE recj.recjempresa = $1) AS pct_antecipado
        FROM rece
-       WHERE rece.receempresa = $1`,
+       WHERE rece.receempresa = $1
+         AND rece.receorigem  = 0`,
       [empresa]
     );
 

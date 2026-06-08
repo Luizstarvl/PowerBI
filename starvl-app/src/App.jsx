@@ -2235,10 +2235,11 @@ const ContasReceber = ({ clients, selectedClient }) => {
   const [contas,      setContas]     = useState([]);
   const [pagination,  setPagination] = useState({ page:1, totalPages:1, total:0, limit:10 });
   const [analiticos,  setAnaliticos] = useState(null);
+  const todayStr = new Date().toISOString().split('T')[0];
   const [search,      setSearch]     = useState('');
   const [statusFiltro,setStatusFiltro] = useState('todos');
   const [dataInicio,  setDataInicio] = useState('');
-  const [dataFim,     setDataFim]    = useState('');
+  const [dataFim,     setDataFim]    = useState(todayStr);
   const [page,        setPage]       = useState(1);
   const [loading,     setLoading]    = useState(false);
   const [usingMock,   setUsingMock]  = useState(false);
@@ -2438,7 +2439,7 @@ const ContasReceber = ({ clients, selectedClient }) => {
           <input type="date" className="cr-date-input" value={dataInicio} onChange={e=>{ setDataInicio(e.target.value); setPage(1); }} />
           <span className="cr-date-label">até</span>
           <input type="date" className="cr-date-input" value={dataFim}    onChange={e=>{ setDataFim(e.target.value);    setPage(1); }} />
-          {(dataInicio||dataFim) && <button className="cr-clear-btn" onClick={()=>{ setDataInicio(''); setDataFim(''); setPage(1); }}><X size={13}/></button>}
+          {(dataInicio || dataFim !== todayStr) && <button className="cr-clear-btn" onClick={()=>{ setDataInicio(''); setDataFim(todayStr); setPage(1); }}><X size={13}/></button>}
         </div>
       </div>
 
