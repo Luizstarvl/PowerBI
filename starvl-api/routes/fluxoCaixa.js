@@ -510,24 +510,24 @@ router.get('/papeis', async (req, res) => {
       }
       const result = await q(
         `SELECT
-           recj.recjcodigo AS codigo,
-           COALESCE(recj.recjdocumento, '—') AS documento,
-           COALESCE(NULLIF(recj.recjvenda, 0), rece.recevenda, 0) AS venda,
-           recj.recjemissao AS data,
-           COALESCE(pa.partrazao, 'Cliente') AS cliente,
-           COALESCE(recj.recjvalor, 0) AS valor,
-           COALESCE(fr.partrazao, '—') AS frentista
-         FROM recj
-         LEFT JOIN rece ON rece.rececodigo = recj.recjfatura AND rece.receempresa = recj.recjempresa
-         LEFT JOIN part pa ON pa.partcodigo = recj.recjcliente
-         LEFT JOIN vda v ON v.vdacodigo = COALESCE(NULLIF(recj.recjvenda, 0), rece.recevenda)
-                        AND v.vdaempresa = recj.recjempresa
-         LEFT JOIN part fr ON fr.partcodigo = v.vdavendedor
-         WHERE recj.recjempresa = $1
-           AND recj.recjcaixa = $2
-           AND DATE(recj.recjemissao) = $3::date
-           AND (recj.recjtefchave IS NULL OR recj.recjtefchave = '')
-         ORDER BY recj.recjemissao DESC`,
+           vdpg.vdpgcodigo                          AS codigo,
+           COALESCE(vdpg.vdpgradical::text, '—')    AS documento,
+           vda.vdacodigo                             AS venda,
+           vda.vdadata                               AS data,
+           COALESCE(pa.partrazao, 'Cliente')         AS cliente,
+           COALESCE(vdpg.vdpgvalor, 0)               AS valor,
+           COALESCE(fr.partrazao, '—')               AS frentista
+         FROM vda
+         JOIN vdpg ON vdpg.vdpgcodigovda = vda.vdacodigo
+                  AND vdpg.vdpgempresa   = vda.vdaempresa
+         LEFT JOIN part pa ON pa.partcodigo = vda.vdacliente
+         LEFT JOIN part fr ON fr.partcodigo = vda.vdavendedor
+         WHERE vda.vdaempresa = $1
+           AND vda.vdacaixa   = $2
+           AND DATE(vda.vdamovimento) = $3::date
+           AND (vda.vdastatus IS NULL OR vda.vdastatus = 0)
+           AND vdpg.vdpgforma = 2
+         ORDER BY vda.vdadata DESC`,
         [empresa, caixa, data]
       );
       const rows = result.rows.map(r => ({
