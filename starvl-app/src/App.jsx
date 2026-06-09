@@ -1478,7 +1478,7 @@ const usePvCount = (target, duration = 1250) => {
 };
 
 // ── ProjecaoVendas ──────────────────────────────────────────────────────────
-const PV_UNITS     = ['Combustível', 'Conveniência'];
+const PV_UNITS     = ['Combustível', 'Conveniência', 'Pista'];
 const PV_DAY_TYPES = ['Todos', 'Dias Úteis', 'Finais de Semana'];
 
 const PvTooltip = ({ active, payload }) => {
@@ -1521,6 +1521,8 @@ const ProjecaoVendas = ({ vendasDiariasCombusFull, selectedPeriod }) => {
       const dia = d.getUTCDate();
       const val = unit === 'Combustível'
         ? parseFloat(r.valorCombustivel  || 0)
+        : unit === 'Pista'
+        ? parseFloat(r.valorPista        || 0)
         : parseFloat(r.valorConveniencia || 0);
       realized[dia] = (realized[dia] || 0) + val;
     });

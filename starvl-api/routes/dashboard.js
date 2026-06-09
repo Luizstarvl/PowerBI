@@ -512,10 +512,12 @@ router.get('/vendas-diarias-full', withCache(async (req, res) => {
          v.vdamovimento AS dia,
          COALESCE(SUM(CASE WHEN p.prodtipo = 1  THEN i.vditqtd    ELSE 0 END), 0) AS litros_combustivel,
          COALESCE(SUM(CASE WHEN p.prodtipo = 1  THEN i.vdittotal  ELSE 0 END), 0) AS valor_combustivel,
-         COALESCE(SUM(CASE WHEN p.prodtipo != 1 THEN i.vdittotal  ELSE 0 END), 0) AS valor_conveniencia
+         COALESCE(SUM(CASE WHEN p.prodtipo != 1 THEN i.vdittotal  ELSE 0 END), 0) AS valor_conveniencia,
+         COALESCE(SUM(CASE WHEN p.prodtipo = 2 AND LOWER(COALESCE(l.loczdescricao,'')) = 'pista' THEN i.vdittotal ELSE 0 END), 0) AS valor_pista
        FROM vda v
        JOIN vdit i  ON i.vditcodigovda = v.vdacodigo AND i.vditempresa = v.vdaempresa
        JOIN prod p  ON p.prodcodigo    = i.vditproduto
+       LEFT JOIN locz l ON l.loczcodigo = p.prodlocal
        WHERE v.vdaempresa = $1
          AND v.vdamovimento >= $2
          AND v.vdamovimento <= $3
@@ -530,6 +532,7 @@ router.get('/vendas-diarias-full', withCache(async (req, res) => {
       litrosCombustivel: parseFloat(r.litros_combustivel),
       valorCombustivel:  parseFloat(r.valor_combustivel),
       valorConveniencia: parseFloat(r.valor_conveniencia),
+      valorPista:        parseFloat(r.valor_pista),
     })));
   } catch (err) {
     console.error('Error in /dashboard/vendas-diarias-full:', err.message);
