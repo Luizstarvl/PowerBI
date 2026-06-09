@@ -2580,7 +2580,8 @@ const ContasReceber = ({ clients, selectedClient, themeMode, showReportPreview }
                 dataFim    && `Até ${fmtDate(dataFim)}`,
                 search     && `"${search}"`,
               ].filter(Boolean).join(' | ') || 'Todos os registros';
-              const html = buildCRAgrupadoHtml({ grupos: contasByCliente, clientName: selectedClient, filtros: filtroTxt });
+              const logoUrl = `${window.location.origin}/logo-starvl.png`;
+              const html = buildCRAgrupadoHtml({ grupos: contasByCliente, clientName: selectedClient, filtros: filtroTxt, logoUrl });
               if (html) showReportPreview(html, 'Contas a Receber — Agrupado por Cliente');
             }}>
               <Printer size={15}/> Imprimir Faturas
@@ -2916,7 +2917,8 @@ const ContasReceber = ({ clients, selectedClient, themeMode, showReportPreview }
                 <button className="ct-modal-cancel" onClick={closeM}>Fechar</button>
                 {showReportPreview && (
                   <button className="ct-modal-save" style={{background:'#475569'}} onClick={() => {
-                    const html = buildCRClienteHtml({ grupo: clienteModal, clientName: selectedClient });
+                    const logoUrl = `${window.location.origin}/logo-starvl.png`;
+                    const html = buildCRClienteHtml({ grupo: clienteModal, clientName: selectedClient, logoUrl });
                     if (html) showReportPreview(html, `Contas a Receber — ${clienteModal.cliente}`);
                   }}>
                     <Printer size={13}/> Imprimir Cliente
