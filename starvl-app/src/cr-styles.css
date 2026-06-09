@@ -41,6 +41,9 @@
 .cr-th-right  { text-align: right  !important; }
 .cr-th-center { text-align: center !important; }
 .cr-center    { text-align: center; }
+.cr-th-sortable { cursor: pointer; user-select: none; }
+.cr-th-sortable:hover { background: rgba(255,255,255,0.12); }
+.cr-sort-hint { opacity: 0.35; font-size: 9px; }
 .cr-row { border-bottom: 1px solid #242424; transition: background 0.12s; }
 .cr-row:hover { background: rgba(248,250,252,0.03); }
 .cr-row td { padding: 10px 12px; color: #cbd5e1; vertical-align: middle; }

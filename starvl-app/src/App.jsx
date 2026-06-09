@@ -2431,6 +2431,8 @@ const ContasReceber = ({ clients, selectedClient, themeMode, showReportPreview }
   const [regModal,    setRegModal]   = useState(null);
   const [regDate,     setRegDate]    = useState('');
   const [regValor,    setRegValor]   = useState('');
+  const [sortCol,     setSortCol]    = useState(null);
+  const [sortDir,     setSortDir]    = useState('asc');
 
   const empresa = useMemo(() => {
     const c = (clients||[]).find(cl=>cl.nome===selectedClient)||(clients||[])[0];
@@ -2512,6 +2514,11 @@ const ContasReceber = ({ clients, selectedClient, themeMode, showReportPreview }
     return t;
   }, [contas]);
 
+  const handleSort = (col) => {
+    if (sortCol === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortCol(col); setSortDir('asc'); }
+  };
+
   const contasByCliente = useMemo(() => {
     const SP = { atrasado: 3, vence_hoje: 2, a_vencer: 1, recebido: 0 };
     const map = {};
@@ -2520,7 +2527,7 @@ const ContasReceber = ({ clients, selectedClient, themeMode, showReportPreview }
       if (!map[key]) map[key] = { key, cliente: c.cliente, cnpj: c.cnpj, registros: [] };
       map[key].registros.push(c);
     });
-    return Object.values(map).map(g => {
+    const grupos = Object.values(map).map(g => {
       const piorStatus = g.registros.reduce((w, r) =>
         (SP[r.status] ?? 0) > (SP[w] ?? 0) ? r.status : w, 'recebido');
       const pendentes = g.registros.filter(r => r.status !== 'recebido');
@@ -2536,8 +2543,20 @@ const ContasReceber = ({ clients, selectedClient, themeMode, showReportPreview }
         proxVenc: urgentes[0]?.vencimento || '',
         maxDiasAtraso: Math.max(0, ...g.registros.map(r => r.diasAtraso || 0)),
       };
-    }).sort((a, b) => (SP[b.piorStatus] ?? 0) - (SP[a.piorStatus] ?? 0) || b.totalAReceber - a.totalAReceber);
-  }, [contas]);
+    });
+    if (sortCol) {
+      const dir = sortDir === 'asc' ? 1 : -1;
+      grupos.sort((a, b) => {
+        if (sortCol === 'nome')      return dir * a.cliente.localeCompare(b.cliente, 'pt-BR');
+        if (sortCol === 'total')     return dir * (a.totalAReceber - b.totalAReceber);
+        if (sortCol === 'vencimento') return dir * (a.proxVenc || '').localeCompare(b.proxVenc || '');
+        return 0;
+      });
+    } else {
+      grupos.sort((a, b) => (SP[b.piorStatus] ?? 0) - (SP[a.piorStatus] ?? 0) || b.totalAReceber - a.totalAReceber);
+    }
+    return grupos;
+  }, [contas, sortCol, sortDir]);
 
 
   // Dados do gráfico pizza
@@ -2643,10 +2662,16 @@ const ContasReceber = ({ clients, selectedClient, themeMode, showReportPreview }
         <table className="cr-table">
           <thead>
             <tr>
-              <th>CLIENTE</th>
+              <th className="cr-th-sortable" onClick={() => handleSort('nome')}>
+                CLIENTE {sortCol === 'nome' ? (sortDir === 'asc' ? '↑' : '↓') : <span className="cr-sort-hint">↕</span>}
+              </th>
               <th className="cr-th-center">NOTAS</th>
-              <th>PRÓX. VENCIMENTO</th>
-              <th className="cr-th-right">TOTAL A RECEBER</th>
+              <th className="cr-th-sortable" onClick={() => handleSort('vencimento')}>
+                PRÓX. VENCIMENTO {sortCol === 'vencimento' ? (sortDir === 'asc' ? '↑' : '↓') : <span className="cr-sort-hint">↕</span>}
+              </th>
+              <th className="cr-th-right cr-th-sortable" onClick={() => handleSort('total')}>
+                TOTAL A RECEBER {sortCol === 'total' ? (sortDir === 'asc' ? '↑' : '↓') : <span className="cr-sort-hint">↕</span>}
+              </th>
               <th className="cr-th-center">STATUS</th>
               <th className="cr-th-center"></th>
             </tr>
