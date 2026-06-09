@@ -2230,7 +2230,190 @@ function imprimirBoleto(conta, tipo) {
   win.document.close();
 }
 
-const ContasReceber = ({ clients, selectedClient, themeMode }) => {
+// ── Relatório 1: Contas a Receber Agrupadas ────────────────────────────────
+function buildCRAgrupadoHtml({ grupos, clientName, filtros, logoUrl = '/logo-starvl.png' }) {
+  if (!grupos || !grupos.length) return null;
+  const gen = new Date().toLocaleString('pt-BR');
+  const fmtN = v => Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const SC = { a_vencer:'#2563eb', vence_hoje:'#d97706', atrasado:'#dc2626', recebido:'#16a34a' };
+  const SL = { a_vencer:'A Vencer', vence_hoje:'Vence Hoje', atrasado:'Atrasado', recebido:'Recebido' };
+  const totalGeral = grupos.reduce((s,g)=>s+g.totalAReceber,0);
+  const totalNotas = grupos.reduce((s,g)=>s+g.qtd,0);
+  const fmtDt = d => d ? d.split('-').reverse().join('/') : '—';
+  const rows = grupos.map(g => `
+    <tr>
+      <td>${escapeHtml(g.cliente)}</td>
+      <td style="font-size:9px;color:#667085;font-family:monospace">${escapeHtml(g.cnpj||'—')}</td>
+      <td style="text-align:center">${g.qtd}</td>
+      <td style="text-align:center">${fmtDt(g.proxVenc)}${g.maxDiasAtraso>0?` <span style="color:#dc2626;font-size:9px">(+${g.maxDiasAtraso}d)</span>`:''}</td>
+      <td class="num fw">R$ ${fmtN(g.totalAReceber)}</td>
+      <td style="text-align:center"><span style="color:${SC[g.piorStatus]||'#111'};font-weight:700;font-size:9px">${SL[g.piorStatus]||'—'}</span></td>
+    </tr>`).join('');
+  const filtroTxt = filtros || 'Todos os registros';
+  return `<!doctype html><html><head><meta charset="utf-8"/><title>Contas a Receber — Agrupado</title>
+  <style>
+    @page{size:297mm 210mm;margin:10mm}
+    *{box-sizing:border-box}
+    html,body,table,th,td,tfoot td{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+    body{margin:0;font-family:Arial,Helvetica,sans-serif;color:#111827;background:#fff}
+    .report{min-height:100vh;padding:18px;background:#fff}
+    .header{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:16px 18px;border:1px solid #e5e7eb;border-bottom:3px solid #e31e24;border-radius:8px;background:#fff;margin-bottom:14px}
+    .header-left{display:flex;align-items:center;gap:14px}
+    h1{margin:0;font-size:18px}
+    .sub{color:#667085;font-size:11px;margin-top:2px}
+    .meta{color:#667085;font-size:11px;text-align:right;line-height:1.6}
+    .kpis{display:flex;gap:10px;margin-bottom:14px}
+    .kpi{flex:1;border:1px solid #e5e7eb;border-radius:8px;padding:10px 14px;text-align:center}
+    .kpi-label{font-size:9px;color:#667085;text-transform:uppercase;font-weight:600;margin-bottom:4px}
+    .kpi-value{font-size:16px;font-weight:800}
+    .panel{border:1px solid #e5e7eb;border-radius:8px;background:#fff;padding:14px}
+    table{width:100%;border-collapse:collapse;font-size:10px}
+    th,td{border:1px solid #d0d5dd;padding:6px 8px;word-break:break-word}
+    th{background:#e31e24;color:#fff;font-size:9px;font-weight:700;text-align:left}
+    td{color:#111827;background:#fff}
+    td.num{text-align:right;font-variant-numeric:tabular-nums}
+    .fw{font-weight:700}
+    tfoot td{background:#f3f4f6;font-weight:700;color:#111827}
+    .footer{margin-top:10px;color:#667085;font-size:10px;text-align:right}
+    @media screen{body{background:#f3f4f6;padding:18px}.report{max-width:1000px;margin:0 auto;box-shadow:0 18px 50px rgba(15,23,42,.12)}}
+    @media print{body{background:#fff!important}.report{box-shadow:none!important}}
+  </style></head><body><main class="report">
+  <section class="header">
+    <div class="header-left">
+      <img src="${logoUrl}" alt="STARVL" style="width:80px;height:auto;object-fit:contain;flex-shrink:0"/>
+      <div>
+        <h1>CONTAS A RECEBER — AGRUPADO</h1>
+        <div class="sub">${escapeHtml(clientName||'Cliente')} | ${escapeHtml(filtroTxt)}</div>
+      </div>
+    </div>
+    <div class="meta"><div>${grupos.length} cliente${grupos.length!==1?'s':''} | ${totalNotas} nota${totalNotas!==1?'s':''}</div><div>Gerado em ${gen}</div></div>
+  </section>
+  <div class="kpis">
+    <div class="kpi"><div class="kpi-label">Clientes</div><div class="kpi-value" style="color:#2563eb">${grupos.length}</div></div>
+    <div class="kpi"><div class="kpi-label">Total de Notas</div><div class="kpi-value" style="color:#2563eb">${totalNotas}</div></div>
+    <div class="kpi"><div class="kpi-label">Total a Receber</div><div class="kpi-value" style="color:#16a34a">R$ ${fmtN(totalGeral)}</div></div>
+    <div class="kpi"><div class="kpi-label">Em Atraso</div><div class="kpi-value" style="color:#dc2626">${grupos.filter(g=>g.piorStatus==='atrasado').length} cliente${grupos.filter(g=>g.piorStatus==='atrasado').length!==1?'s':''}</div></div>
+  </div>
+  <section class="panel">
+    <table>
+      <thead><tr>
+        <th style="width:28%">CLIENTE</th>
+        <th style="width:16%">CNPJ / CPF</th>
+        <th style="width:7%;text-align:center">NOTAS</th>
+        <th style="width:15%;text-align:center">PRÓX. VENCIMENTO</th>
+        <th class="num" style="width:18%">TOTAL A RECEBER</th>
+        <th style="width:16%;text-align:center">STATUS</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+      <tfoot><tr>
+        <td colspan="2"><strong>TOTAIS</strong></td>
+        <td style="text-align:center"><strong>${totalNotas}</strong></td>
+        <td></td>
+        <td class="num fw">R$ ${fmtN(totalGeral)}</td>
+        <td></td>
+      </tr></tfoot>
+    </table>
+  </section>
+  <div class="footer">Gerado pelo STARVL em ${gen}</div>
+  </main></body></html>`;
+}
+
+// ── Relatório 2: Contas a Receber de Um Cliente ────────────────────────────
+function buildCRClienteHtml({ grupo, clientName, logoUrl = '/logo-starvl.png' }) {
+  if (!grupo || !grupo.registros?.length) return null;
+  const gen = new Date().toLocaleString('pt-BR');
+  const fmtN = v => Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const fmtDt = d => d ? d.split('-').reverse().join('/') : '—';
+  const SC = { a_vencer:'#2563eb', vence_hoje:'#d97706', atrasado:'#dc2626', recebido:'#16a34a' };
+  const SL = { a_vencer:'A Vencer', vence_hoje:'Vence Hoje', atrasado:'Atrasado', recebido:'Recebido' };
+  const tValor   = grupo.registros.reduce((s,r)=>s+r.valor,0);
+  const tJuros   = grupo.registros.reduce((s,r)=>s+r.juros,0);
+  const tDesc    = grupo.registros.reduce((s,r)=>s+r.desconto,0);
+  const tReceber = grupo.totalAReceber;
+  const rows = grupo.registros.map(r => `
+    <tr>
+      <td style="font-family:monospace;font-size:9px">${escapeHtml(r.documento||'—')}</td>
+      <td style="text-align:center">${fmtDt(r.vencimento)}</td>
+      <td style="text-align:center;color:${r.diasAtraso>0?'#dc2626':'#667085'};font-weight:${r.diasAtraso>0?700:400}">${r.diasAtraso>0?r.diasAtraso+'d':r.status==='vence_hoje'?'Hoje':'—'}</td>
+      <td class="num">R$ ${fmtN(r.valor)}</td>
+      <td class="num" style="color:#dc2626">R$ ${fmtN(r.juros)}</td>
+      <td class="num" style="color:#d97706">R$ ${fmtN(r.desconto)}</td>
+      <td class="num fw" style="color:#16a34a">R$ ${fmtN(r.valorAReceber)}</td>
+      <td style="text-align:center"><span style="color:${SC[r.status]||'#111'};font-weight:700;font-size:9px">${SL[r.status]||'—'}</span></td>
+    </tr>`).join('');
+  return `<!doctype html><html><head><meta charset="utf-8"/><title>Contas a Receber — ${escapeHtml(grupo.cliente)}</title>
+  <style>
+    @page{size:297mm 210mm;margin:10mm}
+    *{box-sizing:border-box}
+    html,body,table,th,td,tfoot td{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+    body{margin:0;font-family:Arial,Helvetica,sans-serif;color:#111827;background:#fff}
+    .report{min-height:100vh;padding:18px;background:#fff}
+    .header{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:16px 18px;border:1px solid #e5e7eb;border-bottom:3px solid #e31e24;border-radius:8px;background:#fff;margin-bottom:14px}
+    .header-left{display:flex;align-items:center;gap:14px}
+    h1{margin:0;font-size:18px}
+    .sub{color:#667085;font-size:11px;margin-top:2px}
+    .meta{color:#667085;font-size:11px;text-align:right;line-height:1.6}
+    .kpis{display:flex;gap:10px;margin-bottom:14px}
+    .kpi{flex:1;border:1px solid #e5e7eb;border-radius:8px;padding:10px 14px;text-align:center}
+    .kpi-label{font-size:9px;color:#667085;text-transform:uppercase;font-weight:600;margin-bottom:4px}
+    .kpi-value{font-size:16px;font-weight:800}
+    .panel{border:1px solid #e5e7eb;border-radius:8px;background:#fff;padding:14px}
+    table{width:100%;border-collapse:collapse;font-size:10px}
+    th,td{border:1px solid #d0d5dd;padding:6px 8px;word-break:break-word}
+    th{background:#e31e24;color:#fff;font-size:9px;font-weight:700;text-align:left}
+    td{color:#111827;background:#fff}
+    td.num{text-align:right;font-variant-numeric:tabular-nums}
+    .fw{font-weight:700}
+    tfoot td{background:#f3f4f6;font-weight:700;color:#111827}
+    .footer{margin-top:10px;color:#667085;font-size:10px;text-align:right}
+    @media screen{body{background:#f3f4f6;padding:18px}.report{max-width:1000px;margin:0 auto;box-shadow:0 18px 50px rgba(15,23,42,.12)}}
+    @media print{body{background:#fff!important}.report{box-shadow:none!important}}
+  </style></head><body><main class="report">
+  <section class="header">
+    <div class="header-left">
+      <img src="${logoUrl}" alt="STARVL" style="width:80px;height:auto;object-fit:contain;flex-shrink:0"/>
+      <div>
+        <h1>CONTAS A RECEBER — ${escapeHtml(grupo.cliente.toUpperCase())}</h1>
+        <div class="sub">${escapeHtml(grupo.cnpj||'CNPJ não informado')} | ${escapeHtml(clientName||'Cliente')}</div>
+      </div>
+    </div>
+    <div class="meta"><div>${grupo.qtd} nota${grupo.qtd!==1?'s':''}</div><div>Gerado em ${gen}</div></div>
+  </section>
+  <div class="kpis">
+    <div class="kpi"><div class="kpi-label">Total Valor</div><div class="kpi-value">R$ ${fmtN(tValor)}</div></div>
+    <div class="kpi"><div class="kpi-label">Total Juros</div><div class="kpi-value" style="color:#dc2626">R$ ${fmtN(tJuros)}</div></div>
+    <div class="kpi"><div class="kpi-label">Descontos</div><div class="kpi-value" style="color:#d97706">R$ ${fmtN(tDesc)}</div></div>
+    <div class="kpi"><div class="kpi-label">Total a Receber</div><div class="kpi-value" style="color:#16a34a">R$ ${fmtN(tReceber)}</div></div>
+  </div>
+  <section class="panel">
+    <table>
+      <thead><tr>
+        <th style="width:13%">DOCUMENTO</th>
+        <th style="width:14%;text-align:center">VENCIMENTO</th>
+        <th style="width:10%;text-align:center">ATRASO</th>
+        <th class="num" style="width:14%">VALOR</th>
+        <th class="num" style="width:12%">JUROS</th>
+        <th class="num" style="width:12%">DESCONTO</th>
+        <th class="num" style="width:14%">A RECEBER</th>
+        <th style="width:11%;text-align:center">STATUS</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+      <tfoot><tr>
+        <td colspan="3"><strong>TOTAIS — ${grupo.qtd} nota${grupo.qtd!==1?'s':''}</strong></td>
+        <td class="num fw">R$ ${fmtN(tValor)}</td>
+        <td class="num fw" style="color:#dc2626">R$ ${fmtN(tJuros)}</td>
+        <td class="num fw" style="color:#d97706">R$ ${fmtN(tDesc)}</td>
+        <td class="num fw" style="color:#16a34a">R$ ${fmtN(tReceber)}</td>
+        <td></td>
+      </tr></tfoot>
+    </table>
+  </section>
+  <div class="footer">Gerado pelo STARVL em ${gen}</div>
+  </main></body></html>`;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+const ContasReceber = ({ clients, selectedClient, themeMode, showReportPreview }) => {
   const [resumo,      setResumo]     = useState(null);
   const [contas,      setContas]     = useState([]);
   const [totalCount,  setTotalCount] = useState(0);
@@ -2389,6 +2572,20 @@ const ContasReceber = ({ clients, selectedClient, themeMode }) => {
           {usingMock && <span className="cr-demo-badge">demonstração</span>}
         </div>
         <div className="cr-header-actions">
+          {showReportPreview && contasByCliente.length > 0 && (
+            <button className="cr-btn-export" onClick={() => {
+              const filtroTxt = [
+                statusFiltro !== 'todos' && CR_STATUS_LABEL[statusFiltro],
+                dataInicio && `De ${fmtDate(dataInicio)}`,
+                dataFim    && `Até ${fmtDate(dataFim)}`,
+                search     && `"${search}"`,
+              ].filter(Boolean).join(' | ') || 'Todos os registros';
+              const html = buildCRAgrupadoHtml({ grupos: contasByCliente, clientName: selectedClient, filtros: filtroTxt });
+              if (html) showReportPreview(html, 'Contas a Receber — Agrupado por Cliente');
+            }}>
+              <Printer size={15}/> Imprimir Agrupado
+            </button>
+          )}
           <button className="cr-btn-export" onClick={handleExport}>
             <Download size={15}/> Exportar Excel
           </button>
@@ -2717,6 +2914,14 @@ const ContasReceber = ({ clients, selectedClient, themeMode }) => {
               </div>
               <div className="ct-modal-footer">
                 <button className="ct-modal-cancel" onClick={closeM}>Fechar</button>
+                {showReportPreview && (
+                  <button className="ct-modal-save" style={{background:'#475569'}} onClick={() => {
+                    const html = buildCRClienteHtml({ grupo: clienteModal, clientName: selectedClient });
+                    if (html) showReportPreview(html, `Contas a Receber — ${clienteModal.cliente}`);
+                  }}>
+                    <Printer size={13}/> Imprimir Cliente
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -5949,7 +6154,7 @@ const Financeiro = ({ clients, selectedClient, themeMode }) => {
           💳 Cartões
         </button>
       </div>
-      {tab === 'receber' && <ContasReceber clients={clients} selectedClient={selectedClient} themeMode={themeMode} />}
+      {tab === 'receber' && <ContasReceber clients={clients} selectedClient={selectedClient} themeMode={themeMode} showReportPreview={showReportPreview} />}
       {tab === 'pagar' && <ContasPagar clients={clients} selectedClient={selectedClient} />}
       {tab === 'cartoes' && <ControleCartoes themeMode={themeMode} />}
     </div>
