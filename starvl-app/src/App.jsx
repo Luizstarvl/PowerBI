@@ -2647,13 +2647,6 @@ const ContasReceber = ({ clients, selectedClient, themeMode, showReportPreview }
           <option value="atrasado">Atrasado</option>
           <option value="recebido">Recebido</option>
         </select>
-        <div className="cr-date-range">
-          <span className="cr-date-label">Vencimento de</span>
-          <input type="date" className="cr-date-input" value={dataInicio} onChange={e=>setDataInicio(e.target.value)} />
-          <span className="cr-date-label">até</span>
-          <input type="date" className="cr-date-input" value={dataFim}    onChange={e=>setDataFim(e.target.value)} />
-          {(dataInicio || dataFim !== todayStr) && <button className="cr-clear-btn" onClick={()=>{ setDataInicio(''); setDataFim(todayStr); }}><X size={13}/></button>}
-        </div>
       </div>
 
       {/* ── Tabela agrupada por cliente ───────────────────────────────────── */}
