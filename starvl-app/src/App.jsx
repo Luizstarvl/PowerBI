@@ -2583,7 +2583,7 @@ const ContasReceber = ({ clients, selectedClient, themeMode, showReportPreview }
               const html = buildCRAgrupadoHtml({ grupos: contasByCliente, clientName: selectedClient, filtros: filtroTxt });
               if (html) showReportPreview(html, 'Contas a Receber — Agrupado por Cliente');
             }}>
-              <Printer size={15}/> Imprimir Agrupado
+              <Printer size={15}/> Imprimir Faturas
             </button>
           )}
           <button className="cr-btn-export" onClick={handleExport}>

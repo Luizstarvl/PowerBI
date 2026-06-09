@@ -4,6 +4,7 @@
 .cr-page { padding: 24px; display: flex; flex-direction: column; gap: 20px; min-height: 100%; }
 
 .cr-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+.cr-header-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .cr-header-title { display: flex; align-items: center; gap: 12px; }
 .cr-header-title h2 { font-size: 1.15rem; font-weight: 800; letter-spacing: 0.06em; color: #f8fafc; margin: 0; }
 .cr-demo-badge { font-size: 0.7rem; background: #3a3a3a; color: #94a3b8; border-radius: 10px; padding: 2px 8px; }
