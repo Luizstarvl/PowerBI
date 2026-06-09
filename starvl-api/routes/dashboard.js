@@ -346,17 +346,21 @@ router.get('/combustiveis', withCache(async (req, res) => {
   }
 }));
 
-// GET /api/dashboard/vendas-pista?empresa=7432&dataInicio=2026-04-20&dataFim=2026-05-26&prodtipo=1
+// GET /api/dashboard/vendas-pista?empresa=7432&dataInicio=2026-04-20&dataFim=2026-05-26&prodtipo=1&locz=pista
 // prodtipo: 1 = combustíveis (padrão), 2 = conveniência/loja
+// locz (opcional): filtra por loczdescricao (ex: 'pista')
 router.get('/vendas-pista', withCache(async (req, res) => {
   const empresa  = parseInt(req.query.empresa);
   const query = queryFor(empresa);
   const prodtipo = parseInt(req.query.prodtipo) || 1;
+  const loczFiltro = (req.query.locz || '').trim().toLowerCase();
   const { dataInicio, dataFim } = req.query;
 
   if (!empresa || !dataInicio || !dataFim) {
     return res.status(400).json({ error: 'empresa, dataInicio e dataFim são obrigatórios' });
   }
+
+  const loczClause = loczFiltro ? `AND LOWER(COALESCE(locz.loczdescricao,'')) = '${loczFiltro.replace(/'/g,"''")}'` : '';
 
   try {
     const result = await query(
@@ -374,6 +378,7 @@ router.get('/vendas-pista', withCache(async (req, res) => {
        JOIN vdit ON vdit.vditcodigovda = vda.vdacodigo
                 AND vdit.vditempresa   = vda.vdaempresa
        JOIN prod ON prod.prodcodigo    = vdit.vditproduto
+       LEFT JOIN locz ON locz.loczcodigo = prod.prodlocal
        LEFT JOIN atde ON atde.atdecodigo = vdit.vditvendedor
        LEFT JOIN spro ON spro.sprocodigo = prod.prodsecao
        LEFT JOIN gpro ON gpro.gprocodigo = prod.prodgrupo
@@ -382,6 +387,7 @@ router.get('/vendas-pista', withCache(async (req, res) => {
          AND vda.vdamovimento <= $3
          AND (vda.vdastatus IS NULL OR vda.vdastatus = 0)
          AND prod.prodtipo = $4
+         ${loczClause}
        GROUP BY TO_CHAR(vda.vdamovimento, 'YYYY-MM-DD'), prod.prodcodigo, prod.prodresumo,
                 atde.atdenome, spro.sprodescricao, prod.prodsecao, gpro.gprodescricao, prod.prodgrupo
        ORDER BY dia, combustivel, vendedor`,
@@ -405,18 +411,22 @@ router.get('/vendas-pista', withCache(async (req, res) => {
   }
 }));
 
-// GET /api/dashboard/prod-categorias?prodtipo=2
+// GET /api/dashboard/prod-categorias?prodtipo=2&locz=pista
 // Retorna todas as seções (spro) e grupos (gpro) disponíveis para um prodtipo
 router.get('/prod-categorias', withCache(async (req, res) => {
-  const prodtipo = parseInt(req.query.prodtipo) || 1;
+  const prodtipo   = parseInt(req.query.prodtipo) || 1;
+  const loczFiltro = (req.query.locz || '').trim().toLowerCase();
+  const loczClause = loczFiltro ? `AND LOWER(COALESCE(locz.loczdescricao,'')) = '${loczFiltro.replace(/'/g,"''")}'` : '';
 
   try {
     const sproResult = await query(
       `SELECT DISTINCT spro.sprocodigo AS codigo, spro.sprodescricao AS nome
        FROM prod
        JOIN spro ON spro.sprocodigo = prod.prodsecao
+       LEFT JOIN locz ON locz.loczcodigo = prod.prodlocal
        WHERE prod.prodtipo = $1
          AND spro.sprodescricao IS NOT NULL
+         ${loczClause}
        ORDER BY spro.sprodescricao`,
       [prodtipo]
     );
@@ -425,8 +435,10 @@ router.get('/prod-categorias', withCache(async (req, res) => {
       `SELECT DISTINCT gpro.gprocodigo AS codigo, gpro.gprodescricao AS nome
        FROM prod
        JOIN gpro ON gpro.gprocodigo = prod.prodgrupo
+       LEFT JOIN locz ON locz.loczcodigo = prod.prodlocal
        WHERE prod.prodtipo = $1
          AND gpro.gprodescricao IS NOT NULL
+         ${loczClause}
        ORDER BY gpro.gprodescricao`,
       [prodtipo]
     );

@@ -894,7 +894,8 @@ const VendasPista = ({ clients, selectedClient, selectedPeriod, themeMode }) => 
     if (!empresa || !dataInicio || !dataFim) { setUsingMock(true); return; }
     setLoading(true); setError(null); setUsingMock(false);
     const prodtipo = secao === 'combustivel' ? 1 : 2;
-    fetch(`${API_URL}/api/dashboard/vendas-pista?empresa=${empresa}&dataInicio=${dataInicio}&dataFim=${dataFim}&prodtipo=${prodtipo}`)
+    const loczParam = secao === 'pista' ? '&locz=pista' : '';
+    fetch(`${API_URL}/api/dashboard/vendas-pista?empresa=${empresa}&dataInicio=${dataInicio}&dataFim=${dataFim}&prodtipo=${prodtipo}${loczParam}`)
       .then(r => r.json())
       .then(data => {
         if (data.error) throw new Error(data.error);
@@ -909,8 +910,9 @@ const VendasPista = ({ clients, selectedClient, selectedPeriod, themeMode }) => 
   // Busca seções (spro) e grupos (gpro) direto do banco quando muda o tipo de produto
   useEffect(() => {
     const prodtipo = secao === 'combustivel' ? 1 : 2;
+    const loczParam = secao === 'pista' ? '&locz=pista' : '';
     if (!empresa) return; // sem empresa usa mock/derivado
-    fetch(`${API_URL}/api/dashboard/prod-categorias?prodtipo=${prodtipo}`)
+    fetch(`${API_URL}/api/dashboard/prod-categorias?prodtipo=${prodtipo}${loczParam}`)
       .then(r => r.json())
       .then(data => {
         if (data.error || !data.secoes) return; // cai no fallback derivado
@@ -919,7 +921,7 @@ const VendasPista = ({ clients, selectedClient, selectedPeriod, themeMode }) => 
       .catch(() => {}); // falha silenciosa → usa catOptions derivado dos dados
   }, [empresa, secao]);
 
-  // Mock data gerado uma vez como fallback (combustível ou conveniência)
+  // Mock data gerado uma vez como fallback (combustível, conveniência ou pista)
   const mockRows     = useMemo(() => vpMockRows(35), []);
   const mockConvRows = useMemo(() => vpMockConvRows(35), []);
   const sourceMock   = secao === 'combustivel' ? mockRows : mockConvRows;
@@ -1031,7 +1033,7 @@ const VendasPista = ({ clients, selectedClient, selectedPeriod, themeMode }) => 
       {/* ── Zona 1: Título + toggle de Seção ──────────────────────────────── */}
       <div className="card-header" style={{ flexWrap:'wrap', gap:8 }}>
         <h3>
-          DESEMPENHO E VOLUME DE {secao === 'combustivel' ? 'VENDAS PISTA' : 'CONVENIÊNCIA / LOJA'}
+          DESEMPENHO E VOLUME DE {secao === 'combustivel' ? 'VENDAS PISTA' : secao === 'pista' ? 'VENDAS PISTA (PISTA)' : 'CONVENIÊNCIA / LOJA'}
           {usingMock && (
             <span style={{ fontSize:'0.68em', color:'#64748b', fontWeight:400, marginLeft:10 }}>
               (demonstração)
@@ -1039,7 +1041,7 @@ const VendasPista = ({ clients, selectedClient, selectedPeriod, themeMode }) => 
           )}
         </h3>
         <div className="vp-toggle-group">
-          {[{k:'combustivel',l:'⛽ Combustível'},{k:'conveniencia',l:'🏪 Conveniência'}].map(v=>(
+          {[{k:'combustivel',l:'⛽ Combustível'},{k:'conveniencia',l:'🏪 Conveniência'},{k:'pista',l:'🔧 Pista'}].map(v=>(
             <button key={v.k} type="button"
               className={`vp-period-btn vp-secao-btn${secao===v.k?' active':''}`}
               onClick={()=>{ setSecao(v.k); setViewMode('combustivel'); setRawData([]); setCatValor(null); setCatLists({ secoes:[], grupos:[] }); }}>{v.l}
