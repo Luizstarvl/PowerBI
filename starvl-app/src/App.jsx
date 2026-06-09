@@ -6130,7 +6130,7 @@ const ContaCorrente = ({ clients, selectedClient }) => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-const Financeiro = ({ clients, selectedClient, themeMode }) => {
+const Financeiro = ({ clients, selectedClient, themeMode, showReportPreview }) => {
   const [tab, setTab] = useState('receber');
   return (
     <div>
@@ -19349,7 +19349,7 @@ export default function App() {
       case 'stock':
         return <EstoqueManager estoques={apiData.estoques} projecao={apiData.projecao} loading={apiData.loading} selectedClient={selectedClient} clients={clients} themeMode={themeMode} lmcSaldos={apiData.dashboardLmcSaldos} lmcControle={apiData.dashboardLmcControle} lmcStarvlFechamento={apiData.lmcStarvlFechamento} showReportPreview={showReportPreview} />;
       case 'receber':
-        return <Financeiro clients={clients} selectedClient={selectedClient} themeMode={themeMode} />;
+        return <Financeiro clients={clients} selectedClient={selectedClient} themeMode={themeMode} showReportPreview={showReportPreview} />;
       case 'goals':
         return <GoalManager themeMode={themeMode} goals={goals} setGoals={setGoals} />;
       case 'auditoria':
