@@ -14404,16 +14404,17 @@ const LmcPlanilha = ({ selectedClient, clients, themeMode, showReportPreview }) 
               <Printer size={13} />
               Imprimir
             </button>
-            {diluirInfo && (
-              <button
-                className="lmc-plan-btn-diluir"
-                onClick={() => setShowDiluirPS(true)}
-                title="Distribuir o P/S do último dia de régua igualmente por todos os dias"
-              >
-                <GitBranch size={13} />
-                Diluir P/S
-              </button>
-            )}
+            <button
+              className="lmc-plan-btn-diluir"
+              onClick={() => {
+                if (!diluirInfo) { toast('Informe ao menos um valor de régua para diluir o P/S.', 'info'); return; }
+                setShowDiluirPS(true);
+              }}
+              title="Distribuir o P/S do último dia de régua igualmente por todos os dias"
+            >
+              <GitBranch size={13} />
+              Diluir P/S
+            </button>
             <button
               className="lmc-plan-btn-clear-regua"
               onClick={() => setShowClearRegua(true)}
