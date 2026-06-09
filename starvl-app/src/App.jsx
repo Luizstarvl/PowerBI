@@ -3,7 +3,7 @@ import logoStarvl from './logo-starvl.png';
 import logoStarvlBlack from './logo-starvl-black.png';
 import * as XLSX from 'xlsx';
 import { LineChart, Line, BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Area, AreaChart, LabelList, ComposedChart, ReferenceLine, PieChart, Pie } from 'recharts';
-import { Menu, Home, FileText, Users as UsersIcon, BookOpen, Package, LogOut, Eye, Search, Plus, Edit2, Trash2, X, Calendar, TrendingUp, TrendingDown, Droplet, DollarSign, Calculator, ChevronDown, ChevronUp, Activity, Settings, Building2, Phone, Mail, MapPin, Hash, Clock, BarChart2, Layers, CircleDollarSign, UserCheck, UserPlus, AlertCircle, Globe, Camera, Building, Tag, RefreshCw, Database, ChevronRight, ChevronLeft, Filter, Printer, Moon, Sun, Trophy, Lock, Unlock, Wallet, Download, CreditCard, AlertTriangle, Save, PiggyBank, Target, CheckCircle, Flag, Upload, Maximize2, Minimize2, ShieldCheck, FolderOpen, ImagePlus, Zap, History, ShoppingCart, Archive, ClipboardList } from 'lucide-react';
+import { Menu, Home, FileText, Users as UsersIcon, BookOpen, Package, LogOut, Eye, Search, Plus, Edit2, Trash2, X, Calendar, TrendingUp, TrendingDown, Droplet, DollarSign, Calculator, ChevronDown, ChevronUp, Activity, Settings, Building2, Phone, Mail, MapPin, Hash, Clock, BarChart2, Layers, CircleDollarSign, UserCheck, UserPlus, AlertCircle, Globe, Camera, Building, Tag, RefreshCw, Database, ChevronRight, ChevronLeft, Filter, Printer, Moon, Sun, Trophy, Lock, Unlock, Wallet, Download, CreditCard, AlertTriangle, Save, PiggyBank, Target, CheckCircle, Flag, Upload, Maximize2, Minimize2, ShieldCheck, FolderOpen, ImagePlus, Zap, History, ShoppingCart, Archive, ClipboardList, GitBranch } from 'lucide-react';
 import './App.css';
 import './cr-styles.css';
 import './cp-styles.css';
@@ -14221,6 +14221,31 @@ const LmcPlanilha = ({ selectedClient, clients, themeMode, showReportPreview }) 
     localStorage.setItem('starvl:lmc-regua', JSON.stringify(updated));
   };
 
+  // Diluir P/S
+  const [showDiluirPS, setShowDiluirPS] = useState(false);
+  const diluirInfo = useMemo(() => {
+    if (!tableRows.length) return null;
+    const comRegua = tableRows.filter(r => r.hasRegua);
+    if (!comRegua.length) return null;
+    const lastRow  = comRegua[comRegua.length - 1];
+    const totalPS  = lastRow.perdas ?? 0;
+    const dias     = tableRows.filter(r => r.dia <= lastRow.dia);
+    return { totalPS, n: dias.length, lastDia: lastRow.dia, rows: dias, lastRegua: lastRow.regua };
+  }, [tableRows]);
+
+  const handleDiluirPS = () => {
+    if (!diluirInfo) return;
+    const { totalPS, n, rows } = diluirInfo;
+    const updated = { ...reguaEdits };
+    rows.forEach((row, idx) => {
+      const dilutedRegua = row.fechamento - (totalPS * (idx + 1) / n);
+      updated[row.rgKey] = String(Math.round(dilutedRegua * 1000) / 1000).replace('.', ',');
+    });
+    setReguaEdits(updated);
+    localStorage.setItem('starvl:lmc-regua', JSON.stringify(updated));
+    setShowDiluirPS(false);
+  };
+
   // Limpar régua
   const [showClearRegua, setShowClearRegua] = useState(false);
   const handleClearRegua = () => {
@@ -14379,6 +14404,16 @@ const LmcPlanilha = ({ selectedClient, clients, themeMode, showReportPreview }) 
               <Printer size={13} />
               Imprimir
             </button>
+            {diluirInfo && (
+              <button
+                className="lmc-plan-btn-diluir"
+                onClick={() => setShowDiluirPS(true)}
+                title="Distribuir o P/S do último dia de régua igualmente por todos os dias"
+              >
+                <GitBranch size={13} />
+                Diluir P/S
+              </button>
+            )}
             <button
               className="lmc-plan-btn-clear-regua"
               onClick={() => setShowClearRegua(true)}
@@ -14388,6 +14423,36 @@ const LmcPlanilha = ({ selectedClient, clients, themeMode, showReportPreview }) 
               Limpar Régua
             </button>
           </div>
+
+          {/* Modal de confirmação — Diluir P/S */}
+          {showDiluirPS && diluirInfo && (
+            <div className="ct-modal-overlay" style={{ zIndex: 9995 }} onClick={() => setShowDiluirPS(false)}>
+              <div className="ct-modal" style={{ maxWidth: 460 }} onClick={e => e.stopPropagation()}>
+                <div className="ct-modal-header">
+                  <span style={{ display:'flex', alignItems:'center', gap:8 }}>
+                    <GitBranch size={16} color="#3b82f6" /> Diluir P/S nos Dias
+                  </span>
+                  <button className="ct-modal-close" onClick={() => setShowDiluirPS(false)}><X size={16} /></button>
+                </div>
+                <div className="ct-modal-body" style={{ padding:'20px 24px' }}>
+                  <p style={{ margin:0, fontSize:14, lineHeight:1.6 }}>
+                    O total de <strong style={{ color: diluirInfo.totalPS > 0 ? '#ef4444' : '#22c55e' }}>
+                      {diluirInfo.totalPS > 0 ? 'Perda' : 'Sobra'} de {Math.abs(diluirInfo.totalPS).toLocaleString('pt-BR', { minimumFractionDigits:3 })} L
+                    </strong> (régua do dia {String(diluirInfo.lastDia).padStart(2,'0')}) será distribuído igualmente nos <strong>{diluirInfo.n} dias</strong> do período.
+                  </p>
+                  <p style={{ margin:'10px 0 0', fontSize:12, color:'#94a3b8' }}>
+                    Cada dia receberá {(Math.abs(diluirInfo.totalPS) / diluirInfo.n).toLocaleString('pt-BR', { minimumFractionDigits:3 })} L de {diluirInfo.totalPS > 0 ? 'perda' : 'sobra'}. Os valores de régua anteriores serão substituídos.
+                  </p>
+                </div>
+                <div className="ct-modal-footer">
+                  <button className="ct-modal-cancel" onClick={() => setShowDiluirPS(false)}>Cancelar</button>
+                  <button className="ct-modal-save" style={{ background:'#3b82f6' }} onClick={handleDiluirPS}>
+                    <GitBranch size={13} /> Confirmar Diluição
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Modal de confirmação — Limpar Régua */}
           {showClearRegua && (

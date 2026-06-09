@@ -504,6 +504,27 @@
   color: #E31E24;
 }
 
+/* ── Botão Diluir P/S ─────────────────────────────────────────────────────── */
+.lmc-plan-btn-diluir {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: transparent;
+  border: 1px solid #3b82f6;
+  border-radius: 6px;
+  color: #3b82f6;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: inherit;
+  white-space: nowrap;
+}
+.lmc-plan-btn-diluir:hover {
+  background: rgba(59,130,246,0.1);
+}
+
 /* ── Botão Limpar Régua ───────────────────────────────────────────────────── */
 .lmc-plan-btn-clear-regua {
   display: flex;
