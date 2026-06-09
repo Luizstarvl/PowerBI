@@ -2919,7 +2919,9 @@ const ContasReceber = ({ clients, selectedClient, themeMode, showReportPreview }
                   <button className="ct-modal-save" style={{background:'#475569'}} onClick={() => {
                     const logoUrl = `${window.location.origin}/logo-starvl.png`;
                     const html = buildCRClienteHtml({ grupo: clienteModal, clientName: selectedClient, logoUrl });
-                    if (html) showReportPreview(html, `Contas a Receber — ${clienteModal.cliente}`);
+                    const title = `Contas a Receber — ${clienteModal.cliente}`;
+                    closeM();
+                    if (html) showReportPreview(html, title);
                   }}>
                     <Printer size={13}/> Imprimir Cliente
                   </button>
