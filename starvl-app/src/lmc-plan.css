@@ -504,6 +504,28 @@
   color: #E31E24;
 }
 
+/* ── Botão Limpar Régua ───────────────────────────────────────────────────── */
+.lmc-plan-btn-clear-regua {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: transparent;
+  border: 1px solid #475569;
+  border-radius: 6px;
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: inherit;
+  white-space: nowrap;
+}
+.lmc-plan-btn-clear-regua:hover {
+  border-color: #ef4444;
+  color: #ef4444;
+}
+
 /* ── Modal de impressão ───────────────────────────────────────────────────── */
 .lmc-print-overlay {
   position: fixed;

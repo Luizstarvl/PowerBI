@@ -14221,6 +14221,17 @@ const LmcPlanilha = ({ selectedClient, clients, themeMode, showReportPreview }) 
     localStorage.setItem('starvl:lmc-regua', JSON.stringify(updated));
   };
 
+  // Limpar régua
+  const [showClearRegua, setShowClearRegua] = useState(false);
+  const handleClearRegua = () => {
+    if (!selectedProd || !period) return;
+    const prefix = `${period}|${selectedProd}|`;
+    const updated = Object.fromEntries(Object.entries(reguaEdits).filter(([k]) => !k.startsWith(prefix)));
+    setReguaEdits(updated);
+    localStorage.setItem('starvl:lmc-regua', JSON.stringify(updated));
+    setShowClearRegua(false);
+  };
+
   // Relatório
   const [showLmcPrintPanel, setShowLmcPrintPanel] = useState(false);
   const [reportProdCod, setReportProdCod] = useState('todos');
@@ -14368,7 +14379,43 @@ const LmcPlanilha = ({ selectedClient, clients, themeMode, showReportPreview }) 
               <Printer size={13} />
               Imprimir
             </button>
+            <button
+              className="lmc-plan-btn-clear-regua"
+              onClick={() => setShowClearRegua(true)}
+              title="Limpar medições de régua do produto selecionado neste período"
+            >
+              <Trash2 size={13} />
+              Limpar Régua
+            </button>
           </div>
+
+          {/* Modal de confirmação — Limpar Régua */}
+          {showClearRegua && (
+            <div className="ct-modal-overlay" style={{ zIndex: 9995 }} onClick={() => setShowClearRegua(false)}>
+              <div className="ct-modal" style={{ maxWidth: 420 }} onClick={e => e.stopPropagation()}>
+                <div className="ct-modal-header">
+                  <span style={{ display:'flex', alignItems:'center', gap:8 }}>
+                    <Trash2 size={16} color="#ef4444" /> Limpar Medições de Régua
+                  </span>
+                  <button className="ct-modal-close" onClick={() => setShowClearRegua(false)}><X size={16} /></button>
+                </div>
+                <div className="ct-modal-body" style={{ padding:'20px 24px' }}>
+                  <p style={{ margin:0, fontSize:14, lineHeight:1.6 }}>
+                    Deseja realmente limpar todas as medições de régua do produto <strong>{produtoNome}</strong> no período <strong>{period}</strong>?
+                  </p>
+                  <p style={{ margin:'10px 0 0', fontSize:12, color:'#94a3b8' }}>
+                    Esta ação não pode ser desfeita.
+                  </p>
+                </div>
+                <div className="ct-modal-footer">
+                  <button className="ct-modal-cancel" onClick={() => setShowClearRegua(false)}>Cancelar</button>
+                  <button className="ct-modal-save" style={{ background:'#ef4444' }} onClick={handleClearRegua}>
+                    <Trash2 size={13} /> Limpar
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Modal de impressão */}
           {showLmcPrintPanel && (
