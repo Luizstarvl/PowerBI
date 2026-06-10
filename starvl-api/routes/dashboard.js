@@ -471,7 +471,9 @@ router.get('/top-convenio', withCache(async (req, res) => {
   const dataInicio = `${ano}-${String(mes).padStart(2, '0')}-01`;
   const dataFim = `${ano}-${String(mes).padStart(2, '0')}-${diasNoMes}`;
 
-  const loczClause = loczFiltro ? `AND LOWER(COALESCE(l.loczdescricao,'')) LIKE '%${loczFiltro.replace(/'/g,"''")}%'` : '';
+  const loczClause = loczFiltro === 'pista'
+    ? `AND LOWER(COALESCE(l.loczdescricao,'')) LIKE '%pista%'`
+    : `AND LOWER(COALESCE(l.loczdescricao,'')) NOT LIKE '%pista%'`;
 
   try {
     const result = await query(
