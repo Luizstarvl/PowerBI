@@ -15929,8 +15929,12 @@ const ConvenienciaManager = ({ themeMode, selectedClient, clients, showReportPre
                       <input className="pm-edit-input" readOnly value={editProd.codigo} />
                     </div>
                     <div className="pm-edit-field">
-                      <label className="pm-edit-label">Categoria</label>
+                      <label className="pm-edit-label">Seção</label>
                       <input className="pm-edit-input" readOnly value={editProd.cat} />
+                    </div>
+                    <div className="pm-edit-field">
+                      <label className="pm-edit-label">Grupo</label>
+                      <input className="pm-edit-input" readOnly value={editProd.sub || '—'} />
                     </div>
                     <div className="pm-edit-field">
                       <label className="pm-edit-label">Unidade de Medida</label>
