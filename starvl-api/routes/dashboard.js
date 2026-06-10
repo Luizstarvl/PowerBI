@@ -318,7 +318,7 @@ router.get('/combustiveis', withCache(async (req, res) => {
     const result = await query(
       `SELECT
          prod.prodcodigo AS codigo,
-         prod.prodresumo AS nome,
+         prod.proddescricao AS nome,
          COALESCE(SUM(vdit.vditqtd), 0) AS litros,
          COALESCE(SUM(vdit.vdittotal), 0) AS valor
        FROM vdit
@@ -328,8 +328,9 @@ router.get('/combustiveis', withCache(async (req, res) => {
          AND vda.vdamovimento >= $2
          AND vda.vdamovimento <= $3
          AND (vda.vdastatus IS NULL OR vda.vdastatus = 0)
+         AND vdit.vditcodigovda IS NOT NULL
          AND prod.prodtipo = 1
-       GROUP BY prod.prodcodigo, prod.prodresumo
+       GROUP BY prod.prodcodigo, prod.proddescricao
        ORDER BY litros DESC`,
       [empresa, dataInicio, dataFim]
     );
@@ -479,7 +480,7 @@ router.get('/top-convenio', withCache(async (req, res) => {
     const result = await query(
       `SELECT
          p.prodcodigo AS id,
-         p.prodresumo AS nome,
+         p.proddescricao AS nome,
          COALESCE(SUM(i.vditqtd), 0) AS qtd
        FROM vdit i
        JOIN vda v  ON v.vdacodigo  = i.vditcodigovda AND v.vdaempresa = i.vditempresa
@@ -489,9 +490,10 @@ router.get('/top-convenio', withCache(async (req, res) => {
          AND v.vdamovimento >= $2
          AND v.vdamovimento <= $3
          AND (v.vdastatus IS NULL OR v.vdastatus = 0)
+         AND i.vditcodigovda IS NOT NULL
          AND p.prodtipo = 2
          ${loczClause}
-       GROUP BY p.prodcodigo, p.prodresumo
+       GROUP BY p.prodcodigo, p.proddescricao
        ORDER BY qtd DESC
        LIMIT 4`,
       [empresa, dataInicio, dataFim]
