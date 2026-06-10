@@ -579,6 +579,7 @@ router.get('/abc-produtos', withCache(async (req, res) => {
   const query = queryFor(empresa);
   const periodo  = req.query.periodo;
   const prodtipo = parseInt(req.query.prodtipo) || 1;
+  const loczFiltro = (req.query.locz || '').trim().toLowerCase();
 
   if (!empresa || !periodo || periodo.length !== 6) {
     return res.status(400).json({ error: 'empresa and periodo (MMYYYY) required' });
@@ -589,6 +590,12 @@ router.get('/abc-produtos', withCache(async (req, res) => {
   const diasNoMes = new Date(ano, mes, 0).getDate();
   const dataInicio = `${ano}-${String(mes).padStart(2, '0')}-01`;
   const dataFim = `${ano}-${String(mes).padStart(2, '0')}-${diasNoMes}`;
+
+  const loczClause = prodtipo !== 2 ? '' : (
+    loczFiltro === 'pista'
+      ? `AND LOWER(COALESCE(l.loczdescricao,'')) LIKE '%pista%'`
+      : `AND LOWER(COALESCE(l.loczdescricao,'')) NOT LIKE '%pista%'`
+  );
 
   try {
     const result = await query(
@@ -602,11 +609,13 @@ router.get('/abc-produtos', withCache(async (req, res) => {
        JOIN prod p  ON p.prodcodigo = i.vditproduto
        LEFT JOIN e_prod ep ON ep.e_prodproduto = i.vditproduto
                           AND ep.e_prodempresa  = $1
+       LEFT JOIN locz l ON l.loczcodigo = ep.e_prodlocal
        WHERE i.vditempresa = $1
          AND v.vdamovimento >= $2
          AND v.vdamovimento <= $3
          AND (v.vdastatus IS NULL OR v.vdastatus = 0)
          AND p.prodtipo = $4
+         ${loczClause}
        GROUP BY p.prodresumo
        ORDER BY qtd DESC
        LIMIT 25`,

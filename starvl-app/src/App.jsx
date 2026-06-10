@@ -7096,7 +7096,7 @@ const FuelStationCard = ({ estoques = [], lmcStarvlFechamento = [], themeMode = 
 };
 
 // Dashboard Component
-const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcControle, lmcSaldos, lmcStarvlFechamento, estoques, loading, clients, selectedClient, selectedPeriod, setSelectedPeriod, onRefresh, themeMode, topConvenio, topPista, vendasDiariasCombusFull, abcProdutos1, abcProdutos2, goals }) => {
+const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcControle, lmcSaldos, lmcStarvlFechamento, estoques, loading, clients, selectedClient, selectedPeriod, setSelectedPeriod, onRefresh, themeMode, topConvenio, topPista, vendasDiariasCombusFull, abcProdutos1, abcProdutos2, abcProdutosPista, goals }) => {
   const [selectedFuelDonut, setSelectedFuelDonut] = useState(null);
   const [isCompactDashboard, setIsCompactDashboard] = useState(false);
   const [salesFuelSection, setSalesFuelSection] = useState('conveniencia');
@@ -7217,7 +7217,9 @@ const Dashboard = ({ kpis, combustiveis, vendasDiarias, vendasHorarias, lmcContr
   const showDenseValueLabels = !isCompactDashboard;
   const selectedMatrixPeriod = PRODUCT_MATRIX_PERIODS.find(period => period.value === productMatrixPeriod) || PRODUCT_MATRIX_PERIODS[2];
   const pmUnitLabel = productMatrixUnit === 'Combustível' ? 'Litros (L)' : 'Qtd. Vendas';
-  const abcBase = productMatrixUnit === 'Combustível' ? (abcProdutos1 || []) : (abcProdutos2 || []);
+  const abcBase = productMatrixUnit === 'Combustível' ? (abcProdutos1 || [])
+    : productMatrixUnit === 'Pista' ? (abcProdutosPista || [])
+    : (abcProdutos2 || []);
   const productMatrixData = abcBase.map(item => ({
     ...item,
     volume: Math.round(item.volume * selectedMatrixPeriod.factor),
@@ -19359,6 +19361,7 @@ export default function App() {
     vendasDiariasCombusFull: [],
     abcProdutos1: [],
     abcProdutos2: [],
+    abcProdutosPista: [],
     loading: false,
     error: null,
   });
@@ -19394,8 +19397,9 @@ export default function App() {
       fetch(`${API_URL}/api/dashboard/vendas-diarias-full?empresa=${empresa}&periodo=${dashboardPeriodo}`).then(r => r.json()),
       fetch(`${API_URL}/api/dashboard/abc-produtos?empresa=${empresa}&periodo=${dashboardPeriodo}&prodtipo=1`).then(r => r.json()),
       fetch(`${API_URL}/api/dashboard/abc-produtos?empresa=${empresa}&periodo=${dashboardPeriodo}&prodtipo=2`).then(r => r.json()),
+      fetch(`${API_URL}/api/dashboard/abc-produtos?empresa=${empresa}&periodo=${dashboardPeriodo}&prodtipo=2&locz=pista`).then(r => r.json()),
       fetch(`${API_URL}/api/lmc/saldo-atual?empresa=${empresa}`).then(r => r.json()).catch(() => ({ saldos: [] })),
-    ]).then(([kpis, combustiveis, vendasDiarias, vendasHorarias, dashboardLmcControle, dashboardLmcSaldosResp, lmcResp, lmcDiario, lmcControle, estoqueResp, projecaoResp, topConvenioResp, topPistaResp, vendasDiariasFullResp, abcProd1Resp, abcProd2Resp, lmcStarvlResp]) => {
+    ]).then(([kpis, combustiveis, vendasDiarias, vendasHorarias, dashboardLmcControle, dashboardLmcSaldosResp, lmcResp, lmcDiario, lmcControle, estoqueResp, projecaoResp, topConvenioResp, topPistaResp, vendasDiariasFullResp, abcProd1Resp, abcProd2Resp, abcProdPistaResp, lmcStarvlResp]) => {
       setIsConnected(true);
       setApiData({
         kpis: kpis.error ? null : kpis,
@@ -19415,6 +19419,7 @@ export default function App() {
         vendasDiariasCombusFull: Array.isArray(vendasDiariasFullResp) ? vendasDiariasFullResp : [],
         abcProdutos1: Array.isArray(abcProd1Resp) ? abcProd1Resp : [],
         abcProdutos2: Array.isArray(abcProd2Resp) ? abcProd2Resp : [],
+        abcProdutosPista: Array.isArray(abcProdPistaResp) ? abcProdPistaResp : [],
         loading: false,
         error: null,
       });
@@ -19451,8 +19456,9 @@ export default function App() {
       fetch(`${API_URL}/api/dashboard/vendas-diarias-full?empresa=${empresa}&periodo=${dashboardPeriodo}`).then(r => r.json()),
       fetch(`${API_URL}/api/dashboard/abc-produtos?empresa=${empresa}&periodo=${dashboardPeriodo}&prodtipo=1`).then(r => r.json()),
       fetch(`${API_URL}/api/dashboard/abc-produtos?empresa=${empresa}&periodo=${dashboardPeriodo}&prodtipo=2`).then(r => r.json()),
+      fetch(`${API_URL}/api/dashboard/abc-produtos?empresa=${empresa}&periodo=${dashboardPeriodo}&prodtipo=2&locz=pista`).then(r => r.json()),
       fetch(`${API_URL}/api/lmc/saldo-atual?empresa=${empresa}`).then(r => r.json()).catch(() => ({ saldos: [] })),
-    ]).then(([kpis, combustiveis, vendasDiarias, vendasHorarias, dashboardLmcControle, dashboardLmcSaldosResp, lmcResp, lmcDiario, lmcControle, estoqueResp, projecaoResp, topConvenioResp, topPistaResp, vendasDiariasFullResp, abcProd1Resp, abcProd2Resp, lmcStarvlResp]) => {
+    ]).then(([kpis, combustiveis, vendasDiarias, vendasHorarias, dashboardLmcControle, dashboardLmcSaldosResp, lmcResp, lmcDiario, lmcControle, estoqueResp, projecaoResp, topConvenioResp, topPistaResp, vendasDiariasFullResp, abcProd1Resp, abcProd2Resp, abcProdPistaResp, lmcStarvlResp]) => {
       setIsConnected(true);
       setApiData({
         kpis: kpis.error ? null : kpis,
@@ -19472,6 +19478,7 @@ export default function App() {
         vendasDiariasCombusFull: Array.isArray(vendasDiariasFullResp) ? vendasDiariasFullResp : [],
         abcProdutos1: Array.isArray(abcProd1Resp) ? abcProd1Resp : [],
         abcProdutos2: Array.isArray(abcProd2Resp) ? abcProd2Resp : [],
+        abcProdutosPista: Array.isArray(abcProdPistaResp) ? abcProdPistaResp : [],
         loading: false,
         error: null,
       });
@@ -19484,7 +19491,7 @@ export default function App() {
   const renderPage = () => {
     switch (currentPage) {
       case 'dashboard':
-        return <Dashboard kpis={apiData.kpis} combustiveis={apiData.combustiveis} vendasDiarias={apiData.vendasDiarias} vendasHorarias={apiData.vendasHorarias} lmcControle={apiData.dashboardLmcControle} lmcSaldos={apiData.dashboardLmcSaldos} lmcStarvlFechamento={apiData.lmcStarvlFechamento} estoques={apiData.estoques} loading={apiData.loading} clients={clients} selectedClient={selectedClient} selectedPeriod={dashboardPeriod} setSelectedPeriod={setDashboardPeriod} onRefresh={handleRefresh} themeMode={themeMode} topConvenio={apiData.topConvenio} topPista={apiData.topPista} vendasDiariasCombusFull={apiData.vendasDiariasCombusFull} abcProdutos1={apiData.abcProdutos1} abcProdutos2={apiData.abcProdutos2} goals={goals} />;
+        return <Dashboard kpis={apiData.kpis} combustiveis={apiData.combustiveis} vendasDiarias={apiData.vendasDiarias} vendasHorarias={apiData.vendasHorarias} lmcControle={apiData.dashboardLmcControle} lmcSaldos={apiData.dashboardLmcSaldos} lmcStarvlFechamento={apiData.lmcStarvlFechamento} estoques={apiData.estoques} loading={apiData.loading} clients={clients} selectedClient={selectedClient} selectedPeriod={dashboardPeriod} setSelectedPeriod={setDashboardPeriod} onRefresh={handleRefresh} themeMode={themeMode} topConvenio={apiData.topConvenio} topPista={apiData.topPista} vendasDiariasCombusFull={apiData.vendasDiariasCombusFull} abcProdutos1={apiData.abcProdutos1} abcProdutos2={apiData.abcProdutos2} abcProdutosPista={apiData.abcProdutosPista} goals={goals} />;
       case 'reports':
         return <Reports selectedClient={selectedClient} selectedPeriod={reportsPeriod} setSelectedPeriod={setReportsPeriod} clients={clients} showReportPreview={showReportPreview} closeReportPreview={closeReportPreview} />;
       case 'compras':
@@ -19506,7 +19513,7 @@ export default function App() {
       case 'admin':
         return <Parameters clients={clients} setClients={setClients} isAdmin={isAdmin} />;
       default:
-        return <Dashboard kpis={apiData.kpis} combustiveis={apiData.combustiveis} vendasDiarias={apiData.vendasDiarias} vendasHorarias={apiData.vendasHorarias} lmcControle={apiData.dashboardLmcControle} lmcSaldos={apiData.dashboardLmcSaldos} lmcStarvlFechamento={apiData.lmcStarvlFechamento} estoques={apiData.estoques} loading={apiData.loading} clients={clients} selectedClient={selectedClient} selectedPeriod={dashboardPeriod} setSelectedPeriod={setDashboardPeriod} onRefresh={handleRefresh} themeMode={themeMode} topConvenio={apiData.topConvenio} topPista={apiData.topPista} vendasDiariasCombusFull={apiData.vendasDiariasCombusFull} abcProdutos1={apiData.abcProdutos1} abcProdutos2={apiData.abcProdutos2} goals={goals} />;
+        return <Dashboard kpis={apiData.kpis} combustiveis={apiData.combustiveis} vendasDiarias={apiData.vendasDiarias} vendasHorarias={apiData.vendasHorarias} lmcControle={apiData.dashboardLmcControle} lmcSaldos={apiData.dashboardLmcSaldos} lmcStarvlFechamento={apiData.lmcStarvlFechamento} estoques={apiData.estoques} loading={apiData.loading} clients={clients} selectedClient={selectedClient} selectedPeriod={dashboardPeriod} setSelectedPeriod={setDashboardPeriod} onRefresh={handleRefresh} themeMode={themeMode} topConvenio={apiData.topConvenio} topPista={apiData.topPista} vendasDiariasCombusFull={apiData.vendasDiariasCombusFull} abcProdutos1={apiData.abcProdutos1} abcProdutos2={apiData.abcProdutos2} abcProdutosPista={apiData.abcProdutosPista} goals={goals} />;
     }
   };
 
