@@ -912,7 +912,7 @@ const VendasPista = ({ clients, selectedClient, selectedPeriod, themeMode }) => 
     const prodtipo = secao === 'combustivel' ? 1 : 2;
     const loczParam = secao === 'pista' ? '&locz=pista' : '';
     if (!empresa) return; // sem empresa usa mock/derivado
-    fetch(`${API_URL}/api/dashboard/prod-categorias?prodtipo=${prodtipo}${loczParam}`)
+    fetch(`${API_URL}/api/dashboard/prod-categorias?empresa=${empresa}&prodtipo=${prodtipo}${loczParam}`)
       .then(r => r.json())
       .then(data => {
         if (data.error || !data.secoes) return; // cai no fallback derivado

@@ -379,7 +379,8 @@ router.get('/vendas-pista', withCache(async (req, res) => {
        JOIN vdit ON vdit.vditcodigovda = vda.vdacodigo
                 AND vdit.vditempresa   = vda.vdaempresa
        JOIN prod ON prod.prodcodigo    = vdit.vditproduto
-       LEFT JOIN locz ON locz.loczcodigo = prod.prodlocal
+       LEFT JOIN e_prod eprod ON eprod.e_prodproduto = prod.prodcodigo AND eprod.e_prodempresa = vda.vdaempresa
+       LEFT JOIN locz ON locz.loczcodigo = eprod.e_prodlocal
        LEFT JOIN atde ON atde.atdecodigo = vdit.vditvendedor
        LEFT JOIN spro ON spro.sprocodigo = prod.prodsecao
        LEFT JOIN gpro ON gpro.gprocodigo = prod.prodgrupo
@@ -415,33 +416,41 @@ router.get('/vendas-pista', withCache(async (req, res) => {
 // GET /api/dashboard/prod-categorias?prodtipo=2&locz=pista
 // Retorna todas as seções (spro) e grupos (gpro) disponíveis para um prodtipo
 router.get('/prod-categorias', withCache(async (req, res) => {
+  const empresa    = parseInt(req.query.empresa);
+  const query      = queryFor(empresa);
   const prodtipo   = parseInt(req.query.prodtipo) || 1;
   const loczFiltro = (req.query.locz || '').trim().toLowerCase();
   const loczClause = loczFiltro ? `AND LOWER(COALESCE(locz.loczdescricao,'')) = '${loczFiltro.replace(/'/g,"''")}'` : '';
+
+  if (!empresa) {
+    return res.status(400).json({ error: 'empresa é obrigatório' });
+  }
 
   try {
     const sproResult = await query(
       `SELECT DISTINCT spro.sprocodigo AS codigo, spro.sprodescricao AS nome
        FROM prod
        JOIN spro ON spro.sprocodigo = prod.prodsecao
-       LEFT JOIN locz ON locz.loczcodigo = prod.prodlocal
+       LEFT JOIN e_prod eprod ON eprod.e_prodproduto = prod.prodcodigo AND eprod.e_prodempresa = $2
+       LEFT JOIN locz ON locz.loczcodigo = eprod.e_prodlocal
        WHERE prod.prodtipo = $1
          AND spro.sprodescricao IS NOT NULL
          ${loczClause}
        ORDER BY spro.sprodescricao`,
-      [prodtipo]
+      [prodtipo, empresa]
     );
 
     const gproResult = await query(
       `SELECT DISTINCT gpro.gprocodigo AS codigo, gpro.gprodescricao AS nome
        FROM prod
        JOIN gpro ON gpro.gprocodigo = prod.prodgrupo
-       LEFT JOIN locz ON locz.loczcodigo = prod.prodlocal
+       LEFT JOIN e_prod eprod ON eprod.e_prodproduto = prod.prodcodigo AND eprod.e_prodempresa = $2
+       LEFT JOIN locz ON locz.loczcodigo = eprod.e_prodlocal
        WHERE prod.prodtipo = $1
          AND gpro.gprodescricao IS NOT NULL
          ${loczClause}
        ORDER BY gpro.gprodescricao`,
-      [prodtipo]
+      [prodtipo, empresa]
     );
 
     res.json({
@@ -485,7 +494,8 @@ router.get('/top-convenio', withCache(async (req, res) => {
        FROM vdit i
        JOIN vda v  ON v.vdacodigo  = i.vditcodigovda AND v.vdaempresa = i.vditempresa
        JOIN prod p ON p.prodcodigo = i.vditproduto
-       LEFT JOIN locz l ON l.loczcodigo = p.prodlocal
+       LEFT JOIN e_prod e ON e.e_prodproduto = p.prodcodigo AND e.e_prodempresa = i.vditempresa
+       LEFT JOIN locz l ON l.loczcodigo = e.e_prodlocal
        WHERE i.vditempresa = $1
          AND v.vdamovimento >= $2
          AND v.vdamovimento <= $3
@@ -538,7 +548,8 @@ router.get('/vendas-diarias-full', withCache(async (req, res) => {
        FROM vda v
        JOIN vdit i  ON i.vditcodigovda = v.vdacodigo AND i.vditempresa = v.vdaempresa
        JOIN prod p  ON p.prodcodigo    = i.vditproduto
-       LEFT JOIN locz l ON l.loczcodigo = p.prodlocal
+       LEFT JOIN e_prod e ON e.e_prodproduto = p.prodcodigo AND e.e_prodempresa = v.vdaempresa
+       LEFT JOIN locz l ON l.loczcodigo = e.e_prodlocal
        WHERE v.vdaempresa = $1
          AND v.vdamovimento >= $2
          AND v.vdamovimento <= $3
