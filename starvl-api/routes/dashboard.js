@@ -524,8 +524,8 @@ router.get('/vendas-diarias-full', withCache(async (req, res) => {
          v.vdamovimento AS dia,
          COALESCE(SUM(CASE WHEN p.prodtipo = 1  THEN i.vditqtd    ELSE 0 END), 0) AS litros_combustivel,
          COALESCE(SUM(CASE WHEN p.prodtipo = 1  THEN i.vdittotal  ELSE 0 END), 0) AS valor_combustivel,
-         COALESCE(SUM(CASE WHEN p.prodtipo != 1 THEN i.vdittotal  ELSE 0 END), 0) AS valor_conveniencia,
-         COALESCE(SUM(CASE WHEN p.prodtipo = 2 AND LOWER(COALESCE(l.loczdescricao,'')) = 'pista' THEN i.vdittotal ELSE 0 END), 0) AS valor_pista
+         COALESCE(SUM(CASE WHEN p.prodtipo = 2 AND LOWER(COALESCE(l.loczdescricao,'')) NOT LIKE '%pista%' THEN i.vdittotal  ELSE 0 END), 0) AS valor_conveniencia,
+         COALESCE(SUM(CASE WHEN p.prodtipo = 2 AND LOWER(COALESCE(l.loczdescricao,'')) LIKE '%pista%' THEN i.vdittotal ELSE 0 END), 0) AS valor_pista
        FROM vda v
        JOIN vdit i  ON i.vditcodigovda = v.vdacodigo AND i.vditempresa = v.vdaempresa
        JOIN prod p  ON p.prodcodigo    = i.vditproduto
