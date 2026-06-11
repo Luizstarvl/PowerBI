@@ -464,7 +464,7 @@ router.get('/prod-categorias', withCache(async (req, res) => {
 }));
 
 // GET /api/dashboard/top-convenio?empresa=7432&periodo=052026
-// Top 4 non-fuel products by qty sold in the period
+// Top 5 non-fuel products by qty sold in the period
 router.get('/top-convenio', withCache(async (req, res) => {
   const empresa = parseInt(req.query.empresa);
   const query = queryFor(empresa);
@@ -505,7 +505,7 @@ router.get('/top-convenio', withCache(async (req, res) => {
          ${loczClause}
        GROUP BY p.prodcodigo, p.proddescricao
        ORDER BY qtd DESC
-       LIMIT 4`,
+       LIMIT 5`,
       [empresa, dataInicio, dataFim]
     );
 
