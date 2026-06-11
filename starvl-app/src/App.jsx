@@ -15856,8 +15856,7 @@ const ConvenienciaManager = ({ themeMode, selectedClient, clients, showReportPre
             <div className="pm-edit-grid">
 
               {/* LEFT: Image + Status */}
-              <div className="pm-edit-col">
-                <div className="pm-edit-panel">
+                <div className="pm-edit-panel pm-edit-area-foto">
                   <div className="pm-edit-panel-title"><Camera size={12} /> FOTO DO PRODUTO</div>
                   {/* Hidden file input */}
                   <input
@@ -15900,7 +15899,7 @@ const ConvenienciaManager = ({ themeMode, selectedClient, clients, showReportPre
                     </button>
                   </div>
                 </div>
-                <div className="pm-edit-panel" style={{ textAlign: 'center' }}>
+                <div className="pm-edit-panel pm-edit-area-status" style={{ textAlign: 'center' }}>
                   <div className="pm-edit-panel-title"><Tag size={12} /> STATUS DO PRODUTO</div>
                   <span className={`pm-badge ${PM_STATUS_CLS[editProd.status]}`} style={{ fontSize: '13px', padding: '6px 18px' }}>
                     {PM_STATUS_LABEL[editProd.status]}
@@ -15912,11 +15911,9 @@ const ConvenienciaManager = ({ themeMode, selectedClient, clients, showReportPre
                     Vencimento: {fmtDate(editProd.venc)}
                   </div>
                 </div>
-              </div>
 
               {/* CENTER: Info + Prices */}
-              <div className="pm-edit-col">
-                <div className="pm-edit-panel">
+                <div className="pm-edit-panel pm-edit-area-info">
                   <div className="pm-edit-panel-title"><Package size={12} /> INFORMAÇÕES BÁSICAS</div>
                   <div className="pm-edit-fg2">
                     <div className="pm-edit-field span2">
@@ -15954,7 +15951,7 @@ const ConvenienciaManager = ({ themeMode, selectedClient, clients, showReportPre
                   </div>
                 </div>
 
-                <div className="pm-edit-panel">
+                <div className="pm-edit-panel pm-edit-area-precos">
                   <div className="pm-edit-panel-title"><DollarSign size={12} /> PREÇOS E MARGEM</div>
                   <div className="pm-edit-fg2">
                     <div className="pm-edit-field">
@@ -15996,11 +15993,9 @@ const ConvenienciaManager = ({ themeMode, selectedClient, clients, showReportPre
                     );
                   })()}
                 </div>
-              </div>
 
               {/* RIGHT: Stock + Venc + Sales */}
-              <div className="pm-edit-col">
-                <div className="pm-edit-panel">
+                <div className="pm-edit-panel pm-edit-area-estoque">
                   <div className="pm-edit-panel-title"><Database size={12} /> DADOS DE ESTOQUE</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                     <div className="pm-edit-field">
@@ -16023,7 +16018,7 @@ const ConvenienciaManager = ({ themeMode, selectedClient, clients, showReportPre
                   </div>
                 </div>
 
-                <div className="pm-edit-panel">
+                <div className="pm-edit-panel pm-edit-area-vendas">
                   <div className="pm-edit-panel-title"><TrendingUp size={12} /> VENDAS DO MÊS</div>
                   {(() => {
                     const qtd    = 20 + (editProd.id % 60);
@@ -16042,7 +16037,6 @@ const ConvenienciaManager = ({ themeMode, selectedClient, clients, showReportPre
                     ));
                   })()}
                 </div>
-              </div>
             </div>{/* end grid */}
 
             {/* ── Vencimento e Lote (full-width) ─────────────────────────── */}

@@ -255,8 +255,20 @@
 .pm-edit-body { padding: 20px 24px; display: flex; flex-direction: column; gap: 18px; flex: 1; }
 .pm-edit-back { display: flex; align-items: center; gap: 6px; background: transparent; border: none; color: #64748b; cursor: pointer; font-size: 11px; font-weight: 700; letter-spacing: 0.05em; padding: 0; }
 .pm-edit-back:hover { color: #E31E24; }
-.pm-edit-grid { display: grid; grid-template-columns: 260px 1fr 290px; gap: 18px; }
-.pm-edit-col { display: flex; flex-direction: column; gap: 16px; }
+.pm-edit-grid {
+  display: grid;
+  grid-template-columns: 210px 1fr 190px 220px;
+  grid-template-areas:
+    "foto info estoque vendas"
+    "status precos precos precos";
+  gap: 18px;
+}
+.pm-edit-area-foto    { grid-area: foto; }
+.pm-edit-area-info    { grid-area: info; }
+.pm-edit-area-estoque { grid-area: estoque; }
+.pm-edit-area-vendas  { grid-area: vendas; }
+.pm-edit-area-status  { grid-area: status; }
+.pm-edit-area-precos  { grid-area: precos; }
 .pm-edit-panel { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 12px; padding: 18px; }
 .pm-edit-panel-title { display: flex; align-items: center; gap: 7px; font-size: 10px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: #64748b; margin: 0 0 14px; }
 .pm-edit-panel-title.mt { margin-top: 14px; }
@@ -328,7 +340,16 @@
   /* Edit overlay tela cheia */
   .pm-edit-overlay { padding: 0; align-items: flex-end; }
   .pm-edit-modal { max-width: 100%; max-height: 96dvh; border-radius: 16px 16px 0 0; }
-  .pm-edit-grid { grid-template-columns: 1fr; }
+  .pm-edit-grid {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "foto"
+      "info"
+      "estoque"
+      "vendas"
+      "status"
+      "precos";
+  }
   .pm-edit-fg2 { grid-template-columns: 1fr; }
   .pm-edit-fg3 { grid-template-columns: 1fr 1fr; }
   .pm-edit-addl { grid-template-columns: 1fr 1fr; }
