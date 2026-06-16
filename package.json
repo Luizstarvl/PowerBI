@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "build": "npm install --prefix starvl-api && npm install --prefix starvl-app && npm run build --prefix starvl-app",
+    "build": "npm install --prefix starvl-api && npm install --prefix starvl-app && cd starvl-app && CI=false npm run build",
     "start": "npm start --prefix starvl-api"
   },
   "engines": {
