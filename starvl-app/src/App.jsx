@@ -1238,9 +1238,10 @@ const MR_CSS = `
 `;
 
 const MetasRealizadoChart = ({ themeMode = 'dark', vendasDiariasCombusFull, selectedPeriod, goals = [] }) => {
-  const [metrica, setMetrica]   = useState('litros');
-  const [periodo, setPeriodo]   = useState('mensal');
-  const [animKey, setAnimKey]   = useState(0);
+  const [metrica, setMetrica]         = useState('litros');
+  const [periodo, setPeriodo]         = useState('mensal');
+  const [animKey, setAnimKey]         = useState(0);
+  const [selectedGoalId, setSelectedGoalId] = useState('auto');
   const dark = themeMode !== 'light';
 
   useEffect(() => { setAnimKey(k => k + 1); }, [metrica, periodo]);
@@ -1272,7 +1273,10 @@ const MetasRealizadoChart = ({ themeMode = 'dark', vendasDiariasCombusFull, sele
       return (order[a.status] ?? 3) - (order[b.status] ?? 3);
     };
     let metaFromGoals = 0;
-    if (metrica === 'litros') {
+    if (selectedGoalId !== 'auto') {
+      const g = allGoals.find(g => String(g.id) === String(selectedGoalId));
+      if (g) metaFromGoals = g.meta / (g.periodo === 'Anual' ? 12 : g.periodo === 'Trimestral' ? 3 : 1);
+    } else if (metrica === 'litros') {
       const g = [...allGoals].sort(sortByActive).find(g =>
         g.nome.toLowerCase().includes('volume') ||
         g.nome.toLowerCase().includes('combustív') ||
@@ -1307,7 +1311,7 @@ const MetasRealizadoChart = ({ themeMode = 'dark', vendasDiariasCombusFull, sele
     const corText   = cor;
     const status    = pct >= 90 ? 'No alvo ✓' : pct >= 70 ? 'Atenção' : 'Abaixo da meta';
     return { data, meta, realizado, pct, faltante, diasRest, totalDias, cor, corBg, corText, status };
-  }, [metrica, periodo, dark, vendasDiariasCombusFull, selectedPeriod]);
+  }, [metrica, periodo, dark, vendasDiariasCombusFull, selectedPeriod, goals, selectedGoalId]);
 
   const fmtV = v => metrica === 'litros'
     ? v.toLocaleString('pt-BR', { maximumFractionDigits: 0 }) + ' L'
@@ -1346,6 +1350,16 @@ const MetasRealizadoChart = ({ themeMode = 'dark', vendasDiariasCombusFull, sele
             <button style={c.tog(periodo === 'mensal')}  onClick={() => setPeriodo('mensal')}>Mensal</button>
             <button style={c.tog(periodo === 'semanal')} onClick={() => setPeriodo('semanal')}>Semanal</button>
           </div>
+          <select
+            value={selectedGoalId}
+            onChange={e => setSelectedGoalId(e.target.value)}
+            style={{ background: dark ? '#141414' : '#f3f4f6', color: dark ? '#cbd5e1' : '#374151', border: 'none', borderRadius: 7, padding: '5px 10px', fontSize: 11, fontWeight: 700, cursor: 'pointer', maxWidth: 180 }}
+          >
+            <option value="auto">Meta automática</option>
+            {(goals || []).map(g => (
+              <option key={g.id} value={g.id}>{g.nome}</option>
+            ))}
+          </select>
         </div>
       </div>
 
@@ -15086,6 +15100,39 @@ async function suDelete(id) {
   return data;
 }
 
+// ── CRUD de metas (starvl_goals) ────────────────────────────────────────────
+async function goalsLoadAll(empresa) {
+  const res = await fetch(`${API_URL}/api/goals?empresa=${empresa}`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json(); // [{ id, nome, desc, categoria, periodo, meta, alcancado, status, vencimento }]
+}
+async function goalsCreate(goal) {
+  const res = await fetch(`${API_URL}/api/goals`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(goal),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  return data;
+}
+async function goalsUpdate(id, goal) {
+  const res = await fetch(`${API_URL}/api/goals/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(goal),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  return data;
+}
+async function goalsDelete(id) {
+  const res = await fetch(`${API_URL}/api/goals/${id}`, { method: 'DELETE' });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  return data;
+}
+
 function printProductCard({ prod, editForm, editImg }) {
   const custo  = parseFloat(editForm.custo)  || prod.custo;
   const preco  = parseFloat(editForm.preco)  || prod.preco;
@@ -17689,7 +17736,7 @@ const GOAL_MONTHLY_CHART = [
 
 const EMPTY_GOAL_FORM = { nome:'', desc:'', categoria:'Faturamento', periodo:'Mensal', meta:'', alcancado:'', vencimento:'', status:'Em andamento' };
 
-const GoalManager = ({ themeMode = 'dark', goals = INITIAL_GOALS, setGoals }) => {
+const GoalManager = ({ themeMode = 'dark', goals = INITIAL_GOALS, setGoals, empresa }) => {
   const [activeTab, setActiveTab]   = useState('visao');
   const [search, setSearch]         = useState('');
   const [catFilter, setCatFilter]   = useState('Todas');
@@ -17698,7 +17745,7 @@ const GoalManager = ({ themeMode = 'dark', goals = INITIAL_GOALS, setGoals }) =>
   const [page, setPage]             = useState(1);
   const [editGoal, setEditGoal]     = useState(null);
   const [form, setForm]             = useState(EMPTY_GOAL_FORM);
-  const [nextId, setNextId]         = useState(() => Math.max(0, ...(INITIAL_GOALS.map(g => g.id))) + 1);
+  const [saving, setSaving]         = useState(false);
   const PAGE_SIZE = 5;
 
   const fmtBRL = v => Number(v || 0).toLocaleString('pt-BR', { style:'currency', currency:'BRL', maximumFractionDigits:0 });
@@ -17763,7 +17810,10 @@ const GoalManager = ({ themeMode = 'dark', goals = INITIAL_GOALS, setGoals }) =>
   };
 
   const handleDelete = (id) => {
-    if (window.confirm('Remover esta meta?')) setGoals(prev => prev.filter(g => g.id !== id));
+    if (!window.confirm('Remover esta meta?')) return;
+    goalsDelete(id)
+      .then(() => setGoals(prev => prev.filter(g => g.id !== id)))
+      .catch(err => alert(err.message || 'Erro ao excluir meta.'));
   };
 
   const openEdit = (g) => {
@@ -17776,15 +17826,17 @@ const GoalManager = ({ themeMode = 'dark', goals = INITIAL_GOALS, setGoals }) =>
   const handleSave = (e) => {
     e.preventDefault();
     const parsed = { ...form, meta: parseFloat(form.meta)||0, alcancado: parseFloat(form.alcancado)||0 };
+    setSaving(true);
+    const done = () => { setSaving(false); setForm(EMPTY_GOAL_FORM); setActiveTab('todas'); };
     if (editGoal) {
-      setGoals(prev => prev.map(g => g.id === editGoal.id ? { ...g, ...parsed } : g));
-      setEditGoal(null);
+      goalsUpdate(editGoal.id, parsed)
+        .then(updated => { setGoals(prev => prev.map(g => g.id === editGoal.id ? updated : g)); setEditGoal(null); done(); })
+        .catch(err => { setSaving(false); alert(err.message || 'Erro ao salvar meta.'); });
     } else {
-      setGoals(prev => [...prev, { ...parsed, id: nextId }]);
-      setNextId(n => n+1);
+      goalsCreate({ empresa, ...parsed })
+        .then(created => { setGoals(prev => [...prev, created]); done(); })
+        .catch(err => { setSaving(false); alert(err.message || 'Erro ao criar meta.'); });
     }
-    setForm(EMPTY_GOAL_FORM);
-    setActiveTab('todas');
   };
 
   const upd = k => e => setForm(f => ({ ...f, [k]: e.target.value }));
@@ -18409,7 +18461,7 @@ const GoalManager = ({ themeMode = 'dark', goals = INITIAL_GOALS, setGoals }) =>
             )}
             <div style={{ display:'flex', gap:10, justifyContent:'flex-end' }}>
               <button type="button" style={S.btnSec} onClick={()=>{ setEditGoal(null); setForm(EMPTY_GOAL_FORM); setActiveTab('todas'); }}>Cancelar</button>
-              <button type="submit" style={S.btnPrim}>{editGoal ? 'Salvar Alterações' : 'Criar Meta'}</button>
+              <button type="submit" style={S.btnPrim} disabled={saving}>{saving ? 'Salvando...' : (editGoal ? 'Salvar Alterações' : 'Criar Meta')}</button>
             </div>
           </form>
         </div>
@@ -19292,6 +19344,17 @@ export default function App() {
       .catch(() => { /* mantém initialClients como fallback */ });
   }, []);
 
+  // Carrega metas (goals) da API para a empresa selecionada
+  useEffect(() => {
+    const client = clients.find(c => c.nome === selectedClient) || clients[0];
+    if (!client) return;
+    const empresa = client.codigoEmpresa;
+    if (!empresa) return;
+    goalsLoadAll(empresa)
+      .then(data => { if (Array.isArray(data)) setGoals(data); })
+      .catch(() => { /* sem rede: mantém metas atuais */ });
+  }, [clients, selectedClient]);
+
   // Mensagem de boas-vindas após login
   useEffect(() => {
     if (!isLoggedIn || !loggedUser) return;
@@ -19501,7 +19564,7 @@ export default function App() {
       case 'receber':
         return <Financeiro clients={clients} selectedClient={selectedClient} themeMode={themeMode} showReportPreview={showReportPreview} />;
       case 'goals':
-        return <GoalManager themeMode={themeMode} goals={goals} setGoals={setGoals} />;
+        return <GoalManager themeMode={themeMode} goals={goals} setGoals={setGoals} empresa={(clients.find(c => c.nome === selectedClient) || clients[0])?.codigoEmpresa} />;
       case 'auditoria':
         return <Auditoria themeMode={themeMode} />;
       case 'users':
