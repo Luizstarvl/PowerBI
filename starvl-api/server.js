@@ -17,7 +17,6 @@ const fluxoCaixaRoutes    = require('./routes/fluxoCaixa');
 const contaCorrenteRoutes = require('./routes/contaCorrente');
 const imagensRoutes       = require('./routes/imagens');
 const starvlUsersRoutes   = require('./routes/starvlUsers');
-const auditoriaRoutes     = require('./routes/auditoria');
 const clientsRoutes       = require('./routes/clients');
 const lmcStarvlRoutes     = require('./routes/lmcStarvl');
 const goalsRoutes         = require('./routes/goals');
@@ -141,7 +140,6 @@ app.use('/api/conta-corrente', contaCorrenteRoutes);
 app.use('/api/relatorios', relatoriosRoutes);
 app.use('/api/imagens',        imagensRoutes);
 app.use('/api/starvl-users',   starvlUsersRoutes);
-app.use('/api/auditoria',      auditoriaRoutes);
 app.use('/api/clients',        clientsRoutes);
 app.use('/api/lmc-starvl',    lmcStarvlRoutes);
 app.use('/api/goals',          goalsRoutes);
@@ -186,13 +184,6 @@ poolManager.initialize().then(() => {
     server.keepAliveTimeout = 120000;
     server.headersTimeout   = 125000;
 
-    // Inicia o watcher de auditoria (snapshot + detecção de alterações/exclusões)
-    try {
-      const auditWatcher = require('./services/auditWatcher');
-      auditWatcher.start();
-    } catch (err) {
-      console.error('[AuditWatcher] Falha ao iniciar:', err.message);
-    }
   });
 }).catch(err => {
   console.error('Falha ao inicializar poolManager:', err.message);
