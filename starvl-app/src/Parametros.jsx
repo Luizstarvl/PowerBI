@@ -218,6 +218,61 @@ function SecaoEmpresas() {
   );
 }
 
+/* ── Menu de contexto (right-click) ─────────────────────────────────────────── */
+function ContextMenu({ x, y, onIncluir, onEditar, onExcluir, onClose }) {
+  const { t }  = useT();
+  const ref    = useRef(null);
+
+  // Corrige posição se ultrapassar a borda da janela
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    if (rect.right  > window.innerWidth)  el.style.left = `${x - rect.width}px`;
+    if (rect.bottom > window.innerHeight) el.style.top  = `${y - rect.height}px`;
+  }, [x, y]);
+
+  // Fecha ao clicar fora ou pressionar Esc
+  useEffect(() => {
+    const onDown = e => { if (!ref.current?.contains(e.target)) onClose(); };
+    const onKey  = e => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown',   onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown',   onKey);
+    };
+  }, [onClose]);
+
+  return (
+    <Portal>
+      <div ref={ref} className="ctx-menu" style={{ position: 'fixed', left: x, top: y }}>
+        <button className="ctx-item" onClick={() => { onIncluir(); onClose(); }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+          {t('ctx_incluir')}
+        </button>
+        <button className="ctx-item" onClick={() => { onEditar(); onClose(); }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+          </svg>
+          {t('ctx_editar')}
+        </button>
+        <div className="ctx-divider" />
+        <button className="ctx-item danger" onClick={() => { onExcluir(); onClose(); }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+            <path d="M10 11v6"/><path d="M14 11v6"/>
+          </svg>
+          {t('ctx_excluir')}
+        </button>
+      </div>
+    </Portal>
+  );
+}
+
 /* ── Modal Nova Conexão (empresa + banco em um único fluxo) ──────────────────── */
 function ModalNovaConexao({ onSave, onClose }) {
   const { t } = useT();
@@ -319,8 +374,9 @@ function SecaoConexao() {
   const { t } = useT();
   const [clientes, setClientes] = useState([]);
   const [loading, setLoading]   = useState(false);
-  const [config, setConfig]     = useState(null);  // empresa sendo editada
-  const [nova, setNova]         = useState(false);  // modal de nova conexão
+  const [config, setConfig]     = useState(null);   // empresa sendo editada
+  const [nova, setNova]         = useState(false);   // modal de nova conexão
+  const [ctxMenu, setCtxMenu]   = useState(null);    // { x, y, empresa }
 
   useEffect(() => {
     setLoading(true);
@@ -336,9 +392,20 @@ function SecaoConexao() {
     setConfig(null);
   }
 
-  function handleNovaSalva(nova) {
-    setClientes(p => [...p, nova]);
+  function handleNovaSalva(item) {
+    setClientes(p => [...p, item]);
     setNova(false);
+  }
+
+  async function handleDelete(cod) {
+    if (!window.confirm(t('emp_remover'))) return;
+    const res = await fetch(`${API_URL}/api/clients/${cod}`, { method: 'DELETE' });
+    if (res.ok) setClientes(p => p.filter(c => c.codigoEmpresa !== cod));
+  }
+
+  function openCtx(e, empresa) {
+    e.preventDefault();
+    setCtxMenu({ x: e.clientX, y: e.clientY, empresa });
   }
 
   return (
@@ -368,7 +435,7 @@ function SecaoConexao() {
                 {clientes.length === 0
                   ? <tr><td colSpan={5} className="rank-empty">{t('emp_nenhuma')}</td></tr>
                   : clientes.map(c => (
-                    <tr key={c.id}>
+                    <tr key={c.id} className="tr-ctx" onContextMenu={e => openCtx(e, c)}>
                       <td className="gu-username">{c.nome}</td>
                       <td className="td-id">{c.codigoEmpresa}</td>
                       <td>
@@ -405,6 +472,16 @@ function SecaoConexao() {
         <Portal>
           <ModalConexao empresa={config} onSave={handleSaved} onClose={() => setConfig(null)} />
         </Portal>
+      )}
+      {ctxMenu && (
+        <ContextMenu
+          x={ctxMenu.x}
+          y={ctxMenu.y}
+          onClose={() => setCtxMenu(null)}
+          onIncluir={() => setNova(true)}
+          onEditar={() => setConfig(ctxMenu.empresa)}
+          onExcluir={() => handleDelete(ctxMenu.empresa.codigoEmpresa)}
+        />
       )}
     </div>
   );

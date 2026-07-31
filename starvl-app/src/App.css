@@ -490,6 +490,48 @@ body {
 .con2-empresa-nome { font-size: 13px; font-weight: 700; color: var(--text); }
 .con2-empresa-cod  { font-size: 12px; color: var(--text-muted); }
 
+/* ── Context menu ────────────────────────────────────────────────────────────── */
+.tr-ctx { cursor: context-menu; }
+
+.ctx-menu {
+  background: var(--card);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow-lg);
+  padding: 4px;
+  min-width: 168px;
+  z-index: 9999;
+  animation: ctx-in .12s cubic-bezier(.2,0,.2,1);
+}
+@keyframes ctx-in {
+  from { opacity: 0; transform: scale(.94) translateY(-4px); }
+  to   { opacity: 1; transform: scale(1)   translateY(0); }
+}
+
+.ctx-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 8px 11px;
+  background: none;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  font-family: 'Sora', sans-serif;
+  transition: background .12s, color .12s;
+}
+.ctx-item:hover        { background: var(--blue-soft); color: var(--blue); }
+.ctx-item.danger       { color: var(--red); }
+.ctx-item.danger:hover { background: var(--red-soft); color: var(--red); }
+
+.ctx-divider { height: 1px; background: var(--border); margin: 4px 2px; }
+
 /* ── Modal ───────────────────────────────────────────────────────────────────── */
 .modal-overlay {
   position: fixed; inset: 0;
