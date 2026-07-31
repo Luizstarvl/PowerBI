@@ -15942,7 +15942,7 @@ export default function App() {
   });
   const [autoRefresh, setAutoRefresh] = useState(() => localStorage.getItem('starvl-auto-refresh') === 'true');
   const autoRefreshRef = useRef(null);
-  const [goals, setGoals]           = useState(INITIAL_GOALS);
+  const [goals, setGoals]           = useState([]);
 
   // ── Preview inline compartilhado — todos os relatórios ───────────────────
   const [reportPreviewUrl,   setReportPreviewUrl]   = useState(null);
@@ -16218,8 +16218,6 @@ export default function App() {
         return <EstoqueManager estoques={apiData.estoques} projecao={apiData.projecao} loading={apiData.loading} selectedClient={selectedClient} clients={clients} themeMode={themeMode} lmcSaldos={apiData.dashboardLmcSaldos} lmcControle={apiData.dashboardLmcControle} lmcStarvlFechamento={apiData.lmcStarvlFechamento} showReportPreview={showReportPreview} />;
       case 'receber':
         return <Financeiro clients={clients} selectedClient={selectedClient} themeMode={themeMode} showReportPreview={showReportPreview} />;
-      case 'goals':
-        return <GoalManager themeMode={themeMode} goals={goals} setGoals={setGoals} empresa={(clients.find(c => c.nome === selectedClient) || clients[0])?.codigoEmpresa} />;
 
       case 'users':
         return <Users adminUsers={adminUsers} setAdminUsers={setAdminUsers} isAdmin={isAdmin} />;
