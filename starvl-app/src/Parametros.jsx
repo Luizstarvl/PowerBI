@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Portal from './Portal';
 import { useT } from './i18n';
 
@@ -203,6 +203,118 @@ function FlagES() {
   );
 }
 
+/* ── Seletor de Timezone ─────────────────────────────────────────────────────── */
+function TzSelector() {
+  const { t } = useT();
+  const [tz, setTz]       = useState(() => localStorage.getItem('pbi_tz') || 'America/Sao_Paulo');
+  const [busca, setBusca] = useState('');
+  const searchRef = useRef(null);
+
+  const grupos = [
+    { tk: 'tz_brasil', zones: [
+      { key: 'America/Rio_Branco', label: 'Acre',                    offset: 'UTC−5' },
+      { key: 'America/Manaus',     label: 'Manaus / Amazonas',       offset: 'UTC−4' },
+      { key: 'America/Sao_Paulo',  label: 'Brasília / São Paulo',    offset: 'UTC−3' },
+      { key: 'America/Noronha',    label: 'Fernando de Noronha',     offset: 'UTC−2' },
+    ]},
+    { tk: 'tz_americas', zones: [
+      { key: 'America/Los_Angeles',  label: 'Los Angeles / Vancouver', offset: 'UTC−8' },
+      { key: 'America/Denver',       label: 'Denver / Phoenix',        offset: 'UTC−7' },
+      { key: 'America/Chicago',      label: 'Chicago / Cidade do México', offset: 'UTC−6' },
+      { key: 'America/New_York',     label: 'New York / Miami',        offset: 'UTC−5' },
+      { key: 'America/Santiago',     label: 'Santiago',                offset: 'UTC−4' },
+      { key: 'America/Argentina/Buenos_Aires', label: 'Buenos Aires',  offset: 'UTC−3' },
+    ]},
+    { tk: 'tz_europa', zones: [
+      { key: 'UTC',              label: 'UTC / Reykjavik',            offset: 'UTC+0' },
+      { key: 'Europe/London',    label: 'Londres',                    offset: 'UTC±0/+1' },
+      { key: 'Europe/Paris',     label: 'Paris / Berlim / Roma',      offset: 'UTC+1/+2' },
+      { key: 'Europe/Athens',    label: 'Atenas / Cairo / Helsinki',  offset: 'UTC+2/+3' },
+      { key: 'Europe/Moscow',    label: 'Moscou',                     offset: 'UTC+3' },
+    ]},
+    { tk: 'tz_asia', zones: [
+      { key: 'Asia/Dubai',       label: 'Dubai / Abu Dhabi',          offset: 'UTC+4' },
+      { key: 'Asia/Kolkata',     label: 'Mumbai / Nova Delhi',        offset: 'UTC+5:30' },
+      { key: 'Asia/Bangkok',     label: 'Bangcoc / Jacarta',          offset: 'UTC+7' },
+      { key: 'Asia/Singapore',   label: 'Cingapura / Hong Kong / Pequim', offset: 'UTC+8' },
+      { key: 'Asia/Tokyo',       label: 'Tóquio / Seul',             offset: 'UTC+9' },
+      { key: 'Australia/Sydney', label: 'Sydney / Melbourne',         offset: 'UTC+10/+11' },
+      { key: 'Pacific/Auckland', label: 'Auckland',                   offset: 'UTC+12/+13' },
+    ]},
+  ];
+
+  const q = busca.toLowerCase();
+  const gruposFiltrados = grupos
+    .map(g => ({ ...g, zones: g.zones.filter(z => z.label.toLowerCase().includes(q) || z.offset.toLowerCase().includes(q) || z.key.toLowerCase().includes(q)) }))
+    .filter(g => g.zones.length > 0);
+
+  function handleSelect(key) {
+    setTz(key);
+    localStorage.setItem('pbi_tz', key);
+  }
+
+  const tzAtual = grupos.flatMap(g => g.zones).find(z => z.key === tz);
+
+  return (
+    <div className="sys-group">
+      <p className="sys-group-title">{t('tz_titulo')}</p>
+      <p className="sys-group-desc">{t('tz_desc')}</p>
+
+      {tzAtual && (
+        <div className="tz-current">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+          </svg>
+          <span>{tzAtual.label}</span>
+          <span className="tz-offset">{tzAtual.offset}</span>
+        </div>
+      )}
+
+      <div className="tz-search-wrap">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        <input
+          ref={searchRef}
+          type="text"
+          className="tz-search"
+          placeholder={t('tz_busca')}
+          value={busca}
+          autoComplete="off"
+          onChange={e => setBusca(e.target.value)}
+        />
+        {busca && <button className="tz-search-clear" onClick={() => setBusca('')}>×</button>}
+      </div>
+
+      <div className="tz-list">
+        {gruposFiltrados.map(g => (
+          <div key={g.tk}>
+            <p className="tz-group-label">{t(g.tk)}</p>
+            {g.zones.map(z => (
+              <button
+                key={z.key}
+                className={`tz-option${tz === z.key ? ' selected' : ''}`}
+                onClick={() => handleSelect(z.key)}
+              >
+                <span className="tz-option-label">{z.label}</span>
+                <span className="tz-option-offset">{z.offset}</span>
+                {tz === z.key && (
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12"/>
+                  </svg>
+                )}
+              </button>
+            ))}
+          </div>
+        ))}
+        {gruposFiltrados.length === 0 && (
+          <p className="rank-empty" style={{ padding: '20px 0' }}>—</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /* ── Modal confirmação de idioma ─────────────────────────────────────────────── */
 function ConfirmLang({ idioma, onConfirm, onCancel }) {
   const { t } = useT();
@@ -277,6 +389,8 @@ function SecaoSistema() {
           })}
         </div>
       </div>
+
+      <TzSelector />
 
       {pendingLang && (
         <Portal>

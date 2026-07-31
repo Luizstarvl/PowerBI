@@ -88,6 +88,14 @@ const T = {
     lang_confirm_titulo: 'Alterar idioma',
     lang_confirm_msg: (nome) => `Deseja aplicar o idioma ${nome} no sistema?`,
     lang_confirm_aplicar: 'Aplicar',
+    // Timezone
+    tz_titulo: 'Fuso horário',
+    tz_desc: 'Define o fuso horário usado para exibir datas e horas no sistema.',
+    tz_busca: 'Buscar fuso horário…',
+    tz_brasil: 'Brasil',
+    tz_americas: 'Américas',
+    tz_europa: 'Europa',
+    tz_asia: 'Ásia / Pacífico',
   },
   'en': {
     nav_dashboard: 'Dashboard',
@@ -167,6 +175,13 @@ const T = {
     lang_confirm_titulo: 'Change language',
     lang_confirm_msg: (nome) => `Apply ${nome} as the system language?`,
     lang_confirm_aplicar: 'Apply',
+    tz_titulo: 'Timezone',
+    tz_desc: 'Set the timezone used for displaying dates and times in the system.',
+    tz_busca: 'Search timezone…',
+    tz_brasil: 'Brazil',
+    tz_americas: 'Americas',
+    tz_europa: 'Europe',
+    tz_asia: 'Asia / Pacific',
   },
   'es': {
     nav_dashboard: 'Panel',
@@ -246,6 +261,13 @@ const T = {
     lang_confirm_titulo: 'Cambiar idioma',
     lang_confirm_msg: (nome) => `¿Aplicar ${nome} como idioma del sistema?`,
     lang_confirm_aplicar: 'Aplicar',
+    tz_titulo: 'Zona horaria',
+    tz_desc: 'Define la zona horaria utilizada para mostrar fechas y horas en el sistema.',
+    tz_busca: 'Buscar zona horaria…',
+    tz_brasil: 'Brasil',
+    tz_americas: 'Américas',
+    tz_europa: 'Europa',
+    tz_asia: 'Asia / Pacífico',
   },
 };
 
