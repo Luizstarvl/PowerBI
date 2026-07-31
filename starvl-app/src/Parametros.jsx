@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Portal from './Portal';
+import { useT } from './i18n';
 
 const API_URL = process.env.REACT_APP_API_URL
   || (window.location.hostname === 'localhost' ? 'http://localhost:3001' : '');
@@ -11,6 +12,7 @@ function fmtDate(s) {
 
 /* ── Modal Nova Empresa ──────────────────────────────────────────────────────── */
 function ModalEmpresa({ onSave, onClose }) {
+  const { t } = useT();
   const [form, setForm] = useState({ nome: '', codigoEmpresa: '', banco: '', host: '', port: '', dbUser: '', dbPass: '' });
   const [erro, setErro] = useState('');
   const [loading, setLoading] = useState(false);
@@ -18,9 +20,9 @@ function ModalEmpresa({ onSave, onClose }) {
   function set(f, v) { setForm(p => ({ ...p, [f]: v })); }
 
   async function handleSave() {
-    if (!form.nome.trim())        return setErro('Nome é obrigatório.');
-    if (!form.codigoEmpresa)      return setErro('Código da empresa é obrigatório.');
-    if (!form.banco.trim())       return setErro('Nome do banco é obrigatório.');
+    if (!form.nome.trim())    return setErro(t('me_obrig_nome'));
+    if (!form.codigoEmpresa)  return setErro(t('me_obrig_cod'));
+    if (!form.banco.trim())   return setErro(t('me_obrig_banco'));
     setErro(''); setLoading(true);
     try {
       const res = await fetch(`${API_URL}/api/clients`, {
@@ -34,55 +36,55 @@ function ModalEmpresa({ onSave, onClose }) {
         }),
       });
       const data = await res.json();
-      if (!res.ok) return setErro(data.error || 'Erro ao salvar.');
+      if (!res.ok) return setErro(data.error || t('me_erro'));
       onSave(data);
-    } catch { setErro('Erro ao conectar ao servidor.'); }
+    } catch { setErro(t('me_erro_conexao')); }
     finally { setLoading(false); }
   }
 
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={e => e.stopPropagation()}>
-        <h3 className="modal-title">Nova Empresa</h3>
+        <h3 className="modal-title">{t('me_titulo')}</h3>
         <div className="modal-body">
           <div className="modal-grid-2">
             <div className="form-field">
-              <label>Nome da Empresa</label>
+              <label>{t('me_nome')}</label>
               <input type="text" value={form.nome} onChange={e => set('nome', e.target.value)} placeholder="Ex: Posto Central" autoFocus />
             </div>
             <div className="form-field">
-              <label>Código da Empresa</label>
+              <label>{t('me_codigo')}</label>
               <input type="number" value={form.codigoEmpresa} onChange={e => set('codigoEmpresa', e.target.value)} placeholder="Ex: 7432" />
             </div>
           </div>
           <div className="form-field">
-            <label>Banco de Dados</label>
+            <label>{t('me_banco')}</label>
             <input type="text" value={form.banco} onChange={e => set('banco', e.target.value)} placeholder="Ex: ret_meavenida" />
           </div>
-          <div className="modal-section-label">Conexão personalizada (opcional)</div>
+          <div className="modal-section-label">{t('me_opcional')}</div>
           <div className="modal-grid-2">
             <div className="form-field">
-              <label>Host</label>
+              <label>{t('me_host')}</label>
               <input type="text" value={form.host} onChange={e => set('host', e.target.value)} placeholder="db.servidor.com" />
             </div>
             <div className="form-field">
-              <label>Porta</label>
+              <label>{t('me_porta')}</label>
               <input type="number" value={form.port} onChange={e => set('port', e.target.value)} placeholder="5432" />
             </div>
             <div className="form-field">
-              <label>Usuário DB</label>
+              <label>{t('me_usuario_db')}</label>
               <input type="text" value={form.dbUser} onChange={e => set('dbUser', e.target.value)} placeholder="postgres" autoComplete="off" />
             </div>
             <div className="form-field">
-              <label>Senha DB</label>
+              <label>{t('me_senha_db')}</label>
               <input type="password" value={form.dbPass} onChange={e => set('dbPass', e.target.value)} placeholder="••••••" autoComplete="new-password" />
             </div>
           </div>
           {erro && <p className="form-erro">{erro}</p>}
         </div>
         <div className="modal-footer">
-          <button className="btn-ghost" onClick={onClose}>Cancelar</button>
-          <button className="btn-primary" onClick={handleSave} disabled={loading}>{loading ? 'Conectando…' : 'Salvar'}</button>
+          <button className="btn-ghost" onClick={onClose}>{t('btn_cancelar')}</button>
+          <button className="btn-primary" onClick={handleSave} disabled={loading}>{loading ? t('me_conectando') : t('btn_salvar')}</button>
         </div>
       </div>
     </div>
@@ -91,6 +93,7 @@ function ModalEmpresa({ onSave, onClose }) {
 
 /* ── Seção Empresas ──────────────────────────────────────────────────────────── */
 function SecaoEmpresas() {
+  const { t } = useT();
   const [clientes, setClientes] = useState([]);
   const [loading, setLoading]   = useState(false);
   const [modal, setModal]       = useState(false);
@@ -107,7 +110,7 @@ function SecaoEmpresas() {
   function handleSave(saved) { setClientes(p => [...p, saved]); setModal(false); }
 
   async function handleDelete(cod) {
-    if (!window.confirm('Remover esta empresa?')) return;
+    if (!window.confirm(t('emp_remover'))) return;
     const res = await fetch(`${API_URL}/api/clients/${cod}`, { method: 'DELETE' });
     if (res.ok) setClientes(p => p.filter(c => c.codigoEmpresa !== cod));
   }
@@ -116,34 +119,35 @@ function SecaoEmpresas() {
     <div className="fade-up">
       <div className="param-section-header">
         <div>
-          <h3 className="param-section-title">Empresas / Licença</h3>
-          <p className="param-section-desc">Gerencie os postos conectados e suas credenciais de banco de dados.</p>
+          <h3 className="param-section-title">{t('emp_titulo')}</h3>
+          <p className="param-section-desc">{t('emp_desc')}</p>
         </div>
-        <button className="btn-primary" onClick={() => setModal(true)}>+ Adicionar</button>
+        <button className="btn-primary" onClick={() => setModal(true)}>{t('emp_adicionar')}</button>
       </div>
 
       <div className="param-card">
         <div className="param-table-wrap">
-          {loading ? <p className="rank-empty">Carregando…</p> : (
+          {loading ? <p className="rank-empty">{t('carregando')}</p> : (
             <table className="param-table">
               <thead>
                 <tr>
-                  <th>Empresa</th><th>Código</th><th>Banco</th><th>Conexão</th><th>Cadastrado</th>
-                  <th style={{ textAlign: 'right' }}>Ações</th>
+                  <th>{t('th_empresa')}</th><th>{t('th_codigo')}</th><th>{t('th_banco')}</th>
+                  <th>{t('th_conexao')}</th><th>{t('th_cadastrado')}</th>
+                  <th style={{ textAlign: 'right' }}>{t('th_acoes')}</th>
                 </tr>
               </thead>
               <tbody>
                 {clientes.length === 0
-                  ? <tr><td colSpan={6} className="rank-empty">Nenhuma empresa cadastrada</td></tr>
+                  ? <tr><td colSpan={6} className="rank-empty">{t('emp_nenhuma')}</td></tr>
                   : clientes.map(c => (
                     <tr key={c.id}>
                       <td className="gu-username">{c.nome}</td>
                       <td className="td-id">{c.codigoEmpresa}</td>
                       <td><code className="db-name">{c.banco}</code></td>
-                      <td><span className={`badge ${c.hasCustomHost ? 'badge-admin' : 'badge-user'}`}>{c.hasCustomHost ? 'Personalizada' : 'Padrão'}</span></td>
+                      <td><span className={`badge ${c.hasCustomHost ? 'badge-admin' : 'badge-user'}`}>{c.hasCustomHost ? t('con_personalizada') : t('con_padrao')}</span></td>
                       <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>{fmtDate(c.criado)}</td>
                       <td className="td-actions">
-                        <button className="icon-btn danger" title="Remover" onClick={() => handleDelete(c.codigoEmpresa)}>
+                        <button className="icon-btn danger" title={t('emp_remover')} onClick={() => handleDelete(c.codigoEmpresa)}>
                           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
                             <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
@@ -183,7 +187,6 @@ function FlagUS() {
       <rect y="14" width="38" height="2" fill="white"/>
       <rect y="18" width="38" height="2" fill="white"/>
       <rect y="22" width="38" height="2" fill="white"/>
-      <rect width="16" height="14" fill="#3C3B6E" rx="5" style={{ borderBottomRightRadius: 0, borderTopRightRadius: 0, borderBottomLeftRadius: 0 }}/>
       <rect width="16" height="14" fill="#3C3B6E"/>
       {[0,1,2,3,4].map(r => [0,1,2,3,4,5].slice(0,r%2===0?6:5).map((c,i) => (
         <circle key={`${r}${i}`} cx={c*2.5+(r%2===0?1:2.25)} cy={r*2.4+1.4} r="0.55" fill="white"/>
@@ -200,6 +203,28 @@ function FlagES() {
   );
 }
 
+/* ── Modal confirmação de idioma ─────────────────────────────────────────────── */
+function ConfirmLang({ idioma, onConfirm, onCancel }) {
+  const { t } = useT();
+  return (
+    <div className="modal-overlay" onClick={onCancel}>
+      <div className="modal" style={{ maxWidth: 380 }} onClick={e => e.stopPropagation()}>
+        <h3 className="modal-title">{t('lang_confirm_titulo')}</h3>
+        <div className="modal-body">
+          <div className="lang-confirm-preview">
+            <idioma.Flag />
+            <p className="lang-confirm-text">{t('lang_confirm_msg', idioma.nome)}</p>
+          </div>
+        </div>
+        <div className="modal-footer">
+          <button className="btn-ghost" onClick={onCancel}>{t('btn_cancelar')}</button>
+          <button className="btn-primary" onClick={onConfirm}>{t('lang_confirm_aplicar')}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ── Seção Sistema ───────────────────────────────────────────────────────────── */
 const IDIOMAS = [
   { key: 'pt-BR', Flag: FlagBR, nome: 'Português', regiao: 'Brasil',        tag: 'PT' },
@@ -208,30 +233,36 @@ const IDIOMAS = [
 ];
 
 function SecaoSistema() {
-  const [idioma, setIdioma] = useState(() => localStorage.getItem('pbi_lang') || 'pt-BR');
+  const { lang, t, applyLang } = useT();
+  const [pendingLang, setPendingLang] = useState(null);
 
-  function handleIdioma(key) {
-    setIdioma(key);
-    localStorage.setItem('pbi_lang', key);
+  function handleSelect(idioma) {
+    if (idioma.key === lang) return;
+    setPendingLang(idioma);
+  }
+
+  function handleConfirm() {
+    applyLang(pendingLang.key);
+    setPendingLang(null);
   }
 
   return (
     <div className="fade-up">
       <div className="param-section-header">
         <div>
-          <h3 className="param-section-title">Sistema</h3>
-          <p className="param-section-desc">Configurações gerais da plataforma.</p>
+          <h3 className="param-section-title">{t('sis_titulo')}</h3>
+          <p className="param-section-desc">{t('sis_desc')}</p>
         </div>
       </div>
 
       <div className="sys-group">
-        <p className="sys-group-title">Idioma da interface</p>
-        <p className="sys-group-desc">Selecione o idioma exibido no sistema.</p>
+        <p className="sys-group-title">{t('lang_titulo')}</p>
+        <p className="sys-group-desc">{t('lang_desc')}</p>
         <div className="lang-list">
           {IDIOMAS.map(l => {
-            const sel = idioma === l.key;
+            const sel = lang === l.key;
             return (
-              <button key={l.key} className={`lang-row${sel ? ' selected' : ''}`} onClick={() => handleIdioma(l.key)}>
+              <button key={l.key} className={`lang-row${sel ? ' selected' : ''}`} onClick={() => handleSelect(l)}>
                 <l.Flag />
                 <div className="lang-row-info">
                   <span className="lang-row-nome">{l.nome}</span>
@@ -246,40 +277,42 @@ function SecaoSistema() {
           })}
         </div>
       </div>
+
+      {pendingLang && (
+        <Portal>
+          <ConfirmLang idioma={pendingLang} onConfirm={handleConfirm} onCancel={() => setPendingLang(null)} />
+        </Portal>
+      )}
     </div>
   );
 }
 
 /* ── Sub-nav ─────────────────────────────────────────────────────────────────── */
-const SUB_PAGES = [
-  { key: 'empresas', label: 'Empresas' },
-  { key: 'sistema',  label: 'Sistema' },
-];
-
 export default function Parametros() {
+  const { t } = useT();
   const [sub, setSub] = useState('empresas');
+
+  const SUB_PAGES = [
+    { key: 'empresas', tk: 'param_empresas_menu' },
+    { key: 'sistema',  tk: 'param_sistema_menu' },
+  ];
 
   return (
     <div className="param-layout">
-      {/* Sub-sidebar */}
       <aside className="param-subnav">
-        <p className="param-subnav-label">Configurações</p>
+        <p className="param-subnav-label">{t('param_config')}</p>
         {SUB_PAGES.map(p => (
-          <button
-            key={p.key}
+          <button key={p.key}
             className={`param-subnav-item${sub === p.key ? ' active' : ''}`}
             onClick={() => setSub(p.key)}
-          >
-            {p.label}
-          </button>
+          >{t(p.tk)}</button>
         ))}
       </aside>
 
-      {/* Conteúdo */}
       <div className="param-content">
         <div className="param-content-header">
-          <h2 className="param-content-title">Parâmetros</h2>
-          <p className="param-content-desc">Configure parâmetros e preferências gerais do sistema.</p>
+          <h2 className="param-content-title">{t('param_titulo')}</h2>
+          <p className="param-content-desc">{t('param_desc')}</p>
         </div>
         {sub === 'empresas' && <SecaoEmpresas />}
         {sub === 'sistema'  && <SecaoSistema />}

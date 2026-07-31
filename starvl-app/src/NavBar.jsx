@@ -1,12 +1,14 @@
 import React from 'react';
+import { useT } from './i18n';
 
 const PAGES = [
-  { key: 'dashboard',  label: 'Dashboard' },
-  { key: 'usuarios',   label: 'Usuários' },
-  { key: 'parametros', label: 'Parâmetros' },
+  { key: 'dashboard',  tk: 'nav_dashboard' },
+  { key: 'usuarios',   tk: 'nav_usuarios' },
+  { key: 'parametros', tk: 'nav_parametros' },
 ];
 
 export default function NavBar({ page, onPageChange }) {
+  const { t } = useT();
   return (
     <aside className="sidebar">
       <nav className="sidebar-nav">
@@ -16,7 +18,7 @@ export default function NavBar({ page, onPageChange }) {
             className={`sidebar-item${page === p.key ? ' active' : ''}`}
             onClick={() => onPageChange(p.key)}
           >
-            {p.label}
+            {t(p.tk)}
           </button>
         ))}
       </nav>

@@ -5,6 +5,7 @@ import NavBar from './NavBar';
 import Dashboard from './Dashboard';
 import Usuarios from './Usuarios';
 import Parametros from './Parametros';
+import { LangProvider } from './i18n';
 import './App.css';
 
 const API_URL = process.env.REACT_APP_API_URL
@@ -73,6 +74,7 @@ export default function App() {
   if (!user) return <Login onLogin={handleLogin} />;
 
   return (
+    <LangProvider>
     <div className="app-root" data-theme={theme}>
       <TopBar
         user={user}
@@ -104,5 +106,6 @@ export default function App() {
         </div>
       </div>
     </div>
+    </LangProvider>
   );
 }

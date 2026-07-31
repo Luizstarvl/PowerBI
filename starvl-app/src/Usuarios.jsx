@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Portal from './Portal';
+import { useT } from './i18n';
 
 const API_URL = process.env.REACT_APP_API_URL
   || (window.location.hostname === 'localhost' ? 'http://localhost:3001' : '');
@@ -42,13 +43,13 @@ function CustomSelect({ value, onChange, options }) {
 }
 
 /* ── Toggle ───────────────────────────────────────────────────────────────────── */
-function Toggle({ checked, onChange }) {
+function Toggle({ checked, onChange, labelOn, labelOff }) {
   return (
     <label className="toggle-wrap">
       <div className={`toggle-track${checked ? ' on' : ''}`} onClick={() => onChange(!checked)}>
         <div className="toggle-thumb" />
       </div>
-      <span className="toggle-label">{checked ? 'Ativo' : 'Inativo'}</span>
+      <span className="toggle-label">{checked ? labelOn : labelOff}</span>
     </label>
   );
 }
@@ -70,6 +71,7 @@ function Avatar({ name, foto, size = 34 }) {
 
 /* ── Modal ────────────────────────────────────────────────────────────────────── */
 function ModalUsuario({ usuario, onSave, onClose }) {
+  const { t } = useT();
   const [form, setForm] = useState({
     usuario: usuario?.usuario || '',
     senha:   '',
@@ -87,8 +89,7 @@ function ModalUsuario({ usuario, onSave, onClose }) {
   function set(field, value) { setForm(f => ({ ...f, [field]: value })); }
 
   function setNome(value) {
-    const capitalized = value.replace(/\b\w/g, c => c.toUpperCase());
-    set('nome', capitalized);
+    set('nome', value.replace(/\b\w/g, c => c.toUpperCase()));
   }
 
   function handleFotoChange(e) {
@@ -100,27 +101,20 @@ function ModalUsuario({ usuario, onSave, onClose }) {
   }
 
   async function handleSave() {
-    if (!form.usuario.trim()) return setErro('Usuário é obrigatório.');
-    if (!isEdit && !form.senha.trim()) return setErro('Senha é obrigatória.');
+    if (!form.usuario.trim()) return setErro(t('mu_obrig_usuario'));
+    if (!isEdit && !form.senha.trim()) return setErro(t('mu_obrig_senha'));
     setErro(''); setLoading(true);
     try {
       const url = isEdit
         ? `${API_URL}/api/starvl-users/${usuario.id}`
         : `${API_URL}/api/starvl-users`;
-      const body = {
-        usuario: form.usuario.trim(),
-        perfil:  form.perfil,
-        nome:    form.nome.trim()  || null,
-        email:   form.email.trim() || null,
-        ativo,
-        foto,
-      };
+      const body = { usuario: form.usuario.trim(), perfil: form.perfil, nome: form.nome.trim() || null, email: form.email.trim() || null, ativo, foto };
       if (form.senha.trim()) body.senha = form.senha;
       const res  = await fetch(url, { method: isEdit ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       const data = await res.json();
-      if (!res.ok) return setErro(data.error || 'Erro ao salvar.');
+      if (!res.ok) return setErro(data.error || t('me_erro'));
       onSave(data);
-    } catch { setErro('Erro ao conectar ao servidor.'); }
+    } catch { setErro(t('mu_erro_conexao')); }
     finally { setLoading(false); }
   }
 
@@ -129,10 +123,8 @@ function ModalUsuario({ usuario, onSave, onClose }) {
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" style={{ maxWidth: 500 }} onClick={e => e.stopPropagation()}>
-        <h3 className="modal-title">{isEdit ? 'Editar Usuário' : 'Novo Usuário'}</h3>
+        <h3 className="modal-title">{isEdit ? t('mu_editar') : t('mu_novo')}</h3>
         <div className="modal-body">
-
-          {/* Foto */}
           <div className="modal-foto-area">
             <div className="modal-foto-wrap">
               {foto
@@ -149,50 +141,46 @@ function ModalUsuario({ usuario, onSave, onClose }) {
               </button>
             </div>
             <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFotoChange} />
-            {foto && <button type="button" className="modal-foto-remove" onClick={() => setFoto(null)}>Remover foto</button>}
+            {foto && <button type="button" className="modal-foto-remove" onClick={() => setFoto(null)}>{t('mu_remover_foto')}</button>}
           </div>
 
-          {/* Nome + Email */}
           <div className="modal-grid-2">
             <div className="form-field">
-              <label>Nome completo</label>
+              <label>{t('mu_nome')}</label>
               <input type="text" value={form.nome} onChange={e => setNome(e.target.value)} placeholder="Ex: João Silva" />
             </div>
             <div className="form-field">
-              <label>E-mail</label>
+              <label>{t('mu_email')}</label>
               <input type="email" value={form.email} onChange={e => set('email', e.target.value)} placeholder="joao@email.com" />
             </div>
           </div>
 
-          {/* Usuário + Perfil */}
           <div className="modal-grid-2">
             <div className="form-field">
-              <label>Usuário (login)</label>
+              <label>{t('mu_usuario')}</label>
               <input type="text" value={form.usuario} onChange={e => set('usuario', e.target.value)} placeholder="nome de usuário" autoFocus />
             </div>
             <div className="form-field">
-              <label>Perfil</label>
+              <label>{t('mu_perfil')}</label>
               <CustomSelect value={form.perfil} onChange={v => set('perfil', v)} options={PERFIS} />
             </div>
           </div>
 
-          {/* Senha */}
           <div className="form-field">
-            <label>{isEdit ? 'Nova senha (deixe em branco para manter)' : 'Senha'}</label>
+            <label>{isEdit ? t('mu_nova_senha') : t('mu_senha')}</label>
             <input type="password" value={form.senha} onChange={e => set('senha', e.target.value)} placeholder="••••••" />
           </div>
 
-          {/* Status */}
           <div className="form-field form-field-row">
-            <label>Status</label>
-            <Toggle checked={ativo} onChange={setAtivo} />
+            <label>{t('mu_status')}</label>
+            <Toggle checked={ativo} onChange={setAtivo} labelOn={t('status_ativo')} labelOff={t('status_inativo')} />
           </div>
 
           {erro && <p className="form-erro">{erro}</p>}
         </div>
         <div className="modal-footer">
-          <button className="btn-ghost" onClick={onClose}>Cancelar</button>
-          <button className="btn-primary" onClick={handleSave} disabled={loading}>{loading ? 'Salvando…' : 'Salvar'}</button>
+          <button className="btn-ghost" onClick={onClose}>{t('btn_cancelar')}</button>
+          <button className="btn-primary" onClick={handleSave} disabled={loading}>{loading ? t('mu_salvando') : t('btn_salvar')}</button>
         </div>
       </div>
     </div>
@@ -201,6 +189,7 @@ function ModalUsuario({ usuario, onSave, onClose }) {
 
 /* ── Página principal ─────────────────────────────────────────────────────────── */
 export default function Usuarios() {
+  const { t } = useT();
   const [usuarios, setUsuarios] = useState([]);
   const [loading,  setLoading]  = useState(false);
   const [modal,    setModal]    = useState(null);
@@ -226,20 +215,16 @@ export default function Usuarios() {
   }
 
   async function handleDelete(id) {
-    if (!window.confirm('Excluir este usuário?')) return;
+    if (!window.confirm(t('gu_excluir'))) return;
     await fetch(`${API_URL}/api/starvl-users/${id}`, { method: 'DELETE' });
     setUsuarios(prev => prev.filter(u => u.id !== id));
   }
 
   const filtrados = usuarios.filter(u => {
     const q = busca.toLowerCase();
-    return (
-      u.usuario.toLowerCase().includes(q) ||
-      (u.nome  || '').toLowerCase().includes(q) ||
-      (u.email || '').toLowerCase().includes(q)
-    );
+    return u.usuario.toLowerCase().includes(q) || (u.nome || '').toLowerCase().includes(q) || (u.email || '').toLowerCase().includes(q);
   });
-  const totalPages = Math.max(1, Math.ceil(filtrados.length / PER_PAGE));
+  const totalPages  = Math.max(1, Math.ceil(filtrados.length / PER_PAGE));
   const paginaAtual = Math.min(pagina, totalPages);
   const slice = filtrados.slice((paginaAtual - 1) * PER_PAGE, paginaAtual * PER_PAGE);
 
@@ -248,24 +233,20 @@ export default function Usuarios() {
 
   return (
     <main className="dashboard">
-
-      {/* Header */}
       <div className="gu-header">
-        <h2 className="gu-title">Gerenciamento de Usuários</h2>
+        <h2 className="gu-title">{t('gu_title')}</h2>
         <div className="gu-header-right">
           <div className="gu-search">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
             </svg>
-            <input type="text" placeholder="Buscar por nome, usuário ou e-mail…" value={busca}
-              autoComplete="off"
+            <input type="text" placeholder={t('gu_busca')} value={busca} autoComplete="off"
               onChange={e => { setBusca(e.target.value); setPagina(1); }} />
           </div>
-          <button className="btn-primary" onClick={() => setModal('novo')}>+ Adicionar Usuário</button>
+          <button className="btn-primary" onClick={() => setModal('novo')}>{t('gu_add')}</button>
         </div>
       </div>
 
-      {/* KPIs */}
       <div className="gu-kpis">
         <div className="gu-kpi">
           <div className="gu-kpi-icon" style={{ background: '#EFF6FF', color: '#2563EB' }}>
@@ -274,87 +255,69 @@ export default function Usuarios() {
               <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
             </svg>
           </div>
-          <div>
-            <p className="gu-kpi-label">Total de Usuários</p>
-            <p className="gu-kpi-value">{usuarios.length}</p>
-          </div>
+          <div><p className="gu-kpi-label">{t('gu_total')}</p><p className="gu-kpi-value">{usuarios.length}</p></div>
         </div>
         <div className="gu-kpi">
           <div className="gu-kpi-icon" style={{ background: '#F0FDF4', color: '#16A34A' }}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-              <polyline points="22 4 12 14.01 9 11.01"/>
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
             </svg>
           </div>
-          <div>
-            <p className="gu-kpi-label">Ativos</p>
-            <p className="gu-kpi-value">{totalAtivos}</p>
-          </div>
+          <div><p className="gu-kpi-label">{t('gu_ativos')}</p><p className="gu-kpi-value">{totalAtivos}</p></div>
         </div>
         <div className="gu-kpi">
           <div className="gu-kpi-icon" style={{ background: '#FFF1F2', color: '#DC2626' }}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10"/>
-              <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+              <circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
             </svg>
           </div>
-          <div>
-            <p className="gu-kpi-label">Inativos</p>
-            <p className="gu-kpi-value">{totalInativos}</p>
-          </div>
+          <div><p className="gu-kpi-label">{t('gu_inativos')}</p><p className="gu-kpi-value">{totalInativos}</p></div>
         </div>
       </div>
 
-      {/* Tabela */}
       <div className="param-group">
         <div className="param-table-wrap">
-          {loading ? (
-            <p className="rank-empty">Carregando…</p>
-          ) : (
+          {loading ? <p className="rank-empty">{t('carregando')}</p> : (
             <table className="param-table">
               <thead>
                 <tr>
                   <th style={{ width: 52 }}></th>
-                  <th>Nome / Usuário</th>
-                  <th>E-mail</th>
-                  <th>Perfil</th>
-                  <th>Status</th>
-                  <th style={{ textAlign: 'right' }}>Ações</th>
+                  <th>{t('th_nome_usuario')}</th>
+                  <th>{t('th_email')}</th>
+                  <th>{t('th_perfil')}</th>
+                  <th>{t('th_status')}</th>
+                  <th style={{ textAlign: 'right' }}>{t('th_acoes')}</th>
                 </tr>
               </thead>
               <tbody>
-                {slice.length === 0 ? (
-                  <tr><td colSpan={6} className="rank-empty">Nenhum usuário encontrado</td></tr>
-                ) : slice.map(u => (
-                  <tr key={u.id}>
-                    <td><Avatar name={u.usuario} foto={u.foto} /></td>
-                    <td>
-                      <p className="gu-username">{u.nome || u.usuario}</p>
-                      {u.nome && <p className="gu-subtext">@{u.usuario}</p>}
-                    </td>
-                    <td className="gu-subtext">{u.email || '—'}</td>
-                    <td><span className={`badge badge-${u.perfil}`}>{u.perfil}</span></td>
-                    <td>
-                      <span className={`badge ${u.ativo !== false ? 'badge-ativo' : 'badge-inativo'}`}>
-                        {u.ativo !== false ? 'Ativo' : 'Inativo'}
-                      </span>
-                    </td>
-                    <td className="td-actions">
-                      <button className="icon-btn" title="Editar" onClick={() => setModal(u)}>
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                        </svg>
-                      </button>
-                      <button className="icon-btn danger" title="Excluir" onClick={() => handleDelete(u.id)}>
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-                          <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
-                        </svg>
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {slice.length === 0
+                  ? <tr><td colSpan={6} className="rank-empty">{t('gu_nenhum')}</td></tr>
+                  : slice.map(u => (
+                    <tr key={u.id}>
+                      <td><Avatar name={u.usuario} foto={u.foto} /></td>
+                      <td>
+                        <p className="gu-username">{u.nome || u.usuario}</p>
+                        {u.nome && <p className="gu-subtext">@{u.usuario}</p>}
+                      </td>
+                      <td className="gu-subtext">{u.email || '—'}</td>
+                      <td><span className={`badge badge-${u.perfil}`}>{u.perfil}</span></td>
+                      <td><span className={`badge ${u.ativo !== false ? 'badge-ativo' : 'badge-inativo'}`}>{u.ativo !== false ? t('status_ativo') : t('status_inativo')}</span></td>
+                      <td className="td-actions">
+                        <button className="icon-btn" title={t('mu_editar')} onClick={() => setModal(u)}>
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                          </svg>
+                        </button>
+                        <button className="icon-btn danger" title="Excluir" onClick={() => handleDelete(u.id)}>
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                            <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+                          </svg>
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
               </tbody>
             </table>
           )}

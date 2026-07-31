@@ -1,16 +1,18 @@
 import React from 'react';
+import { useT } from './i18n';
 
 function initials(name) {
   return (name || '?').slice(0, 2).toUpperCase();
 }
 
 export default function TopBar({ user, clients, selectedClient, onClientChange, onLogout, theme, onThemeToggle }) {
+  const { t } = useT();
   return (
     <header className="topbar">
       <div className="topbar-brand">
         <span className="topbar-logo">PowerBI</span>
         <span className="topbar-divider" />
-        <span className="topbar-sub">Gestão de Postos</span>
+        <span className="topbar-sub">{t('topbar_sub')}</span>
       </div>
 
       <div className="topbar-controls">
@@ -53,7 +55,7 @@ export default function TopBar({ user, clients, selectedClient, onClientChange, 
               style={{ objectFit: 'cover' }} />
           : <div className="topbar-avatar" title={user?.usuario}>{initials(user?.usuario)}</div>
         }
-        <button className="topbar-logout" onClick={onLogout}>Sair</button>
+        <button className="topbar-logout" onClick={onLogout}>{t('topbar_logout')}</button>
       </div>
     </header>
   );

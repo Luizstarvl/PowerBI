@@ -230,6 +230,13 @@ body {
 .sys-group-title { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
 .sys-group-desc  { font-size: 12px; color: var(--text-muted); margin-bottom: 18px; }
 
+.lang-confirm-preview {
+  display: flex; align-items: center; gap: 14px;
+  background: var(--blue-soft); border: 1px solid var(--border);
+  border-radius: 10px; padding: 14px 16px;
+}
+.lang-confirm-text { font-size: 14px; color: var(--text); line-height: 1.5; }
+
 .lang-list { display: flex; flex-direction: column; gap: 8px; }
 
 .lang-row {
