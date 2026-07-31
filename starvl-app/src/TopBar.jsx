@@ -1,0 +1,46 @@
+import React from 'react';
+
+export default function TopBar({ user, clients, selectedClient, onClientChange, period, onPeriodChange, onLogout }) {
+  return (
+    <header className="topbar">
+      <div className="topbar-brand">
+        <span className="topbar-logo">PowerBI</span>
+        <span className="topbar-divider" />
+        <span className="topbar-sub">Gestão de Postos</span>
+      </div>
+
+      <div className="topbar-controls">
+        {clients.length > 1 && (
+          <select
+            className="topbar-select"
+            value={selectedClient?.codigoEmpresa || ''}
+            onChange={e => {
+              const c = clients.find(c => c.codigoEmpresa === parseInt(e.target.value));
+              if (c) onClientChange(c);
+            }}
+          >
+            {clients.map(c => (
+              <option key={c.codigoEmpresa} value={c.codigoEmpresa}>{c.nome}</option>
+            ))}
+          </select>
+        )}
+
+        {clients.length === 1 && (
+          <span className="topbar-client">{selectedClient?.nome}</span>
+        )}
+
+        <input
+          type="month"
+          className="topbar-month"
+          value={period}
+          onChange={e => onPeriodChange(e.target.value)}
+        />
+      </div>
+
+      <div className="topbar-user">
+        <span className="topbar-username">{user?.usuario}</span>
+        <button className="topbar-logout" onClick={onLogout}>Sair</button>
+      </div>
+    </header>
+  );
+}
