@@ -42,12 +42,23 @@ const API_URL = process.env.REACT_APP_API_URL
 const PER_PAGE = 8;
 const PERFIS = ['admin', 'user'];
 
-function Avatar({ name }) {
+const AVATAR_COLORS = ['#2563EB', '#16A34A', '#D97706', '#7C3AED', '#DC2626', '#0891B2'];
+
+function Avatar({ name, foto, size = 34 }) {
+  if (foto) {
+    return (
+      <img
+        className="user-avatar"
+        src={foto}
+        alt={name}
+        style={{ width: size, height: size, objectFit: 'cover', flexShrink: 0 }}
+      />
+    );
+  }
   const initials = (name || '?').slice(0, 2).toUpperCase();
-  const colors = ['#2563EB', '#16A34A', '#D97706', '#7C3AED', '#DC2626', '#0891B2'];
-  const color = colors[(name?.charCodeAt(0) || 0) % colors.length];
+  const color = AVATAR_COLORS[(name?.charCodeAt(0) || 0) % AVATAR_COLORS.length];
   return (
-    <div className="user-avatar" style={{ background: color }}>
+    <div className="user-avatar" style={{ background: color, width: size, height: size, fontSize: size * 0.35 }}>
       {initials}
     </div>
   );
@@ -59,11 +70,21 @@ function ModalUsuario({ usuario, onSave, onClose }) {
     senha: '',
     perfil: usuario?.perfil || 'user',
   });
+  const [foto, setFoto] = useState(usuario?.foto || null);
   const [erro, setErro] = useState('');
   const [loading, setLoading] = useState(false);
+  const fileRef = useRef(null);
   const isEdit = !!usuario;
 
   function set(field, value) { setForm(f => ({ ...f, [field]: value })); }
+
+  function handleFotoChange(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => setFoto(ev.target.result);
+    reader.readAsDataURL(file);
+  }
 
   async function handleSave() {
     if (!form.usuario.trim()) return setErro('Usuário é obrigatório.');
@@ -74,7 +95,7 @@ function ModalUsuario({ usuario, onSave, onClose }) {
       const url = isEdit
         ? `${API_URL}/api/starvl-users/${usuario.id}`
         : `${API_URL}/api/starvl-users`;
-      const body = { usuario: form.usuario.trim(), perfil: form.perfil };
+      const body = { usuario: form.usuario.trim(), perfil: form.perfil, foto };
       if (form.senha.trim()) body.senha = form.senha;
       const res = await fetch(url, {
         method: isEdit ? 'PUT' : 'POST',
@@ -91,11 +112,38 @@ function ModalUsuario({ usuario, onSave, onClose }) {
     }
   }
 
+  const avatarColor = AVATAR_COLORS[(form.usuario?.charCodeAt(0) || 0) % AVATAR_COLORS.length];
+
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={e => e.stopPropagation()}>
         <h3 className="modal-title">{isEdit ? 'Editar Usuário' : 'Novo Usuário'}</h3>
         <div className="modal-body">
+
+          {/* ── Foto ── */}
+          <div className="modal-foto-area">
+            <div className="modal-foto-wrap">
+              {foto
+                ? <img className="modal-foto-img" src={foto} alt="avatar" />
+                : (
+                  <div className="modal-foto-placeholder" style={{ background: avatarColor }}>
+                    {(form.usuario || '?').slice(0, 2).toUpperCase()}
+                  </div>
+                )
+              }
+              <button type="button" className="modal-foto-edit" onClick={() => fileRef.current?.click()} title="Alterar foto">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                  <circle cx="12" cy="13" r="4"/>
+                </svg>
+              </button>
+            </div>
+            <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFotoChange} />
+            {foto && (
+              <button type="button" className="modal-foto-remove" onClick={() => setFoto(null)}>Remover foto</button>
+            )}
+          </div>
+
           <div className="form-field">
             <label>Usuário</label>
             <input type="text" value={form.usuario} onChange={e => set('usuario', e.target.value)} placeholder="nome de usuário" autoFocus />
@@ -244,7 +292,7 @@ export default function Parametros() {
                   <tr><td colSpan={4} className="rank-empty">Nenhum usuário encontrado</td></tr>
                 ) : slice.map(u => (
                   <tr key={u.id}>
-                    <td><Avatar name={u.usuario} /></td>
+                    <td><Avatar name={u.usuario} foto={u.foto} /></td>
                     <td className="gu-username">{u.usuario}</td>
                     <td><span className={`badge badge-${u.perfil}`}>{u.perfil}</span></td>
                     <td className="td-actions">
