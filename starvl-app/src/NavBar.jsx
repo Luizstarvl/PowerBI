@@ -7,16 +7,18 @@ const PAGES = [
 
 export default function NavBar({ page, onPageChange }) {
   return (
-    <nav className="navbar">
-      {PAGES.map(p => (
-        <button
-          key={p.key}
-          className={`navbar-tab${page === p.key ? ' active' : ''}`}
-          onClick={() => onPageChange(p.key)}
-        >
-          {p.label}
-        </button>
-      ))}
-    </nav>
+    <aside className="sidebar">
+      <nav className="sidebar-nav">
+        {PAGES.map(p => (
+          <button
+            key={p.key}
+            className={`sidebar-item${page === p.key ? ' active' : ''}`}
+            onClick={() => onPageChange(p.key)}
+          >
+            {p.label}
+          </button>
+        ))}
+      </nav>
+    </aside>
   );
 }

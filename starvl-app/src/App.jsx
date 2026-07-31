@@ -67,9 +67,13 @@ export default function App() {
         theme={theme}
         onThemeToggle={handleThemeToggle}
       />
-      <NavBar page={page} onPageChange={setPage} />
-      {page === 'dashboard'  && <Dashboard empresa={selectedClient?.codigoEmpresa} period={period} />}
-      {page === 'parametros' && <Parametros />}
+      <div className="app-body">
+        <NavBar page={page} onPageChange={setPage} />
+        <div className="app-content">
+          {page === 'dashboard'  && <Dashboard empresa={selectedClient?.codigoEmpresa} period={period} />}
+          {page === 'parametros' && <Parametros />}
+        </div>
+      </div>
     </div>
   );
 }
