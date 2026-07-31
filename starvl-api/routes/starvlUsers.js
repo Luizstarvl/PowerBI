@@ -55,7 +55,7 @@ router.post('/auth', async (req, res) => {
   }
   try {
     const result = await pool.query(
-      `SELECT su_id, su_usuario, su_perfil, su_senha
+      `SELECT su_id, su_usuario, su_perfil, su_senha, su_foto
        FROM starvl_users
        WHERE LOWER(TRIM(su_usuario)) = LOWER(TRIM($1))
        LIMIT 1`,
@@ -87,7 +87,7 @@ router.post('/auth', async (req, res) => {
     if (!valid) {
       return res.status(401).json({ ok: false, error: 'Usuário ou senha inválidos.' });
     }
-    res.json({ ok: true, id: u.su_id, usuario: u.su_usuario, perfil: u.su_perfil });
+    res.json({ ok: true, id: u.su_id, usuario: u.su_usuario, perfil: u.su_perfil, foto: u.su_foto || null });
   } catch (err) {
     console.error('POST /starvl-users/auth:', err.message);
     res.status(500).json({ ok: false, error: 'Erro interno ao autenticar.' });

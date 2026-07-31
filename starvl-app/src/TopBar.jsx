@@ -48,9 +48,11 @@ export default function TopBar({ user, clients, selectedClient, onClientChange, 
             </svg>
           )}
         </button>
-        <div className="topbar-avatar" title={user?.usuario}>
-          {initials(user?.usuario)}
-        </div>
+        {user?.foto
+          ? <img className="topbar-avatar" src={user.foto} alt={user.usuario} title={user.usuario}
+              style={{ objectFit: 'cover' }} />
+          : <div className="topbar-avatar" title={user?.usuario}>{initials(user?.usuario)}</div>
+        }
         <button className="topbar-logout" onClick={onLogout}>Sair</button>
       </div>
     </header>
