@@ -77,11 +77,11 @@ function ModalEmpresa({ onSave, onClose }) {
             </div>
             <div className="form-field">
               <label>Usuário DB</label>
-              <input type="text" value={form.dbUser} onChange={e => set('dbUser', e.target.value)} placeholder="postgres" />
+              <input type="text" value={form.dbUser} onChange={e => set('dbUser', e.target.value)} placeholder="postgres" autoComplete="off" />
             </div>
             <div className="form-field">
               <label>Senha DB</label>
-              <input type="password" value={form.dbPass} onChange={e => set('dbPass', e.target.value)} placeholder="••••••" />
+              <input type="password" value={form.dbPass} onChange={e => set('dbPass', e.target.value)} placeholder="••••••" autoComplete="new-password" />
             </div>
           </div>
           {erro && <p className="form-erro">{erro}</p>}
