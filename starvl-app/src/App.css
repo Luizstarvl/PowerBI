@@ -244,6 +244,202 @@ body {
   color: var(--red);
 }
 
+/* ── Botões globais ──────────────────────────────────────────────────────────── */
+.btn-primary {
+  background: var(--blue);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: 'Poppins', sans-serif;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.btn-primary:hover:not(:disabled) { background: var(--blue-dark); }
+.btn-primary:disabled { opacity: 0.6; cursor: default; }
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text-muted);
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: 'Poppins', sans-serif;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+.btn-ghost:hover { border-color: var(--gray-dark); color: var(--gray-dark); }
+
+/* ── Modal ───────────────────────────────────────────────────────────────────── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+}
+
+.modal {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  width: 100%;
+  max-width: 400px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+}
+
+.modal-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--gray-dark);
+  padding: 20px 24px 0;
+}
+
+.modal-body {
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 0 24px 20px;
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.form-field label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--gray-dark);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.form-field input,
+.form-field select {
+  background: var(--bg);
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  padding: 9px 12px;
+  font-size: 14px;
+  font-family: 'Poppins', sans-serif;
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.form-field input:focus,
+.form-field select:focus { border-color: var(--blue); }
+
+.form-erro {
+  font-size: 13px;
+  color: var(--red);
+}
+
+/* ── Parâmetros ──────────────────────────────────────────────────────────────── */
+.param-group {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+
+.param-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.param-group-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--gray-dark);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.param-table-wrap {
+  overflow-x: auto;
+}
+
+.param-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.param-table th {
+  text-align: left;
+  padding: 10px 20px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+
+.param-table td {
+  padding: 12px 20px;
+  color: var(--text);
+  border-bottom: 1px solid var(--border);
+}
+
+.param-table tbody tr:last-child td { border-bottom: none; }
+.param-table tbody tr:hover { background: var(--bg); }
+
+.td-id { color: var(--text-muted); width: 48px; }
+
+.td-actions {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.action-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-family: 'Poppins', sans-serif;
+  color: var(--text-muted);
+  cursor: pointer;
+  margin-left: 6px;
+  transition: border-color 0.15s, color 0.15s;
+}
+.action-btn:hover { border-color: var(--blue); color: var(--blue); }
+.action-btn.danger:hover { border-color: var(--red); color: var(--red); }
+
+.badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+.badge-admin { background: #EFF6FF; color: var(--blue); }
+.badge-user  { background: #F0FDF4; color: var(--green); }
+
 /* ── Nav Bar ─────────────────────────────────────────────────────────────────── */
 .navbar {
   display: flex;
