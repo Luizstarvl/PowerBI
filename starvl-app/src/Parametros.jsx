@@ -14,8 +14,16 @@ function fmtDate(s) {
 function ModalEmpresa({ empresa, onSave, onClose }) {
   const { t }    = useT();
   const editando = !!empresa;
-  const [form, setForm]     = useState({ nome: empresa?.nome || '', codigoEmpresa: empresa?.codigoEmpresa || '' });
-  const [erro, setErro]     = useState('');
+  const [form, setForm] = useState({
+    nome:          empresa?.nome        || '',
+    codigoEmpresa: empresa?.codigoEmpresa || '',
+    cnpj:          empresa?.cnpj        || '',
+    ie:            empresa?.ie          || '',
+    endereco:      empresa?.endereco    || '',
+    contato:       empresa?.contato     || '',
+    responsavel:   empresa?.responsavel || '',
+  });
+  const [erro, setErro]       = useState('');
   const [loading, setLoading] = useState(false);
 
   function set(f, v) { setForm(p => ({ ...p, [f]: v })); }
@@ -25,16 +33,24 @@ function ModalEmpresa({ empresa, onSave, onClose }) {
     if (!editando && !form.codigoEmpresa) return setErro(t('me_obrig_cod'));
     setErro(''); setLoading(true);
     try {
+      const payload = {
+        nome:        form.nome.trim(),
+        cnpj:        form.cnpj.trim()        || undefined,
+        ie:          form.ie.trim()          || undefined,
+        endereco:    form.endereco.trim()    || undefined,
+        contato:     form.contato.trim()     || undefined,
+        responsavel: form.responsavel.trim() || undefined,
+      };
       const res = editando
         ? await fetch(`${API_URL}/api/clients/${empresa.codigoEmpresa}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ nome: form.nome.trim() }),
+            body: JSON.stringify(payload),
           })
         : await fetch(`${API_URL}/api/clients`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ nome: form.nome.trim(), codigoEmpresa: parseInt(form.codigoEmpresa) }),
+            body: JSON.stringify({ ...payload, codigoEmpresa: parseInt(form.codigoEmpresa) }),
           });
       const data = await res.json();
       if (!res.ok) return setErro(data.error || t('me_erro'));
@@ -48,24 +64,47 @@ function ModalEmpresa({ empresa, onSave, onClose }) {
       <div className="modal" onClick={e => e.stopPropagation()}>
         <h3 className="modal-title">{editando ? t('mu_editar') : t('me_titulo')}</h3>
         <div className="modal-body">
-          <div className={editando ? undefined : 'modal-grid-2'}>
+
+          {/* Identificação */}
+          <div className="modal-grid-2">
             <div className="form-field">
               <label>{t('me_nome')}</label>
-              <input type="text" value={form.nome} onChange={e => set('nome', e.target.value)} placeholder="Ex: Posto Central" autoFocus />
+              <input type="text" value={form.nome} onChange={e => set('nome', e.target.value)} placeholder="Ex: Posto Central" autoFocus autoComplete="off" />
             </div>
-            {!editando && (
-              <div className="form-field">
-                <label>{t('me_codigo')}</label>
-                <input type="number" value={form.codigoEmpresa} onChange={e => set('codigoEmpresa', e.target.value)} placeholder="Ex: 7432" />
-              </div>
-            )}
-            {editando && (
-              <div className="form-field">
-                <label>{t('me_codigo')}</label>
-                <input type="number" value={form.codigoEmpresa} disabled style={{ opacity: .5 }} />
-              </div>
-            )}
+            <div className="form-field">
+              <label>{t('me_codigo')}</label>
+              <input type="number" value={form.codigoEmpresa} onChange={e => set('codigoEmpresa', e.target.value)} placeholder="Ex: 7432" disabled={editando} style={editando ? { opacity: .5 } : undefined} />
+            </div>
           </div>
+
+          <div className="modal-grid-2">
+            <div className="form-field">
+              <label>{t('me_cnpj')}</label>
+              <input type="text" value={form.cnpj} onChange={e => set('cnpj', e.target.value)} placeholder="00.000.000/0000-00" autoComplete="off" />
+            </div>
+            <div className="form-field">
+              <label>{t('me_ie')}</label>
+              <input type="text" value={form.ie} onChange={e => set('ie', e.target.value)} placeholder="000.000.000.000" autoComplete="off" />
+            </div>
+          </div>
+
+          {/* Localização e contato */}
+          <div className="modal-section-label">{t('me_endereco')} &amp; {t('me_contato')}</div>
+          <div className="form-field">
+            <label>{t('me_endereco')}</label>
+            <input type="text" value={form.endereco} onChange={e => set('endereco', e.target.value)} placeholder="Rua, número, bairro, cidade — UF" autoComplete="off" />
+          </div>
+          <div className="modal-grid-2">
+            <div className="form-field">
+              <label>{t('me_contato')}</label>
+              <input type="text" value={form.contato} onChange={e => set('contato', e.target.value)} placeholder="(00) 00000-0000" autoComplete="off" />
+            </div>
+            <div className="form-field">
+              <label>{t('me_responsavel')}</label>
+              <input type="text" value={form.responsavel} onChange={e => set('responsavel', e.target.value)} placeholder="Nome do responsável" autoComplete="off" />
+            </div>
+          </div>
+
           {erro && <p className="form-erro">{erro}</p>}
         </div>
         <div className="modal-footer">

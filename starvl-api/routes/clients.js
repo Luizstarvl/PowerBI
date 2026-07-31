@@ -10,21 +10,34 @@ const { mainPool, registerClient, unregisterClient } = require('../db/poolManage
 // Garante que sc_banco pode ser NULL (empresa sem conexão configurada)
 mainPool.query(`ALTER TABLE starvl_clients ALTER COLUMN sc_banco DROP NOT NULL`).catch(() => {});
 
+// Colunas de dados cadastrais da empresa
+mainPool.query(`ALTER TABLE starvl_clients ADD COLUMN IF NOT EXISTS sc_cnpj        VARCHAR(20)`).catch(() => {});
+mainPool.query(`ALTER TABLE starvl_clients ADD COLUMN IF NOT EXISTS sc_ie          VARCHAR(30)`).catch(() => {});
+mainPool.query(`ALTER TABLE starvl_clients ADD COLUMN IF NOT EXISTS sc_endereco    TEXT`).catch(() => {});
+mainPool.query(`ALTER TABLE starvl_clients ADD COLUMN IF NOT EXISTS sc_contato     VARCHAR(100)`).catch(() => {});
+mainPool.query(`ALTER TABLE starvl_clients ADD COLUMN IF NOT EXISTS sc_responsavel VARCHAR(150)`).catch(() => {});
+
 const toPublic = r => ({
   id:            r.sc_id,
   nome:          r.sc_nome,
   codigoEmpresa: r.sc_codigo,
-  banco:         r.sc_banco || null,
+  banco:         r.sc_banco        || null,
   hasCustomHost: !!(r.sc_host),
   isConfigured:  !!(r.sc_banco),
   criado:        r.sc_criado,
+  cnpj:          r.sc_cnpj         || null,
+  ie:            r.sc_ie           || null,
+  endereco:      r.sc_endereco     || null,
+  contato:       r.sc_contato      || null,
+  responsavel:   r.sc_responsavel  || null,
 });
 
 // GET /api/clients
 router.get('/', async (req, res) => {
   try {
     const { rows } = await mainPool.query(
-      `SELECT sc_id, sc_nome, sc_codigo, sc_banco, sc_host, sc_criado
+      `SELECT sc_id, sc_nome, sc_codigo, sc_banco, sc_host, sc_criado,
+              sc_cnpj, sc_ie, sc_endereco, sc_contato, sc_responsavel
        FROM starvl_clients ORDER BY sc_id`
     );
     res.json(rows.map(toPublic));
@@ -37,7 +50,7 @@ router.get('/', async (req, res) => {
 // POST /api/clients — cadastra empresa (nome + código apenas; conexão configurada depois via PUT)
 // Body: { nome, codigoEmpresa }
 router.post('/', async (req, res) => {
-  const { nome, codigoEmpresa } = req.body;
+  const { nome, codigoEmpresa, cnpj, ie, endereco, contato, responsavel } = req.body;
 
   if (!nome?.trim() || !codigoEmpresa) {
     return res.status(400).json({ error: 'nome e codigoEmpresa são obrigatórios.' });
@@ -57,10 +70,11 @@ router.post('/', async (req, res) => {
     }
 
     const { rows } = await mainPool.query(
-      `INSERT INTO starvl_clients (sc_nome, sc_codigo)
-       VALUES ($1, $2)
-       RETURNING sc_id, sc_nome, sc_codigo, sc_banco, sc_host, sc_criado`,
-      [nome.trim(), codigo]
+      `INSERT INTO starvl_clients (sc_nome, sc_codigo, sc_cnpj, sc_ie, sc_endereco, sc_contato, sc_responsavel)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING sc_id, sc_nome, sc_codigo, sc_banco, sc_host, sc_criado,
+                 sc_cnpj, sc_ie, sc_endereco, sc_contato, sc_responsavel`,
+      [nome.trim(), codigo, cnpj?.trim()||null, ie?.trim()||null, endereco?.trim()||null, contato?.trim()||null, responsavel?.trim()||null]
     );
 
     console.log(`[clients] nova empresa: "${nome}" (código ${codigo})`);
@@ -79,14 +93,17 @@ router.patch('/:codigoEmpresa', async (req, res) => {
   const codigo = parseInt(req.params.codigoEmpresa);
   if (isNaN(codigo) || codigo <= 0) return res.status(400).json({ error: 'codigoEmpresa inválido.' });
 
-  const { nome } = req.body;
+  const { nome, cnpj, ie, endereco, contato, responsavel } = req.body;
   if (!nome?.trim()) return res.status(400).json({ error: 'nome é obrigatório.' });
 
   try {
     const { rows } = await mainPool.query(
-      `UPDATE starvl_clients SET sc_nome=$1 WHERE sc_codigo=$2
-       RETURNING sc_id, sc_nome, sc_codigo, sc_banco, sc_host, sc_criado`,
-      [nome.trim(), codigo]
+      `UPDATE starvl_clients
+       SET sc_nome=$1, sc_cnpj=$2, sc_ie=$3, sc_endereco=$4, sc_contato=$5, sc_responsavel=$6
+       WHERE sc_codigo=$7
+       RETURNING sc_id, sc_nome, sc_codigo, sc_banco, sc_host, sc_criado,
+                 sc_cnpj, sc_ie, sc_endereco, sc_contato, sc_responsavel`,
+      [nome.trim(), cnpj?.trim()||null, ie?.trim()||null, endereco?.trim()||null, contato?.trim()||null, responsavel?.trim()||null, codigo]
     );
     if (!rows.length) return res.status(404).json({ error: 'Empresa não encontrada.' });
     console.log(`[clients] empresa atualizada: "${nome}" (código ${codigo})`);
