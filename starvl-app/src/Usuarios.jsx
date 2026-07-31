@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import Portal from './Portal';
 
 const API_URL = process.env.REACT_APP_API_URL
   || (window.location.hostname === 'localhost' ? 'http://localhost:3001' : '');
@@ -253,11 +254,13 @@ export default function Parametros() {
       </div>
 
       {modal && (
-        <ModalUsuario
-          usuario={modal === 'novo' ? null : modal}
-          onSave={handleSave}
-          onClose={() => setModal(null)}
-        />
+        <Portal>
+          <ModalUsuario
+            usuario={modal === 'novo' ? null : modal}
+            onSave={handleSave}
+            onClose={() => setModal(null)}
+          />
+        </Portal>
       )}
     </main>
   );

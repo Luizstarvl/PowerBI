@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import Portal from './Portal';
 
 const API_URL = process.env.REACT_APP_API_URL
   || (window.location.hostname === 'localhost' ? 'http://localhost:3001' : '');
@@ -156,7 +157,7 @@ function SecaoEmpresas() {
           )}
         </div>
       </div>
-      {modal && <ModalEmpresa onSave={handleSave} onClose={() => setModal(false)} />}
+      {modal && <Portal><ModalEmpresa onSave={handleSave} onClose={() => setModal(false)} /></Portal>}
     </div>
   );
 }
