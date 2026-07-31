@@ -829,6 +829,28 @@ body {
 }
 .modal-foto-remove:hover { opacity: .75; }
 
+/* Logo da empresa — variante retangular do upload de foto */
+.emp-logo-wrap {
+  width: 120px;
+  height: 72px;
+  border-radius: 10px;
+}
+.emp-logo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 10px;
+  background: var(--card);
+}
+.emp-logo-placeholder {
+  width: 120px;
+  height: 72px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 /* ── Custom Select ───────────────────────────────────────────────────────────── */
 .csel { position: relative; }
 .csel-trigger {

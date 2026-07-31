@@ -14,19 +14,29 @@ function fmtDate(s) {
 function ModalEmpresa({ empresa, onSave, onClose }) {
   const { t }    = useT();
   const editando = !!empresa;
-  const [form, setForm] = useState({
-    nome:          empresa?.nome        || '',
+  const fileRef  = useRef(null);
+  const [logo, setLogo]   = useState(empresa?.logo || null);
+  const [form, setForm]   = useState({
+    nome:          empresa?.nome          || '',
     codigoEmpresa: empresa?.codigoEmpresa || '',
-    cnpj:          empresa?.cnpj        || '',
-    ie:            empresa?.ie          || '',
-    endereco:      empresa?.endereco    || '',
-    contato:       empresa?.contato     || '',
-    responsavel:   empresa?.responsavel || '',
+    cnpj:          empresa?.cnpj          || '',
+    ie:            empresa?.ie            || '',
+    endereco:      empresa?.endereco      || '',
+    contato:       empresa?.contato       || '',
+    responsavel:   empresa?.responsavel   || '',
   });
   const [erro, setErro]       = useState('');
   const [loading, setLoading] = useState(false);
 
   function set(f, v) { setForm(p => ({ ...p, [f]: v })); }
+
+  function handleLogoChange(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => setLogo(ev.target.result);
+    reader.readAsDataURL(file);
+  }
 
   async function handleSave() {
     if (!form.nome.trim()) return setErro(t('me_obrig_nome'));
@@ -35,6 +45,7 @@ function ModalEmpresa({ empresa, onSave, onClose }) {
     try {
       const payload = {
         nome:        form.nome.trim(),
+        logo:        logo || null,
         cnpj:        form.cnpj.trim()        || undefined,
         ie:          form.ie.trim()          || undefined,
         endereco:    form.endereco.trim()    || undefined,
@@ -64,6 +75,28 @@ function ModalEmpresa({ empresa, onSave, onClose }) {
       <div className="modal" onClick={e => e.stopPropagation()}>
         <h3 className="modal-title">{editando ? t('mu_editar') : t('me_titulo')}</h3>
         <div className="modal-body">
+
+          {/* Logo */}
+          <div className="modal-foto-area">
+            <div className="modal-foto-wrap emp-logo-wrap">
+              {logo
+                ? <img className="modal-foto-img emp-logo-img" src={logo} alt="logo" />
+                : <div className="modal-foto-placeholder emp-logo-placeholder">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: .4 }}>
+                      <rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
+                    </svg>
+                  </div>
+              }
+              <button type="button" className="modal-foto-edit" onClick={() => fileRef.current?.click()} title={t('me_logo')}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                  <circle cx="12" cy="13" r="4"/>
+                </svg>
+              </button>
+            </div>
+            <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleLogoChange} />
+            {logo && <button type="button" className="modal-foto-remove" onClick={() => setLogo(null)}>{t('me_remover_logo')}</button>}
+          </div>
 
           {/* Identificação */}
           <div className="modal-grid-2">
