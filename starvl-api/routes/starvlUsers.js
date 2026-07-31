@@ -20,9 +20,11 @@ pool.query(`
     su_criado     TIMESTAMPTZ  DEFAULT NOW(),
     su_atualizado TIMESTAMPTZ  DEFAULT NOW()
   )
-`).then(() =>
-  pool.query(`ALTER TABLE starvl_users ADD COLUMN IF NOT EXISTS su_foto TEXT`)
-).then(async () => {
+`).then(() => pool.query(`ALTER TABLE starvl_users ADD COLUMN IF NOT EXISTS su_foto   TEXT`))
+  .then(() => pool.query(`ALTER TABLE starvl_users ADD COLUMN IF NOT EXISTS su_nome   VARCHAR(150)`))
+  .then(() => pool.query(`ALTER TABLE starvl_users ADD COLUMN IF NOT EXISTS su_email  VARCHAR(150)`))
+  .then(() => pool.query(`ALTER TABLE starvl_users ADD COLUMN IF NOT EXISTS su_ativo  BOOLEAN NOT NULL DEFAULT true`))
+  .then(async () => {
   const { rows } = await pool.query('SELECT COUNT(*) AS n FROM starvl_users');
   if (parseInt(rows[0].n) === 0) {
     const hash = await bcrypt.hash('123456', SALT_ROUNDS);
@@ -35,8 +37,15 @@ pool.query(`
 }).catch(err => console.error('[starvl_users] ensureTable:', err.message));
 
 // Serializa usuário SEM expor a senha
-const toRow         = r => ({ id: r.su_id, usuario: r.su_usuario, perfil: r.su_perfil, foto: r.su_foto || null });
-const toRowInternal = r => ({ id: r.su_id, usuario: r.su_usuario, senha: '', perfil: r.su_perfil, foto: r.su_foto || null });
+const toRow = r => ({
+  id:      r.su_id,
+  usuario: r.su_usuario,
+  perfil:  r.su_perfil,
+  foto:    r.su_foto  || null,
+  nome:    r.su_nome  || null,
+  email:   r.su_email || null,
+  ativo:   r.su_ativo !== false,
+});
 
 // ── POST /api/starvl-users/auth ───────────────────────────────────────────────
 router.post('/auth', async (req, res) => {
@@ -89,7 +98,7 @@ router.post('/auth', async (req, res) => {
 router.get('/', async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT su_id, su_usuario, su_perfil, su_foto FROM starvl_users ORDER BY su_id`
+      `SELECT su_id, su_usuario, su_perfil, su_foto, su_nome, su_email, su_ativo FROM starvl_users ORDER BY su_id`
     );
     res.json(result.rows.map(toRow));
   } catch (err) {
@@ -100,16 +109,16 @@ router.get('/', async (req, res) => {
 
 // POST /api/starvl-users
 router.post('/', async (req, res) => {
-  const { usuario, senha, perfil, foto } = req.body;
+  const { usuario, senha, perfil, foto, nome, email, ativo } = req.body;
   if (!usuario?.trim() || !senha?.trim())
     return res.status(400).json({ error: 'usuario e senha são obrigatórios' });
   try {
     const hash = await bcrypt.hash(senha, SALT_ROUNDS);
     const result = await pool.query(
-      `INSERT INTO starvl_users (su_usuario, su_senha, su_perfil, su_foto)
-       VALUES ($1,$2,$3,$4)
-       RETURNING su_id, su_usuario, su_perfil, su_foto`,
-      [usuario.trim(), hash, perfil || 'user', foto || null]
+      `INSERT INTO starvl_users (su_usuario, su_senha, su_perfil, su_foto, su_nome, su_email, su_ativo)
+       VALUES ($1,$2,$3,$4,$5,$6,$7)
+       RETURNING su_id, su_usuario, su_perfil, su_foto, su_nome, su_email, su_ativo`,
+      [usuario.trim(), hash, perfil || 'user', foto || null, nome?.trim() || null, email?.trim() || null, ativo !== false]
     );
     res.status(201).json(toRow(result.rows[0]));
   } catch (err) {
@@ -122,26 +131,28 @@ router.post('/', async (req, res) => {
 // PUT /api/starvl-users/:id
 router.put('/:id', async (req, res) => {
   const id = parseInt(req.params.id);
-  const { usuario, senha, perfil, foto } = req.body;
+  const { usuario, senha, perfil, foto, nome, email, ativo } = req.body;
   if (!usuario?.trim()) return res.status(400).json({ error: 'usuario é obrigatório' });
+  const returning = `RETURNING su_id, su_usuario, su_perfil, su_foto, su_nome, su_email, su_ativo`;
+  const commonCols = [usuario.trim(), perfil || 'user', foto !== undefined ? foto : null, nome?.trim() || null, email?.trim() || null, ativo !== false];
   try {
     let result;
     if (senha && senha.trim()) {
       const hash = await bcrypt.hash(senha, SALT_ROUNDS);
       result = await pool.query(
         `UPDATE starvl_users
-         SET su_usuario=$1, su_senha=$2, su_perfil=$3, su_foto=$4, su_atualizado=NOW()
-         WHERE su_id=$5
-         RETURNING su_id, su_usuario, su_perfil, su_foto`,
-        [usuario.trim(), hash, perfil || 'user', foto !== undefined ? foto : null, id]
+         SET su_usuario=$1, su_senha=$2, su_perfil=$3, su_foto=$4, su_nome=$5, su_email=$6, su_ativo=$7, su_atualizado=NOW()
+         WHERE su_id=$8
+         ${returning}`,
+        [commonCols[0], hash, ...commonCols.slice(1), id]
       );
     } else {
       result = await pool.query(
         `UPDATE starvl_users
-         SET su_usuario=$1, su_perfil=$2, su_foto=$3, su_atualizado=NOW()
-         WHERE su_id=$4
-         RETURNING su_id, su_usuario, su_perfil, su_foto`,
-        [usuario.trim(), perfil || 'user', foto !== undefined ? foto : null, id]
+         SET su_usuario=$1, su_perfil=$2, su_foto=$3, su_nome=$4, su_email=$5, su_ativo=$6, su_atualizado=NOW()
+         WHERE su_id=$7
+         ${returning}`,
+        [...commonCols, id]
       );
     }
     if (!result.rows.length) return res.status(404).json({ error: 'Usuário não encontrado' });

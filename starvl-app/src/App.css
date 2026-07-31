@@ -396,8 +396,31 @@ body {
 .td-actions { text-align: right; white-space: nowrap; }
 
 .badge { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; }
-.badge-admin { background: var(--blue-soft);  color: var(--blue); }
-.badge-user  { background: var(--green-soft); color: var(--green); }
+.badge-admin   { background: var(--blue-soft);  color: var(--blue); }
+.badge-user    { background: var(--green-soft); color: var(--green); }
+.badge-ativo   { background: var(--green-soft); color: var(--green); }
+.badge-inativo { background: var(--red-soft);   color: var(--red); }
+
+.gu-subtext { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+/* ── Toggle switch ───────────────────────────────────────────────────────────── */
+.toggle-wrap  { display: inline-flex; align-items: center; gap: 10px; cursor: pointer; user-select: none; }
+.toggle-track {
+  width: 40px; height: 22px; border-radius: 11px;
+  background: var(--border); position: relative;
+  transition: background .2s; flex-shrink: 0; cursor: pointer;
+}
+.toggle-track.on { background: var(--green); }
+.toggle-thumb {
+  position: absolute; top: 3px; left: 3px;
+  width: 16px; height: 16px; border-radius: 50%;
+  background: #fff; transition: left .2s;
+  box-shadow: 0 1px 4px rgba(0,0,0,.25);
+}
+.toggle-track.on .toggle-thumb { left: 21px; }
+.toggle-label { font-size: 13px; font-weight: 600; color: var(--text-sub); }
+
+.form-field-row { flex-direction: row; align-items: center; justify-content: space-between; }
 
 .modal-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .modal-section-label { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.6px; padding-top: 4px; border-top: 1px solid var(--border); }
