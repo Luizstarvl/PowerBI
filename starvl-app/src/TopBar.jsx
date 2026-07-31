@@ -1,6 +1,6 @@
 import React from 'react';
 
-export default function TopBar({ user, clients, selectedClient, onClientChange, onLogout }) {
+export default function TopBar({ user, clients, selectedClient, onClientChange, onLogout, theme, onThemeToggle }) {
   return (
     <header className="topbar">
       <div className="topbar-brand">
@@ -31,6 +31,9 @@ export default function TopBar({ user, clients, selectedClient, onClientChange, 
       </div>
 
       <div className="topbar-user">
+        <button className="topbar-theme" onClick={onThemeToggle} title="Alternar tema">
+          {theme === 'dark' ? '☀️' : '🌙'}
+        </button>
         <span className="topbar-username">{user?.usuario}</span>
         <button className="topbar-logout" onClick={onLogout}>Sair</button>
       </div>

@@ -23,6 +23,7 @@ export default function App() {
   const [selectedClient, setSelectedClient] = useState(null);
   const [period] = useState(getCurrentPeriod);
   const [page, setPage] = useState('dashboard');
+  const [theme, setTheme] = useState(() => localStorage.getItem('pbi_theme') || 'light');
 
   useEffect(() => {
     if (!user) return;
@@ -42,6 +43,12 @@ export default function App() {
     setUser(data);
   }
 
+  function handleThemeToggle() {
+    const next = theme === 'light' ? 'dark' : 'light';
+    setTheme(next);
+    localStorage.setItem('pbi_theme', next);
+  }
+
   function handleLogout() {
     sessionStorage.removeItem('pbi_user');
     setUser(null);
@@ -50,13 +57,15 @@ export default function App() {
   if (!user) return <Login onLogin={handleLogin} />;
 
   return (
-    <div className="app-root">
+    <div className="app-root" data-theme={theme}>
       <TopBar
         user={user}
         clients={clients}
         selectedClient={selectedClient}
         onClientChange={setSelectedClient}
         onLogout={handleLogout}
+        theme={theme}
+        onThemeToggle={handleThemeToggle}
       />
       <NavBar page={page} onPageChange={setPage} />
       {page === 'dashboard'  && <Dashboard empresa={selectedClient?.codigoEmpresa} period={period} />}
