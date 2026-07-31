@@ -163,7 +163,20 @@ function SecaoEmpresas() {
 }
 
 /* ── Seção Sistema ───────────────────────────────────────────────────────────── */
+const IDIOMAS = [
+  { key: 'pt-BR', flag: '🇧🇷', nome: 'Português', regiao: 'Brasil' },
+  { key: 'en',    flag: '🇺🇸', nome: 'English',   regiao: 'United States' },
+  { key: 'es',    flag: '🇪🇸', nome: 'Español',   regiao: 'España' },
+];
+
 function SecaoSistema() {
+  const [idioma, setIdioma] = useState(() => localStorage.getItem('pbi_lang') || 'pt-BR');
+
+  function handleIdioma(key) {
+    setIdioma(key);
+    localStorage.setItem('pbi_lang', key);
+  }
+
   return (
     <div className="fade-up">
       <div className="param-section-header">
@@ -172,8 +185,30 @@ function SecaoSistema() {
           <p className="param-section-desc">Configurações gerais da plataforma.</p>
         </div>
       </div>
-      <div className="param-card" style={{ padding: '32px 24px', color: 'var(--text-muted)', fontSize: 13, textAlign: 'center' }}>
-        Em breve.
+
+      <div className="sys-group">
+        <p className="sys-group-title">Idioma da interface</p>
+        <p className="sys-group-desc">Selecione o idioma exibido no sistema.</p>
+        <div className="lang-grid">
+          {IDIOMAS.map(l => (
+            <button
+              key={l.key}
+              className={`lang-card${idioma === l.key ? ' selected' : ''}`}
+              onClick={() => handleIdioma(l.key)}
+            >
+              {idioma === l.key && (
+                <span className="lang-check">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12"/>
+                  </svg>
+                </span>
+              )}
+              <span className="lang-flag">{l.flag}</span>
+              <span className="lang-nome">{l.nome}</span>
+              <span className="lang-regiao">{l.regiao}</span>
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );
