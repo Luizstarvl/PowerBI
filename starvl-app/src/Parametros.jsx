@@ -219,7 +219,7 @@ function SecaoEmpresas() {
 }
 
 /* ── Menu de contexto (right-click) ─────────────────────────────────────────── */
-function ContextMenu({ x, y, onIncluir, onEditar, onExcluir, onClose }) {
+function ContextMenu({ x, y, empresa, onIncluir, onEditar, onExcluir, onClose }) {
   const { t }  = useT();
   const ref    = useRef(null);
 
@@ -253,21 +253,25 @@ function ContextMenu({ x, y, onIncluir, onEditar, onExcluir, onClose }) {
           </svg>
           {t('ctx_incluir')}
         </button>
-        <button className="ctx-item" onClick={() => { onEditar(); onClose(); }}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-          </svg>
-          {t('ctx_editar')}
-        </button>
-        <div className="ctx-divider" />
-        <button className="ctx-item danger" onClick={() => { onExcluir(); onClose(); }}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-            <path d="M10 11v6"/><path d="M14 11v6"/>
-          </svg>
-          {t('ctx_excluir')}
-        </button>
+        {empresa && (
+          <>
+            <button className="ctx-item" onClick={() => { onEditar(); onClose(); }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+              </svg>
+              {t('ctx_editar')}
+            </button>
+            <div className="ctx-divider" />
+            <button className="ctx-item danger" onClick={() => { onExcluir(); onClose(); }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                <path d="M10 11v6"/><path d="M14 11v6"/>
+              </svg>
+              {t('ctx_excluir')}
+            </button>
+          </>
+        )}
       </div>
     </Portal>
   );
@@ -418,7 +422,7 @@ function SecaoConexao() {
         <button className="btn-primary" onClick={() => setNova(true)}>{t('con2_adicionar')}</button>
       </div>
 
-      <div className="param-card">
+      <div className="param-card" onContextMenu={e => openCtx(e, null)}>
         <div className="param-table-wrap">
           {loading ? <p className="rank-empty">{t('carregando')}</p> : (
             <table className="param-table">
@@ -435,7 +439,7 @@ function SecaoConexao() {
                 {clientes.length === 0
                   ? <tr><td colSpan={5} className="rank-empty">{t('emp_nenhuma')}</td></tr>
                   : clientes.map(c => (
-                    <tr key={c.id} className="tr-ctx" onContextMenu={e => openCtx(e, c)}>
+                    <tr key={c.id} className="tr-ctx" onContextMenu={e => { e.stopPropagation(); openCtx(e, c); }}>
                       <td className="gu-username">{c.nome}</td>
                       <td className="td-id">{c.codigoEmpresa}</td>
                       <td>
@@ -477,10 +481,11 @@ function SecaoConexao() {
         <ContextMenu
           x={ctxMenu.x}
           y={ctxMenu.y}
+          empresa={ctxMenu.empresa}
           onClose={() => setCtxMenu(null)}
           onIncluir={() => setNova(true)}
           onEditar={() => setConfig(ctxMenu.empresa)}
-          onExcluir={() => handleDelete(ctxMenu.empresa.codigoEmpresa)}
+          onExcluir={() => handleDelete(ctxMenu.empresa?.codigoEmpresa)}
         />
       )}
     </div>
