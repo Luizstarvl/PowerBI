@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Login from './Login';
 import TopBar from './TopBar';
+import NavBar from './NavBar';
 import Dashboard from './Dashboard';
 import './App.css';
 
@@ -20,6 +21,7 @@ export default function App() {
   const [clients, setClients] = useState([]);
   const [selectedClient, setSelectedClient] = useState(null);
   const [period, setPeriod] = useState(getCurrentPeriod);
+  const [page, setPage] = useState('dashboard');
 
   useEffect(() => {
     if (!user) return;
@@ -57,7 +59,8 @@ export default function App() {
         onPeriodChange={setPeriod}
         onLogout={handleLogout}
       />
-      <Dashboard empresa={selectedClient?.codigoEmpresa} period={period} />
+      <NavBar page={page} onPageChange={setPage} />
+      {page === 'dashboard' && <Dashboard empresa={selectedClient?.codigoEmpresa} period={period} />}
     </div>
   );
 }
