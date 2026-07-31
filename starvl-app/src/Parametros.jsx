@@ -162,11 +162,49 @@ function SecaoEmpresas() {
   );
 }
 
+/* ── SVG Bandeiras ───────────────────────────────────────────────────────────── */
+function FlagBR() {
+  return (
+    <svg width="38" height="26" viewBox="0 0 38 26" style={{ borderRadius: 5, flexShrink: 0, display: 'block' }}>
+      <rect width="38" height="26" fill="#009B3A" rx="5"/>
+      <polygon points="19,3.5 34.5,13 19,22.5 3.5,13" fill="#FEDF00"/>
+      <circle cx="19" cy="13" r="6.5" fill="#002776"/>
+      <path d="M12.8,11 Q19,9.2 25.2,11.5" stroke="white" strokeWidth="1.1" fill="none" strokeLinecap="round"/>
+    </svg>
+  );
+}
+function FlagUS() {
+  return (
+    <svg width="38" height="26" viewBox="0 0 38 26" style={{ borderRadius: 5, flexShrink: 0, display: 'block' }}>
+      <rect width="38" height="26" fill="#B22234" rx="5"/>
+      <rect y="2"  width="38" height="2" fill="white"/>
+      <rect y="6"  width="38" height="2" fill="white"/>
+      <rect y="10" width="38" height="2" fill="white"/>
+      <rect y="14" width="38" height="2" fill="white"/>
+      <rect y="18" width="38" height="2" fill="white"/>
+      <rect y="22" width="38" height="2" fill="white"/>
+      <rect width="16" height="14" fill="#3C3B6E" rx="5" style={{ borderBottomRightRadius: 0, borderTopRightRadius: 0, borderBottomLeftRadius: 0 }}/>
+      <rect width="16" height="14" fill="#3C3B6E"/>
+      {[0,1,2,3,4].map(r => [0,1,2,3,4,5].slice(0,r%2===0?6:5).map((c,i) => (
+        <circle key={`${r}${i}`} cx={c*2.5+(r%2===0?1:2.25)} cy={r*2.4+1.4} r="0.55" fill="white"/>
+      )))}
+    </svg>
+  );
+}
+function FlagES() {
+  return (
+    <svg width="38" height="26" viewBox="0 0 38 26" style={{ borderRadius: 5, flexShrink: 0, display: 'block' }}>
+      <rect width="38" height="26" fill="#AA151B" rx="5"/>
+      <rect y="6.5" width="38" height="13" fill="#F1BF00"/>
+    </svg>
+  );
+}
+
 /* ── Seção Sistema ───────────────────────────────────────────────────────────── */
 const IDIOMAS = [
-  { key: 'pt-BR', flag: '🇧🇷', nome: 'Português', regiao: 'Brasil' },
-  { key: 'en',    flag: '🇺🇸', nome: 'English',   regiao: 'United States' },
-  { key: 'es',    flag: '🇪🇸', nome: 'Español',   regiao: 'España' },
+  { key: 'pt-BR', Flag: FlagBR, nome: 'Português', regiao: 'Brasil',        tag: 'PT' },
+  { key: 'en',    Flag: FlagUS, nome: 'English',   regiao: 'United States', tag: 'EN' },
+  { key: 'es',    Flag: FlagES, nome: 'Español',   regiao: 'España',        tag: 'ES' },
 ];
 
 function SecaoSistema() {
@@ -189,25 +227,23 @@ function SecaoSistema() {
       <div className="sys-group">
         <p className="sys-group-title">Idioma da interface</p>
         <p className="sys-group-desc">Selecione o idioma exibido no sistema.</p>
-        <div className="lang-grid">
-          {IDIOMAS.map(l => (
-            <button
-              key={l.key}
-              className={`lang-card${idioma === l.key ? ' selected' : ''}`}
-              onClick={() => handleIdioma(l.key)}
-            >
-              {idioma === l.key && (
-                <span className="lang-check">
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="20 6 9 17 4 12"/>
-                  </svg>
-                </span>
-              )}
-              <span className="lang-flag">{l.flag}</span>
-              <span className="lang-nome">{l.nome}</span>
-              <span className="lang-regiao">{l.regiao}</span>
-            </button>
-          ))}
+        <div className="lang-list">
+          {IDIOMAS.map(l => {
+            const sel = idioma === l.key;
+            return (
+              <button key={l.key} className={`lang-row${sel ? ' selected' : ''}`} onClick={() => handleIdioma(l.key)}>
+                <l.Flag />
+                <div className="lang-row-info">
+                  <span className="lang-row-nome">{l.nome}</span>
+                  <span className="lang-row-regiao">{l.regiao}</span>
+                </div>
+                <span className="lang-row-tag">{l.tag}</span>
+                <div className={`lang-radio${sel ? ' checked' : ''}`}>
+                  {sel && <div className="lang-radio-dot" />}
+                </div>
+              </button>
+            );
+          })}
         </div>
       </div>
     </div>
