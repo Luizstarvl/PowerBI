@@ -24,7 +24,15 @@ export default function App() {
   const [selectedClient, setSelectedClient] = useState(null);
   const [period] = useState(getCurrentPeriod);
   const [page, setPage] = useState('dashboard');
-  const [theme, setTheme] = useState(() => localStorage.getItem('pbi_theme') || 'light');
+  const [theme, setTheme] = useState(() => {
+    const saved = localStorage.getItem('pbi_theme') || 'light';
+    document.documentElement.setAttribute('data-theme', saved);
+    return saved;
+  });
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+  }, [theme]);
 
   useEffect(() => {
     if (!user) return;
@@ -48,6 +56,7 @@ export default function App() {
     const next = theme === 'light' ? 'dark' : 'light';
     setTheme(next);
     localStorage.setItem('pbi_theme', next);
+    document.documentElement.setAttribute('data-theme', next);
   }
 
   function handleLogout() {
