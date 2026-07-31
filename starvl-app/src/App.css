@@ -278,9 +278,16 @@ body {
   font-weight: 600;
 }
 
-/* ── Dashboard ───────────────────────────────────────────────────────────────── */
+/* ── Seções ──────────────────────────────────────────────────────────────────── */
 .dashboard {
   padding: 28px 24px;
+}
+
+.section-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--gray-dark);
+  margin-bottom: 24px;
 }
 
 .rank-grid {

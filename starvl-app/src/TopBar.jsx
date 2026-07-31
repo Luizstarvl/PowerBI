@@ -1,6 +1,6 @@
 import React from 'react';
 
-export default function TopBar({ user, clients, selectedClient, onClientChange, period, onPeriodChange, onLogout }) {
+export default function TopBar({ user, clients, selectedClient, onClientChange, onLogout }) {
   return (
     <header className="topbar">
       <div className="topbar-brand">
@@ -28,13 +28,6 @@ export default function TopBar({ user, clients, selectedClient, onClientChange, 
         {clients.length === 1 && (
           <span className="topbar-client">{selectedClient?.nome}</span>
         )}
-
-        <input
-          type="month"
-          className="topbar-month"
-          value={period}
-          onChange={e => onPeriodChange(e.target.value)}
-        />
       </div>
 
       <div className="topbar-user">

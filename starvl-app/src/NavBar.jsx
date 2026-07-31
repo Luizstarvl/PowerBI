@@ -1,7 +1,8 @@
 import React from 'react';
 
 const PAGES = [
-  { key: 'dashboard', label: 'Dashboard' },
+  { key: 'dashboard',  label: 'Dashboard' },
+  { key: 'parametros', label: 'Parâmetros' },
 ];
 
 export default function NavBar({ page, onPageChange }) {

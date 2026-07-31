@@ -3,6 +3,7 @@ import Login from './Login';
 import TopBar from './TopBar';
 import NavBar from './NavBar';
 import Dashboard from './Dashboard';
+import Parametros from './Parametros';
 import './App.css';
 
 const API_URL = process.env.REACT_APP_API_URL
@@ -20,7 +21,7 @@ export default function App() {
   });
   const [clients, setClients] = useState([]);
   const [selectedClient, setSelectedClient] = useState(null);
-  const [period, setPeriod] = useState(getCurrentPeriod);
+  const [period] = useState(getCurrentPeriod);
   const [page, setPage] = useState('dashboard');
 
   useEffect(() => {
@@ -55,12 +56,11 @@ export default function App() {
         clients={clients}
         selectedClient={selectedClient}
         onClientChange={setSelectedClient}
-        period={period}
-        onPeriodChange={setPeriod}
         onLogout={handleLogout}
       />
       <NavBar page={page} onPageChange={setPage} />
-      {page === 'dashboard' && <Dashboard empresa={selectedClient?.codigoEmpresa} period={period} />}
+      {page === 'dashboard'  && <Dashboard empresa={selectedClient?.codigoEmpresa} period={period} />}
+      {page === 'parametros' && <Parametros />}
     </div>
   );
 }
