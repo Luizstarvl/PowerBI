@@ -24,6 +24,7 @@ export default function App() {
   const [selectedClient, setSelectedClient] = useState(null);
   const [period] = useState(getCurrentPeriod);
   const [page, setPage] = useState('dashboard');
+  const [visited, setVisited] = useState(() => new Set(['dashboard']));
   const [theme, setTheme] = useState(() => {
     const saved = localStorage.getItem('pbi_theme') || 'light';
     document.documentElement.setAttribute('data-theme', saved);
@@ -59,6 +60,11 @@ export default function App() {
     document.documentElement.setAttribute('data-theme', next);
   }
 
+  function handlePageChange(newPage) {
+    setVisited(prev => { const s = new Set(prev); s.add(newPage); return s; });
+    setPage(newPage);
+  }
+
   function handleLogout() {
     sessionStorage.removeItem('pbi_user');
     setUser(null);
@@ -78,11 +84,23 @@ export default function App() {
         onThemeToggle={handleThemeToggle}
       />
       <div className="app-body">
-        <NavBar page={page} onPageChange={setPage} />
+        <NavBar page={page} onPageChange={handlePageChange} />
         <div className="app-content">
-          {page === 'dashboard'  && <Dashboard empresa={selectedClient?.codigoEmpresa} period={period} />}
-          {page === 'usuarios'   && <Usuarios />}
-          {page === 'parametros' && <Parametros />}
+          {visited.has('dashboard') && (
+            <div className={`page-slot${page === 'dashboard' ? ' page-active' : ''}`}>
+              <Dashboard empresa={selectedClient?.codigoEmpresa} period={period} />
+            </div>
+          )}
+          {visited.has('usuarios') && (
+            <div className={`page-slot${page === 'usuarios' ? ' page-active' : ''}`}>
+              <Usuarios />
+            </div>
+          )}
+          {visited.has('parametros') && (
+            <div className={`page-slot${page === 'parametros' ? ' page-active' : ''}`}>
+              <Parametros />
+            </div>
+          )}
         </div>
       </div>
     </div>
