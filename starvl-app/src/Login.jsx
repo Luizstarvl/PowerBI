@@ -34,42 +34,50 @@ export default function Login({ onLogin }) {
 
   return (
     <div className="login-bg">
-      <div className="login-card">
-        <div className="login-header">
-          <span className="login-title">PowerBI</span>
-          <span className="login-sub">Gestão de Postos</span>
+      <div className="login-panel">
+        <div className="login-panel-brand">
+          <div className="login-panel-logo">PowerBI</div>
+          <div className="login-panel-sub">Gestão de Postos</div>
         </div>
+        <div className="login-panel-footer">© 2026 STARVL</div>
+      </div>
 
-        <form className="login-form" onSubmit={handleSubmit}>
-          <div className="login-field">
-            <label>Usuário</label>
-            <input
-              type="text"
-              value={usuario}
-              onChange={e => setUsuario(e.target.value)}
-              placeholder="seu usuário"
-              autoFocus
-              autoComplete="username"
-            />
-          </div>
+      <div className="login-form-side">
+        <div className="login-form-inner">
+          <h2 className="login-form-title">Bem-vindo</h2>
+          <p className="login-form-desc">Acesse sua conta para continuar.</p>
 
-          <div className="login-field">
-            <label>Senha</label>
-            <input
-              type="password"
-              value={senha}
-              onChange={e => setSenha(e.target.value)}
-              placeholder="••••••"
-              autoComplete="current-password"
-            />
-          </div>
+          <form className="login-form" onSubmit={handleSubmit}>
+            <div className="login-field">
+              <label>Usuário</label>
+              <input
+                type="text"
+                value={usuario}
+                onChange={e => setUsuario(e.target.value)}
+                placeholder="seu usuário"
+                autoFocus
+                autoComplete="username"
+              />
+            </div>
 
-          {erro && <p className="login-erro">{erro}</p>}
+            <div className="login-field">
+              <label>Senha</label>
+              <input
+                type="password"
+                value={senha}
+                onChange={e => setSenha(e.target.value)}
+                placeholder="••••••"
+                autoComplete="current-password"
+              />
+            </div>
 
-          <button type="submit" className="login-btn" disabled={loading}>
-            {loading ? 'Entrando…' : 'Entrar'}
-          </button>
-        </form>
+            {erro && <p className="login-erro">{erro}</p>}
+
+            <button type="submit" className="login-btn" disabled={loading}>
+              {loading ? 'Entrando…' : 'Entrar'}
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   );

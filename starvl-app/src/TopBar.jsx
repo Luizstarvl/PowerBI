@@ -1,5 +1,9 @@
 import React from 'react';
 
+function initials(name) {
+  return (name || '?').slice(0, 2).toUpperCase();
+}
+
 export default function TopBar({ user, clients, selectedClient, onClientChange, onLogout, theme, onThemeToggle }) {
   return (
     <header className="topbar">
@@ -24,7 +28,6 @@ export default function TopBar({ user, clients, selectedClient, onClientChange, 
             ))}
           </select>
         )}
-
         {clients.length === 1 && (
           <span className="topbar-client">{selectedClient?.nome}</span>
         )}
@@ -34,7 +37,9 @@ export default function TopBar({ user, clients, selectedClient, onClientChange, 
         <button className="topbar-theme" onClick={onThemeToggle} title="Alternar tema">
           {theme === 'dark' ? '☀️' : '🌙'}
         </button>
-        <span className="topbar-username">{user?.usuario}</span>
+        <div className="topbar-avatar" title={user?.usuario}>
+          {initials(user?.usuario)}
+        </div>
         <button className="topbar-logout" onClick={onLogout}>Sair</button>
       </div>
     </header>
