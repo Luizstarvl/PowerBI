@@ -72,33 +72,43 @@ function ModalEmpresa({ empresa, onSave, onClose }) {
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={e => e.stopPropagation()}>
+      <div className="modal modal--empresa" onClick={e => e.stopPropagation()}>
         <h3 className="modal-title">{editando ? t('mu_editar') : t('me_titulo')}</h3>
-        <div className="modal-body">
+        <div className="modal-body modal-body--empresa">
 
-          {/* Logo */}
-          <div className="modal-foto-area">
-            <div className="modal-foto-wrap emp-logo-wrap">
-              {logo
-                ? <img className="modal-foto-img emp-logo-img" src={logo} alt="logo" />
-                : <div className="modal-foto-placeholder emp-logo-placeholder">
-                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: .4 }}>
-                      <rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
-                    </svg>
-                  </div>
-              }
-              <button type="button" className="modal-foto-edit" onClick={() => fileRef.current?.click()} title={t('me_logo')}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-                  <circle cx="12" cy="13" r="4"/>
+          {/* Drop zone de logo */}
+          <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleLogoChange} />
+          <div className={`emp-logo-zone${logo ? ' emp-logo-zone--filled' : ''}`} onClick={() => fileRef.current?.click()}>
+            {logo ? (
+              <>
+                <img className="emp-logo-preview-img" src={logo} alt="logo" />
+                <div className="emp-logo-overlay">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                    <circle cx="12" cy="13" r="4"/>
+                  </svg>
+                  <span>Alterar imagem</span>
+                </div>
+              </>
+            ) : (
+              <div className="emp-logo-empty">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/>
+                  <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/>
                 </svg>
-              </button>
-            </div>
-            <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleLogoChange} />
-            {logo && <button type="button" className="modal-foto-remove" onClick={() => setLogo(null)}>{t('me_remover_logo')}</button>}
+                <p className="emp-logo-empty-title">{t('me_logo')}</p>
+                <p className="emp-logo-empty-sub">PNG, JPG, SVG — clique para enviar</p>
+              </div>
+            )}
           </div>
+          {logo && (
+            <button type="button" className="emp-logo-remove-btn" onClick={e => { e.stopPropagation(); setLogo(null); }}>
+              {t('me_remover_logo')}
+            </button>
+          )}
 
           {/* Identificação */}
+          <div className="emp-sec-title">Identificação</div>
           <div className="modal-grid-2">
             <div className="form-field">
               <label>{t('me_nome')}</label>
@@ -106,10 +116,9 @@ function ModalEmpresa({ empresa, onSave, onClose }) {
             </div>
             <div className="form-field">
               <label>{t('me_codigo')}</label>
-              <input type="number" value={form.codigoEmpresa} onChange={e => set('codigoEmpresa', e.target.value)} placeholder="Ex: 7432" disabled={editando} style={editando ? { opacity: .5 } : undefined} />
+              <input type="number" value={form.codigoEmpresa} onChange={e => set('codigoEmpresa', e.target.value)} placeholder="Ex: 7432" disabled={editando} style={editando ? { opacity: .45 } : undefined} />
             </div>
           </div>
-
           <div className="modal-grid-2">
             <div className="form-field">
               <label>{t('me_cnpj')}</label>
@@ -121,8 +130,8 @@ function ModalEmpresa({ empresa, onSave, onClose }) {
             </div>
           </div>
 
-          {/* Localização e contato */}
-          <div className="modal-section-label">{t('me_endereco')} &amp; {t('me_contato')}</div>
+          {/* Localização & Contato */}
+          <div className="emp-sec-title">Localização &amp; Contato</div>
           <div className="form-field">
             <label>{t('me_endereco')}</label>
             <input type="text" value={form.endereco} onChange={e => set('endereco', e.target.value)} placeholder="Rua, número, bairro, cidade — UF" autoComplete="off" />
