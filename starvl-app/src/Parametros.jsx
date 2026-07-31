@@ -5,45 +5,38 @@ const API_URL = process.env.REACT_APP_API_URL
 
 function fmtDate(s) {
   if (!s) return '—';
-  const d = new Date(s);
-  return d.toLocaleDateString('pt-BR');
+  return new Date(s).toLocaleDateString('pt-BR');
 }
 
+/* ── Modal Nova Empresa ──────────────────────────────────────────────────────── */
 function ModalEmpresa({ onSave, onClose }) {
   const [form, setForm] = useState({ nome: '', codigoEmpresa: '', banco: '', host: '', port: '', dbUser: '', dbPass: '' });
   const [erro, setErro] = useState('');
   const [loading, setLoading] = useState(false);
 
-  function set(field, value) { setForm(f => ({ ...f, [field]: value })); }
+  function set(f, v) { setForm(p => ({ ...p, [f]: v })); }
 
   async function handleSave() {
-    if (!form.nome.trim()) return setErro('Nome é obrigatório.');
-    if (!form.codigoEmpresa) return setErro('Código da empresa é obrigatório.');
-    if (!form.banco.trim()) return setErro('Nome do banco é obrigatório.');
-    setErro('');
-    setLoading(true);
+    if (!form.nome.trim())        return setErro('Nome é obrigatório.');
+    if (!form.codigoEmpresa)      return setErro('Código da empresa é obrigatório.');
+    if (!form.banco.trim())       return setErro('Nome do banco é obrigatório.');
+    setErro(''); setLoading(true);
     try {
       const res = await fetch(`${API_URL}/api/clients`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          nome: form.nome.trim(),
-          codigoEmpresa: parseInt(form.codigoEmpresa),
+          nome: form.nome.trim(), codigoEmpresa: parseInt(form.codigoEmpresa),
           banco: form.banco.trim(),
-          host: form.host.trim() || undefined,
-          port: form.port || undefined,
-          dbUser: form.dbUser.trim() || undefined,
-          dbPass: form.dbPass || undefined,
+          host: form.host.trim() || undefined, port: form.port || undefined,
+          dbUser: form.dbUser.trim() || undefined, dbPass: form.dbPass || undefined,
         }),
       });
       const data = await res.json();
       if (!res.ok) return setErro(data.error || 'Erro ao salvar.');
       onSave(data);
-    } catch {
-      setErro('Erro ao conectar ao servidor.');
-    } finally {
-      setLoading(false);
-    }
+    } catch { setErro('Erro ao conectar ao servidor.'); }
+    finally { setLoading(false); }
   }
 
   return (
@@ -69,7 +62,7 @@ function ModalEmpresa({ onSave, onClose }) {
           <div className="modal-grid-2">
             <div className="form-field">
               <label>Host</label>
-              <input type="text" value={form.host} onChange={e => set('host', e.target.value)} placeholder="Ex: db.servidor.com" />
+              <input type="text" value={form.host} onChange={e => set('host', e.target.value)} placeholder="db.servidor.com" />
             </div>
             <div className="form-field">
               <label>Porta</label>
@@ -88,100 +81,137 @@ function ModalEmpresa({ onSave, onClose }) {
         </div>
         <div className="modal-footer">
           <button className="btn-ghost" onClick={onClose}>Cancelar</button>
-          <button className="btn-primary" onClick={handleSave} disabled={loading}>
-            {loading ? 'Conectando…' : 'Salvar'}
-          </button>
+          <button className="btn-primary" onClick={handleSave} disabled={loading}>{loading ? 'Conectando…' : 'Salvar'}</button>
         </div>
       </div>
     </div>
   );
 }
 
-export default function Parametros() {
+/* ── Seção Empresas ──────────────────────────────────────────────────────────── */
+function SecaoEmpresas() {
   const [clientes, setClientes] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [modal, setModal] = useState(false);
+  const [loading, setLoading]   = useState(false);
+  const [modal, setModal]       = useState(false);
 
   useEffect(() => {
     setLoading(true);
     fetch(`${API_URL}/api/clients`)
       .then(r => r.json())
-      .then(data => setClientes(Array.isArray(data) ? data : []))
+      .then(d => setClientes(Array.isArray(d) ? d : []))
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
 
-  function handleSave(saved) {
-    setClientes(prev => [...prev, saved]);
-    setModal(false);
-  }
+  function handleSave(saved) { setClientes(p => [...p, saved]); setModal(false); }
 
-  async function handleDelete(codigoEmpresa) {
-    if (!window.confirm('Remover esta empresa? A conexão com o banco será encerrada.')) return;
-    const res = await fetch(`${API_URL}/api/clients/${codigoEmpresa}`, { method: 'DELETE' });
-    if (res.ok) setClientes(prev => prev.filter(c => c.codigoEmpresa !== codigoEmpresa));
+  async function handleDelete(cod) {
+    if (!window.confirm('Remover esta empresa?')) return;
+    const res = await fetch(`${API_URL}/api/clients/${cod}`, { method: 'DELETE' });
+    if (res.ok) setClientes(p => p.filter(c => c.codigoEmpresa !== cod));
   }
 
   return (
-    <main className="dashboard">
-      <h2 className="section-title">Parâmetros</h2>
-
-      {/* ── Empresas / Licença ── */}
-      <div className="param-group">
-        <div className="param-group-header">
-          <div>
-            <span className="param-group-title">Empresas / Licença</span>
-            <p className="param-group-desc">Gerencie os postos conectados e suas credenciais de banco de dados.</p>
-          </div>
-          <button className="btn-primary" onClick={() => setModal(true)}>+ Adicionar Empresa</button>
+    <div className="fade-up">
+      <div className="param-section-header">
+        <div>
+          <h3 className="param-section-title">Empresas / Licença</h3>
+          <p className="param-section-desc">Gerencie os postos conectados e suas credenciais de banco de dados.</p>
         </div>
+        <button className="btn-primary" onClick={() => setModal(true)}>+ Adicionar</button>
+      </div>
 
+      <div className="param-card">
         <div className="param-table-wrap">
-          {loading ? (
-            <p className="rank-empty">Carregando…</p>
-          ) : (
+          {loading ? <p className="rank-empty">Carregando…</p> : (
             <table className="param-table">
               <thead>
                 <tr>
-                  <th>Empresa</th>
-                  <th>Código</th>
-                  <th>Banco</th>
-                  <th>Conexão</th>
-                  <th>Cadastrado em</th>
+                  <th>Empresa</th><th>Código</th><th>Banco</th><th>Conexão</th><th>Cadastrado</th>
                   <th style={{ textAlign: 'right' }}>Ações</th>
                 </tr>
               </thead>
               <tbody>
-                {clientes.length === 0 ? (
-                  <tr><td colSpan={6} className="rank-empty">Nenhuma empresa cadastrada</td></tr>
-                ) : clientes.map(c => (
-                  <tr key={c.id}>
-                    <td className="gu-username">{c.nome}</td>
-                    <td className="td-id">{c.codigoEmpresa}</td>
-                    <td><code className="db-name">{c.banco}</code></td>
-                    <td>
-                      <span className={`badge ${c.hasCustomHost ? 'badge-admin' : 'badge-user'}`}>
-                        {c.hasCustomHost ? 'Personalizada' : 'Padrão'}
-                      </span>
-                    </td>
-                    <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>{fmtDate(c.criado)}</td>
-                    <td className="td-actions">
-                      <button className="icon-btn danger" title="Remover" onClick={() => handleDelete(c.codigoEmpresa)}>
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-                          <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
-                        </svg>
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {clientes.length === 0
+                  ? <tr><td colSpan={6} className="rank-empty">Nenhuma empresa cadastrada</td></tr>
+                  : clientes.map(c => (
+                    <tr key={c.id}>
+                      <td className="gu-username">{c.nome}</td>
+                      <td className="td-id">{c.codigoEmpresa}</td>
+                      <td><code className="db-name">{c.banco}</code></td>
+                      <td><span className={`badge ${c.hasCustomHost ? 'badge-admin' : 'badge-user'}`}>{c.hasCustomHost ? 'Personalizada' : 'Padrão'}</span></td>
+                      <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>{fmtDate(c.criado)}</td>
+                      <td className="td-actions">
+                        <button className="icon-btn danger" title="Remover" onClick={() => handleDelete(c.codigoEmpresa)}>
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                            <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+                          </svg>
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
               </tbody>
             </table>
           )}
         </div>
       </div>
-
       {modal && <ModalEmpresa onSave={handleSave} onClose={() => setModal(false)} />}
-    </main>
+    </div>
+  );
+}
+
+/* ── Seção Sistema ───────────────────────────────────────────────────────────── */
+function SecaoSistema() {
+  return (
+    <div className="fade-up">
+      <div className="param-section-header">
+        <div>
+          <h3 className="param-section-title">Sistema</h3>
+          <p className="param-section-desc">Configurações gerais da plataforma.</p>
+        </div>
+      </div>
+      <div className="param-card" style={{ padding: '32px 24px', color: 'var(--text-muted)', fontSize: 13, textAlign: 'center' }}>
+        Em breve.
+      </div>
+    </div>
+  );
+}
+
+/* ── Sub-nav ─────────────────────────────────────────────────────────────────── */
+const SUB_PAGES = [
+  { key: 'empresas', label: 'Empresas' },
+  { key: 'sistema',  label: 'Sistema' },
+];
+
+export default function Parametros() {
+  const [sub, setSub] = useState('empresas');
+
+  return (
+    <div className="param-layout">
+      {/* Sub-sidebar */}
+      <aside className="param-subnav">
+        <p className="param-subnav-label">Configurações</p>
+        {SUB_PAGES.map(p => (
+          <button
+            key={p.key}
+            className={`param-subnav-item${sub === p.key ? ' active' : ''}`}
+            onClick={() => setSub(p.key)}
+          >
+            {p.label}
+          </button>
+        ))}
+      </aside>
+
+      {/* Conteúdo */}
+      <div className="param-content">
+        <div className="param-content-header">
+          <h2 className="param-content-title">Parâmetros</h2>
+          <p className="param-content-desc">Configure parâmetros e preferências gerais do sistema.</p>
+        </div>
+        {sub === 'empresas' && <SecaoEmpresas />}
+        {sub === 'sistema'  && <SecaoSistema />}
+      </div>
+    </div>
   );
 }
