@@ -8,7 +8,6 @@ const pool = require('./db/pool');
 const poolManager = require('./db/poolManager');
 
 const dashboardRoutes     = require('./routes/dashboard');
-const lmcRoutes           = require('./routes/lmc');
 const estoqueRoutes       = require('./routes/estoque');
 const relatoriosRoutes    = require('./routes/relatorios');
 const receberRoutes       = require('./routes/receber');
@@ -18,7 +17,6 @@ const contaCorrenteRoutes = require('./routes/contaCorrente');
 const imagensRoutes       = require('./routes/imagens');
 const starvlUsersRoutes   = require('./routes/starvlUsers');
 const clientsRoutes       = require('./routes/clients');
-const lmcStarvlRoutes     = require('./routes/lmcStarvl');
 const goalsRoutes         = require('./routes/goals');
 
 const app = express();
@@ -131,7 +129,6 @@ app.get('/api/test-empresa', async (req, res) => {
 });
 
 app.use('/api/dashboard', dashboardRoutes);
-app.use('/api/lmc', lmcRoutes);
 app.use('/api/estoque', estoqueRoutes);
 app.use('/api/receber', receberRoutes);
 app.use('/api/pagar',   pagarRoutes);
@@ -141,7 +138,6 @@ app.use('/api/relatorios', relatoriosRoutes);
 app.use('/api/imagens',        imagensRoutes);
 app.use('/api/starvl-users',   starvlUsersRoutes);
 app.use('/api/clients',        clientsRoutes);
-app.use('/api/lmc-starvl',    lmcStarvlRoutes);
 app.use('/api/goals',          goalsRoutes);
 
 if (fs.existsSync(clientBuildPath)) {
