@@ -218,12 +218,109 @@ function SecaoEmpresas() {
   );
 }
 
+/* ── Modal Nova Conexão (empresa + banco em um único fluxo) ──────────────────── */
+function ModalNovaConexao({ onSave, onClose }) {
+  const { t } = useT();
+  const [form, setForm] = useState({ nome: '', codigoEmpresa: '', banco: '', host: '', port: '', dbUser: '', dbPass: '' });
+  const [erro, setErro]     = useState('');
+  const [loading, setLoading] = useState(false);
+
+  function set(f, v) { setForm(p => ({ ...p, [f]: v })); }
+
+  async function handleSave() {
+    if (!form.nome.trim())    return setErro(t('me_obrig_nome'));
+    if (!form.codigoEmpresa)  return setErro(t('me_obrig_cod'));
+    if (!form.banco.trim())   return setErro(t('con2_obrig_banco'));
+    setErro(''); setLoading(true);
+    try {
+      // 1. Cria a empresa
+      const r1 = await fetch(`${API_URL}/api/clients`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nome: form.nome.trim(), codigoEmpresa: parseInt(form.codigoEmpresa) }),
+      });
+      const d1 = await r1.json();
+      if (!r1.ok) { setErro(d1.error || t('me_erro')); return; }
+
+      // 2. Configura a conexão
+      const r2 = await fetch(`${API_URL}/api/clients/${d1.codigoEmpresa}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          banco:  form.banco.trim(),
+          host:   form.host.trim()   || undefined,
+          port:   form.port          || undefined,
+          dbUser: form.dbUser.trim() || undefined,
+          dbPass: form.dbPass        || undefined,
+        }),
+      });
+      const d2 = await r2.json();
+      if (!r2.ok) { setErro(d2.error || t('me_erro')); return; }
+
+      onSave(d2);
+    } catch { setErro(t('me_erro_conexao')); }
+    finally { setLoading(false); }
+  }
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" onClick={e => e.stopPropagation()}>
+        <h3 className="modal-title">{t('con2_modal_titulo')}</h3>
+        <div className="modal-body">
+          <div className="modal-grid-2">
+            <div className="form-field">
+              <label>{t('me_nome')}</label>
+              <input type="text" value={form.nome} onChange={e => set('nome', e.target.value)} placeholder="Ex: Posto Central" autoFocus autoComplete="off" />
+            </div>
+            <div className="form-field">
+              <label>{t('me_codigo')}</label>
+              <input type="number" value={form.codigoEmpresa} onChange={e => set('codigoEmpresa', e.target.value)} placeholder="Ex: 7432" />
+            </div>
+          </div>
+          <div className="modal-section-label">{t('th_banco')}</div>
+          <div className="form-field">
+            <label>{t('me_banco')}</label>
+            <input type="text" value={form.banco} onChange={e => set('banco', e.target.value)} placeholder="Ex: ret_meavenida" autoComplete="off" />
+          </div>
+          <div className="modal-section-label">{t('me_opcional')}</div>
+          <div className="modal-grid-2">
+            <div className="form-field">
+              <label>{t('me_host')}</label>
+              <input type="text" value={form.host} onChange={e => set('host', e.target.value)} placeholder="db.servidor.com" autoComplete="off" />
+            </div>
+            <div className="form-field">
+              <label>{t('me_porta')}</label>
+              <input type="number" value={form.port} onChange={e => set('port', e.target.value)} placeholder="5432" />
+            </div>
+            <div className="form-field">
+              <label>{t('me_usuario_db')}</label>
+              <input type="text" value={form.dbUser} onChange={e => set('dbUser', e.target.value)} placeholder="postgres" autoComplete="off" />
+            </div>
+            <div className="form-field">
+              <label>{t('me_senha_db')}</label>
+              <input type="password" value={form.dbPass} onChange={e => set('dbPass', e.target.value)} placeholder="••••••" autoComplete="new-password" />
+            </div>
+          </div>
+          {erro && <p className="form-erro">{erro}</p>}
+        </div>
+        <div className="modal-footer">
+          <button className="btn-ghost" onClick={onClose}>{t('btn_cancelar')}</button>
+          <button className="btn-primary" onClick={handleSave} disabled={loading}>
+            {loading ? t('con2_testando') : t('btn_salvar')}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ── Seção Conexão ───────────────────────────────────────────────────────────── */
 function SecaoConexao() {
   const { t } = useT();
   const [clientes, setClientes] = useState([]);
   const [loading, setLoading]   = useState(false);
-  const [config, setConfig]     = useState(null); // empresa sendo configurada
+  const [config, setConfig]     = useState(null);  // empresa sendo editada
+  const [nova, setNova]         = useState(false);  // modal de nova conexão
 
   useEffect(() => {
     setLoading(true);
@@ -239,6 +336,11 @@ function SecaoConexao() {
     setConfig(null);
   }
 
+  function handleNovaSalva(nova) {
+    setClientes(p => [...p, nova]);
+    setNova(false);
+  }
+
   return (
     <div className="fade-up">
       <div className="param-section-header">
@@ -246,6 +348,7 @@ function SecaoConexao() {
           <h3 className="param-section-title">{t('con2_titulo')}</h3>
           <p className="param-section-desc">{t('con2_desc')}</p>
         </div>
+        <button className="btn-primary" onClick={() => setNova(true)}>{t('con2_adicionar')}</button>
       </div>
 
       <div className="param-card">
@@ -293,6 +396,11 @@ function SecaoConexao() {
         </div>
       </div>
 
+      {nova && (
+        <Portal>
+          <ModalNovaConexao onSave={handleNovaSalva} onClose={() => setNova(false)} />
+        </Portal>
+      )}
       {config && (
         <Portal>
           <ModalConexao empresa={config} onSave={handleSaved} onClose={() => setConfig(null)} />

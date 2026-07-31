@@ -88,6 +88,7 @@ const T = {
     con2_modal_titulo:   'Configurar Conexão',
     con2_nao_config:     'Não configurado',
     con2_testando:       'Testando conexão…',
+    con2_adicionar:      '+ Incluir',
     con2_obrig_banco:    'Nome do banco é obrigatório.',
     con2_hint_pass:      'Deixe em branco para limpar ou reconfigurar a senha.',
     // Sistema
@@ -185,6 +186,7 @@ const T = {
     con2_modal_titulo:   'Configure Connection',
     con2_nao_config:     'Not configured',
     con2_testando:       'Testing connection…',
+    con2_adicionar:      '+ Include',
     con2_obrig_banco:    'Database name is required.',
     con2_hint_pass:      'Leave blank to clear or reconfigure the password.',
     sis_titulo: 'System',
@@ -280,6 +282,7 @@ const T = {
     con2_modal_titulo:   'Configurar Conexión',
     con2_nao_config:     'No configurado',
     con2_testando:       'Probando conexión…',
+    con2_adicionar:      '+ Incluir',
     con2_obrig_banco:    'El nombre de la base de datos es obligatorio.',
     con2_hint_pass:      'Deje en blanco para borrar o reconfigurar la contraseña.',
     sis_titulo: 'Sistema',
