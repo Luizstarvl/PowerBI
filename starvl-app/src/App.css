@@ -1,20 +1,20 @@
-@import url('https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,300;0,400;0,500;0,600;0,700;1,600;1,700&family=Montserrat:wght@400;500;600;700;800&family=Orbitron:wght@400;500;600;700;800;900&display=swap');
+﻿@import url('https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,300;0,400;0,500;0,600;0,700;1,600;1,700&family=Montserrat:wght@400;500;600;700;800&family=Orbitron:wght@400;500;600;700;800;900&display=swap');
 
 :root {
   --brand-red: #E31E24;
-  --font-primary: 'Montserrat', sans-serif;
+  --font-primary: 'Poppins', sans-serif;
   --font-display: 'Orbitron', sans-serif;
 
-  /* ── Escala de fontes padronizada ── */
-  --fs-xs:   10px;   /* badges, rótulos minúsculos        */
+  /* â”€â”€ Escala de fontes padronizada â”€â”€ */
+  --fs-xs:   10px;   /* badges, rÃ³tulos minÃºsculos        */
   --fs-sm:   11px;   /* sub-labels, notas                 */
-  --fs-base: 13px;   /* texto padrão, inputs, nav         */
-  --fs-md:   14px;   /* descrições, células de tabela     */
-  --fs-lg:   16px;   /* títulos de card                   */
-  --fs-xl:   20px;   /* cabeçalhos de seção               */
-  --fs-2xl:  24px;   /* títulos de página                 */
+  --fs-base: 13px;   /* texto padrÃ£o, inputs, nav         */
+  --fs-md:   14px;   /* descriÃ§Ãµes, cÃ©lulas de tabela     */
+  --fs-lg:   16px;   /* tÃ­tulos de card                   */
+  --fs-xl:   20px;   /* cabeÃ§alhos de seÃ§Ã£o               */
+  --fs-2xl:  24px;   /* tÃ­tulos de pÃ¡gina                 */
 
-  /* ── Pesos padronizados ── */
+  /* â”€â”€ Pesos padronizados â”€â”€ */
   --fw-normal: 400;
   --fw-medium: 500;
   --fw-semi:   600;
@@ -607,7 +607,7 @@ html {
 }
 
 body {
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Poppins', sans-serif;
   background: #0a0a0a;
   color: #fff;
   overflow-x: hidden;
@@ -646,7 +646,7 @@ body.theme-light-body {
   background: #10131a;
 }
 
-/* Vídeo de fundo */
+/* VÃ­deo de fundo */
 .login-bg-video {
   position: absolute;
   inset: 0;
@@ -659,7 +659,7 @@ body.theme-light-body {
   pointer-events: none;
 }
 
-/* Overlay escuro sobre o vídeo para profundidade */
+/* Overlay escuro sobre o vÃ­deo para profundidade */
 .login-bg-overlay {
   position: absolute;
   inset: 0;
@@ -919,7 +919,7 @@ body.theme-light-body {
   .login-footer-card { position: relative; bottom: auto; transform: none; margin-top: 24px; justify-content: center; }
 }
 
-/* Botão primário (usado em modais, cabeçalhos, etc.) */
+/* BotÃ£o primÃ¡rio (usado em modais, cabeÃ§alhos, etc.) */
 .btn-primary {
   background: #E31E24;
   color: #fff;
@@ -928,7 +928,7 @@ body.theme-light-body {
   padding: 16px;
   font-size: 16px;
   font-weight: 700;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Poppins', sans-serif;
   letter-spacing: 0.5px;
   cursor: pointer;
   transition: all 0.3s;
@@ -1065,7 +1065,7 @@ body.theme-light-body {
   border-radius: 8px;
   background: rgba(127, 29, 29, 0.22);
   color: #fff;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Poppins', sans-serif;
   font-size: 12px;
   font-weight: 800;
   cursor: pointer;
@@ -1139,7 +1139,7 @@ body.theme-light-body {
   color: #fff;
   padding: 7px 12px;
   border-radius: 8px;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Poppins', sans-serif;
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
@@ -1192,7 +1192,7 @@ body.theme-light-body {
   border: none;
   outline: none;
   color: #e2e8f0;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Poppins', sans-serif;
   font-size: 13px;
   font-weight: 500;
   width: 100%;
@@ -1249,7 +1249,7 @@ body.theme-light-body {
   border: none;
   border-radius: 7px;
   color: #94a3b8;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Poppins', sans-serif;
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
@@ -1289,7 +1289,7 @@ body.theme-light-body {
   color: #fff;
   padding: 7px 16px;
   border-radius: 8px;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Poppins', sans-serif;
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
@@ -1332,7 +1332,7 @@ body.theme-light-body {
   color: #ccc;
   padding: 10px 12px;
   border-radius: 7px;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Poppins', sans-serif;
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
@@ -1495,7 +1495,7 @@ body.theme-light-body {
   flex-shrink: 0;
 }
 
-/* Foto circular na tabela de usuários */
+/* Foto circular na tabela de usuÃ¡rios */
 .avatar-img-circle {
   width: 40px;
   height: 40px;
@@ -1505,7 +1505,7 @@ body.theme-light-body {
   display: block;
 }
 
-/* Upload de foto no modal de usuário */
+/* Upload de foto no modal de usuÃ¡rio */
 .user-avatar-upload {
   position: relative;
   cursor: pointer;
@@ -1737,7 +1737,7 @@ body.theme-light-body {
   box-shadow: 0 11px 24px rgba(227, 30, 36, 0.32);
 }
 
-/* Collapsed sidebar — icons only */
+/* Collapsed sidebar â€” icons only */
 .sidebar.collapsed .sidebar-nav {
   padding: 14px 10px;
 }
@@ -1778,7 +1778,7 @@ body.theme-light-body {
   color: #fff;
 }
 
-/* ── TopBar — cabeçalho fixo horizontal ────────────────────────────────────── */
+/* â”€â”€ TopBar â€” cabeÃ§alho fixo horizontal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .app-topbar {
   position: fixed;
   top: 0;
@@ -1801,7 +1801,7 @@ body.theme-light-body {
 
 /* Itens do topbar */
 
-/* QuickNav cresce para preencher o espaço disponível à esquerda */
+/* QuickNav cresce para preencher o espaÃ§o disponÃ­vel Ã  esquerda */
 .app-topbar .quicknav {
   flex: 1 1 0;
   min-width: 0;
@@ -1814,7 +1814,7 @@ body.theme-light-body {
   width: 100%;
 }
 
-/* Empresa — margin-left auto empurra todo o grupo direito para a borda */
+/* Empresa â€” margin-left auto empurra todo o grupo direito para a borda */
 .app-topbar .topbar-select {
   flex: 0 0 auto;
   min-width: 100px;
@@ -1915,7 +1915,7 @@ body.theme-light-body {
   color: #fff;
   padding: 10px 16px;
   border-radius: 8px;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Poppins', sans-serif;
   font-size: 14px;
   cursor: pointer;
   outline: none;
@@ -1936,7 +1936,7 @@ body.theme-light-body {
   color: #fff;
   padding: 10px 20px;
   border-radius: 8px;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Poppins', sans-serif;
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
@@ -2156,7 +2156,7 @@ body.theme-light-body {
   padding: 0 10px;
   background: transparent;
   color: #8a8a8a;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Poppins', sans-serif;
   font-size: 11px;
   font-weight: 800;
   cursor: pointer;
@@ -2244,7 +2244,7 @@ body.theme-light-body {
   color: #fff;
   padding: 8px 12px;
   border-radius: 6px;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Poppins', sans-serif;
   cursor: pointer;
 }
 
@@ -2358,7 +2358,7 @@ body.theme-light-body {
   align-items: center;
   gap: 4px;
   font-size: 14px;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Poppins', sans-serif;
 }
 
 .trend.positive {
@@ -2457,7 +2457,7 @@ body.theme-light-body {
   border: none;
   outline: none;
   color: #fff;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Poppins', sans-serif;
   font-size: 14px;
 }
 
@@ -2621,7 +2621,7 @@ body.theme-light-body {
   border: none;
   outline: none;
   color: #fff;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Poppins', sans-serif;
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
@@ -2671,7 +2671,7 @@ body.theme-light-body {
 }
 
 .control-print-title h3 {
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Poppins', sans-serif;
   font-size: 22px;
   font-weight: 800;
   letter-spacing: 0;
@@ -2794,7 +2794,7 @@ body.theme-light-body {
   border: none;
   outline: none;
   color: #f5f5f5;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Poppins', sans-serif;
   font-size: 14px;
   font-weight: 700;
 }
@@ -2952,7 +2952,7 @@ body.theme-light-body {
   border: 1px solid #333;
   border-radius: 8px;
   color: #fff;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Poppins', sans-serif;
   font-size: 12px;
   font-weight: 700;
   padding: 8px 10px;
@@ -3016,7 +3016,7 @@ body.theme-light-body {
   border: 1px solid #3a3a3a;
   border-radius: 8px;
   color: #fff;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Poppins', sans-serif;
   font-size: 13px;
   font-weight: 600;
   padding: 0 10px;
@@ -3034,15 +3034,15 @@ body.theme-light-body {
   box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.16);
 }
 
-/* ── LMC: âncora e seleção de linha ──────────────────────────── */
+/* â”€â”€ LMC: Ã¢ncora e seleÃ§Ã£o de linha â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
-/* Linhas clicáveis */
+/* Linhas clicÃ¡veis */
 .lmc-row {
   cursor: pointer;
   transition: background 0.12s;
 }
 
-/* Dia selecionado — destaque azul */
+/* Dia selecionado â€” destaque azul */
 .lmc-row-selected > td {
   background: rgba(56, 189, 248, 0.09) !important;
 }
@@ -3050,7 +3050,7 @@ body.theme-light-body {
   box-shadow: inset 3px 0 0 #38bdf8;
 }
 
-/* Célula DIA: ícone + texto lado a lado */
+/* CÃ©lula DIA: Ã­cone + texto lado a lado */
 .lmc-day-cell {
   display: flex;
   align-items: center;
@@ -3058,7 +3058,7 @@ body.theme-light-body {
   white-space: nowrap;
 }
 
-/* Botão âncora / cadeado */
+/* BotÃ£o Ã¢ncora / cadeado */
 .lmc-anchor-btn {
   flex-shrink: 0;
   width: 26px;
@@ -3104,7 +3104,7 @@ body.theme-light-body {
   box-shadow: none !important;
 }
 
-/* Legenda âncora no rodapé */
+/* Legenda Ã¢ncora no rodapÃ© */
 .lmc-anchor-legend {
   display: flex;
   align-items: center;
@@ -3176,7 +3176,7 @@ body.theme-light-body {
   border: 1px solid #2a2a2a;
   border-radius: 8px;
   color: #f5f5f5;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Poppins', sans-serif;
   text-align: left;
   cursor: pointer;
   transition: border-color 0.2s, background 0.2s, transform 0.2s;
@@ -3403,7 +3403,7 @@ body.theme-light-body {
   width: 36px;
   height: 36px;
   border-radius: 6px;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Poppins', sans-serif;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s;
@@ -3436,7 +3436,7 @@ body.theme-light-body {
   color: #fff;
   padding: 8px 12px;
   border-radius: 6px;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Poppins', sans-serif;
   cursor: pointer;
 }
 
@@ -3484,7 +3484,7 @@ body.theme-light-body {
   color: #fff;
   padding: 12px 16px;
   border-radius: 8px;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Poppins', sans-serif;
   font-size: 16px;
   margin-bottom: 30px;
   cursor: pointer;
@@ -3503,7 +3503,7 @@ body.theme-light-body {
   filter: drop-shadow(0 4px 20px rgba(227, 30, 36, 0.3));
 }
 
-/* ── Conjunto topo: tubo + tampa ── */
+/* â”€â”€ Conjunto topo: tubo + tampa â”€â”€ */
 .tank-top-assembly {
   display: flex;
   flex-direction: column;
@@ -3530,7 +3530,7 @@ body.theme-light-body {
   border-radius: 5px 5px 0 0;
 }
 
-/* ── Corpo principal — forma industrial (retangular) ── */
+/* â”€â”€ Corpo principal â€” forma industrial (retangular) â”€â”€ */
 .tank {
   position: relative;
   width: 158px;
@@ -3545,7 +3545,7 @@ body.theme-light-body {
     inset 8px 0 12px rgba(255,255,255,0.03);
 }
 
-/* ── Marcadores de nível ── */
+/* â”€â”€ Marcadores de nÃ­vel â”€â”€ */
 .tank-scale {
   position: absolute;
   inset: 0;
@@ -3575,7 +3575,7 @@ body.theme-light-body {
   letter-spacing: 0.03em;
 }
 
-/* ── Pés de suporte ── */
+/* â”€â”€ PÃ©s de suporte â”€â”€ */
 .tank-legs {
   display: flex;
   justify-content: space-between;
@@ -3682,7 +3682,7 @@ body.theme-light-body {
   color: #E31E24;
 }
 
-/* ── Tanque Horizontal (Dashboard · ESTOQUE COMB) ────────────────────────── */
+/* â”€â”€ Tanque Horizontal (Dashboard Â· ESTOQUE COMB) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .tank-horiz-wrap {
   display: flex;
   flex-direction: column;
@@ -3691,7 +3691,7 @@ body.theme-light-body {
   padding: 4px 0 0;
 }
 
-/* Válvula / pipe no topo */
+/* VÃ¡lvula / pipe no topo */
 .tank-horiz-top {
   display: flex;
   flex-direction: column;
@@ -3710,7 +3710,7 @@ body.theme-light-body {
   border-bottom: none;
 }
 
-/* bocal: pescoço roscado */
+/* bocal: pescoÃ§o roscado */
 .tank-horiz-bocal-neck {
   width: 20px;
   height: 16px;
@@ -3734,7 +3734,7 @@ body.theme-light-body {
   margin-bottom: -2px;
 }
 
-/* Corpo principal – pill horizontal, sem cor de fundo */
+/* Corpo principal â€“ pill horizontal, sem cor de fundo */
 .tank-horiz-body {
   position: relative;
   width: 220px;
@@ -3758,7 +3758,7 @@ body.theme-light-body {
   z-index: 5;
 }
 
-/* Preenchimento de líquido – sobe de baixo para cima */
+/* Preenchimento de lÃ­quido â€“ sobe de baixo para cima */
 .tank-horiz-fill {
   position: absolute;
   bottom: 0;
@@ -3814,7 +3814,7 @@ body.theme-light-body {
   border: 1px solid #666;
 }
 
-/* Tema claro – overrides */
+/* Tema claro â€“ overrides */
 .theme-light .tank-horiz-body {
   border-color: #bbb;
   box-shadow: inset 0 2px 8px rgba(0,0,0,0.06) !important;
@@ -3856,7 +3856,7 @@ body.theme-light-body {
 .theme-light .tank-horiz-gloss {
   background: linear-gradient(145deg, rgba(255,255,255,0.22) 0%, transparent 80%);
 }
-/* ── fim Tanque Horizontal ───────────────────────────────────────────────── */
+/* â”€â”€ fim Tanque Horizontal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .projection-subtitle {
   text-align: center;
@@ -4031,7 +4031,7 @@ body.theme-light-body {
   color: #fff;
   padding: 10px 16px 10px 40px;
   border-radius: 8px;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Poppins', sans-serif;
   font-size: 14px;
   outline: none;
   width: 250px;
@@ -4121,7 +4121,7 @@ body.theme-light-body {
   border: none;
   color: #888;
   padding: 12px 24px;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Poppins', sans-serif;
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
@@ -4352,7 +4352,7 @@ body.theme-light-body {
   color: #fff;
   padding: 12px 16px;
   border-radius: 8px;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Poppins', sans-serif;
   font-size: 14px;
   outline: none;
   transition: all 0.3s;
@@ -4376,7 +4376,7 @@ body.theme-light-body {
   color: #888;
   padding: 10px;
   border-radius: 8px;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Poppins', sans-serif;
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
@@ -4550,7 +4550,7 @@ body.theme-light-body {
   color: #E31E24;
   padding: 5px 12px;
   border-radius: 6px;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Poppins', sans-serif;
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
@@ -4570,7 +4570,7 @@ body.theme-light-body {
   border: none;
   border-radius: 8px;
   padding: 12px;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Poppins', sans-serif;
   font-size: 14px;
   font-weight: 700;
   cursor: pointer;
@@ -4608,7 +4608,7 @@ body.theme-light-body {
   color: #fff;
   padding: 11px 14px;
   border-radius: 8px;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Poppins', sans-serif;
   font-size: 14px;
   outline: none;
   transition: border-color 0.3s;
@@ -4635,7 +4635,7 @@ body.theme-light-body {
   background: transparent;
   border: none;
   color: #888;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Poppins', sans-serif;
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
@@ -4798,7 +4798,7 @@ body.theme-light-body {
     display: none;
   }
 
-  /* Disable 3D effect on mobile — touch devices don't benefit from hover */
+  /* Disable 3D effect on mobile â€” touch devices don't benefit from hover */
   .nav-item:hover,
   .nav-item.active:hover {
     transform: none;
@@ -5349,7 +5349,7 @@ body.theme-light-body {
   }
 }
 
-/* ── VendasPista ──────────────────────────────────────────── */
+/* â”€â”€ VendasPista â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .vp-toggle-group {
   display: flex;
   gap: 3px;
@@ -5363,7 +5363,7 @@ body.theme-light-body {
   color: #888;
   font-size: 12px;
   font-weight: 600;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Poppins', sans-serif;
   cursor: pointer;
   transition: all 0.2s;
   white-space: nowrap;
@@ -5381,7 +5381,7 @@ body.theme-light-body {
   border-color: #E31E24;
 }
 
-/* Botão de seção — tamanho maior que os botões de período */
+/* BotÃ£o de seÃ§Ã£o â€” tamanho maior que os botÃµes de perÃ­odo */
 .vp-secao-btn {
   padding: 9px 20px;
   font-size: 14px;
@@ -5410,7 +5410,7 @@ body.theme-light-body {
   border-color: #E31E24;
 }
 
-/* Zona 2: barra de controles (Agrupar por + Período) */
+/* Zona 2: barra de controles (Agrupar por + PerÃ­odo) */
 .vp-controls-bar {
   display: flex;
   align-items: center;
@@ -5433,7 +5433,7 @@ body.theme-light-body {
 .theme-light .vp-controls-bar { border-bottom-color: #e2e8f0; }
 .theme-light .vp-ctrl-label   { color: #94a3b8; }
 
-/* Zona 3: Faixa filtro Seção / Grupo */
+/* Zona 3: Faixa filtro SeÃ§Ã£o / Grupo */
 .vp-cat-row {
   display: flex;
   align-items: center;
@@ -5473,7 +5473,7 @@ body.theme-light-body {
   color: #f59e0b;
 }
 
-/* Botão Seção|Grupo dentro da faixa de categoria — verde */
+/* BotÃ£o SeÃ§Ã£o|Grupo dentro da faixa de categoria â€” verde */
 .vp-cat-tipo-btn.active {
   background: #16a34a;
   border-color: #16a34a;
@@ -5543,7 +5543,7 @@ body.theme-light-body {
 .theme-light .vp-kpi-label {
   color: #9ca3af;
 }
-/* ── fim VendasPista ─────────────────────────────────────── */
+/* â”€â”€ fim VendasPista â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 @media (max-width: 768px) {
   .product-matrix-header,
@@ -6085,7 +6085,7 @@ body.theme-light-body {
   background: #cbd5e1;
 }
 
-/* ── ProjecaoVendas ──────────────────────────────────────────── */
+/* â”€â”€ ProjecaoVendas â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .pv-header {
   display: flex;
   align-items: flex-start;
@@ -6250,7 +6250,7 @@ body.theme-light-body {
   color: #374151;
 }
 
-/* ── control-print-panel light theme ─────────────────────────── */
+/* â”€â”€ control-print-panel light theme â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .theme-light .control-print-panel {
   background: #ffffff;
   border-color: #e5e7eb;
@@ -6337,9 +6337,9 @@ body.theme-light-body {
   background: #ffffff;
 }
 
-/* ══════════════════════════════════════════════════════════
-   MOBILE — botão hamburger (oculto no desktop)
-══════════════════════════════════════════════════════════ */
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+   MOBILE â€” botÃ£o hamburger (oculto no desktop)
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 .topbar-mobile-menu-btn {
   display: none;
   align-items: center;
@@ -6367,15 +6367,15 @@ body.theme-light-body {
 /* Backdrop mobile (oculto no desktop) */
 .sidebar-mobile-backdrop { display: none; }
 
-/* ══════════════════════════════════════════════════════════
-   MOBILE — breakpoint principal ≤ 768px
-══════════════════════════════════════════════════════════ */
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+   MOBILE â€” breakpoint principal â‰¤ 768px
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 @media (max-width: 768px) {
 
-  /* ── Hamburger visível ──────────────────────────────── */
+  /* â”€â”€ Hamburger visÃ­vel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   .topbar-mobile-menu-btn { display: flex; }
 
-  /* ── Sidebar como drawer lateral ───────────────────── */
+  /* â”€â”€ Sidebar como drawer lateral â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   .sidebar {
     width: 252px !important;
     transform: translateX(0);
@@ -6388,13 +6388,13 @@ body.theme-light-body {
     width: 252px !important;
     box-shadow: none;
   }
-  /* Garante que labels ficam visíveis no drawer mobile */
+  /* Garante que labels ficam visÃ­veis no drawer mobile */
   .sidebar.collapsed .nav-label { display: flex !important; }
   .sidebar.collapsed .sidebar-header { padding: 8px 18px 22px !important; }
   .sidebar.collapsed .sidebar-header-inner { justify-content: space-between !important; }
   .sidebar.collapsed .logout-btn { justify-content: flex-start !important; padding: 9px 11px !important; gap: 11px !important; }
 
-  /* ── Backdrop ───────────────────────────────────────── */
+  /* â”€â”€ Backdrop â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   .sidebar-mobile-backdrop {
     display: block;
     position: fixed;
@@ -6408,7 +6408,7 @@ body.theme-light-body {
     to   { opacity: 1; }
   }
 
-  /* ── TopBar largura total ───────────────────────────── */
+  /* â”€â”€ TopBar largura total â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   .app-topbar,
   .app-topbar.sidebar-collapsed {
     left: 0 !important;
@@ -6418,22 +6418,22 @@ body.theme-light-body {
   /* QuickNav encolhe em mobile */
   .app-topbar .quicknav { max-width: none; }
   .quicknav-wrap { min-width: 0 !important; }
-  /* Esconde texto do status de conexão, mantém só o dot */
+  /* Esconde texto do status de conexÃ£o, mantÃ©m sÃ³ o dot */
   .app-topbar .connection-status { padding: 0 8px; }
   .app-topbar .connection-status span:not(.connection-dot) { display: none; }
-  /* Oculta select de empresa no topbar (fica acessível via Parâmetros) */
+  /* Oculta select de empresa no topbar (fica acessÃ­vel via ParÃ¢metros) */
   .app-topbar .topbar-select { display: none; }
 
-  /* ── Conteúdo principal largura total ───────────────── */
+  /* â”€â”€ ConteÃºdo principal largura total â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   .main-content,
   .main-content.sidebar-collapsed {
     margin-left: 0 !important;
   }
 
-  /* ── Padding de páginas ─────────────────────────────── */
+  /* â”€â”€ Padding de pÃ¡ginas â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   .page-content { padding: 14px 14px 32px; }
 
-  /* ── Page header ────────────────────────────────────── */
+  /* â”€â”€ Page header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   .page-header {
     flex-direction: column;
     align-items: flex-start;
@@ -6445,43 +6445,43 @@ body.theme-light-body {
   .header-actions .btn-primary,
   .header-actions .btn-secondary { flex: 1; justify-content: center; min-width: 120px; }
 
-  /* ── KPI cards ──────────────────────────────────────── */
+  /* â”€â”€ KPI cards â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   .kpi-row { grid-template-columns: repeat(2, 1fr); gap: 10px; }
 
-  /* ── Dashboard grid ─────────────────────────────────── */
+  /* â”€â”€ Dashboard grid â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   .dashboard-grid { grid-template-columns: 1fr; gap: 14px; }
   .chart-card.large,
   .dashboard-static-wide,
   .dashboard-static-full { grid-column: span 1; }
   .dashboard-controls { flex-wrap: wrap; gap: 8px; }
 
-  /* ── Skeleton ───────────────────────────────────────── */
+  /* â”€â”€ Skeleton â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   .skeleton-grid { grid-template-columns: repeat(2, 1fr); }
 
-  /* ── Params ─────────────────────────────────────────── */
+  /* â”€â”€ Params â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   .params-grid { grid-template-columns: 1fr; }
   .params-span2, .params-span3 { grid-column: span 1; }
   .params-image-group { grid-row: auto; }
   .params-section-block { padding: 16px; }
 
-  /* ── Tabelas — scroll horizontal ───────────────────── */
+  /* â”€â”€ Tabelas â€” scroll horizontal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   .table-toolbar { flex-direction: column; align-items: flex-start; }
 
-  /* ── Modais — largura total ─────────────────────────── */
+  /* â”€â”€ Modais â€” largura total â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   .control-print-panel { width: 96vw; }
   .control-print-grid { grid-template-columns: 1fr; }
 
-  /* ── API error bar ──────────────────────────────────── */
+  /* â”€â”€ API error bar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   .api-error-notice { margin: 10px 14px 0; flex-wrap: wrap; }
 
-  /* ── Fin tab bar ────────────────────────────────────── */
+  /* â”€â”€ Fin tab bar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   .fin-tab-bar { overflow-x: auto; flex-wrap: nowrap; padding: 12px 14px 0; gap: 6px; scrollbar-width: none; }
   .fin-tab-bar::-webkit-scrollbar { display: none; }
 }
 
-/* ══════════════════════════════════════════════════════════
-   MOBILE — breakpoint pequeno ≤ 480px
-══════════════════════════════════════════════════════════ */
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+   MOBILE â€” breakpoint pequeno â‰¤ 480px
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 @media (max-width: 480px) {
   .kpi-row { grid-template-columns: 1fr; }
   .page-content { padding: 10px 10px 24px; }
