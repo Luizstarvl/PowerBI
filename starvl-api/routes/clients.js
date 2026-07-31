@@ -74,6 +74,29 @@ router.post('/', async (req, res) => {
   }
 });
 
+// PATCH /api/clients/:codigoEmpresa — atualiza dados da empresa (nome)
+router.patch('/:codigoEmpresa', async (req, res) => {
+  const codigo = parseInt(req.params.codigoEmpresa);
+  if (isNaN(codigo) || codigo <= 0) return res.status(400).json({ error: 'codigoEmpresa inválido.' });
+
+  const { nome } = req.body;
+  if (!nome?.trim()) return res.status(400).json({ error: 'nome é obrigatório.' });
+
+  try {
+    const { rows } = await mainPool.query(
+      `UPDATE starvl_clients SET sc_nome=$1 WHERE sc_codigo=$2
+       RETURNING sc_id, sc_nome, sc_codigo, sc_banco, sc_host, sc_criado`,
+      [nome.trim(), codigo]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Empresa não encontrada.' });
+    console.log(`[clients] empresa atualizada: "${nome}" (código ${codigo})`);
+    res.json(toPublic(rows[0]));
+  } catch (err) {
+    console.error('PATCH /clients:', err.message);
+    res.status(500).json({ error: 'Erro ao atualizar empresa.' });
+  }
+});
+
 // PUT /api/clients/:codigoEmpresa — configura conexão de banco de dados
 // Body: { banco, host?, port?, dbUser?, dbPass? }
 router.put('/:codigoEmpresa', async (req, res) => {

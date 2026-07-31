@@ -10,25 +10,32 @@ function fmtDate(s) {
   return new Date(s).toLocaleDateString('pt-BR');
 }
 
-/* ── Modal Nova Empresa ──────────────────────────────────────────────────────── */
-function ModalEmpresa({ onSave, onClose }) {
-  const { t } = useT();
-  const [form, setForm] = useState({ nome: '', codigoEmpresa: '' });
-  const [erro, setErro] = useState('');
+/* ── Modal Empresa (criar ou editar) ─────────────────────────────────────────── */
+function ModalEmpresa({ empresa, onSave, onClose }) {
+  const { t }    = useT();
+  const editando = !!empresa;
+  const [form, setForm]     = useState({ nome: empresa?.nome || '', codigoEmpresa: empresa?.codigoEmpresa || '' });
+  const [erro, setErro]     = useState('');
   const [loading, setLoading] = useState(false);
 
   function set(f, v) { setForm(p => ({ ...p, [f]: v })); }
 
   async function handleSave() {
-    if (!form.nome.trim())   return setErro(t('me_obrig_nome'));
-    if (!form.codigoEmpresa) return setErro(t('me_obrig_cod'));
+    if (!form.nome.trim()) return setErro(t('me_obrig_nome'));
+    if (!editando && !form.codigoEmpresa) return setErro(t('me_obrig_cod'));
     setErro(''); setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/api/clients`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nome: form.nome.trim(), codigoEmpresa: parseInt(form.codigoEmpresa) }),
-      });
+      const res = editando
+        ? await fetch(`${API_URL}/api/clients/${empresa.codigoEmpresa}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nome: form.nome.trim() }),
+          })
+        : await fetch(`${API_URL}/api/clients`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nome: form.nome.trim(), codigoEmpresa: parseInt(form.codigoEmpresa) }),
+          });
       const data = await res.json();
       if (!res.ok) return setErro(data.error || t('me_erro'));
       onSave(data);
@@ -39,17 +46,25 @@ function ModalEmpresa({ onSave, onClose }) {
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={e => e.stopPropagation()}>
-        <h3 className="modal-title">{t('me_titulo')}</h3>
+        <h3 className="modal-title">{editando ? t('mu_editar') : t('me_titulo')}</h3>
         <div className="modal-body">
-          <div className="modal-grid-2">
+          <div className={editando ? undefined : 'modal-grid-2'}>
             <div className="form-field">
               <label>{t('me_nome')}</label>
               <input type="text" value={form.nome} onChange={e => set('nome', e.target.value)} placeholder="Ex: Posto Central" autoFocus />
             </div>
-            <div className="form-field">
-              <label>{t('me_codigo')}</label>
-              <input type="number" value={form.codigoEmpresa} onChange={e => set('codigoEmpresa', e.target.value)} placeholder="Ex: 7432" />
-            </div>
+            {!editando && (
+              <div className="form-field">
+                <label>{t('me_codigo')}</label>
+                <input type="number" value={form.codigoEmpresa} onChange={e => set('codigoEmpresa', e.target.value)} placeholder="Ex: 7432" />
+              </div>
+            )}
+            {editando && (
+              <div className="form-field">
+                <label>{t('me_codigo')}</label>
+                <input type="number" value={form.codigoEmpresa} disabled style={{ opacity: .5 }} />
+              </div>
+            )}
           </div>
           {erro && <p className="form-erro">{erro}</p>}
         </div>
@@ -149,7 +164,9 @@ function SecaoEmpresas() {
   const { t } = useT();
   const [clientes, setClientes] = useState([]);
   const [loading, setLoading]   = useState(false);
-  const [modal, setModal]       = useState(false);
+  const [nova, setNova]         = useState(false);
+  const [editando, setEditando] = useState(null);
+  const [ctxMenu, setCtxMenu]   = useState(null);
 
   useEffect(() => {
     setLoading(true);
@@ -160,13 +177,19 @@ function SecaoEmpresas() {
       .finally(() => setLoading(false));
   }, []);
 
-  function handleSave(saved) { setClientes(p => [...p, saved]); setModal(false); }
+  function handleSaveNova(saved) { setClientes(p => [...p, saved]); setNova(false); }
+  function handleSaveEdit(updated) {
+    setClientes(p => p.map(c => c.codigoEmpresa === updated.codigoEmpresa ? { ...c, ...updated } : c));
+    setEditando(null);
+  }
 
   async function handleDelete(cod) {
     if (!window.confirm(t('emp_remover'))) return;
     const res = await fetch(`${API_URL}/api/clients/${cod}`, { method: 'DELETE' });
     if (res.ok) setClientes(p => p.filter(c => c.codigoEmpresa !== cod));
   }
+
+  function openCtx(e, empresa) { e.preventDefault(); setCtxMenu({ x: e.clientX, y: e.clientY, empresa }); }
 
   return (
     <div className="fade-up">
@@ -175,10 +198,10 @@ function SecaoEmpresas() {
           <h3 className="param-section-title">{t('emp_titulo')}</h3>
           <p className="param-section-desc">{t('emp_desc')}</p>
         </div>
-        <button className="btn-primary" onClick={() => setModal(true)}>{t('emp_adicionar')}</button>
+        <button className="btn-primary" onClick={() => setNova(true)}>{t('emp_adicionar')}</button>
       </div>
 
-      <div className="param-card">
+      <div className="param-card" onContextMenu={e => openCtx(e, null)}>
         <div className="param-table-wrap">
           {loading ? <p className="rank-empty">{t('carregando')}</p> : (
             <table className="param-table">
@@ -194,7 +217,7 @@ function SecaoEmpresas() {
                 {clientes.length === 0
                   ? <tr><td colSpan={4} className="rank-empty">{t('emp_nenhuma')}</td></tr>
                   : clientes.map(c => (
-                    <tr key={c.id}>
+                    <tr key={c.id} className="tr-ctx" onContextMenu={e => { e.stopPropagation(); openCtx(e, c); }}>
                       <td className="gu-username">{c.nome}</td>
                       <td className="td-id">{c.codigoEmpresa}</td>
                       <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>{fmtDate(c.criado)}</td>
@@ -213,7 +236,20 @@ function SecaoEmpresas() {
           )}
         </div>
       </div>
-      {modal && <Portal><ModalEmpresa onSave={handleSave} onClose={() => setModal(false)} /></Portal>}
+
+      {nova     && <Portal><ModalEmpresa onSave={handleSaveNova} onClose={() => setNova(false)} /></Portal>}
+      {editando && <Portal><ModalEmpresa empresa={editando} onSave={handleSaveEdit} onClose={() => setEditando(null)} /></Portal>}
+      {ctxMenu  && (
+        <ContextMenu
+          x={ctxMenu.x}
+          y={ctxMenu.y}
+          empresa={ctxMenu.empresa}
+          onClose={() => setCtxMenu(null)}
+          onIncluir={() => setNova(true)}
+          onEditar={() => setEditando(ctxMenu.empresa)}
+          onExcluir={() => handleDelete(ctxMenu.empresa?.codigoEmpresa)}
+        />
+      )}
     </div>
   );
 }
