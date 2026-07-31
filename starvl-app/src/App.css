@@ -271,14 +271,14 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--bg);
+  background: transparent;
   border: 1.5px solid var(--border);
   border-radius: 8px;
-  font-size: 15px;
+  color: var(--text-muted);
   cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
+  transition: border-color 0.15s, color 0.15s;
 }
-.topbar-theme:hover { border-color: var(--blue); background: var(--blue-soft); }
+.topbar-theme:hover { border-color: var(--blue); color: var(--blue); }
 
 .topbar-avatar {
   width: 34px;
