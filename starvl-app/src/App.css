@@ -230,6 +230,83 @@ body {
 .sys-group-title { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
 .sys-group-desc  { font-size: 12px; color: var(--text-muted); margin-bottom: 18px; }
 
+/* ── Accordion ───────────────────────────────────────────────────────────────── */
+.accordion {
+  background: var(--card);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  margin-bottom: 10px;
+  transition: box-shadow .2s;
+}
+.accordion:hover { box-shadow: var(--shadow-md); }
+
+.accordion-trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 20px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  color: var(--text);
+  transition: background .15s;
+}
+.accordion-trigger:hover { background: var(--blue-soft); }
+
+.accordion-trigger-info { flex: 1; min-width: 0; }
+
+.accordion-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 3px;
+}
+.accordion-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+}
+.accordion-badge {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  color: var(--blue);
+  background: var(--blue-soft);
+  border: 1px solid rgba(37,99,235,.18);
+  border-radius: 5px;
+  padding: 1px 6px;
+}
+.accordion-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.accordion-chevron {
+  color: var(--text-muted);
+  flex-shrink: 0;
+  transition: transform .24s cubic-bezier(.4,0,.2,1), color .15s;
+}
+.accordion-trigger:hover .accordion-chevron { color: var(--blue); }
+.accordion-open .accordion-chevron { transform: rotate(180deg); }
+
+.accordion-body {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows .26s cubic-bezier(.4,0,.2,1);
+}
+.accordion-open .accordion-body { grid-template-rows: 1fr; }
+
+.accordion-inner {
+  overflow: hidden;
+  padding: 0 20px;
+  transition: padding .26s cubic-bezier(.4,0,.2,1);
+}
+.accordion-open .accordion-inner { padding: 4px 20px 20px; }
+
 /* ── Timezone selector ───────────────────────────────────────────────────────── */
 .tz-current {
   display: flex; align-items: center; gap: 8px;

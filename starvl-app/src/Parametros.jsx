@@ -203,48 +203,74 @@ function FlagES() {
   );
 }
 
+/* ── Accordion ───────────────────────────────────────────────────────────────── */
+function Accordion({ title, desc, children, badge }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className={`accordion${open ? ' accordion-open' : ''}`}>
+      <button className="accordion-trigger" onClick={() => setOpen(o => !o)}>
+        <div className="accordion-trigger-info">
+          <div className="accordion-title-row">
+            <p className="accordion-title">{title}</p>
+            {badge && <span className="accordion-badge">{badge}</span>}
+          </div>
+          <p className="accordion-desc">{desc}</p>
+        </div>
+        <svg className="accordion-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="6 9 12 15 18 9"/>
+        </svg>
+      </button>
+      <div className="accordion-body">
+        <div className="accordion-inner">
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ── Seletor de Timezone ─────────────────────────────────────────────────────── */
+const TZ_GRUPOS = [
+  { tk: 'tz_brasil', zones: [
+    { key: 'America/Rio_Branco', label: 'Acre',                    offset: 'UTC−5' },
+    { key: 'America/Manaus',     label: 'Manaus / Amazonas',       offset: 'UTC−4' },
+    { key: 'America/Sao_Paulo',  label: 'Brasília / São Paulo',    offset: 'UTC−3' },
+    { key: 'America/Noronha',    label: 'Fernando de Noronha',     offset: 'UTC−2' },
+  ]},
+  { tk: 'tz_americas', zones: [
+    { key: 'America/Los_Angeles',  label: 'Los Angeles / Vancouver',     offset: 'UTC−8' },
+    { key: 'America/Denver',       label: 'Denver / Phoenix',            offset: 'UTC−7' },
+    { key: 'America/Chicago',      label: 'Chicago / Cidade do México',  offset: 'UTC−6' },
+    { key: 'America/New_York',     label: 'New York / Miami',            offset: 'UTC−5' },
+    { key: 'America/Santiago',     label: 'Santiago',                    offset: 'UTC−4' },
+    { key: 'America/Argentina/Buenos_Aires', label: 'Buenos Aires',      offset: 'UTC−3' },
+  ]},
+  { tk: 'tz_europa', zones: [
+    { key: 'UTC',              label: 'UTC / Reykjavik',            offset: 'UTC+0'    },
+    { key: 'Europe/London',    label: 'Londres',                    offset: 'UTC±0/+1' },
+    { key: 'Europe/Paris',     label: 'Paris / Berlim / Roma',      offset: 'UTC+1/+2' },
+    { key: 'Europe/Athens',    label: 'Atenas / Cairo / Helsinki',  offset: 'UTC+2/+3' },
+    { key: 'Europe/Moscow',    label: 'Moscou',                     offset: 'UTC+3'    },
+  ]},
+  { tk: 'tz_asia', zones: [
+    { key: 'Asia/Dubai',       label: 'Dubai / Abu Dhabi',               offset: 'UTC+4'    },
+    { key: 'Asia/Kolkata',     label: 'Mumbai / Nova Delhi',             offset: 'UTC+5:30' },
+    { key: 'Asia/Bangkok',     label: 'Bangcoc / Jacarta',               offset: 'UTC+7'    },
+    { key: 'Asia/Singapore',   label: 'Cingapura / Hong Kong / Pequim',  offset: 'UTC+8'    },
+    { key: 'Asia/Tokyo',       label: 'Tóquio / Seul',                  offset: 'UTC+9'    },
+    { key: 'Australia/Sydney', label: 'Sydney / Melbourne',              offset: 'UTC+10/+11'},
+    { key: 'Pacific/Auckland', label: 'Auckland',                        offset: 'UTC+12/+13'},
+  ]},
+];
+
 function TzSelector() {
   const { t } = useT();
   const [tz, setTz]       = useState(() => localStorage.getItem('pbi_tz') || 'America/Sao_Paulo');
   const [busca, setBusca] = useState('');
   const searchRef = useRef(null);
 
-  const grupos = [
-    { tk: 'tz_brasil', zones: [
-      { key: 'America/Rio_Branco', label: 'Acre',                    offset: 'UTC−5' },
-      { key: 'America/Manaus',     label: 'Manaus / Amazonas',       offset: 'UTC−4' },
-      { key: 'America/Sao_Paulo',  label: 'Brasília / São Paulo',    offset: 'UTC−3' },
-      { key: 'America/Noronha',    label: 'Fernando de Noronha',     offset: 'UTC−2' },
-    ]},
-    { tk: 'tz_americas', zones: [
-      { key: 'America/Los_Angeles',  label: 'Los Angeles / Vancouver', offset: 'UTC−8' },
-      { key: 'America/Denver',       label: 'Denver / Phoenix',        offset: 'UTC−7' },
-      { key: 'America/Chicago',      label: 'Chicago / Cidade do México', offset: 'UTC−6' },
-      { key: 'America/New_York',     label: 'New York / Miami',        offset: 'UTC−5' },
-      { key: 'America/Santiago',     label: 'Santiago',                offset: 'UTC−4' },
-      { key: 'America/Argentina/Buenos_Aires', label: 'Buenos Aires',  offset: 'UTC−3' },
-    ]},
-    { tk: 'tz_europa', zones: [
-      { key: 'UTC',              label: 'UTC / Reykjavik',            offset: 'UTC+0' },
-      { key: 'Europe/London',    label: 'Londres',                    offset: 'UTC±0/+1' },
-      { key: 'Europe/Paris',     label: 'Paris / Berlim / Roma',      offset: 'UTC+1/+2' },
-      { key: 'Europe/Athens',    label: 'Atenas / Cairo / Helsinki',  offset: 'UTC+2/+3' },
-      { key: 'Europe/Moscow',    label: 'Moscou',                     offset: 'UTC+3' },
-    ]},
-    { tk: 'tz_asia', zones: [
-      { key: 'Asia/Dubai',       label: 'Dubai / Abu Dhabi',          offset: 'UTC+4' },
-      { key: 'Asia/Kolkata',     label: 'Mumbai / Nova Delhi',        offset: 'UTC+5:30' },
-      { key: 'Asia/Bangkok',     label: 'Bangcoc / Jacarta',          offset: 'UTC+7' },
-      { key: 'Asia/Singapore',   label: 'Cingapura / Hong Kong / Pequim', offset: 'UTC+8' },
-      { key: 'Asia/Tokyo',       label: 'Tóquio / Seul',             offset: 'UTC+9' },
-      { key: 'Australia/Sydney', label: 'Sydney / Melbourne',         offset: 'UTC+10/+11' },
-      { key: 'Pacific/Auckland', label: 'Auckland',                   offset: 'UTC+12/+13' },
-    ]},
-  ];
-
   const q = busca.toLowerCase();
-  const gruposFiltrados = grupos
+  const gruposFiltrados = TZ_GRUPOS
     .map(g => ({ ...g, zones: g.zones.filter(z => z.label.toLowerCase().includes(q) || z.offset.toLowerCase().includes(q) || z.key.toLowerCase().includes(q)) }))
     .filter(g => g.zones.length > 0);
 
@@ -253,13 +279,10 @@ function TzSelector() {
     localStorage.setItem('pbi_tz', key);
   }
 
-  const tzAtual = grupos.flatMap(g => g.zones).find(z => z.key === tz);
+  const tzAtual = TZ_GRUPOS.flatMap(g => g.zones).find(z => z.key === tz);
 
   return (
-    <div className="sys-group">
-      <p className="sys-group-title">{t('tz_titulo')}</p>
-      <p className="sys-group-desc">{t('tz_desc')}</p>
-
+    <>
       {tzAtual && (
         <div className="tz-current">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -311,7 +334,7 @@ function TzSelector() {
           <p className="rank-empty" style={{ padding: '20px 0' }}>—</p>
         )}
       </div>
-    </div>
+    </>
   );
 }
 
@@ -348,6 +371,9 @@ function SecaoSistema() {
   const { lang, t, applyLang } = useT();
   const [pendingLang, setPendingLang] = useState(null);
 
+  const idiomaAtual = IDIOMAS.find(l => l.key === lang);
+  const tzAtual     = TZ_GRUPOS.flatMap(g => g.zones).find(z => z.key === (localStorage.getItem('pbi_tz') || 'America/Sao_Paulo'));
+
   function handleSelect(idioma) {
     if (idioma.key === lang) return;
     setPendingLang(idioma);
@@ -367,9 +393,11 @@ function SecaoSistema() {
         </div>
       </div>
 
-      <div className="sys-group">
-        <p className="sys-group-title">{t('lang_titulo')}</p>
-        <p className="sys-group-desc">{t('lang_desc')}</p>
+      <Accordion
+        title={t('lang_titulo')}
+        desc={t('lang_desc')}
+        badge={idiomaAtual ? idiomaAtual.tag : undefined}
+      >
         <div className="lang-list">
           {IDIOMAS.map(l => {
             const sel = lang === l.key;
@@ -388,9 +416,15 @@ function SecaoSistema() {
             );
           })}
         </div>
-      </div>
+      </Accordion>
 
-      <TzSelector />
+      <Accordion
+        title={t('tz_titulo')}
+        desc={t('tz_desc')}
+        badge={tzAtual ? tzAtual.offset : undefined}
+      >
+        <TzSelector />
+      </Accordion>
 
       {pendingLang && (
         <Portal>
