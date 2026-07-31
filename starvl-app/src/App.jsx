@@ -3,6 +3,7 @@ import Login from './Login';
 import TopBar from './TopBar';
 import NavBar from './NavBar';
 import Dashboard from './Dashboard';
+import Usuarios from './Usuarios';
 import Parametros from './Parametros';
 import './App.css';
 
@@ -71,6 +72,7 @@ export default function App() {
         <NavBar page={page} onPageChange={setPage} />
         <div className="app-content">
           {page === 'dashboard'  && <Dashboard empresa={selectedClient?.codigoEmpresa} period={period} />}
+          {page === 'usuarios'   && <Usuarios />}
           {page === 'parametros' && <Parametros />}
         </div>
       </div>

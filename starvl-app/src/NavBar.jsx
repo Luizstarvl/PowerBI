@@ -2,6 +2,7 @@ import React from 'react';
 
 const PAGES = [
   { key: 'dashboard',  label: 'Dashboard' },
+  { key: 'usuarios',   label: 'Usuários' },
   { key: 'parametros', label: 'Parâmetros' },
 ];
 
