@@ -258,6 +258,7 @@ export default function Usuarios() {
               <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
             </svg>
             <input type="text" placeholder="Buscar por nome, usuário ou e-mail…" value={busca}
+              autoComplete="off"
               onChange={e => { setBusca(e.target.value); setPagina(1); }} />
           </div>
           <button className="btn-primary" onClick={() => setModal('novo')}>+ Adicionar Usuário</button>

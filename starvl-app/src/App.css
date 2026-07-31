@@ -335,6 +335,13 @@ body {
   font-size: 13px; font-family: 'Sora', sans-serif; color: var(--text); width: 180px;
 }
 .gu-search input::placeholder { color: var(--text-muted); }
+.gu-search input:-webkit-autofill,
+.gu-search input:-webkit-autofill:hover,
+.gu-search input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0px 1000px transparent inset;
+  -webkit-text-fill-color: var(--text);
+  transition: background-color 9999s ease-in-out 0s;
+}
 .gu-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 20px; }
 .gu-kpi {
   background: var(--card); backdrop-filter: blur(12px);
