@@ -578,8 +578,8 @@ export default function Parametros() {
 
   const SUB_PAGES = [
     { key: 'empresas', tk: 'param_empresas_menu' },
-    { key: 'conexao',  tk: 'param_conexao_menu'  },
     { key: 'sistema',  tk: 'param_sistema_menu'  },
+    { key: 'conexao',  tk: 'param_conexao_menu'  },
   ];
 
   return (
