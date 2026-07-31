@@ -86,6 +86,11 @@ function ModalUsuario({ usuario, onSave, onClose }) {
 
   function set(field, value) { setForm(f => ({ ...f, [field]: value })); }
 
+  function setNome(value) {
+    const capitalized = value.replace(/\b\w/g, c => c.toUpperCase());
+    set('nome', capitalized);
+  }
+
   function handleFotoChange(e) {
     const file = e.target.files[0];
     if (!file) return;
@@ -151,7 +156,7 @@ function ModalUsuario({ usuario, onSave, onClose }) {
           <div className="modal-grid-2">
             <div className="form-field">
               <label>Nome completo</label>
-              <input type="text" value={form.nome} onChange={e => set('nome', e.target.value)} placeholder="Ex: João Silva" />
+              <input type="text" value={form.nome} onChange={e => setNome(e.target.value)} placeholder="Ex: João Silva" />
             </div>
             <div className="form-field">
               <label>E-mail</label>
