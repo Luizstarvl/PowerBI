@@ -1,24 +1,26 @@
 /**
  * routes/clients.js
- * CRUD de clientes (postos) — apenas para leitura de dados SGA.
+ * CRUD de clientes (postos).
  * Credenciais de banco NUNCA são retornadas ao frontend.
  */
 const express      = require('express');
 const router       = express.Router();
 const { mainPool, registerClient, unregisterClient } = require('../db/poolManager');
 
-// Serializa sem expor credenciais
+// Garante que sc_banco pode ser NULL (empresa sem conexão configurada)
+mainPool.query(`ALTER TABLE starvl_clients ALTER COLUMN sc_banco DROP NOT NULL`).catch(() => {});
+
 const toPublic = r => ({
   id:            r.sc_id,
   nome:          r.sc_nome,
   codigoEmpresa: r.sc_codigo,
-  banco:         r.sc_banco,
-  // host somente se diferente do padrão (para o front saber que é custom)
+  banco:         r.sc_banco || null,
   hasCustomHost: !!(r.sc_host),
+  isConfigured:  !!(r.sc_banco),
   criado:        r.sc_criado,
 });
 
-// GET /api/clients — lista todos os clientes (sem credenciais)
+// GET /api/clients
 router.get('/', async (req, res) => {
   try {
     const { rows } = await mainPool.query(
@@ -32,13 +34,13 @@ router.get('/', async (req, res) => {
   }
 });
 
-// POST /api/clients — adiciona novo cliente
-// Body: { nome, codigoEmpresa, banco, host?, port?, dbUser?, dbPass? }
+// POST /api/clients — cadastra empresa (nome + código apenas; conexão configurada depois via PUT)
+// Body: { nome, codigoEmpresa }
 router.post('/', async (req, res) => {
-  const { nome, codigoEmpresa, banco, host, port, dbUser, dbPass } = req.body;
+  const { nome, codigoEmpresa } = req.body;
 
-  if (!nome?.trim() || !codigoEmpresa || !banco?.trim()) {
-    return res.status(400).json({ error: 'nome, codigoEmpresa e banco são obrigatórios.' });
+  if (!nome?.trim() || !codigoEmpresa) {
+    return res.status(400).json({ error: 'nome e codigoEmpresa são obrigatórios.' });
   }
 
   const codigo = parseInt(codigoEmpresa);
@@ -47,7 +49,6 @@ router.post('/', async (req, res) => {
   }
 
   try {
-    // Verifica se a empresa já existe
     const { rows: existing } = await mainPool.query(
       'SELECT sc_id FROM starvl_clients WHERE sc_codigo = $1', [codigo]
     );
@@ -55,49 +56,78 @@ router.post('/', async (req, res) => {
       return res.status(409).json({ error: `Empresa ${codigo} já está cadastrada.` });
     }
 
-    // Registra temporariamente para testar a conexão ANTES de salvar
-    const { queryFor } = require('../db/poolManager');
-    registerClient({ codigoEmpresa: codigo, dbName: banco, host, port, dbUser, dbPass });
-    const testQuery = queryFor(codigo);
-    try {
-      await testQuery(`SELECT 1`, []);
-    } catch (connErr) {
-      // Desfaz o registro temporário
-      unregisterClient(codigo);
-      return res.status(400).json({
-        error: `Não foi possível conectar ao banco "${banco}": ${connErr.message}`,
-      });
-    }
-
-    // Salva no banco de gestão
     const { rows } = await mainPool.query(
-      `INSERT INTO starvl_clients (sc_nome, sc_codigo, sc_banco, sc_host, sc_port, sc_user, sc_pass)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO starvl_clients (sc_nome, sc_codigo)
+       VALUES ($1, $2)
        RETURNING sc_id, sc_nome, sc_codigo, sc_banco, sc_host, sc_criado`,
-      [
-        nome.trim(),
-        codigo,
-        banco.trim(),
-        host?.trim()   || null,
-        port ? parseInt(port) : null,
-        dbUser?.trim() || null,
-        dbPass         || null,   // armazena como está (sem hash — é senha de banco, não de usuário)
-      ]
+      [nome.trim(), codigo]
     );
 
-    console.log(`[clients] novo cliente adicionado: "${nome}" (empresa ${codigo}, banco "${banco}")`);
+    console.log(`[clients] nova empresa: "${nome}" (código ${codigo})`);
     res.status(201).json(toPublic(rows[0]));
   } catch (err) {
     if (err.code === '23505') {
       return res.status(409).json({ error: `Empresa ${codigo} já está cadastrada.` });
     }
     console.error('POST /clients:', err.message);
-    res.status(500).json({ error: 'Erro ao adicionar cliente.' });
+    res.status(500).json({ error: 'Erro ao adicionar empresa.' });
   }
 });
 
-// DELETE /api/clients/:id — remove cliente
-// DELETE /api/clients/:codigoEmpresa — usa codigoEmpresa (sc_codigo) pois é UNIQUE e é o que o frontend conhece
+// PUT /api/clients/:codigoEmpresa — configura conexão de banco de dados
+// Body: { banco, host?, port?, dbUser?, dbPass? }
+router.put('/:codigoEmpresa', async (req, res) => {
+  const codigo = parseInt(req.params.codigoEmpresa);
+  if (isNaN(codigo) || codigo <= 0) return res.status(400).json({ error: 'codigoEmpresa inválido.' });
+
+  const { banco, host, port, dbUser, dbPass } = req.body;
+  if (!banco?.trim()) return res.status(400).json({ error: 'Nome do banco é obrigatório.' });
+
+  try {
+    const { rows: existing } = await mainPool.query(
+      `SELECT sc_id, sc_banco, sc_host, sc_port, sc_user, sc_pass
+       FROM starvl_clients WHERE sc_codigo = $1`,
+      [codigo]
+    );
+    if (!existing.length) return res.status(404).json({ error: 'Empresa não encontrada.' });
+
+    const old = existing[0];
+
+    // Testa nova conexão antes de salvar
+    unregisterClient(codigo);
+    registerClient({ codigoEmpresa: codigo, dbName: banco.trim(), host, port, dbUser, dbPass });
+    const { queryFor } = require('../db/poolManager');
+
+    try {
+      await queryFor(codigo)(`SELECT 1`, []);
+    } catch (connErr) {
+      // Restaura pool anterior se existia
+      unregisterClient(codigo);
+      if (old.sc_banco) {
+        registerClient({ codigoEmpresa: codigo, dbName: old.sc_banco, host: old.sc_host, port: old.sc_port, dbUser: old.sc_user, dbPass: old.sc_pass });
+      }
+      return res.status(400).json({
+        error: `Não foi possível conectar ao banco "${banco}": ${connErr.message}`,
+      });
+    }
+
+    const { rows } = await mainPool.query(
+      `UPDATE starvl_clients
+       SET sc_banco=$1, sc_host=$2, sc_port=$3, sc_user=$4, sc_pass=$5
+       WHERE sc_codigo=$6
+       RETURNING sc_id, sc_nome, sc_codigo, sc_banco, sc_host, sc_criado`,
+      [banco.trim(), host?.trim() || null, port ? parseInt(port) : null, dbUser?.trim() || null, dbPass || null, codigo]
+    );
+
+    console.log(`[clients] conexão atualizada: empresa ${codigo}, banco "${banco}"`);
+    res.json(toPublic(rows[0]));
+  } catch (err) {
+    console.error('PUT /clients:', err.message);
+    res.status(500).json({ error: 'Erro ao atualizar conexão.' });
+  }
+});
+
+// DELETE /api/clients/:codigoEmpresa
 router.delete('/:id', async (req, res) => {
   const codigoEmpresa = parseInt(req.params.id);
   if (!codigoEmpresa) return res.status(400).json({ error: 'codigoEmpresa inválido.' });
@@ -112,15 +142,15 @@ router.delete('/:id', async (req, res) => {
     }
     const removed = rows[0];
     unregisterClient(removed.sc_codigo);
-    console.log(`[clients] cliente removido: "${removed.sc_nome}" (empresa ${removed.sc_codigo})`);
+    console.log(`[clients] empresa removida: "${removed.sc_nome}" (código ${removed.sc_codigo})`);
     res.json({ ok: true, id: removed.sc_codigo });
   } catch (err) {
     console.error('DELETE /clients:', err.message);
-    res.status(500).json({ error: 'Erro ao remover cliente.' });
+    res.status(500).json({ error: 'Erro ao remover empresa.' });
   }
 });
 
-// GET /api/clients/test?empresa=7432 — testa conectividade de uma empresa
+// GET /api/clients/test?empresa=7432 — testa conectividade registrada
 router.get('/test', async (req, res) => {
   const empresa = parseInt(req.query.empresa);
   if (!empresa) return res.status(400).json({ error: 'empresa é obrigatório.' });

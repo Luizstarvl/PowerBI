@@ -13,27 +13,21 @@ function fmtDate(s) {
 /* ── Modal Nova Empresa ──────────────────────────────────────────────────────── */
 function ModalEmpresa({ onSave, onClose }) {
   const { t } = useT();
-  const [form, setForm] = useState({ nome: '', codigoEmpresa: '', banco: '', host: '', port: '', dbUser: '', dbPass: '' });
+  const [form, setForm] = useState({ nome: '', codigoEmpresa: '' });
   const [erro, setErro] = useState('');
   const [loading, setLoading] = useState(false);
 
   function set(f, v) { setForm(p => ({ ...p, [f]: v })); }
 
   async function handleSave() {
-    if (!form.nome.trim())    return setErro(t('me_obrig_nome'));
-    if (!form.codigoEmpresa)  return setErro(t('me_obrig_cod'));
-    if (!form.banco.trim())   return setErro(t('me_obrig_banco'));
+    if (!form.nome.trim())   return setErro(t('me_obrig_nome'));
+    if (!form.codigoEmpresa) return setErro(t('me_obrig_cod'));
     setErro(''); setLoading(true);
     try {
       const res = await fetch(`${API_URL}/api/clients`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          nome: form.nome.trim(), codigoEmpresa: parseInt(form.codigoEmpresa),
-          banco: form.banco.trim(),
-          host: form.host.trim() || undefined, port: form.port || undefined,
-          dbUser: form.dbUser.trim() || undefined, dbPass: form.dbPass || undefined,
-        }),
+        body: JSON.stringify({ nome: form.nome.trim(), codigoEmpresa: parseInt(form.codigoEmpresa) }),
       });
       const data = await res.json();
       if (!res.ok) return setErro(data.error || t('me_erro'));
@@ -57,15 +51,72 @@ function ModalEmpresa({ onSave, onClose }) {
               <input type="number" value={form.codigoEmpresa} onChange={e => set('codigoEmpresa', e.target.value)} placeholder="Ex: 7432" />
             </div>
           </div>
+          {erro && <p className="form-erro">{erro}</p>}
+        </div>
+        <div className="modal-footer">
+          <button className="btn-ghost" onClick={onClose}>{t('btn_cancelar')}</button>
+          <button className="btn-primary" onClick={handleSave} disabled={loading}>{loading ? t('carregando') : t('btn_salvar')}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Modal Configurar Conexão ────────────────────────────────────────────────── */
+function ModalConexao({ empresa, onSave, onClose }) {
+  const { t } = useT();
+  const [form, setForm] = useState({
+    banco:  empresa.banco || '',
+    host:   '',
+    port:   '',
+    dbUser: '',
+    dbPass: '',
+  });
+  const [erro, setErro]     = useState('');
+  const [loading, setLoading] = useState(false);
+
+  function set(f, v) { setForm(p => ({ ...p, [f]: v })); }
+
+  async function handleSave() {
+    if (!form.banco.trim()) return setErro(t('con2_obrig_banco'));
+    setErro(''); setLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/api/clients/${empresa.codigoEmpresa}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          banco:  form.banco.trim(),
+          host:   form.host.trim()   || undefined,
+          port:   form.port          || undefined,
+          dbUser: form.dbUser.trim() || undefined,
+          dbPass: form.dbPass        || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) return setErro(data.error || t('me_erro'));
+      onSave(data);
+    } catch { setErro(t('me_erro_conexao')); }
+    finally { setLoading(false); }
+  }
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" onClick={e => e.stopPropagation()}>
+        <h3 className="modal-title">{t('con2_modal_titulo')}</h3>
+        <div className="modal-body">
+          <div className="con2-empresa-hint">
+            <span className="con2-empresa-nome">{empresa.nome}</span>
+            <span className="con2-empresa-cod">#{empresa.codigoEmpresa}</span>
+          </div>
           <div className="form-field">
             <label>{t('me_banco')}</label>
-            <input type="text" value={form.banco} onChange={e => set('banco', e.target.value)} placeholder="Ex: ret_meavenida" />
+            <input type="text" value={form.banco} onChange={e => set('banco', e.target.value)} placeholder="Ex: ret_meavenida" autoFocus autoComplete="off" />
           </div>
           <div className="modal-section-label">{t('me_opcional')}</div>
           <div className="modal-grid-2">
             <div className="form-field">
               <label>{t('me_host')}</label>
-              <input type="text" value={form.host} onChange={e => set('host', e.target.value)} placeholder="db.servidor.com" />
+              <input type="text" value={form.host} onChange={e => set('host', e.target.value)} placeholder="db.servidor.com" autoComplete="off" />
             </div>
             <div className="form-field">
               <label>{t('me_porta')}</label>
@@ -84,7 +135,9 @@ function ModalEmpresa({ onSave, onClose }) {
         </div>
         <div className="modal-footer">
           <button className="btn-ghost" onClick={onClose}>{t('btn_cancelar')}</button>
-          <button className="btn-primary" onClick={handleSave} disabled={loading}>{loading ? t('me_conectando') : t('btn_salvar')}</button>
+          <button className="btn-primary" onClick={handleSave} disabled={loading}>
+            {loading ? t('con2_testando') : t('btn_salvar')}
+          </button>
         </div>
       </div>
     </div>
@@ -131,20 +184,19 @@ function SecaoEmpresas() {
             <table className="param-table">
               <thead>
                 <tr>
-                  <th>{t('th_empresa')}</th><th>{t('th_codigo')}</th><th>{t('th_banco')}</th>
-                  <th>{t('th_conexao')}</th><th>{t('th_cadastrado')}</th>
+                  <th>{t('th_empresa')}</th>
+                  <th>{t('th_codigo')}</th>
+                  <th>{t('th_cadastrado')}</th>
                   <th style={{ textAlign: 'right' }}>{t('th_acoes')}</th>
                 </tr>
               </thead>
               <tbody>
                 {clientes.length === 0
-                  ? <tr><td colSpan={6} className="rank-empty">{t('emp_nenhuma')}</td></tr>
+                  ? <tr><td colSpan={4} className="rank-empty">{t('emp_nenhuma')}</td></tr>
                   : clientes.map(c => (
                     <tr key={c.id}>
                       <td className="gu-username">{c.nome}</td>
                       <td className="td-id">{c.codigoEmpresa}</td>
-                      <td><code className="db-name">{c.banco}</code></td>
-                      <td><span className={`badge ${c.hasCustomHost ? 'badge-admin' : 'badge-user'}`}>{c.hasCustomHost ? t('con_personalizada') : t('con_padrao')}</span></td>
                       <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>{fmtDate(c.criado)}</td>
                       <td className="td-actions">
                         <button className="icon-btn danger" title={t('emp_remover')} onClick={() => handleDelete(c.codigoEmpresa)}>
@@ -162,6 +214,90 @@ function SecaoEmpresas() {
         </div>
       </div>
       {modal && <Portal><ModalEmpresa onSave={handleSave} onClose={() => setModal(false)} /></Portal>}
+    </div>
+  );
+}
+
+/* ── Seção Conexão ───────────────────────────────────────────────────────────── */
+function SecaoConexao() {
+  const { t } = useT();
+  const [clientes, setClientes] = useState([]);
+  const [loading, setLoading]   = useState(false);
+  const [config, setConfig]     = useState(null); // empresa sendo configurada
+
+  useEffect(() => {
+    setLoading(true);
+    fetch(`${API_URL}/api/clients`)
+      .then(r => r.json())
+      .then(d => setClientes(Array.isArray(d) ? d : []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  function handleSaved(updated) {
+    setClientes(p => p.map(c => c.codigoEmpresa === updated.codigoEmpresa ? { ...c, ...updated } : c));
+    setConfig(null);
+  }
+
+  return (
+    <div className="fade-up">
+      <div className="param-section-header">
+        <div>
+          <h3 className="param-section-title">{t('con2_titulo')}</h3>
+          <p className="param-section-desc">{t('con2_desc')}</p>
+        </div>
+      </div>
+
+      <div className="param-card">
+        <div className="param-table-wrap">
+          {loading ? <p className="rank-empty">{t('carregando')}</p> : (
+            <table className="param-table">
+              <thead>
+                <tr>
+                  <th>{t('th_empresa')}</th>
+                  <th>{t('th_codigo')}</th>
+                  <th>{t('th_banco')}</th>
+                  <th>{t('th_conexao')}</th>
+                  <th style={{ textAlign: 'right' }}>{t('th_acoes')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {clientes.length === 0
+                  ? <tr><td colSpan={5} className="rank-empty">{t('emp_nenhuma')}</td></tr>
+                  : clientes.map(c => (
+                    <tr key={c.id}>
+                      <td className="gu-username">{c.nome}</td>
+                      <td className="td-id">{c.codigoEmpresa}</td>
+                      <td>
+                        {c.banco
+                          ? <code className="db-name">{c.banco}</code>
+                          : <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>—</span>}
+                      </td>
+                      <td>
+                        {c.isConfigured
+                          ? <span className={`badge ${c.hasCustomHost ? 'badge-admin' : 'badge-user'}`}>
+                              {c.hasCustomHost ? t('con_personalizada') : t('con_padrao')}
+                            </span>
+                          : <span className="badge badge-warn">{t('con2_nao_config')}</span>}
+                      </td>
+                      <td className="td-actions">
+                        <button className="btn-outline-sm" onClick={() => setConfig(c)}>
+                          {t('con2_configurar')}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+
+      {config && (
+        <Portal>
+          <ModalConexao empresa={config} onSave={handleSaved} onClose={() => setConfig(null)} />
+        </Portal>
+      )}
     </div>
   );
 }
@@ -442,7 +578,8 @@ export default function Parametros() {
 
   const SUB_PAGES = [
     { key: 'empresas', tk: 'param_empresas_menu' },
-    { key: 'sistema',  tk: 'param_sistema_menu' },
+    { key: 'conexao',  tk: 'param_conexao_menu'  },
+    { key: 'sistema',  tk: 'param_sistema_menu'  },
   ];
 
   return (
@@ -463,6 +600,7 @@ export default function Parametros() {
           <p className="param-content-desc">{t('param_desc')}</p>
         </div>
         {sub === 'empresas' && <SecaoEmpresas />}
+        {sub === 'conexao'  && <SecaoConexao />}
         {sub === 'sistema'  && <SecaoSistema />}
       </div>
     </div>
