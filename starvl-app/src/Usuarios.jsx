@@ -1,5 +1,40 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Portal from './Portal';
+
+function CustomSelect({ value, onChange, options }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    function handleOut(e) {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    }
+    document.addEventListener('mousedown', handleOut);
+    return () => document.removeEventListener('mousedown', handleOut);
+  }, []);
+
+  return (
+    <div className="csel" ref={ref}>
+      <button type="button" className="csel-trigger" onClick={() => setOpen(o => !o)}>
+        <span>{value}</span>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="6 9 12 15 18 9"/>
+        </svg>
+      </button>
+      {open && (
+        <div className="csel-dropdown">
+          {options.map(opt => (
+            <button
+              key={opt} type="button"
+              className={`csel-option${value === opt ? ' selected' : ''}`}
+              onClick={() => { onChange(opt); setOpen(false); }}
+            >{opt}</button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 const API_URL = process.env.REACT_APP_API_URL
   || (window.location.hostname === 'localhost' ? 'http://localhost:3001' : '');
@@ -71,9 +106,7 @@ function ModalUsuario({ usuario, onSave, onClose }) {
           </div>
           <div className="form-field">
             <label>Perfil</label>
-            <select value={form.perfil} onChange={e => set('perfil', e.target.value)}>
-              {PERFIS.map(p => <option key={p} value={p}>{p}</option>)}
-            </select>
+            <CustomSelect value={form.perfil} onChange={v => set('perfil', v)} options={PERFIS} />
           </div>
           {erro && <p className="form-erro">{erro}</p>}
         </div>

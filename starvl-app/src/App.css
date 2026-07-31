@@ -502,6 +502,37 @@ body {
   box-shadow: var(--shadow-sm);
 }
 
+/* ── Custom Select ───────────────────────────────────────────────────────────── */
+.csel { position: relative; }
+.csel-trigger {
+  width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  background: var(--blue-soft);
+  border: 1.5px solid var(--border);
+  border-radius: 9px; padding: 10px 13px;
+  font-size: 14px; font-family: 'Sora', sans-serif;
+  color: var(--text); cursor: pointer; text-align: left;
+  transition: border-color .15s;
+}
+.csel-trigger:focus { border-color: var(--blue); outline: none; }
+.csel-trigger svg { flex-shrink: 0; color: var(--text-muted); }
+.csel-dropdown {
+  position: absolute; top: calc(100% + 5px); left: 0; right: 0; z-index: 20;
+  background: var(--card);
+  backdrop-filter: blur(16px);
+  border: 1.5px solid var(--border);
+  border-radius: 9px; overflow: hidden;
+  box-shadow: var(--shadow-md);
+}
+.csel-option {
+  display: block; width: 100%; padding: 10px 13px;
+  font-size: 13px; font-family: 'Sora', sans-serif;
+  color: var(--text); background: transparent; border: none;
+  cursor: pointer; text-align: left;
+  transition: background .12s;
+}
+.csel-option:hover { background: var(--blue-soft); }
+.csel-option.selected { color: var(--blue); font-weight: 700; background: var(--blue-soft); }
+
 /* ── Ranking ─────────────────────────────────────────────────────────────────── */
 .rank-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 20px; }
 .rank-card {
