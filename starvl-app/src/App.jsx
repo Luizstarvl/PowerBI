@@ -92,7 +92,7 @@ export default function App() {
 
   return (
     <LangProvider>
-    <div className="app-root" data-theme={appliedTheme}>
+    <div className="app-root" data-theme={appliedTheme} onContextMenu={e => e.preventDefault()}>
       <TopBar
         user={user}
         clients={clients}

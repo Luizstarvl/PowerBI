@@ -841,7 +841,7 @@ export default function Parametros({ themeMode, onThemeModeChange }) {
   ];
 
   return (
-    <div className="param-layout" onContextMenu={e => e.preventDefault()}>
+    <div className="param-layout">
       <aside className="param-subnav">
         <p className="param-subnav-label">{t('param_config')}</p>
         {SUB_PAGES.map(p => (
