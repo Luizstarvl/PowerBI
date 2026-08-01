@@ -27,7 +27,7 @@ export default function App() {
   const [page, setPage] = useState('dashboard');
   const [visited, setVisited] = useState(() => new Set(['dashboard']));
   const [theme, setTheme] = useState(() => {
-    const saved = localStorage.getItem('pbi_theme') || 'light';
+    const saved = localStorage.getItem('pbi_theme') || 'dark';
     document.documentElement.setAttribute('data-theme', saved);
     return saved;
   });
