@@ -13,19 +13,23 @@ pool.query(`
   )
 `).then(async () => {
   const defaults = [
-    { nome: 'Administrador', desc: 'Acesso total ao sistema.',                             perm: { dashboards: 'todos',   configuracoes: true,  postos: 'todos',    modo: 'completo' } },
-    { nome: 'Diretoria',     desc: 'Todos os dashboards, sem acesso às configurações.',    perm: { dashboards: 'todos',   configuracoes: false, postos: 'todos',    modo: 'completo' } },
-    { nome: 'Gerente',       desc: 'Dashboards apenas do próprio posto.',                  perm: { dashboards: 'todos',   configuracoes: false, postos: 'proprios', modo: 'completo' } },
-    { nome: 'Financeiro',    desc: 'Fluxo de Caixa, Contas a Receber e Despesas.',         perm: { dashboards: ['fluxo_caixa','contas_receber','despesas'], configuracoes: false, postos: 'proprios', modo: 'completo' } },
-    { nome: 'Operador',      desc: 'Somente consulta de dados, sem edições.',              perm: { dashboards: 'todos',   configuracoes: false, postos: 'proprios', modo: 'consulta' } },
+    { nome: 'Administrador', builtin: true,  desc: 'Acesso total ao sistema.',                             perm: { dashboards: 'todos',   configuracoes: true,  postos: 'todos',    modo: 'completo' } },
+    { nome: 'Diretoria',     builtin: false, desc: 'Todos os dashboards, sem acesso às configurações.',    perm: { dashboards: 'todos',   configuracoes: false, postos: 'todos',    modo: 'completo' } },
+    { nome: 'Gerente',       builtin: false, desc: 'Dashboards apenas do próprio posto.',                  perm: { dashboards: 'todos',   configuracoes: false, postos: 'proprios', modo: 'completo' } },
+    { nome: 'Financeiro',    builtin: false, desc: 'Fluxo de Caixa, Contas a Receber e Despesas.',         perm: { dashboards: ['fluxo_caixa','contas_receber','despesas'], configuracoes: false, postos: 'proprios', modo: 'completo' } },
+    { nome: 'Operador',      builtin: false, desc: 'Somente consulta de dados, sem edições.',              perm: { dashboards: 'todos',   configuracoes: false, postos: 'proprios', modo: 'consulta' } },
   ];
   for (const p of defaults) {
     await pool.query(
       `INSERT INTO starvl_profiles (sp_nome, sp_descricao, sp_permissoes, sp_builtin)
-       VALUES ($1,$2,$3,true) ON CONFLICT (sp_nome) DO NOTHING`,
-      [p.nome, p.desc, JSON.stringify(p.perm)]
+       VALUES ($1,$2,$3,$4) ON CONFLICT (sp_nome) DO NOTHING`,
+      [p.nome, p.desc, JSON.stringify(p.perm), p.builtin]
     );
   }
+  // Corrige registros existentes: apenas Administrador permanece builtin
+  await pool.query(
+    `UPDATE starvl_profiles SET sp_builtin = false WHERE sp_nome != 'Administrador' AND sp_builtin = true`
+  );
 }).catch(err => console.error('[starvl_profiles] init:', err.message));
 
 const toRow = r => ({
