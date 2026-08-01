@@ -19,6 +19,7 @@ const starvlUsersRoutes   = require('./routes/starvlUsers');
 const clientsRoutes       = require('./routes/clients');
 const goalsRoutes         = require('./routes/goals');
 const profilesRoutes      = require('./routes/profiles');
+const connectionsRoutes   = require('./routes/connections');
 
 const app = express();
 const PORT = process.env.PORT || process.env.API_PORT || 3001;
@@ -141,6 +142,7 @@ app.use('/api/starvl-users',   starvlUsersRoutes);
 app.use('/api/clients',        clientsRoutes);
 app.use('/api/goals',          goalsRoutes);
 app.use('/api/profiles',       profilesRoutes);
+app.use('/api/connections',    connectionsRoutes);
 
 if (fs.existsSync(clientBuildPath)) {
   app.use(express.static(clientBuildPath, {

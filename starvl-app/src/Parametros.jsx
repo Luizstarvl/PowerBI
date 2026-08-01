@@ -138,53 +138,202 @@ function ModalEmpresa({ empresa, onSave, onClose }) {
 }
 
 /* ── Modal Conexão ───────────────────────────────────────────────────────────── */
-function ModalConexao({ empresa, onSave, onClose }) {
-  const { t } = useT();
-  const [form, setForm] = useState({ banco: empresa.banco || '', host: '', port: '', dbUser: '', dbPass: '' });
-  const [erro, setErro]       = useState('');
-  const [loading, setLoading] = useState(false);
-  function set(f, v) { setForm(p => ({ ...p, [f]: v })); }
+/* ── Tipos de banco ──────────────────────────────────────────────────────────── */
+const DB_TIPOS = [
+  { value: 'postgresql', label: 'PostgreSQL', porta: 5432 },
+  { value: 'sqlserver',  label: 'SQL Server', porta: 1433 },
+  { value: 'mysql',      label: 'MySQL',      porta: 3306 },
+  { value: 'mariadb',    label: 'MariaDB',    porta: 3306 },
+  { value: 'oracle',     label: 'Oracle DB',  porta: 1521 },
+];
 
-  async function handleSave() {
-    if (!form.banco.trim()) return setErro(t('con2_obrig_banco'));
-    setErro(''); setLoading(true);
+/* ── Badge de status ─────────────────────────────────────────────────────────── */
+function ConexaoStatus({ status, erro }) {
+  const MAP = {
+    ok:      { label: 'Conectado', dot: '#22C55E', bg: 'rgba(34,197,94,.1)',  text: '#16A34A' },
+    error:   { label: 'Erro',      dot: '#EF4444', bg: 'rgba(239,68,68,.1)', text: '#DC2626' },
+    pending: { label: 'Pendente',  dot: '#94A3B8', bg: 'rgba(148,163,184,.1)', text: '#64748B' },
+  };
+  const s = MAP[status] || MAP.pending;
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+      <span style={{
+        display: 'inline-flex', alignItems: 'center', gap: 5,
+        fontSize: 11, fontWeight: 600, padding: '3px 9px', borderRadius: 20,
+        background: s.bg, color: s.text, width: 'fit-content',
+      }}>
+        <span style={{ width: 6, height: 6, borderRadius: '50%', background: s.dot, flexShrink: 0 }} />
+        {s.label}
+      </span>
+      {status === 'error' && erro && (
+        <span style={{ fontSize: 11, color: 'var(--red)', maxWidth: 260, lineHeight: 1.4, paddingLeft: 2 }}>{erro}</span>
+      )}
+    </div>
+  );
+}
+
+/* ── Modal Conexão (criar / editar) ─────────────────────────────────────────── */
+function ModalConexaoForm({ conexao, onSave, onClose }) {
+  const TIPO_DEFAULT = DB_TIPOS[0];
+  const [form, setForm] = useState({
+    nome:     conexao?.nome     || '',
+    tipo:     conexao?.tipo     || TIPO_DEFAULT.value,
+    servidor: conexao?.servidor || '',
+    porta:    conexao?.porta    || TIPO_DEFAULT.porta,
+    banco:    conexao?.banco    || '',
+    usuario:  conexao?.usuario  || '',
+    senha:    '',
+    timeout:  conexao?.timeout  || 30,
+  });
+  const [erro,       setErro]       = useState('');
+  const [loading,    setLoading]    = useState(false);
+  const [testing,    setTesting]    = useState(false);
+  const [testResult, setTestResult] = useState(null);
+
+  function set(f, v) { setForm(p => ({ ...p, [f]: v })); setTestResult(null); }
+
+  function handleTipoChange(v) {
+    const t = DB_TIPOS.find(d => d.value === v);
+    setForm(p => ({ ...p, tipo: v, porta: t?.porta || p.porta }));
+    setTestResult(null);
+  }
+
+  async function handleTest() {
+    if (!form.servidor.trim() || !form.banco.trim()) {
+      setErro('Preencha Servidor e Banco para testar.');
+      return;
+    }
+    setErro(''); setTesting(true); setTestResult(null);
     try {
-      const res = await fetch(`${API_URL}/api/clients/${empresa.codigoEmpresa}`, {
-        method: 'PUT', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ banco: form.banco.trim(), host: form.host.trim() || undefined, port: form.port || undefined, dbUser: form.dbUser.trim() || undefined, dbPass: form.dbPass || undefined }),
+      const res  = await fetch(`${API_URL}/api/connections/test`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
       });
       const data = await res.json();
-      if (!res.ok) return setErro(data.error || t('me_erro'));
+      setTestResult(data);
+    } catch { setTestResult({ status: 'error', erro: 'Erro ao comunicar com o servidor.' }); }
+    finally { setTesting(false); }
+  }
+
+  async function handleSave() {
+    if (!form.nome.trim())     return setErro('Nome é obrigatório.');
+    if (!form.servidor.trim()) return setErro('Servidor é obrigatório.');
+    if (!form.banco.trim())    return setErro('Banco é obrigatório.');
+    setErro(''); setLoading(true);
+    try {
+      const url    = conexao ? `${API_URL}/api/connections/${conexao.id}` : `${API_URL}/api/connections`;
+      const method = conexao ? 'PUT' : 'POST';
+      const res    = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
+      const data   = await res.json();
+      if (!res.ok) return setErro(data.error || 'Erro ao salvar.');
       onSave(data);
-    } catch { setErro(t('me_erro_conexao')); }
+    } catch { setErro('Erro de conexão com o servidor.'); }
     finally { setLoading(false); }
   }
 
+
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={e => e.stopPropagation()}>
-        <h3 className="modal-title">{t('con2_modal_titulo')}</h3>
+      <div className="modal modal-lg" onClick={e => e.stopPropagation()}>
+        <h3 className="modal-title">{conexao ? 'Editar Conexão' : 'Nova Conexão'}</h3>
         <div className="modal-body">
-          <div className="con2-empresa-hint">
-            <span className="con2-empresa-nome">{empresa.nome}</span>
-            <span className="con2-empresa-cod">#{empresa.codigoEmpresa}</span>
-          </div>
+
+          {/* Nome */}
           <div className="form-field">
-            <label>{t('me_banco')}</label>
-            <input type="text" value={form.banco} onChange={e => set('banco', e.target.value)} placeholder="Ex: ret_meavenida" autoFocus autoComplete="off" />
+            <label>Nome da Conexão</label>
+            <input type="text" value={form.nome} onChange={e => set('nome', e.target.value)}
+              placeholder="Ex: Posto Central - Produção" autoFocus autoComplete="off" />
           </div>
-          <div className="modal-section-label">{t('me_opcional')}</div>
+
+          {/* Tipo + Timeout */}
           <div className="modal-grid-2">
-            <div className="form-field"><label>{t('me_host')}</label><input type="text" value={form.host} onChange={e => set('host', e.target.value)} placeholder="db.servidor.com" autoComplete="off" /></div>
-            <div className="form-field"><label>{t('me_porta')}</label><input type="number" value={form.port} onChange={e => set('port', e.target.value)} placeholder="5432" /></div>
-            <div className="form-field"><label>{t('me_usuario_db')}</label><input type="text" value={form.dbUser} onChange={e => set('dbUser', e.target.value)} placeholder="postgres" autoComplete="off" /></div>
-            <div className="form-field"><label>{t('me_senha_db')}</label><input type="password" value={form.dbPass} onChange={e => set('dbPass', e.target.value)} placeholder="••••••" autoComplete="new-password" /></div>
+            <div className="form-field">
+              <label>Tipo</label>
+              <select className="login-field input" style={{ background: 'var(--card)', color: 'var(--text)', border: '1.5px solid var(--border)', borderRadius: 10, padding: '11px 14px', fontSize: 14, outline: 'none', width: '100%' }}
+                value={form.tipo} onChange={e => handleTipoChange(e.target.value)}>
+                {DB_TIPOS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+              </select>
+            </div>
+            <div className="form-field">
+              <label>Timeout (segundos)</label>
+              <input type="number" min={5} max={120} value={form.timeout}
+                onChange={e => set('timeout', parseInt(e.target.value) || 30)} />
+            </div>
           </div>
+
+          {/* Servidor + Porta */}
+          <div className="modal-section-label">Conexão</div>
+          <div className="modal-grid-2" style={{ gridTemplateColumns: '1fr 120px' }}>
+            <div className="form-field">
+              <label>Servidor</label>
+              <input type="text" value={form.servidor} onChange={e => set('servidor', e.target.value)}
+                placeholder="db.servidor.com" autoComplete="off" />
+            </div>
+            <div className="form-field">
+              <label>Porta</label>
+              <input type="number" value={form.porta} onChange={e => set('porta', parseInt(e.target.value) || '')} />
+            </div>
+          </div>
+
+          {/* Banco */}
+          <div className="form-field">
+            <label>Banco de Dados</label>
+            <input type="text" value={form.banco} onChange={e => set('banco', e.target.value)}
+              placeholder="nome_do_banco" autoComplete="off" />
+          </div>
+
+          {/* Usuário + Senha */}
+          <div className="modal-section-label">Autenticação</div>
+          <div className="modal-grid-2">
+            <div className="form-field">
+              <label>Usuário</label>
+              <input type="text" value={form.usuario} onChange={e => set('usuario', e.target.value)}
+                placeholder="postgres" autoComplete="off" />
+            </div>
+            <div className="form-field">
+              <label>{conexao ? 'Senha (deixe vazio para manter)' : 'Senha'}</label>
+              <input type="password" value={form.senha} onChange={e => set('senha', e.target.value)}
+                placeholder="••••••" autoComplete="new-password" />
+            </div>
+          </div>
+
+          {/* Resultado do teste */}
+          {testResult && (
+            <div style={{
+              marginTop: 12, padding: '10px 14px', borderRadius: 10,
+              background: testResult.status === 'ok' ? 'rgba(34,197,94,.08)' : 'rgba(239,68,68,.08)',
+              border: `1px solid ${testResult.status === 'ok' ? 'rgba(34,197,94,.25)' : 'rgba(239,68,68,.25)'}`,
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                {testResult.status === 'ok'
+                  ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16A34A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                  : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                }
+                <span style={{ fontSize: 13, fontWeight: 600, color: testResult.status === 'ok' ? '#16A34A' : '#DC2626' }}>
+                  {testResult.status === 'ok'
+                    ? `Conexão bem-sucedida${testResult.latencia ? ` — ${testResult.latencia}ms` : ''}`
+                    : 'Falha na conexão'}
+                </span>
+              </div>
+              {testResult.status === 'error' && testResult.erro && (
+                <p style={{ fontSize: 12, color: 'var(--text-sub)', marginTop: 5, paddingLeft: 22, lineHeight: 1.5 }}>{testResult.erro}</p>
+              )}
+            </div>
+          )}
+
           {erro && <p className="form-erro">{erro}</p>}
         </div>
         <div className="modal-footer">
-          <button className="btn-ghost" onClick={onClose}>{t('btn_cancelar')}</button>
-          <button className="btn-primary" onClick={handleSave} disabled={loading}>{loading ? t('con2_testando') : t('btn_salvar')}</button>
+          <button className="btn-ghost" onClick={onClose}>Cancelar</button>
+          <button className="btn-outline-sm" style={{ padding: '8px 16px', fontSize: 13 }}
+            onClick={handleTest} disabled={testing}>
+            {testing
+              ? <><span style={{ display: 'inline-block', width: 12, height: 12, border: '2px solid var(--blue)', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin .7s linear infinite', marginRight: 6 }} />Testando...</>
+              : '⚡ Testar Conexão'}
+          </button>
+          <button className="btn-primary" onClick={handleSave} disabled={loading}>
+            {loading ? 'Salvando...' : 'Salvar'}
+          </button>
         </div>
       </div>
     </div>
@@ -299,113 +448,198 @@ function ContextMenu({ x, y, empresa, onIncluir, onEditar, onExcluir, onClose })
   );
 }
 
-/* ── Modal Nova Conexão ──────────────────────────────────────────────────────── */
-function ModalNovaConexao({ onSave, onClose }) {
-  const { t } = useT();
-  const [form, setForm] = useState({ nome: '', codigoEmpresa: '', banco: '', host: '', port: '', dbUser: '', dbPass: '' });
-  const [erro, setErro]       = useState('');
-  const [loading, setLoading] = useState(false);
-  function set(f, v) { setForm(p => ({ ...p, [f]: v })); }
-
-  async function handleSave() {
-    if (!form.nome.trim())   return setErro(t('me_obrig_nome'));
-    if (!form.codigoEmpresa) return setErro(t('me_obrig_cod'));
-    if (!form.banco.trim())  return setErro(t('con2_obrig_banco'));
-    setErro(''); setLoading(true);
-    try {
-      const r1 = await fetch(`${API_URL}/api/clients`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nome: form.nome.trim(), codigoEmpresa: parseInt(form.codigoEmpresa) }) });
-      const d1 = await r1.json();
-      if (!r1.ok) { setErro(d1.error || t('me_erro')); return; }
-      const r2 = await fetch(`${API_URL}/api/clients/${d1.codigoEmpresa}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ banco: form.banco.trim(), host: form.host.trim() || undefined, port: form.port || undefined, dbUser: form.dbUser.trim() || undefined, dbPass: form.dbPass || undefined }) });
-      const d2 = await r2.json();
-      if (!r2.ok) { setErro(d2.error || t('me_erro')); return; }
-      onSave(d2);
-    } catch { setErro(t('me_erro_conexao')); }
-    finally { setLoading(false); }
-  }
-
-  return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={e => e.stopPropagation()}>
-        <h3 className="modal-title">{t('con2_modal_titulo')}</h3>
-        <div className="modal-body">
-          <div className="modal-grid-2">
-            <div className="form-field"><label>{t('me_nome')}</label><input type="text" value={form.nome} onChange={e => set('nome', e.target.value)} placeholder="Ex: Posto Central" autoFocus autoComplete="off" /></div>
-            <div className="form-field"><label>{t('me_codigo')}</label><input type="number" value={form.codigoEmpresa} onChange={e => set('codigoEmpresa', e.target.value)} placeholder="Ex: 7432" /></div>
-          </div>
-          <div className="modal-section-label">{t('th_banco')}</div>
-          <div className="form-field"><label>{t('me_banco')}</label><input type="text" value={form.banco} onChange={e => set('banco', e.target.value)} placeholder="Ex: ret_meavenida" autoComplete="off" /></div>
-          <div className="modal-section-label">{t('me_opcional')}</div>
-          <div className="modal-grid-2">
-            <div className="form-field"><label>{t('me_host')}</label><input type="text" value={form.host} onChange={e => set('host', e.target.value)} placeholder="db.servidor.com" autoComplete="off" /></div>
-            <div className="form-field"><label>{t('me_porta')}</label><input type="number" value={form.port} onChange={e => set('port', e.target.value)} placeholder="5432" /></div>
-            <div className="form-field"><label>{t('me_usuario_db')}</label><input type="text" value={form.dbUser} onChange={e => set('dbUser', e.target.value)} placeholder="postgres" autoComplete="off" /></div>
-            <div className="form-field"><label>{t('me_senha_db')}</label><input type="password" value={form.dbPass} onChange={e => set('dbPass', e.target.value)} placeholder="••••••" autoComplete="new-password" /></div>
-          </div>
-          {erro && <p className="form-erro">{erro}</p>}
-        </div>
-        <div className="modal-footer">
-          <button className="btn-ghost" onClick={onClose}>{t('btn_cancelar')}</button>
-          <button className="btn-primary" onClick={handleSave} disabled={loading}>{loading ? t('con2_testando') : t('btn_salvar')}</button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 /* ── Seção Conexão ───────────────────────────────────────────────────────────── */
 function SecaoConexao() {
-  const { t } = useT();
-  const [clientes, setClientes] = useState([]);
-  const [loading, setLoading]   = useState(false);
-  const [config, setConfig]     = useState(null);
-  const [nova, setNova]         = useState(false);
-  const [ctxMenu, setCtxMenu]   = useState(null);
+  const [conexoes,  setConexoes]  = useState([]);
+  const [loading,   setLoading]   = useState(false);
+  const [modal,     setModal]     = useState(null);   // null | { conexao? }
+  const [testando,  setTestando]  = useState(null);   // id em teste
+  const [ctxMenu,   setCtxMenu]   = useState(null);
 
-  useEffect(() => {
+  function load() {
     setLoading(true);
-    fetch(`${API_URL}/api/clients`).then(r => r.json()).then(d => setClientes(Array.isArray(d) ? d : [])).catch(() => {}).finally(() => setLoading(false));
-  }, []);
-
-  function handleSaved(updated) { setClientes(p => p.map(c => c.codigoEmpresa === updated.codigoEmpresa ? { ...c, ...updated } : c)); setConfig(null); }
-  function handleNovaSalva(item) { setClientes(p => [...p, item]); setNova(false); }
-  async function handleDelete(cod) {
-    if (!window.confirm(t('emp_remover'))) return;
-    const res = await fetch(`${API_URL}/api/clients/${cod}`, { method: 'DELETE' });
-    if (res.ok) setClientes(p => p.filter(c => c.codigoEmpresa !== cod));
+    fetch(`${API_URL}/api/connections`)
+      .then(r => r.json())
+      .then(d => setConexoes(Array.isArray(d) ? d : []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }
-  function openCtx(e, empresa) { e.preventDefault(); setCtxMenu({ x: e.clientX, y: e.clientY, empresa }); }
+
+  useEffect(() => { load(); }, []);
+
+  function handleSaved(saved) {
+    setConexoes(p => {
+      const idx = p.findIndex(c => c.id === saved.id);
+      return idx >= 0 ? p.map(c => c.id === saved.id ? saved : c) : [...p, saved];
+    });
+    setModal(null);
+  }
+
+  async function handleTestar(id) {
+    setTestando(id);
+    try {
+      const res  = await fetch(`${API_URL}/api/connections/${id}/test`, { method: 'POST' });
+      const data = await res.json();
+      setConexoes(p => p.map(c => c.id === id
+        ? { ...c, status: data.status, erro: data.erro || null, ultimoTeste: data.ultimoTeste }
+        : c
+      ));
+    } catch { /* silencia */ }
+    finally { setTestando(null); }
+  }
+
+  async function handleDelete(id) {
+    if (!window.confirm('Excluir esta conexão?')) return;
+    const res = await fetch(`${API_URL}/api/connections/${id}`, { method: 'DELETE' });
+    if (res.ok) setConexoes(p => p.filter(c => c.id !== id));
+  }
+
+  function openCtx(e, cx) { e.preventDefault(); setCtxMenu({ x: e.clientX, y: e.clientY, cx }); }
+
+  function fmtUltimoTeste(iso) {
+    if (!iso) return '—';
+    try {
+      return new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(iso));
+    } catch { return iso; }
+  }
 
   return (
     <div className="fade-up">
       <div className="param-section-header">
-        <div><h3 className="param-section-title">{t('con2_titulo')}</h3><p className="param-section-desc">{t('con2_desc')}</p></div>
-        <button className="btn-primary" onClick={() => setNova(true)}>{t('con2_adicionar')}</button>
+        <div>
+          <h3 className="param-section-title">Conexões de Banco de Dados</h3>
+          <p className="param-section-desc">Configure as fontes de dados que o sistema utiliza para consulta e extração de informações.</p>
+        </div>
+        <button className="btn-primary" onClick={() => setModal({})}>+ Nova Conexão</button>
       </div>
+
       <div className="param-card" onContextMenu={e => openCtx(e, null)}>
         <div className="param-table-wrap">
-          {loading ? <p className="rank-empty">{t('carregando')}</p> : (
+          {loading ? <p className="rank-empty">Carregando...</p> : (
             <table className="param-table">
-              <thead><tr><th>{t('th_empresa')}</th><th>{t('th_codigo')}</th><th>{t('th_banco')}</th><th>{t('th_conexao')}</th><th style={{ textAlign: 'right' }}>{t('th_acoes')}</th></tr></thead>
+              <thead>
+                <tr>
+                  <th style={{ width: 12 }}>Status</th>
+                  <th>Nome</th>
+                  <th>Tipo / Servidor</th>
+                  <th>Banco</th>
+                  <th>Último Teste</th>
+                  <th style={{ textAlign: 'right' }}>Ações</th>
+                </tr>
+              </thead>
               <tbody>
-                {clientes.length === 0 ? <tr><td colSpan={5} className="rank-empty">{t('emp_nenhuma')}</td></tr>
-                : clientes.map(c => (
-                  <tr key={c.id} className="tr-ctx" onContextMenu={e => { e.stopPropagation(); openCtx(e, c); }}>
-                    <td className="gu-username">{c.nome}</td>
-                    <td className="td-id">{c.codigoEmpresa}</td>
-                    <td>{c.banco ? <code className="db-name">{c.banco}</code> : <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>—</span>}</td>
-                    <td>{c.isConfigured ? <span className={`badge ${c.hasCustomHost ? 'badge-admin' : 'badge-user'}`}>{c.hasCustomHost ? t('con_personalizada') : t('con_padrao')}</span> : <span className="badge badge-warn">{t('con2_nao_config')}</span>}</td>
-                    <td className="td-actions"><button className="btn-outline-sm" onClick={() => setConfig(c)}>{t('con2_configurar')}</button></td>
-                  </tr>
-                ))}
+                {conexoes.length === 0
+                  ? <tr><td colSpan={6} className="rank-empty">Nenhuma conexão cadastrada</td></tr>
+                  : conexoes.map(c => {
+                    const tipoLabel = DB_TIPOS.find(d => d.value === c.tipo)?.label || c.tipo;
+                    return (
+                      <tr key={c.id} className="tr-ctx" onContextMenu={e => { e.stopPropagation(); openCtx(e, c); }}>
+                        <td>
+                          <ConexaoStatus status={c.status} erro={c.erro} />
+                        </td>
+                        <td className="gu-username">{c.nome}</td>
+                        <td style={{ color: 'var(--text-sub)', fontSize: 13 }}>
+                          <span style={{ fontWeight: 600, color: 'var(--text)' }}>{tipoLabel}</span>
+                          <span style={{ color: 'var(--text-muted)' }}> · </span>
+                          {c.servidor}:{c.porta}
+                        </td>
+                        <td><code className="db-name">{c.banco}</code></td>
+                        <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>{fmtUltimoTeste(c.ultimoTeste)}</td>
+                        <td className="td-actions">
+                          <button className="btn-outline-sm" title="Editar"
+                            onClick={() => setModal({ conexao: c })}>
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                          </button>
+                          <button className="btn-outline-sm" title="Testar conexão"
+                            disabled={testando === c.id}
+                            onClick={() => handleTestar(c.id)}
+                            style={{ minWidth: 32 }}>
+                            {testando === c.id
+                              ? <span style={{ display: 'inline-block', width: 11, height: 11, border: '2px solid var(--blue)', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin .7s linear infinite' }} />
+                              : <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                            }
+                          </button>
+                          <button className="icon-btn danger" title="Excluir"
+                            onClick={() => handleDelete(c.id)}>
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
+                }
               </tbody>
             </table>
           )}
         </div>
       </div>
-      {nova   && <Portal><ModalNovaConexao onSave={handleNovaSalva} onClose={() => setNova(false)} /></Portal>}
-      {config && <Portal><ModalConexao empresa={config} onSave={handleSaved} onClose={() => setConfig(null)} /></Portal>}
-      {ctxMenu && <ContextMenu x={ctxMenu.x} y={ctxMenu.y} empresa={ctxMenu.empresa} onClose={() => setCtxMenu(null)} onIncluir={() => setNova(true)} onEditar={() => setConfig(ctxMenu.empresa)} onExcluir={() => handleDelete(ctxMenu.empresa?.codigoEmpresa)} />}
+
+      {modal !== null && (
+        <Portal>
+          <ModalConexaoForm
+            conexao={modal.conexao || null}
+            onSave={handleSaved}
+            onClose={() => setModal(null)}
+          />
+        </Portal>
+      )}
+
+      {ctxMenu && (
+        <Portal>
+          <ConexaoCtxMenu
+            x={ctxMenu.x} y={ctxMenu.y} cx={ctxMenu.cx}
+            onClose={() => setCtxMenu(null)}
+            onIncluir={() => { setModal({}); setCtxMenu(null); }}
+            onEditar={() => { setModal({ conexao: ctxMenu.cx }); setCtxMenu(null); }}
+            onTestar={() => { handleTestar(ctxMenu.cx?.id); setCtxMenu(null); }}
+            onExcluir={() => { handleDelete(ctxMenu.cx?.id); setCtxMenu(null); }}
+          />
+        </Portal>
+      )}
+    </div>
+  );
+}
+
+/* ── Context Menu Conexão ────────────────────────────────────────────────────── */
+function ConexaoCtxMenu({ x, y, cx, onIncluir, onEditar, onTestar, onExcluir, onClose }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    if (rect.right  > window.innerWidth)  el.style.left = `${x - rect.width}px`;
+    if (rect.bottom > window.innerHeight) el.style.top  = `${y - rect.height}px`;
+  }, [x, y]);
+  useEffect(() => {
+    const onDown = e => { if (!ref.current?.contains(e.target)) onClose(); };
+    const onKey  = e => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown',   onKey);
+    return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey); };
+  }, [onClose]);
+  return (
+    <div ref={ref} className="ctx-menu" style={{ position: 'fixed', left: x, top: y }}>
+      <button className="ctx-item" onClick={onIncluir}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Incluir
+      </button>
+      {cx && (
+        <>
+          <button className="ctx-item" onClick={onEditar}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            Alterar
+          </button>
+          <button className="ctx-item" onClick={onTestar}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            Testar
+          </button>
+          <div className="ctx-divider" />
+          <button className="ctx-item danger" onClick={onExcluir}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+            Excluir
+          </button>
+        </>
+      )}
     </div>
   );
 }
