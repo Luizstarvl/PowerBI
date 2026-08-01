@@ -299,6 +299,100 @@ function ModalPerfil({ perfil, onSave, onClose }) {
   );
 }
 
+/* ── Modal Alerta ─────────────────────────────────────────────────────────── */
+function ModalAlerta({ titulo, mensagem, onClose }) {
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" style={{ maxWidth: 460 }} onClick={e => e.stopPropagation()}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '20px 24px 0' }}>
+          <span style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            width: 36, height: 36, borderRadius: 10, flexShrink: 0,
+            background: 'var(--red-soft)', color: 'var(--red)',
+          }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="12" y1="8" x2="12" y2="12"/>
+              <line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+          </span>
+          <h3 className="modal-title" style={{ padding: 0 }}>{titulo}</h3>
+        </div>
+        <div className="modal-body" style={{ paddingTop: 14 }}>
+          <p style={{ fontSize: 13.5, color: 'var(--text-sub)', lineHeight: 1.65 }}>{mensagem}</p>
+        </div>
+        <div className="modal-footer">
+          <button className="btn-primary" onClick={onClose}>Entendido</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Context Menu Perfis ──────────────────────────────────────────────────── */
+function CtxMenuPerfil({ x, y, perfil, onClose, onIncluir, onAlterar, onExcluir }) {
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    if (rect.right  > window.innerWidth)  el.style.left = `${x - rect.width}px`;
+    if (rect.bottom > window.innerHeight) el.style.top  = `${y - rect.height}px`;
+  }, [x, y]);
+
+  useEffect(() => {
+    const onDown = e => { if (!ref.current?.contains(e.target)) onClose(); };
+    const onKey  = e => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown',   onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown',   onKey);
+    };
+  }, [onClose]);
+
+  const isBuiltin = perfil?.builtin;
+
+  return (
+    <Portal>
+      <div ref={ref} className="ctx-menu" style={{ position: 'fixed', left: x, top: y }}>
+        <button className="ctx-item" onClick={() => { onIncluir(); onClose(); }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+          Incluir
+        </button>
+        {perfil && (
+          <>
+            <button className="ctx-item" onClick={() => { onAlterar(); onClose(); }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+              </svg>
+              Alterar
+            </button>
+            <div className="ctx-divider" />
+            <button
+              className="ctx-item danger"
+              disabled={isBuiltin}
+              style={isBuiltin ? { opacity: 0.35, cursor: 'not-allowed' } : undefined}
+              onClick={() => { if (!isBuiltin) { onExcluir(); onClose(); } }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="3 6 5 6 21 6"/>
+                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                <path d="M10 11v6"/><path d="M14 11v6"/>
+              </svg>
+              {isBuiltin ? 'Excluir (padrão)' : 'Excluir'}
+            </button>
+          </>
+        )}
+      </div>
+    </Portal>
+  );
+}
+
 /* ── SecaoPerfis ──────────────────────────────────────────────────────────── */
 function permTags(perm) {
   const tags = [];
@@ -313,9 +407,17 @@ function permTags(perm) {
   return tags;
 }
 
-function SecaoPerfis({ profiles, onProfilesChange }) {
+function SecaoPerfis({ profiles, onProfilesChange, usuarios }) {
   const { t } = useT();
-  const [modal, setModal] = useState(null);
+  const [modal,     setModal]     = useState(null);
+  const [ctxPerfil, setCtxPerfil] = useState(null);
+  const [alertMsg,  setAlertMsg]  = useState(null);
+
+  function openCtxPerfil(e, pf) {
+    e.preventDefault();
+    e.stopPropagation();
+    setCtxPerfil({ x: e.clientX, y: e.clientY, perfil: pf });
+  }
 
   function handleSave(saved) {
     onProfilesChange(prev => {
@@ -327,13 +429,20 @@ function SecaoPerfis({ profiles, onProfilesChange }) {
   }
 
   async function handleDelete(pf) {
+    const vinculados = (usuarios || []).filter(u => u.profileId === pf.id);
+    if (vinculados.length > 0) {
+      setAlertMsg(
+        `Não é possível excluir este perfil de acesso, pois existem usuários vinculados a ele. Remova ou altere esses vínculos antes de realizar a exclusão.`
+      );
+      return;
+    }
     if (!window.confirm(t('pf_excluir'))) return;
     try {
       const res  = await fetch(`${API_URL}/api/profiles/${pf.id}`, { method: 'DELETE' });
       const data = await res.json();
-      if (!res.ok) return alert(data.error || t('me_erro'));
+      if (!res.ok) return setAlertMsg(data.error || t('me_erro'));
       onProfilesChange(prev => prev.filter(p => p.id !== pf.id));
-    } catch { alert(t('mu_erro_conexao')); }
+    } catch { setAlertMsg(t('mu_erro_conexao')); }
   }
 
   return (
@@ -346,7 +455,7 @@ function SecaoPerfis({ profiles, onProfilesChange }) {
         <button className="btn-primary" onClick={() => setModal('novo')}>{t('pf_add')}</button>
       </div>
 
-      <div className="param-group">
+      <div className="param-group" onContextMenu={e => openCtxPerfil(e, null)}>
         <div className="param-table-wrap">
           <table className="param-table">
             <thead>
@@ -360,7 +469,7 @@ function SecaoPerfis({ profiles, onProfilesChange }) {
               {profiles.length === 0
                 ? <tr><td colSpan={3} className="rank-empty">{t('pf_nenhum')}</td></tr>
                 : profiles.map(pf => (
-                  <tr key={pf.id}>
+                  <tr key={pf.id} className="tr-ctx" onContextMenu={e => { e.stopPropagation(); openCtxPerfil(e, pf); }}>
                     <td>
                       <p className="gu-username">{pf.nome}</p>
                       {pf.descricao && <p className="gu-subtext">{pf.descricao}</p>}
@@ -396,6 +505,27 @@ function SecaoPerfis({ profiles, onProfilesChange }) {
           </table>
         </div>
       </div>
+
+      {ctxPerfil && (
+        <CtxMenuPerfil
+          x={ctxPerfil.x} y={ctxPerfil.y}
+          perfil={ctxPerfil.perfil}
+          onClose={() => setCtxPerfil(null)}
+          onIncluir={() => setModal('novo')}
+          onAlterar={() => setModal(ctxPerfil.perfil)}
+          onExcluir={() => handleDelete(ctxPerfil.perfil)}
+        />
+      )}
+
+      {alertMsg && (
+        <Portal>
+          <ModalAlerta
+            titulo="Exclusão não permitida"
+            mensagem={alertMsg}
+            onClose={() => setAlertMsg(null)}
+          />
+        </Portal>
+      )}
 
       {modal && (
         <Portal>
@@ -678,7 +808,7 @@ export default function Usuarios() {
 
       {/* ── Perfis de Acesso ───────────────────────────────────────────── */}
       {tab === 'perfis' && (
-        <SecaoPerfis profiles={profiles} onProfilesChange={setProfiles} />
+        <SecaoPerfis profiles={profiles} onProfilesChange={setProfiles} usuarios={usuarios} />
       )}
 
       {/* ── Usuários ───────────────────────────────────────────────────── */}
