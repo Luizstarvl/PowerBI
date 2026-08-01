@@ -6,13 +6,17 @@ const API_URL = process.env.REACT_APP_API_URL
   || (window.location.hostname === 'localhost' ? 'http://localhost:3001' : '');
 
 const PER_PAGE = 8;
-const PERFIS = ['admin', 'user'];
 const AVATAR_COLORS = ['#2563EB', '#16A34A', '#D97706', '#7C3AED', '#DC2626', '#0891B2'];
 
-/* ── CustomSelect ─────────────────────────────────────────────────────────────── */
-function CustomSelect({ value, onChange, options }) {
+/* ── CustomSelect ─────────────────────────────────────────────────────────── */
+// options: string[] | { value, label }[]
+function CustomSelect({ value, onChange, options, placeholder }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
+
+  const items = options.map(o => typeof o === 'string' ? { value: o, label: o } : o);
+  const selected = items.find(i => i.value === value);
+
   useEffect(() => {
     function handleOut(e) {
       if (ref.current && !ref.current.contains(e.target)) setOpen(false);
@@ -20,21 +24,24 @@ function CustomSelect({ value, onChange, options }) {
     document.addEventListener('mousedown', handleOut);
     return () => document.removeEventListener('mousedown', handleOut);
   }, []);
+
   return (
     <div className="csel" ref={ref}>
       <button type="button" className="csel-trigger" onClick={() => setOpen(o => !o)}>
-        <span>{value}</span>
+        <span style={!selected && placeholder ? { color: 'var(--text-muted)' } : {}}>
+          {selected ? selected.label : (placeholder || '—')}
+        </span>
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
           <polyline points="6 9 12 15 18 9"/>
         </svg>
       </button>
       {open && (
         <div className="csel-dropdown">
-          {options.map(opt => (
-            <button key={opt} type="button"
-              className={`csel-option${value === opt ? ' selected' : ''}`}
-              onClick={() => { onChange(opt); setOpen(false); }}
-            >{opt}</button>
+          {items.map(item => (
+            <button key={item.value} type="button"
+              className={`csel-option${value === item.value ? ' selected' : ''}`}
+              onClick={() => { onChange(item.value); setOpen(false); }}
+            >{item.label}</button>
           ))}
         </div>
       )}
@@ -42,7 +49,7 @@ function CustomSelect({ value, onChange, options }) {
   );
 }
 
-/* ── Toggle ───────────────────────────────────────────────────────────────────── */
+/* ── Toggle ───────────────────────────────────────────────────────────────── */
 function Toggle({ checked, onChange, labelOn, labelOff }) {
   return (
     <label className="toggle-wrap">
@@ -54,7 +61,7 @@ function Toggle({ checked, onChange, labelOn, labelOff }) {
   );
 }
 
-/* ── Avatar ───────────────────────────────────────────────────────────────────── */
+/* ── Avatar ───────────────────────────────────────────────────────────────── */
 function Avatar({ name, foto, size = 34 }) {
   if (foto) {
     return <img className="user-avatar" src={foto} alt={name}
@@ -69,28 +76,304 @@ function Avatar({ name, foto, size = 34 }) {
   );
 }
 
-/* ── Modal ────────────────────────────────────────────────────────────────────── */
-function ModalUsuario({ usuario, onSave, onClose }) {
+/* ── SVG Icons ────────────────────────────────────────────────────────────── */
+function IconEdit() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+    </svg>
+  );
+}
+function IconTrash() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="3 6 5 6 21 6"/>
+      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+      <path d="M10 11v6"/><path d="M14 11v6"/>
+      <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+    </svg>
+  );
+}
+
+/* ── ModalPerfil ──────────────────────────────────────────────────────────── */
+const DASH_MODULOS = [
+  { key: 'fluxo_caixa',    label: 'Fluxo de Caixa'   },
+  { key: 'contas_receber', label: 'Contas a Receber'  },
+  { key: 'despesas',       label: 'Despesas'          },
+  { key: 'estoque',        label: 'Estoque'           },
+];
+
+function ModalPerfil({ perfil, onSave, onClose }) {
   const { t } = useT();
-  const [form, setForm] = useState({
-    usuario: usuario?.usuario || '',
-    senha:   '',
-    perfil:  usuario?.perfil  || 'user',
-    nome:    usuario?.nome    || '',
-    email:   usuario?.email   || '',
-  });
-  const [ativo, setAtivo] = useState(usuario ? usuario.ativo !== false : true);
-  const [foto,  setFoto]  = useState(usuario?.foto || null);
-  const [erro,  setErro]  = useState('');
+  const [nome,    setNome]    = useState(perfil?.nome      || '');
+  const [desc,    setDesc]    = useState(perfil?.descricao || '');
+  const [perm,    setPerm]    = useState(() => ({
+    dashboards:    'todos',
+    configuracoes: false,
+    postos:        'todos',
+    modo:          'completo',
+    ...(perfil?.permissoes || {}),
+  }));
+  const [erro,    setErro]    = useState('');
   const [loading, setLoading] = useState(false);
+
+  function setP(key, val) { setPerm(p => ({ ...p, [key]: val })); }
+
+  const todosDash = perm.dashboards === 'todos';
+
+  function handleDashModulo(key, checked) {
+    const allKeys = DASH_MODULOS.map(m => m.key);
+    if (todosDash) {
+      const next = checked ? allKeys : allKeys.filter(k => k !== key);
+      setP('dashboards', next.length === allKeys.length ? 'todos' : next);
+    } else {
+      const current = Array.isArray(perm.dashboards) ? perm.dashboards : [];
+      const next = checked ? [...new Set([...current, key])] : current.filter(k => k !== key);
+      setP('dashboards', next.length === allKeys.length ? 'todos' : next);
+    }
+  }
+
+  function isDashChecked(key) {
+    if (todosDash) return true;
+    return Array.isArray(perm.dashboards) && perm.dashboards.includes(key);
+  }
+
+  async function handleSave() {
+    if (!nome.trim()) return setErro(t('pf_nome') + ' é obrigatório.');
+    setErro(''); setLoading(true);
+    try {
+      const url    = perfil ? `${API_URL}/api/profiles/${perfil.id}` : `${API_URL}/api/profiles`;
+      const method = perfil ? 'PUT' : 'POST';
+      const res    = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nome: nome.trim(), descricao: desc.trim() || null, permissoes: perm }),
+      });
+      const data = await res.json();
+      if (!res.ok) return setErro(data.error || t('me_erro'));
+      onSave(data);
+    } catch { setErro(t('mu_erro_conexao')); }
+    finally { setLoading(false); }
+  }
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" style={{ maxWidth: 480 }} onClick={e => e.stopPropagation()}>
+        <h3 className="modal-title">{perfil ? t('pf_editar') : t('pf_novo')}</h3>
+        <div className="modal-body">
+          <div className="modal-grid-2">
+            <div className="form-field" style={{ gridColumn: '1/-1' }}>
+              <label>{t('pf_nome')}</label>
+              <input type="text" value={nome} onChange={e => setNome(e.target.value)} placeholder="Ex: Supervisor" />
+            </div>
+            <div className="form-field" style={{ gridColumn: '1/-1' }}>
+              <label>{t('pf_descricao')}</label>
+              <input type="text" value={desc} onChange={e => setDesc(e.target.value)} placeholder="Descreva as permissões deste perfil" />
+            </div>
+          </div>
+
+          <div className="pf-perm-section">
+            <p className="pf-perm-title">Dashboards</p>
+            <div className="pf-perm-group">
+              <label className="pf-check-row">
+                <input type="checkbox" checked={todosDash}
+                  onChange={e => setP('dashboards', e.target.checked ? 'todos' : [])} />
+                <span>{t('pf_todos_dash')}</span>
+              </label>
+              {DASH_MODULOS.map(m => (
+                <label key={m.key} className="pf-check-row pf-check-indent">
+                  <input type="checkbox" checked={isDashChecked(m.key)}
+                    onChange={e => handleDashModulo(m.key, e.target.checked)} />
+                  <span>{m.label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div className="pf-perm-section">
+            <p className="pf-perm-title">Sistema</p>
+            <div className="pf-perm-group">
+              <label className="pf-check-row">
+                <input type="checkbox" checked={!!perm.configuracoes}
+                  onChange={e => setP('configuracoes', e.target.checked)} />
+                <span>{t('pf_configuracoes')}</span>
+              </label>
+            </div>
+          </div>
+
+          <div className="pf-perm-section">
+            <p className="pf-perm-title">Postos</p>
+            <div className="pf-perm-group">
+              {[['todos', t('pf_todos_postos')], ['proprios', t('pf_postos_proprios')]].map(([v, l]) => (
+                <label key={v} className="pf-check-row">
+                  <input type="radio" name="pf-postos" checked={perm.postos === v}
+                    onChange={() => setP('postos', v)} />
+                  <span>{l}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div className="pf-perm-section">
+            <p className="pf-perm-title">Modo de Acesso</p>
+            <div className="pf-perm-group">
+              {[['completo', t('pf_completo')], ['consulta', t('pf_consulta')]].map(([v, l]) => (
+                <label key={v} className="pf-check-row">
+                  <input type="radio" name="pf-modo" checked={perm.modo === v}
+                    onChange={() => setP('modo', v)} />
+                  <span>{l}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {erro && <p className="form-erro">{erro}</p>}
+        </div>
+        <div className="modal-footer">
+          <button className="btn-ghost" onClick={onClose}>{t('btn_cancelar')}</button>
+          <button className="btn-primary" onClick={handleSave} disabled={loading}>
+            {loading ? t('mu_salvando') : t('btn_salvar')}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── SecaoPerfis ──────────────────────────────────────────────────────────── */
+function permTags(perm) {
+  const tags = [];
+  if (perm.dashboards === 'todos') tags.push('Todos dashboards');
+  else if (Array.isArray(perm.dashboards) && perm.dashboards.length > 0) {
+    const labels = { fluxo_caixa: 'Fluxo', contas_receber: 'Receber', despesas: 'Despesas', estoque: 'Estoque' };
+    tags.push(...perm.dashboards.map(k => labels[k] || k));
+  }
+  if (perm.configuracoes) tags.push('Configurações');
+  tags.push(perm.postos === 'todos' ? 'Todos postos' : 'Postos próprios');
+  if (perm.modo === 'consulta') tags.push('Somente consulta');
+  return tags;
+}
+
+function SecaoPerfis({ profiles, onProfilesChange }) {
+  const { t } = useT();
+  const [modal, setModal] = useState(null);
+
+  function handleSave(saved) {
+    onProfilesChange(prev => {
+      const idx = prev.findIndex(p => p.id === saved.id);
+      if (idx >= 0) { const next = [...prev]; next[idx] = saved; return next; }
+      return [...prev, saved];
+    });
+    setModal(null);
+  }
+
+  async function handleDelete(pf) {
+    if (!window.confirm(t('pf_excluir'))) return;
+    try {
+      const res  = await fetch(`${API_URL}/api/profiles/${pf.id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) return alert(data.error || t('me_erro'));
+      onProfilesChange(prev => prev.filter(p => p.id !== pf.id));
+    } catch { alert(t('mu_erro_conexao')); }
+  }
+
+  return (
+    <div className="fade-up">
+      <div className="gu-header">
+        <div>
+          <h2 className="gu-title">{t('pf_titulo')}</h2>
+          <p className="gu-subtitle">{t('pf_subtitulo')}</p>
+        </div>
+        <button className="btn-primary" onClick={() => setModal('novo')}>{t('pf_add')}</button>
+      </div>
+
+      <div className="param-group">
+        <div className="param-table-wrap">
+          <table className="param-table">
+            <thead>
+              <tr>
+                <th>Perfil</th>
+                <th>{t('pf_permissoes')}</th>
+                <th style={{ textAlign: 'right' }}>{t('th_acoes')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {profiles.length === 0
+                ? <tr><td colSpan={3} className="rank-empty">{t('pf_nenhum')}</td></tr>
+                : profiles.map(pf => (
+                  <tr key={pf.id}>
+                    <td>
+                      <p className="gu-username">{pf.nome}</p>
+                      {pf.descricao && <p className="gu-subtext">{pf.descricao}</p>}
+                      {pf.builtin && (
+                        <span className="badge badge-admin" style={{ marginTop: 6, display: 'inline-flex' }}>
+                          {t('pf_padrao')}
+                        </span>
+                      )}
+                    </td>
+                    <td>
+                      <div className="pf-badges">
+                        {permTags(pf.permissoes).map(tag => (
+                          <span key={tag} className="pf-badge">{tag}</span>
+                        ))}
+                      </div>
+                    </td>
+                    <td className="td-actions">
+                      <button className="icon-btn" title={t('mu_editar')} onClick={() => setModal(pf)}>
+                        <IconEdit />
+                      </button>
+                      <button className="icon-btn danger" title="Excluir"
+                        disabled={pf.builtin}
+                        style={{ opacity: pf.builtin ? 0.3 : 1, cursor: pf.builtin ? 'not-allowed' : 'pointer' }}
+                        onClick={() => !pf.builtin && handleDelete(pf)}
+                      >
+                        <IconTrash />
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {modal && (
+        <Portal>
+          <ModalPerfil
+            perfil={modal === 'novo' ? null : modal}
+            onSave={handleSave}
+            onClose={() => setModal(null)}
+          />
+        </Portal>
+      )}
+    </div>
+  );
+}
+
+/* ── ModalUsuario ─────────────────────────────────────────────────────────── */
+function ModalUsuario({ usuario, onSave, onClose, profiles, clients }) {
+  const { t } = useT();
   const fileRef = useRef(null);
-  const isEdit = !!usuario;
+  const isEdit  = !!usuario;
+
+  const [form, setForm] = useState({
+    usuario:       usuario?.usuario       || '',
+    senha:         '',
+    perfil:        usuario?.perfil        || 'user',
+    nome:          usuario?.nome          || '',
+    email:         usuario?.email         || '',
+    cargo:         usuario?.cargo         || '',
+    empresaAcesso: usuario?.empresaAcesso || '',
+    profileId:     usuario?.profileId     ? String(usuario.profileId) : '',
+  });
+  const [ativo,   setAtivo]   = useState(usuario ? usuario.ativo !== false : true);
+  const [foto,    setFoto]    = useState(usuario?.foto || null);
+  const [erro,    setErro]    = useState('');
+  const [loading, setLoading] = useState(false);
 
   function set(field, value) { setForm(f => ({ ...f, [field]: value })); }
-
-  function setNome(value) {
-    set('nome', value.replace(/\b\w/g, c => c.toUpperCase()));
-  }
 
   function handleFotoChange(e) {
     const file = e.target.files[0];
@@ -105,11 +388,19 @@ function ModalUsuario({ usuario, onSave, onClose }) {
     if (!isEdit && !form.senha.trim()) return setErro(t('mu_obrig_senha'));
     setErro(''); setLoading(true);
     try {
-      const url = isEdit
-        ? `${API_URL}/api/starvl-users/${usuario.id}`
-        : `${API_URL}/api/starvl-users`;
-      const body = { usuario: form.usuario.trim(), perfil: form.perfil, nome: form.nome.trim() || null, email: form.email.trim() || null, ativo, foto };
+      const body = {
+        usuario:       form.usuario.trim(),
+        perfil:        form.perfil,
+        nome:          form.nome.trim()  || null,
+        email:         form.email.trim() || null,
+        cargo:         form.cargo.trim() || null,
+        empresaAcesso: form.empresaAcesso || null,
+        profileId:     form.profileId ? parseInt(form.profileId) : null,
+        ativo,
+        foto,
+      };
       if (form.senha.trim()) body.senha = form.senha;
+      const url  = isEdit ? `${API_URL}/api/starvl-users/${usuario.id}` : `${API_URL}/api/starvl-users`;
       const res  = await fetch(url, { method: isEdit ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       const data = await res.json();
       if (!res.ok) return setErro(data.error || t('me_erro'));
@@ -118,13 +409,22 @@ function ModalUsuario({ usuario, onSave, onClose }) {
     finally { setLoading(false); }
   }
 
+  const companyOptions = [
+    { value: '', label: t('mu_todos_postos') },
+    ...clients.map(c => ({ value: c.nome, label: c.nome })),
+  ];
+  const profileOptions = [
+    { value: '', label: t('pf_sem_perfil') },
+    ...profiles.map(p => ({ value: String(p.id), label: p.nome })),
+  ];
   const avatarColor = AVATAR_COLORS[(form.usuario?.charCodeAt(0) || 0) % AVATAR_COLORS.length];
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" style={{ maxWidth: 500 }} onClick={e => e.stopPropagation()}>
+      <div className="modal modal-lg" onClick={e => e.stopPropagation()}>
         <h3 className="modal-title">{isEdit ? t('mu_editar') : t('mu_novo')}</h3>
         <div className="modal-body">
+          {/* Avatar upload */}
           <div className="modal-foto-area">
             <div className="modal-foto-wrap">
               {foto
@@ -144,10 +444,13 @@ function ModalUsuario({ usuario, onSave, onClose }) {
             {foto && <button type="button" className="modal-foto-remove" onClick={() => setFoto(null)}>{t('mu_remover_foto')}</button>}
           </div>
 
+          {/* Row 1: nome + email */}
           <div className="modal-grid-2">
             <div className="form-field">
               <label>{t('mu_nome')}</label>
-              <input type="text" value={form.nome} onChange={e => setNome(e.target.value)} placeholder="Ex: João Silva" />
+              <input type="text" value={form.nome}
+                onChange={e => set('nome', e.target.value.replace(/\b\w/g, c => c.toUpperCase()))}
+                placeholder="Ex: João Silva" />
             </div>
             <div className="form-field">
               <label>{t('mu_email')}</label>
@@ -155,22 +458,60 @@ function ModalUsuario({ usuario, onSave, onClose }) {
             </div>
           </div>
 
+          {/* Row 2: usuario + senha */}
           <div className="modal-grid-2">
             <div className="form-field">
               <label>{t('mu_usuario')}</label>
-              <input type="text" value={form.usuario} onChange={e => set('usuario', e.target.value)} placeholder="nome de usuário" autoFocus />
+              <input type="text" value={form.usuario} onChange={e => set('usuario', e.target.value)} placeholder="nome.usuario" />
+            </div>
+            <div className="form-field">
+              <label>{isEdit ? t('mu_nova_senha') : t('mu_senha')}</label>
+              <input type="password" value={form.senha} onChange={e => set('senha', e.target.value)} placeholder="••••••" />
+            </div>
+          </div>
+
+          {/* Row 3: cargo + empresa */}
+          <div className="modal-grid-2">
+            <div className="form-field">
+              <label>{t('mu_cargo')}</label>
+              <input type="text" value={form.cargo} onChange={e => set('cargo', e.target.value)} placeholder="Ex: Supervisor de Posto" />
+            </div>
+            <div className="form-field">
+              <label>{t('mu_empresa_acesso')}</label>
+              <CustomSelect
+                value={form.empresaAcesso}
+                onChange={v => set('empresaAcesso', v)}
+                options={companyOptions}
+                placeholder={t('mu_todos_postos')}
+              />
+            </div>
+          </div>
+
+          {/* Row 4: perfil de acesso + perfil de sistema */}
+          <div className="modal-grid-2">
+            <div className="form-field">
+              <label>{t('mu_perfil_acesso')}</label>
+              <CustomSelect
+                value={form.profileId}
+                onChange={v => set('profileId', v)}
+                options={profileOptions}
+                placeholder={t('pf_sem_perfil')}
+              />
             </div>
             <div className="form-field">
               <label>{t('mu_perfil')}</label>
-              <CustomSelect value={form.perfil} onChange={v => set('perfil', v)} options={PERFIS} />
+              <CustomSelect
+                value={form.perfil}
+                onChange={v => set('perfil', v)}
+                options={[
+                  { value: 'admin', label: 'Administrador (sistema)' },
+                  { value: 'user',  label: 'Usuário padrão' },
+                ]}
+              />
             </div>
           </div>
 
-          <div className="form-field">
-            <label>{isEdit ? t('mu_nova_senha') : t('mu_senha')}</label>
-            <input type="password" value={form.senha} onChange={e => set('senha', e.target.value)} placeholder="••••••" />
-          </div>
-
+          {/* Status toggle */}
           <div className="form-field form-field-row">
             <label>{t('mu_status')}</label>
             <Toggle checked={ativo} onChange={setAtivo} labelOn={t('status_ativo')} labelOff={t('status_inativo')} />
@@ -180,17 +521,22 @@ function ModalUsuario({ usuario, onSave, onClose }) {
         </div>
         <div className="modal-footer">
           <button className="btn-ghost" onClick={onClose}>{t('btn_cancelar')}</button>
-          <button className="btn-primary" onClick={handleSave} disabled={loading}>{loading ? t('mu_salvando') : t('btn_salvar')}</button>
+          <button className="btn-primary" onClick={handleSave} disabled={loading}>
+            {loading ? t('mu_salvando') : t('btn_salvar')}
+          </button>
         </div>
       </div>
     </div>
   );
 }
 
-/* ── Página principal ─────────────────────────────────────────────────────────── */
+/* ── Página principal ─────────────────────────────────────────────────────── */
 export default function Usuarios() {
   const { t } = useT();
+  const [tab,      setTab]      = useState('usuarios');
   const [usuarios, setUsuarios] = useState([]);
+  const [profiles, setProfiles] = useState([]);
+  const [clients,  setClients]  = useState([]);
   const [loading,  setLoading]  = useState(false);
   const [modal,    setModal]    = useState(null);
   const [busca,    setBusca]    = useState('');
@@ -198,14 +544,18 @@ export default function Usuarios() {
 
   useEffect(() => {
     setLoading(true);
-    fetch(`${API_URL}/api/starvl-users`)
-      .then(r => r.json())
-      .then(data => setUsuarios(Array.isArray(data) ? data : []))
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    Promise.all([
+      fetch(`${API_URL}/api/starvl-users`).then(r => r.json()).catch(() => []),
+      fetch(`${API_URL}/api/profiles`).then(r => r.json()).catch(() => []),
+      fetch(`${API_URL}/api/clients`).then(r => r.json()).catch(() => []),
+    ]).then(([users, profs, cls]) => {
+      if (Array.isArray(users))  setUsuarios(users);
+      if (Array.isArray(profs))  setProfiles(profs);
+      if (Array.isArray(cls))    setClients(cls);
+    }).finally(() => setLoading(false));
   }, []);
 
-  function handleSave(saved) {
+  function handleSaveUser(saved) {
     setUsuarios(prev => {
       const idx = prev.findIndex(u => u.id === saved.id);
       if (idx >= 0) { const next = [...prev]; next[idx] = saved; return next; }
@@ -214,131 +564,172 @@ export default function Usuarios() {
     setModal(null);
   }
 
-  async function handleDelete(id) {
+  async function handleDeleteUser(id) {
     if (!window.confirm(t('gu_excluir'))) return;
     await fetch(`${API_URL}/api/starvl-users/${id}`, { method: 'DELETE' });
     setUsuarios(prev => prev.filter(u => u.id !== id));
   }
 
-  const filtrados = usuarios.filter(u => {
+  function profileName(profileId) {
+    if (!profileId) return null;
+    return profiles.find(p => p.id === profileId)?.nome || null;
+  }
+
+  const filtrados   = usuarios.filter(u => {
     const q = busca.toLowerCase();
-    return u.usuario.toLowerCase().includes(q) || (u.nome || '').toLowerCase().includes(q) || (u.email || '').toLowerCase().includes(q);
+    return !q || [u.usuario, u.nome, u.email, u.cargo].some(v => v?.toLowerCase().includes(q));
   });
   const totalPages  = Math.max(1, Math.ceil(filtrados.length / PER_PAGE));
   const paginaAtual = Math.min(pagina, totalPages);
-  const slice = filtrados.slice((paginaAtual - 1) * PER_PAGE, paginaAtual * PER_PAGE);
-
+  const slice       = filtrados.slice((paginaAtual - 1) * PER_PAGE, paginaAtual * PER_PAGE);
   const totalAtivos   = usuarios.filter(u => u.ativo !== false).length;
   const totalInativos = usuarios.filter(u => u.ativo === false).length;
 
   return (
     <main className="dashboard">
-      <div className="gu-header">
-        <h2 className="gu-title">{t('gu_title')}</h2>
-        <div className="gu-header-right">
-          <div className="gu-search">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-            </svg>
-            <input type="text" placeholder={t('gu_busca')} value={busca} autoComplete="off"
-              onChange={e => { setBusca(e.target.value); setPagina(1); }} />
-          </div>
-          <button className="btn-primary" onClick={() => setModal('novo')}>{t('gu_add')}</button>
-        </div>
+      {/* ── Tab Navigation ─────────────────────────────────────────────── */}
+      <div className="usr-tabnav">
+        <button className={`usr-tab${tab === 'usuarios' ? ' active' : ''}`} onClick={() => setTab('usuarios')}>
+          {t('usr_tab_usuarios')}
+        </button>
+        <button className={`usr-tab${tab === 'perfis' ? ' active' : ''}`} onClick={() => setTab('perfis')}>
+          {t('usr_tab_perfis')}
+        </button>
       </div>
 
-      <div className="gu-kpis">
-        <div className="gu-kpi">
-          <div className="gu-kpi-icon" style={{ background: '#EFF6FF', color: '#2563EB' }}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
-              <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-            </svg>
-          </div>
-          <div><p className="gu-kpi-label">{t('gu_total')}</p><p className="gu-kpi-value">{usuarios.length}</p></div>
-        </div>
-        <div className="gu-kpi">
-          <div className="gu-kpi-icon" style={{ background: '#F0FDF4', color: '#16A34A' }}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
-            </svg>
-          </div>
-          <div><p className="gu-kpi-label">{t('gu_ativos')}</p><p className="gu-kpi-value">{totalAtivos}</p></div>
-        </div>
-        <div className="gu-kpi">
-          <div className="gu-kpi-icon" style={{ background: '#FFF1F2', color: '#DC2626' }}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
-            </svg>
-          </div>
-          <div><p className="gu-kpi-label">{t('gu_inativos')}</p><p className="gu-kpi-value">{totalInativos}</p></div>
-        </div>
-      </div>
+      {/* ── Perfis de Acesso ───────────────────────────────────────────── */}
+      {tab === 'perfis' && (
+        <SecaoPerfis profiles={profiles} onProfilesChange={setProfiles} />
+      )}
 
-      <div className="param-group">
-        <div className="param-table-wrap">
-          {loading ? <p className="rank-empty">{t('carregando')}</p> : (
-            <table className="param-table">
-              <thead>
-                <tr>
-                  <th style={{ width: 52 }}></th>
-                  <th>{t('th_nome_usuario')}</th>
-                  <th>{t('th_email')}</th>
-                  <th>{t('th_perfil')}</th>
-                  <th>{t('th_status')}</th>
-                  <th style={{ textAlign: 'right' }}>{t('th_acoes')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {slice.length === 0
-                  ? <tr><td colSpan={6} className="rank-empty">{t('gu_nenhum')}</td></tr>
-                  : slice.map(u => (
-                    <tr key={u.id}>
-                      <td><Avatar name={u.usuario} foto={u.foto} /></td>
-                      <td>
-                        <p className="gu-username">{u.nome || u.usuario}</p>
-                        {u.nome && <p className="gu-subtext">@{u.usuario}</p>}
-                      </td>
-                      <td className="gu-subtext">{u.email || '—'}</td>
-                      <td><span className={`badge badge-${u.perfil}`}>{u.perfil}</span></td>
-                      <td><span className={`badge ${u.ativo !== false ? 'badge-ativo' : 'badge-inativo'}`}>{u.ativo !== false ? t('status_ativo') : t('status_inativo')}</span></td>
-                      <td className="td-actions">
-                        <button className="icon-btn" title={t('mu_editar')} onClick={() => setModal(u)}>
-                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                          </svg>
-                        </button>
-                        <button className="icon-btn danger" title="Excluir" onClick={() => handleDelete(u.id)}>
-                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-                            <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
-                          </svg>
-                        </button>
-                      </td>
+      {/* ── Usuários ───────────────────────────────────────────────────── */}
+      {tab === 'usuarios' && (
+        <div className="fade-up">
+          <div className="gu-header">
+            <h2 className="gu-title">{t('gu_title')}</h2>
+            <div className="gu-header-right">
+              <div className="gu-search">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                </svg>
+                <input type="text" placeholder={t('gu_busca')} value={busca} autoComplete="off"
+                  onChange={e => { setBusca(e.target.value); setPagina(1); }} />
+              </div>
+              <button className="btn-primary" onClick={() => setModal('novo')}>{t('gu_add')}</button>
+            </div>
+          </div>
+
+          <div className="gu-kpis">
+            <div className="gu-kpi">
+              <div className="gu-kpi-icon" style={{ background: '#EFF6FF', color: '#2563EB' }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                </svg>
+              </div>
+              <div><p className="gu-kpi-label">{t('gu_total')}</p><p className="gu-kpi-value">{usuarios.length}</p></div>
+            </div>
+            <div className="gu-kpi">
+              <div className="gu-kpi-icon" style={{ background: '#F0FDF4', color: '#16A34A' }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+                </svg>
+              </div>
+              <div><p className="gu-kpi-label">{t('gu_ativos')}</p><p className="gu-kpi-value">{totalAtivos}</p></div>
+            </div>
+            <div className="gu-kpi">
+              <div className="gu-kpi-icon" style={{ background: '#FFF1F2', color: '#DC2626' }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+                </svg>
+              </div>
+              <div><p className="gu-kpi-label">{t('gu_inativos')}</p><p className="gu-kpi-value">{totalInativos}</p></div>
+            </div>
+          </div>
+
+          <div className="param-group">
+            <div className="param-table-wrap">
+              {loading ? <p className="rank-empty">{t('carregando')}</p> : (
+                <table className="param-table">
+                  <thead>
+                    <tr>
+                      <th style={{ width: 52 }}></th>
+                      <th>{t('th_nome_usuario')}</th>
+                      <th>{t('mu_perfil_acesso')}</th>
+                      <th>{t('th_email')}</th>
+                      <th>{t('th_status')}</th>
+                      <th style={{ textAlign: 'right' }}>{t('th_acoes')}</th>
                     </tr>
-                  ))}
-              </tbody>
-            </table>
-          )}
-        </div>
+                  </thead>
+                  <tbody>
+                    {slice.length === 0
+                      ? <tr><td colSpan={6} className="rank-empty">{t('gu_nenhum')}</td></tr>
+                      : slice.map(u => {
+                          const pname = profileName(u.profileId);
+                          return (
+                            <tr key={u.id}>
+                              <td><Avatar name={u.nome || u.usuario} foto={u.foto} /></td>
+                              <td>
+                                <p className="gu-username">{u.nome || u.usuario}</p>
+                                {u.nome && <p className="gu-subtext">@{u.usuario}</p>}
+                                {u.cargo && <p className="gu-cargo">{u.cargo}</p>}
+                              </td>
+                              <td>
+                                {pname
+                                  ? <span className="badge badge-admin">{pname}</span>
+                                  : <span className="badge badge-warn">{u.perfil}</span>
+                                }
+                                {u.empresaAcesso && (
+                                  <p className="gu-subtext" style={{ marginTop: 3 }}>{u.empresaAcesso}</p>
+                                )}
+                              </td>
+                              <td className="gu-subtext">{u.email || '—'}</td>
+                              <td>
+                                <span className={`badge ${u.ativo !== false ? 'badge-ativo' : 'badge-inativo'}`}>
+                                  {u.ativo !== false ? t('status_ativo') : t('status_inativo')}
+                                </span>
+                              </td>
+                              <td className="td-actions">
+                                <button className="icon-btn" title={t('mu_editar')} onClick={() => setModal(u)}>
+                                  <IconEdit />
+                                </button>
+                                <button className="icon-btn danger" title="Excluir" onClick={() => handleDeleteUser(u.id)}>
+                                  <IconTrash />
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })
+                    }
+                  </tbody>
+                </table>
+              )}
+            </div>
 
-        {totalPages > 1 && (
-          <div className="pagination">
-            <button className="page-btn" onClick={() => setPagina(1)} disabled={paginaAtual === 1}>«</button>
-            <button className="page-btn" onClick={() => setPagina(p => Math.max(1, p - 1))} disabled={paginaAtual === 1}>‹</button>
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map(n => (
-              <button key={n} className={`page-btn${n === paginaAtual ? ' active' : ''}`} onClick={() => setPagina(n)}>{n}</button>
-            ))}
-            <button className="page-btn" onClick={() => setPagina(p => Math.min(totalPages, p + 1))} disabled={paginaAtual === totalPages}>›</button>
-            <button className="page-btn" onClick={() => setPagina(totalPages)} disabled={paginaAtual === totalPages}>»</button>
+            {totalPages > 1 && (
+              <div className="pagination">
+                <button className="page-btn" onClick={() => setPagina(1)} disabled={paginaAtual === 1}>«</button>
+                <button className="page-btn" onClick={() => setPagina(p => Math.max(1, p - 1))} disabled={paginaAtual === 1}>‹</button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(n => (
+                  <button key={n} className={`page-btn${n === paginaAtual ? ' active' : ''}`} onClick={() => setPagina(n)}>{n}</button>
+                ))}
+                <button className="page-btn" onClick={() => setPagina(p => Math.min(totalPages, p + 1))} disabled={paginaAtual === totalPages}>›</button>
+                <button className="page-btn" onClick={() => setPagina(totalPages)} disabled={paginaAtual === totalPages}>»</button>
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {modal && (
         <Portal>
-          <ModalUsuario usuario={modal === 'novo' ? null : modal} onSave={handleSave} onClose={() => setModal(null)} />
+          <ModalUsuario
+            usuario={modal === 'novo' ? null : modal}
+            onSave={handleSaveUser}
+            onClose={() => setModal(null)}
+            profiles={profiles}
+            clients={clients}
+          />
         </Portal>
       )}
     </main>
