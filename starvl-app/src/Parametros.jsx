@@ -608,7 +608,7 @@ function SecaoRegionalizacao() {
   const sepAtual    = SEP_OPTIONS.find(s => s.value === decSep);
 
   return (
-    <div className="fade-up">
+    <div className="fade-up" onContextMenu={e => e.preventDefault()}>
       <div className="param-section-header">
         <div>
           <h3 className="param-section-title">{t('reg_titulo')}</h3>
@@ -796,7 +796,7 @@ function SecaoSistema({ themeMode, onThemeModeChange }) {
   const atuBadge  = atuEnabled ? INTERVALOS.find(o => o.value === atuInterval)?.label : undefined;
 
   return (
-    <div className="fade-up">
+    <div className="fade-up" onContextMenu={e => e.preventDefault()}>
       <div className="param-section-header">
         <div><h3 className="param-section-title">{t('sis_titulo')}</h3><p className="param-section-desc">{t('sis_desc')}</p></div>
       </div>
