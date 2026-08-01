@@ -61,6 +61,64 @@ function Toggle({ checked, onChange, labelOn, labelOff }) {
   );
 }
 
+/* ── Context Menu Usuários ────────────────────────────────────────────────── */
+function CtxMenuUsuario({ x, y, usuario, onClose, onIncluir, onAlterar, onToggleAtivo }) {
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    if (rect.right  > window.innerWidth)  el.style.left = `${x - rect.width}px`;
+    if (rect.bottom > window.innerHeight) el.style.top  = `${y - rect.height}px`;
+  }, [x, y]);
+
+  useEffect(() => {
+    const onDown = e => { if (!ref.current?.contains(e.target)) onClose(); };
+    const onKey  = e => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown',   onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown',   onKey);
+    };
+  }, [onClose]);
+
+  const ativo = usuario?.ativo !== false;
+
+  return (
+    <Portal>
+      <div ref={ref} className="ctx-menu" style={{ position: 'fixed', left: x, top: y }}>
+        <button className="ctx-item" onClick={() => { onIncluir(); onClose(); }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+          Incluir
+        </button>
+        {usuario && (
+          <>
+            <button className="ctx-item" onClick={() => { onAlterar(); onClose(); }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+              </svg>
+              Alterar
+            </button>
+            <div className="ctx-divider" />
+            <button className={`ctx-item${ativo ? ' danger' : ''}`} onClick={() => { onToggleAtivo(); onClose(); }}>
+              {ativo
+                ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+                : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+              }
+              {ativo ? 'Inativar' : 'Ativar'}
+            </button>
+          </>
+        )}
+      </div>
+    </Portal>
+  );
+}
+
 /* ── Avatar ───────────────────────────────────────────────────────────────── */
 function Avatar({ name, foto, size = 34 }) {
   if (foto) {
@@ -541,6 +599,7 @@ export default function Usuarios() {
   const [modal,    setModal]    = useState(null);
   const [busca,    setBusca]    = useState('');
   const [pagina,   setPagina]   = useState(1);
+  const [ctxUser,  setCtxUser]  = useState(null);
 
   useEffect(() => {
     setLoading(true);
@@ -562,6 +621,26 @@ export default function Usuarios() {
       return [...prev, saved];
     });
     setModal(null);
+  }
+
+  function openCtxUser(e, usuario) {
+    e.preventDefault();
+    e.stopPropagation();
+    setCtxUser({ x: e.clientX, y: e.clientY, usuario });
+  }
+
+  async function handleToggleAtivo(u) {
+    const next = u.ativo === false;
+    const res = await fetch(`${API_URL}/api/starvl-users/${u.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        usuario: u.usuario, perfil: u.perfil, foto: u.foto,
+        nome: u.nome, email: u.email, ativo: next,
+        cargo: u.cargo, empresaAcesso: u.empresaAcesso, profileId: u.profileId,
+      }),
+    });
+    if (res.ok) { const saved = await res.json(); handleSaveUser(saved); }
   }
 
   async function handleDeleteUser(id) {
@@ -647,7 +726,7 @@ export default function Usuarios() {
             </div>
           </div>
 
-          <div className="param-group">
+          <div className="param-group" onContextMenu={e => openCtxUser(e, null)}>
             <div className="param-table-wrap">
               {loading ? <p className="rank-empty">{t('carregando')}</p> : (
                 <table className="param-table">
@@ -667,7 +746,7 @@ export default function Usuarios() {
                       : slice.map(u => {
                           const pname = profileName(u.profileId);
                           return (
-                            <tr key={u.id}>
+                            <tr key={u.id} className="tr-ctx" onContextMenu={e => { e.stopPropagation(); openCtxUser(e, u); }}>
                               <td><Avatar name={u.nome || u.usuario} foto={u.foto} /></td>
                               <td>
                                 <p className="gu-username">{u.nome || u.usuario}</p>
@@ -719,6 +798,17 @@ export default function Usuarios() {
             )}
           </div>
         </div>
+      )}
+
+      {ctxUser && (
+        <CtxMenuUsuario
+          x={ctxUser.x} y={ctxUser.y}
+          usuario={ctxUser.usuario}
+          onClose={() => setCtxUser(null)}
+          onIncluir={() => setModal('novo')}
+          onAlterar={() => setModal(ctxUser.usuario)}
+          onToggleAtivo={() => handleToggleAtivo(ctxUser.usuario)}
+        />
       )}
 
       {modal && (
