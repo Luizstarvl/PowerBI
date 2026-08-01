@@ -137,6 +137,60 @@ function ModalEmpresa({ empresa, onSave, onClose }) {
   );
 }
 
+/* ── Custom Select ───────────────────────────────────────────────────────────── */
+function CustomSelect({ value, onChange, options }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = e => { if (!ref.current?.contains(e.target)) setOpen(false); };
+    const onKey  = e => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown',   onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown',   onKey);
+    };
+  }, [open]);
+
+  const selected = options.find(o => o.value === value);
+
+  return (
+    <div ref={ref} className="cselect">
+      <button
+        type="button"
+        className={`cselect-trigger${open ? ' open' : ''}`}
+        onClick={() => setOpen(o => !o)}
+      >
+        <span className="cselect-value">{selected?.label || ''}</span>
+        <svg
+          className={`cselect-chevron${open ? ' open' : ''}`}
+          width="14" height="14" viewBox="0 0 24 24"
+          fill="none" stroke="currentColor" strokeWidth="2.5"
+          strokeLinecap="round" strokeLinejoin="round"
+        >
+          <polyline points="6 9 12 15 18 9"/>
+        </svg>
+      </button>
+      {open && (
+        <div className="cselect-menu">
+          {options.map(o => (
+            <button
+              key={o.value}
+              type="button"
+              className={`cselect-item${o.value === value ? ' selected' : ''}`}
+              onClick={() => { onChange(o.value); setOpen(false); }}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ── Modal Conexão ───────────────────────────────────────────────────────────── */
 /* ── Tipos de banco ──────────────────────────────────────────────────────────── */
 const DB_TIPOS = [
@@ -249,10 +303,11 @@ function ModalConexaoForm({ conexao, onSave, onClose }) {
           <div className="modal-grid-2">
             <div className="form-field">
               <label>Tipo</label>
-              <select className="login-field input" style={{ background: 'var(--card)', color: 'var(--text)', border: '1.5px solid var(--border)', borderRadius: 10, padding: '11px 14px', fontSize: 14, outline: 'none', width: '100%' }}
-                value={form.tipo} onChange={e => handleTipoChange(e.target.value)}>
-                {DB_TIPOS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-              </select>
+              <CustomSelect
+                value={form.tipo}
+                onChange={handleTipoChange}
+                options={DB_TIPOS.map(t => ({ value: t.value, label: t.label }))}
+              />
             </div>
             <div className="form-field">
               <label>Timeout (segundos)</label>
