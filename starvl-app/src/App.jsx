@@ -26,15 +26,29 @@ export default function App() {
   const [period] = useState(getCurrentPeriod);
   const [page, setPage] = useState('dashboard');
   const [visited, setVisited] = useState(() => new Set(['dashboard']));
-  const [theme, setTheme] = useState(() => {
-    const saved = localStorage.getItem('pbi_theme') || 'dark';
-    document.documentElement.setAttribute('data-theme', saved);
+  const [themeMode, setThemeMode] = useState(() => {
+    const saved   = localStorage.getItem('pbi_theme') || 'dark';
+    const sysDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const applied = saved === 'auto' ? (sysDark ? 'dark' : 'light') : saved;
+    document.documentElement.setAttribute('data-theme', applied);
     return saved;
   });
+  const [sysDark, setSysDark] = useState(() =>
+    window.matchMedia('(prefers-color-scheme: dark)').matches
+  );
 
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-  }, [theme]);
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const handler = e => setSysDark(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+
+  const appliedTheme = themeMode === 'auto' ? (sysDark ? 'dark' : 'light') : themeMode;
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', appliedTheme);
+  }, [appliedTheme]);
 
   useEffect(() => {
     if (!user) return;
@@ -54,11 +68,14 @@ export default function App() {
     setUser(data);
   }
 
+  function handleThemeModeChange(mode) {
+    setThemeMode(mode);
+    localStorage.setItem('pbi_theme', mode);
+  }
+
   function handleThemeToggle() {
-    const next = theme === 'light' ? 'dark' : 'light';
-    setTheme(next);
-    localStorage.setItem('pbi_theme', next);
-    document.documentElement.setAttribute('data-theme', next);
+    const cycle = ['dark', 'light', 'auto'];
+    handleThemeModeChange(cycle[(cycle.indexOf(themeMode) + 1) % cycle.length]);
   }
 
   function handlePageChange(newPage) {
@@ -75,14 +92,14 @@ export default function App() {
 
   return (
     <LangProvider>
-    <div className="app-root" data-theme={theme}>
+    <div className="app-root" data-theme={appliedTheme}>
       <TopBar
         user={user}
         clients={clients}
         selectedClient={selectedClient}
         onClientChange={setSelectedClient}
         onLogout={handleLogout}
-        theme={theme}
+        themeMode={themeMode}
         onThemeToggle={handleThemeToggle}
       />
       <div className="app-body">
@@ -100,7 +117,7 @@ export default function App() {
           )}
           {visited.has('parametros') && (
             <div className={`page-slot${page === 'parametros' ? ' page-active' : ''}`}>
-              <Parametros />
+              <Parametros themeMode={themeMode} onThemeModeChange={handleThemeModeChange} />
             </div>
           )}
         </div>

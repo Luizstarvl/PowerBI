@@ -38,6 +38,14 @@ const IconMoon = () => (
   </svg>
 );
 
+const IconMonitor = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="2" y="3" width="20" height="14" rx="2"/>
+    <line x1="8" y1="21" x2="16" y2="21"/>
+    <line x1="12" y1="17" x2="12" y2="21"/>
+  </svg>
+);
+
 const IconChevron = () => (
   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
     <polyline points="6 9 12 15 18 9"/>
@@ -52,7 +60,7 @@ const IconLogOut = () => (
   </svg>
 );
 
-export default function TopBar({ user, clients, selectedClient, onClientChange, onLogout, theme, onThemeToggle }) {
+export default function TopBar({ user, clients, selectedClient, onClientChange, onLogout, themeMode, onThemeToggle }) {
   const { t } = useT();
   const [profileOpen, setProfileOpen] = useState(false);
   const profileRef = useRef(null);
@@ -107,8 +115,11 @@ export default function TopBar({ user, clients, selectedClient, onClientChange, 
           <IconBell />
         </button>
 
-        <button className="topbar-theme" onClick={onThemeToggle} title="Alternar tema">
-          {theme === 'dark' ? <IconSun /> : <IconMoon />}
+        <button className="topbar-theme" onClick={onThemeToggle}
+          title={themeMode === 'dark' ? 'Tema Escuro' : themeMode === 'light' ? 'Tema Claro' : 'Tema Automático'}>
+          {themeMode === 'dark'  ? <IconSun />     :
+           themeMode === 'light' ? <IconMoon />    :
+                                   <IconMonitor />}
         </button>
 
         <div style={{ position: 'relative' }} ref={profileRef}>

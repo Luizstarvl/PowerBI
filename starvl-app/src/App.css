@@ -900,6 +900,15 @@ input, select, textarea { font-family: inherit; }
 }
 .pf-check-indent { padding-left: 30px; }
 
+/* Regionalização */
+.reg-symbol {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 38px; height: 26px; border-radius: 5px; font-size: 14px;
+  font-weight: 700; color: var(--blue); background: var(--blue-soft);
+  border: 1px solid var(--blue-glow); flex-shrink: 0;
+}
+.reg-mono { font-family: 'Courier New', monospace; font-size: 12px; font-weight: 600; }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }

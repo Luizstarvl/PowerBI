@@ -68,7 +68,7 @@ export default function NavBar({ page, onPageChange }) {
       </nav>
 
       <div className="sidebar-footer">
-        <span className="sidebar-version">v2.0</span>
+        <span className="sidebar-version">v2.1</span>
       </div>
     </aside>
   );
