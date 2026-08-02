@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Logo } from '../components/ui';
 
 const API_URL = process.env.REACT_APP_API_URL
   || (window.location.hostname === 'localhost' ? 'http://localhost:3001' : '');
@@ -37,8 +38,7 @@ export default function Login({ onLogin }) {
       <div className="login-panel">
         <div>
           <div className="login-panel-brand">
-            <div className="login-panel-logomark">H</div>
-            <div className="login-panel-logo">Horse</div>
+            <Logo className="login-panel-brand-logo" variant="dark" />
           </div>
           <div className="login-panel-sub">Gestão de Postos</div>
         </div>

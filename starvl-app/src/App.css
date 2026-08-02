@@ -126,6 +126,12 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   transition: background .2s var(--ease), color .2s var(--ease);
 }
 
+/* ── Brand Logo (troca de imagem por tema) ──────────────────────────────────── */
+.brand-logo { display: block; width: auto; }
+.brand-logo--light { display: none; }
+[data-theme="light"] .brand-logo--dark  { display: none; }
+[data-theme="light"] .brand-logo--light { display: block; }
+
 /* ── Login ───────────────────────────────────────────────────────────────────── */
 .login-bg {
   min-height: 100vh;
@@ -149,15 +155,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
     radial-gradient(ellipse 40% 60% at 20% 80%, rgba(249,115,22,.10) 0%, transparent 70%);
 }
 .login-panel-brand  { position: relative; z-index: 1; display: flex; align-items: center; gap: 12px; }
-.login-panel-logomark {
-  width: 40px; height: 40px; border-radius: 11px;
-  background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
-  display: flex; align-items: center; justify-content: center;
-  color: #fff; font-size: 19px; font-weight: 800; flex-shrink: 0;
-  box-shadow: 0 4px 14px rgba(249,115,22,.35);
-}
-.login-panel-logo   { font-size: 26px; font-weight: 800; color: #fff; letter-spacing: -0.3px; }
-.login-panel-sub    { font-size: 11px; color: rgba(255,255,255,.38); margin-top: 6px; text-transform: uppercase; letter-spacing: 1.4px; }
+.login-panel-brand-logo { height: 34px; }
+.login-panel-sub    { font-size: 11px; color: rgba(255,255,255,.38); margin-top: 10px; text-transform: uppercase; letter-spacing: 1.4px; }
 .login-panel-footer { position: relative; z-index: 1; font-size: 11px; color: rgba(255,255,255,.18); }
 
 /* Deve vir DEPOIS das regras base de .login-panel (mesma especificidade —
@@ -221,17 +220,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   margin-bottom: 16px;
   flex-shrink: 0;
 }
-.sidebar-brand-icon {
-  width: 32px; height: 32px;
-  background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
-  border-radius: 9px;
-  display: flex; align-items: center; justify-content: center;
-  color: #fff; flex-shrink: 0;
-  box-shadow: 0 4px 12px var(--color-primary-glow);
-}
-.sidebar-brand-text { font-size: 16px; font-weight: 800; letter-spacing: -0.3px; line-height: 1; }
-.sidebar-brand-name   { color: var(--color-text); }
-.sidebar-brand-accent { color: var(--color-primary); }
+.sidebar-brand-logo { height: 22px; }
 
 .sidebar-section-label {
   font-size: 10px; font-weight: 700; color: var(--color-text-muted);

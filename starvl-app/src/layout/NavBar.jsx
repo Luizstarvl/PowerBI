@@ -1,19 +1,14 @@
 import React from 'react';
-import { Zap } from 'lucide-react';
 import { useT } from '../i18n';
 import { NAV_ITEMS } from '../constants/nav';
+import { Logo } from '../components/ui';
 
 export default function NavBar({ page, onPageChange }) {
   const { t } = useT();
   return (
     <aside className="sidebar">
       <div className="sidebar-brand">
-        <div className="sidebar-brand-icon">
-          <Zap size={16} strokeWidth={2.25} />
-        </div>
-        <div className="sidebar-brand-text">
-          <span className="sidebar-brand-name">Horse</span>
-        </div>
+        <Logo className="sidebar-brand-logo" />
       </div>
 
       <div className="sidebar-section-label">Menu</div>
