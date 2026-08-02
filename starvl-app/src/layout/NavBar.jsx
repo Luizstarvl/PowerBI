@@ -2,23 +2,27 @@ import React from 'react';
 import { useT } from '../i18n';
 import { NAV_ITEMS } from '../constants/nav';
 
-export default function NavBar({ page, onPageChange }) {
+export default function NavBar({ page, onPageChange, badges }) {
   const { t } = useT();
   return (
     <aside className="sidebar">
       <div className="sidebar-section-label">Menu</div>
 
       <nav className="sidebar-nav">
-        {NAV_ITEMS.map(({ key, tk, Icon }) => (
-          <button
-            key={key}
-            className={`sidebar-item${page === key ? ' active' : ''}`}
-            onClick={() => onPageChange(key)}
-          >
-            <span className="sidebar-item-icon"><Icon size={15} strokeWidth={2} /></span>
-            <span className="sidebar-item-label">{t(tk)}</span>
-          </button>
-        ))}
+        {NAV_ITEMS.map(({ key, tk, Icon }) => {
+          const count = badges?.[key] || 0;
+          return (
+            <button
+              key={key}
+              className={`sidebar-item${page === key ? ' active' : ''}`}
+              onClick={() => onPageChange(key)}
+            >
+              <span className="sidebar-item-icon"><Icon size={15} strokeWidth={2} /></span>
+              <span className="sidebar-item-label">{t(tk)}</span>
+              {count > 0 && <span className="sidebar-item-badge">{count}</span>}
+            </button>
+          );
+        })}
       </nav>
 
       <div className="sidebar-footer">

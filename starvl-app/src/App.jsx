@@ -5,8 +5,10 @@ import NavBar from './layout/NavBar';
 import Dashboard from './pages/Dashboard';
 import Usuarios from './pages/Usuarios';
 import Metas from './pages/Metas';
+import Tarefas from './pages/Tarefas';
 import Parametros from './pages/Parametros';
 import { LangProvider } from './i18n';
+import useTarefasResumo from './hooks/useTarefasResumo';
 import './App.css';
 
 const API_URL = process.env.REACT_APP_API_URL
@@ -98,6 +100,12 @@ export default function App() {
     setUser(null);
   }
 
+  const resumo = useTarefasResumo({
+    empresaId: selectedClient?.id,
+    codigoEmpresa: selectedClient?.codigoEmpresa,
+    userId: user?.id,
+  });
+
   if (!user) return <Login onLogin={handleLogin} />;
 
   return (
@@ -111,13 +119,23 @@ export default function App() {
         onLogout={handleLogout}
         themeMode={themeMode}
         onThemeToggle={handleThemeToggle}
+        alerts={resumo.alerts}
+        onNavigateToTarefas={() => handlePageChange('tarefas')}
       />
       <div className="app-body">
-        <NavBar page={page} onPageChange={handlePageChange} />
+        <NavBar
+          page={page} onPageChange={handlePageChange}
+          badges={{ tarefas: resumo.counts.criticos + resumo.counts.novasNotificacoes }}
+        />
         <div className="app-content">
           {visited.has('dashboard') && (
             <div className={`page-slot${page === 'dashboard' ? ' page-active' : ''}`}>
-              <Dashboard empresa={selectedClient?.codigoEmpresa} period={period} />
+              <Dashboard empresa={selectedClient?.codigoEmpresa} period={period} resumo={resumo} onNavigate={handlePageChange} />
+            </div>
+          )}
+          {visited.has('tarefas') && (
+            <div className={`page-slot${page === 'tarefas' ? ' page-active' : ''}`}>
+              <Tarefas empresa={selectedClient?.id} codigoEmpresa={selectedClient?.codigoEmpresa} user={user} />
             </div>
           )}
           {visited.has('usuarios') && (
