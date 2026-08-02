@@ -182,7 +182,7 @@ router.get('/', async (req, res) => {
   const empresa = parseInt(req.query.empresa);
   if (!empresa) return res.status(400).json({ error: 'empresa é obrigatório.' });
 
-  const { tipo, categoria, indicador, status, responsavel } = req.query;
+  const { tipo, categoria, indicador, status, responsavel, periodo } = req.query;
   const page    = Math.max(parseInt(req.query.page) || 1, 1);
   const perPage = Math.min(Math.max(parseInt(req.query.perPage) || 12, 1), 100);
 
@@ -192,6 +192,8 @@ router.get('/', async (req, res) => {
   if (categoria)   { params.push(categoria);           clauses.push(`m.sm_categoria = $${params.length}`); }
   if (indicador)   { params.push(indicador);           clauses.push(`m.sm_indicador = $${params.length}`); }
   if (responsavel) { params.push(`%${responsavel}%`);  clauses.push(`m.sm_responsavel ILIKE $${params.length}`); }
+  // periodo = mês (YYYY-MM) em que o prazo da meta (sm_data_final) cai
+  if (periodo)     { params.push(`${periodo}-01`);     clauses.push(`DATE_TRUNC('month', m.sm_data_final) = $${params.length}::date`); }
 
   try {
     const { rows } = await pool.query(
@@ -234,11 +236,43 @@ router.get('/resumo', async (req, res) => {
     const media      = total ? Math.round((computed.reduce((s, m) => s + m.percentual, 0) / total) * 10) / 10 : 0;
     const ordenadas  = [...computed].sort((a, b) => b.percentual - a.percentual);
 
+    const valorTotalMetas = rows.reduce((s, r) => s + (parseFloat(r.sm_valor_meta) || 0), 0);
+    const valorTotalAtual = rows.reduce((s, r) => s + parseFloat(r.valor_atual || 0), 0);
+
+    // Comparativo mês atual vs anterior — aproximação, não um snapshot
+    // histórico de verdade (não existe tabela guardando o resumo por
+    // período). Total/valor usam o mês de criação (sm_criado); os status
+    // (concluída/andamento/atrasada) usam o mês do prazo (sm_data_final),
+    // já que é a única data que os relaciona a um período específico.
+    const hoje              = new Date();
+    const inicioMesAtual    = Date.UTC(hoje.getUTCFullYear(), hoje.getUTCMonth(), 1);
+    const inicioMesAnterior = Date.UTC(hoje.getUTCFullYear(), hoje.getUTCMonth() - 1, 1);
+    const noMesAtual    = t => t >= inicioMesAtual;
+    const noMesAnterior = t => t >= inicioMesAnterior && t < inicioMesAtual;
+
+    const porCriado = (pred) => rows.filter(r => pred(toDiaUTC(r.sm_criado))).length;
+    const porFinalEStatus = (statusAlvo, pred) => computed.filter((m, i) =>
+      m.status === statusAlvo && pred(toDiaUTC(rows[i].sm_data_final))
+    ).length;
+    const valorPorCriado = (pred) => rows
+      .filter(r => pred(toDiaUTC(r.sm_criado)))
+      .reduce((s, r) => s + (parseFloat(r.sm_valor_meta) || 0), 0);
+
+    const comparativo = {
+      total:        { atual: porCriado(noMesAtual), anterior: porCriado(noMesAnterior) },
+      concluidas:   { atual: porFinalEStatus('Concluída', noMesAtual),   anterior: porFinalEStatus('Concluída', noMesAnterior) },
+      emAndamento:  { atual: porFinalEStatus('Em andamento', noMesAtual), anterior: porFinalEStatus('Em andamento', noMesAnterior) },
+      atrasadas:    { atual: porFinalEStatus('Atrasada', noMesAtual),    anterior: porFinalEStatus('Atrasada', noMesAnterior) },
+      valorTotal:   { atual: valorPorCriado(noMesAtual), anterior: valorPorCriado(noMesAnterior) },
+    };
+
     res.json({
       total, concluidas, emAndamento: andamento, atrasadas,
       mediaCumprimento: media,
+      valorTotalMetas, valorTotalAtual,
       melhorDesempenho: ordenadas[0] || null,
       piorDesempenho:   ordenadas.length ? ordenadas[ordenadas.length - 1] : null,
+      comparativo,
     });
   } catch (err) {
     console.error('GET /metas/resumo:', err.message);
@@ -280,6 +314,26 @@ router.get('/ranking', async (req, res) => {
         ORDER BY (COALESCE(SUM(r.smr_valor),0) / NULLIF(SUM(m.sm_valor_meta),0)) DESC NULLS LAST
         LIMIT 10
       `);
+      return res.json(rows.map(r => ({
+        nome: r.nome,
+        percentual: r.valor_meta > 0 ? Math.round((r.valor_atual / r.valor_meta) * 1000) / 10 : 0,
+        valorAtual: parseFloat(r.valor_atual), valorMeta: parseFloat(r.valor_meta),
+      })));
+    }
+
+    if (tipo === 'responsaveis') {
+      const { rows } = await pool.query(`
+        SELECT m.sm_responsavel AS nome,
+               COALESCE(SUM(r.smr_valor), 0) AS valor_atual,
+               COALESCE(SUM(m.sm_valor_meta), 0) AS valor_meta
+        FROM starvl_metas m
+        LEFT JOIN starvl_meta_resultados r
+          ON r.smr_meta_id = m.sm_id AND r.smr_data BETWEEN m.sm_data_inicial AND m.sm_data_final
+        WHERE m.sm_empresa_id = $1 AND COALESCE(m.sm_responsavel, '') != ''
+        GROUP BY m.sm_responsavel
+        ORDER BY (COALESCE(SUM(r.smr_valor),0) / NULLIF(SUM(m.sm_valor_meta),0)) DESC NULLS LAST
+        LIMIT 10
+      `, [empresa]);
       return res.json(rows.map(r => ({
         nome: r.nome,
         percentual: r.valor_meta > 0 ? Math.round((r.valor_atual / r.valor_meta) * 1000) / 10 : 0,
@@ -346,13 +400,16 @@ router.get('/notificacoes', async (req, res) => {
   }
 });
 
-// ── GET /api/metas/evolucao — total lançado por mês (últimos N meses) ──────
+// ── GET /api/metas/evolucao — criadas/concluídas/vencidas + valor por mês ──
+// "Concluídas"/"vencidas" são aproximadas pelo mês de sm_data_final das metas
+// com esse status hoje — não existe coluna de "data de conclusão" guardada,
+// então não há como saber o mês exato em que cada uma virou concluída/vencida.
 router.get('/evolucao', async (req, res) => {
   const empresa = parseInt(req.query.empresa);
   if (!empresa) return res.status(400).json({ error: 'empresa é obrigatório.' });
   const meses = Math.min(Math.max(parseInt(req.query.meses) || 6, 1), 24);
   try {
-    const { rows } = await pool.query(
+    const valorRes = await pool.query(
       `SELECT TO_CHAR(DATE_TRUNC('month', r.smr_data), 'YYYY-MM') AS mes,
               COALESCE(SUM(r.smr_valor), 0) AS valor
        FROM starvl_meta_resultados r
@@ -363,7 +420,41 @@ router.get('/evolucao', async (req, res) => {
        ORDER BY 1`,
       [empresa, meses - 1]
     );
-    res.json(rows.map(r => ({ mes: r.mes, valor: parseFloat(r.valor) })));
+    const { rows: metas } = await pool.query(
+      `${SELECT_COM_VALOR} WHERE m.sm_empresa_id = $1 GROUP BY m.sm_id`, [empresa]
+    );
+
+    const chavesMes = Array.from({ length: meses }, (_, i) => {
+      const d = new Date();
+      d.setUTCDate(1);
+      d.setUTCMonth(d.getUTCMonth() - (meses - 1 - i));
+      return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+    });
+
+    const valorPorMes = {};
+    valorRes.rows.forEach(r => { valorPorMes[r.mes] = parseFloat(r.valor); });
+
+    const criadasPorMes   = {};
+    const concluidasPorMes = {};
+    const vencidasPorMes  = {};
+    metas.forEach(r => {
+      const { status } = computeStatusPercentual(r, parseFloat(r.valor_atual));
+      const mesCriado = new Date(r.sm_criado).toISOString().slice(0, 7);
+      criadasPorMes[mesCriado] = (criadasPorMes[mesCriado] || 0) + 1;
+      if (status === 'Concluída' || status === 'Atrasada') {
+        const mesFinal = new Date(r.sm_data_final).toISOString().slice(0, 7);
+        const alvo = status === 'Concluída' ? concluidasPorMes : vencidasPorMes;
+        alvo[mesFinal] = (alvo[mesFinal] || 0) + 1;
+      }
+    });
+
+    res.json(chavesMes.map(mes => ({
+      mes,
+      valor:      valorPorMes[mes]      || 0,
+      criadas:    criadasPorMes[mes]    || 0,
+      concluidas: concluidasPorMes[mes] || 0,
+      vencidas:   vencidasPorMes[mes]   || 0,
+    })));
   } catch (err) {
     console.error('GET /metas/evolucao:', err.message);
     res.status(500).json({ error: 'Erro ao calcular evolução.' });

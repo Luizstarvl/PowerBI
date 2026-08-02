@@ -7,6 +7,7 @@ const VARIANT_CLASS = {
   neutral: 'badge-neutral',
   admin:   'badge-admin',
   user:    'badge-user',
+  info:    'badge-info',
 };
 
 export default function Badge({ variant = 'neutral', children, className = '' }) {

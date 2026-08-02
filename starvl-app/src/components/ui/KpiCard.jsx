@@ -1,8 +1,11 @@
 import React, { useRef } from 'react';
+import { ArrowUpRight, ArrowDownRight } from 'lucide-react';
 
 // tilt: efeito 3D sutil que segue o mouse — opt-in (não muda o Dashboard,
 // que já usa este componente sem o prop).
-export default function KpiCard({ icon: Icon, label, value, sub, tilt = false }) {
+// trend: { positive: bool, text: string } — comparação opcional com período
+// anterior, com seta colorida (verde/vermelho conforme `positive`).
+export default function KpiCard({ icon: Icon, label, value, sub, tilt = false, trend }) {
   const ref = useRef(null);
 
   function handleMouseMove(e) {
@@ -35,6 +38,12 @@ export default function KpiCard({ icon: Icon, label, value, sub, tilt = false })
         <div className="kpi-label">{label}</div>
         <div className="kpi-value">{value}</div>
         {sub && <div className="kpi-sub">{sub}</div>}
+        {trend && (
+          <div className={`kpi-trend${trend.positive ? ' up' : ' down'}`}>
+            {trend.positive ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
+            {trend.text}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -145,7 +145,7 @@ export default function App() {
           )}
           {visited.has('metas') && (
             <div className={`page-slot${page === 'metas' ? ' page-active' : ''}`}>
-              <Metas empresa={selectedClient?.id} user={user} />
+              <Metas empresa={selectedClient?.id} empresaNome={selectedClient?.nome} user={user} onNavigate={handlePageChange} />
             </div>
           )}
           {visited.has('parametros') && (

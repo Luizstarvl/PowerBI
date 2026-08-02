@@ -66,6 +66,7 @@ export const PRIORIDADES_META = ['Baixa', 'Média', 'Alta', 'Urgente'];
 export const STATUS_META = ['Não iniciada', 'Em andamento', 'Concluída', 'Atrasada', 'Cancelada'];
 
 export const RANKING_TIPOS = [
+  { value: 'responsaveis',   label: 'Responsáveis' },
   { value: 'vendedores',     label: 'Vendedores' },
   { value: 'empresas',       label: 'Empresas' },
   { value: 'departamentos',  label: 'Departamentos' },
@@ -73,6 +74,17 @@ export const RANKING_TIPOS = [
   { value: 'clientes',       label: 'Clientes' },
   { value: 'metas',          label: 'Metas' },
 ];
+
+// Cor por status — "Em andamento" é azul (var(--color-info)), não laranja,
+// pra bater com a paleta pedida no redesenho executivo (verde/azul/amarelo/
+// vermelho/cinza).
+export const STATUS_COLOR_VAR = {
+  'Não iniciada': 'var(--color-neutral)',
+  'Em andamento': 'var(--color-info)',
+  'Concluída':    'var(--color-success)',
+  'Atrasada':     'var(--color-error)',
+  'Cancelada':    'var(--color-text-muted)',
+};
 
 export const ALERTA_LABELS = {
   atingiu_100:      'Meta atingida',
