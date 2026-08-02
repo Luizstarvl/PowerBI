@@ -1,18 +1,20 @@
 import React, { useState } from 'react';
-import { Logo } from '../components/ui';
+import LeftPanel from '../components/login/LeftPanel';
+import RightPanel from '../components/login/RightPanel';
 
 const API_URL = process.env.REACT_APP_API_URL
   || (window.location.hostname === 'localhost' ? 'http://localhost:3001' : '');
 
 export default function Login({ onLogin }) {
-  const [usuario, setUsuario] = useState('');
-  const [senha, setSenha] = useState('');
   const [erro, setErro] = useState('');
   const [loading, setLoading] = useState(false);
 
-  async function handleSubmit(e) {
-    e.preventDefault();
+  async function handleSubmit(usuario, senha, lembrar) {
     setErro('');
+    if (!usuario.trim() || !senha) {
+      setErro('Informe usuário e senha.');
+      return;
+    }
     setLoading(true);
     try {
       const res = await fetch(`${API_URL}/api/starvl-users/auth`, {
@@ -25,7 +27,7 @@ export default function Login({ onLogin }) {
         setErro(data.error || 'Usuário ou senha inválidos.');
         return;
       }
-      onLogin(data);
+      onLogin(data, lembrar);
     } catch {
       setErro('Não foi possível conectar ao servidor.');
     } finally {
@@ -35,53 +37,8 @@ export default function Login({ onLogin }) {
 
   return (
     <div className="login-bg">
-      <div className="login-panel">
-        <div>
-          <div className="login-panel-brand">
-            <Logo className="login-panel-brand-logo" variant="dark" />
-          </div>
-          <div className="login-panel-sub">Gestão de Postos</div>
-        </div>
-        <div className="login-panel-footer">© 2026 Horse</div>
-      </div>
-
-      <div className="login-form-side">
-        <div className="login-form-inner">
-          <h2 className="login-form-title">Bem-vindo</h2>
-          <p className="login-form-desc">Acesse sua conta para continuar.</p>
-
-          <form className="login-form" onSubmit={handleSubmit}>
-            <div className="login-field">
-              <label>Usuário</label>
-              <input
-                type="text"
-                value={usuario}
-                onChange={e => setUsuario(e.target.value)}
-                placeholder="seu usuário"
-                autoFocus
-                autoComplete="username"
-              />
-            </div>
-
-            <div className="login-field">
-              <label>Senha</label>
-              <input
-                type="password"
-                value={senha}
-                onChange={e => setSenha(e.target.value)}
-                placeholder="••••••"
-                autoComplete="current-password"
-              />
-            </div>
-
-            {erro && <p className="login-erro">{erro}</p>}
-
-            <button type="submit" className="login-btn" disabled={loading}>
-              {loading ? 'Entrando…' : 'Entrar'}
-            </button>
-          </form>
-        </div>
-      </div>
+      <LeftPanel />
+      <RightPanel onSubmit={handleSubmit} loading={loading} erro={erro} />
     </div>
   );
 }

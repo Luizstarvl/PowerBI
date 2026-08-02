@@ -19,8 +19,9 @@ function getCurrentPeriod() {
 
 export default function App() {
   const [user, setUser] = useState(() => {
-    try { return JSON.parse(sessionStorage.getItem('pbi_user')) || null; }
-    catch { return null; }
+    try {
+      return JSON.parse(sessionStorage.getItem('pbi_user') || localStorage.getItem('pbi_user')) || null;
+    } catch { return null; }
   });
   const [clients, setClients] = useState([]);
   const [selectedClient, setSelectedClient] = useState(null);
@@ -64,8 +65,15 @@ export default function App() {
       .catch(() => {});
   }, [user]);
 
-  function handleLogin(data) {
-    sessionStorage.setItem('pbi_user', JSON.stringify(data));
+  function handleLogin(data, lembrar) {
+    const json = JSON.stringify(data);
+    if (lembrar) {
+      localStorage.setItem('pbi_user', json);
+      sessionStorage.removeItem('pbi_user');
+    } else {
+      sessionStorage.setItem('pbi_user', json);
+      localStorage.removeItem('pbi_user');
+    }
     setUser(data);
   }
 
@@ -86,6 +94,7 @@ export default function App() {
 
   function handleLogout() {
     sessionStorage.removeItem('pbi_user');
+    localStorage.removeItem('pbi_user');
     setUser(null);
   }
 
