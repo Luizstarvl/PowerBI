@@ -17,11 +17,11 @@ const contaCorrenteRoutes = require('./routes/contaCorrente');
 const imagensRoutes       = require('./routes/imagens');
 const starvlUsersRoutes   = require('./routes/starvlUsers');
 const clientsRoutes       = require('./routes/clients');
-const goalsRoutes         = require('./routes/goals');
 const profilesRoutes      = require('./routes/profiles');
 const connectionsRoutes   = require('./routes/connections');
 const plansRoutes         = require('./routes/plans');
 const licensesRoutes      = require('./routes/licenses');
+const metasRoutes         = require('./routes/metas');
 
 const app = express();
 const PORT = process.env.PORT || process.env.API_PORT || 3001;
@@ -142,11 +142,11 @@ app.use('/api/relatorios', relatoriosRoutes);
 app.use('/api/imagens',        imagensRoutes);
 app.use('/api/starvl-users',   starvlUsersRoutes);
 app.use('/api/clients',        clientsRoutes);
-app.use('/api/goals',          goalsRoutes);
 app.use('/api/profiles',       profilesRoutes);
 app.use('/api/connections',    connectionsRoutes);
 app.use('/api/plans',          plansRoutes);
 app.use('/api/licenses',       licensesRoutes);
+app.use('/api/metas',          metasRoutes);
 
 if (fs.existsSync(clientBuildPath)) {
   app.use(express.static(clientBuildPath, {
