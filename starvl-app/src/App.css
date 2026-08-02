@@ -287,20 +287,23 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   position: absolute;
   inset: -2px;
   border-radius: inherit;
-  padding: 2px;
+  padding: 2.5px;
   background: conic-gradient(
     from var(--neon-angle),
     transparent 0%,
-    transparent 76%,
-    rgba(255,138,0,.85) 87%,
+    transparent 75%,
+    rgba(255,138,0,.9) 86%,
     #fff 90%,
-    rgba(255,138,0,.85) 93%,
+    rgba(255,138,0,.9) 94%,
     transparent 100%
   );
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
-  filter: drop-shadow(0 0 6px rgba(255,138,0,.85));
+  filter:
+    drop-shadow(0 0 3px rgba(255,190,110,.95))
+    drop-shadow(0 0 10px rgba(255,138,0,.8))
+    drop-shadow(0 0 22px rgba(255,106,0,.5));
   animation: neonChase 4.5s ease-in-out infinite alternate;
   pointer-events: none;
 }
