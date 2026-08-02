@@ -22,6 +22,7 @@ const connectionsRoutes   = require('./routes/connections');
 const plansRoutes         = require('./routes/plans');
 const licensesRoutes      = require('./routes/licenses');
 const metasRoutes         = require('./routes/metas');
+const passwordResetsRoutes = require('./routes/passwordResets');
 
 const app = express();
 const PORT = process.env.PORT || process.env.API_PORT || 3001;
@@ -147,6 +148,7 @@ app.use('/api/connections',    connectionsRoutes);
 app.use('/api/plans',          plansRoutes);
 app.use('/api/licenses',       licensesRoutes);
 app.use('/api/metas',          metasRoutes);
+app.use('/api/password-resets', passwordResetsRoutes);
 
 if (fs.existsSync(clientBuildPath)) {
   app.use(express.static(clientBuildPath, {

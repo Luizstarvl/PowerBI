@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { User, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react';
+import ForgotPasswordModal from './ForgotPasswordModal';
 
 export default function LoginForm({ onSubmit, loading, erro }) {
   const [usuario, setUsuario] = useState('');
@@ -7,6 +8,7 @@ export default function LoginForm({ onSubmit, loading, erro }) {
   const [lembrar, setLembrar] = useState(false);
   const [showSenha, setShowSenha] = useState(false);
   const [ripple, setRipple] = useState(null);
+  const [forgotOpen, setForgotOpen] = useState(false);
 
   function handleSubmit(e) {
     e.preventDefault();
@@ -55,9 +57,9 @@ export default function LoginForm({ onSubmit, loading, erro }) {
           <span className="login-remember-box" />
           Lembrar meu acesso
         </label>
-        <span className="login-forgot" title="Fale com o administrador do sistema para redefinir sua senha">
+        <button type="button" className="login-forgot" onClick={() => setForgotOpen(true)}>
           Esqueceu sua senha?
-        </span>
+        </button>
       </div>
 
       {erro && <p className="login-erro">{erro}</p>}
@@ -74,6 +76,8 @@ export default function LoginForm({ onSubmit, loading, erro }) {
         <span>{loading ? 'Entrando…' : 'Entrar'}</span>
         {!loading && <ArrowRight size={18} />}
       </button>
+
+      {forgotOpen && <ForgotPasswordModal onClose={() => setForgotOpen(false)} />}
     </form>
   );
 }

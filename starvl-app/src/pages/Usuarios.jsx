@@ -153,6 +153,13 @@ function IconTrash() {
     </svg>
   );
 }
+function IconX() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+    </svg>
+  );
+}
 
 /* ── ModalPerfil ──────────────────────────────────────────────────────────── */
 const DASH_MODULOS = [
@@ -725,11 +732,13 @@ export default function Usuarios() {
   const [usuarios, setUsuarios] = useState([]);
   const [profiles, setProfiles] = useState([]);
   const [clients,  setClients]  = useState([]);
+  const [resetRequests, setResetRequests] = useState([]);
   const [loading,  setLoading]  = useState(false);
   const [modal,    setModal]    = useState(null);
   const [busca,    setBusca]    = useState('');
   const [pagina,   setPagina]   = useState(1);
   const [ctxUser,  setCtxUser]  = useState(null);
+  const [resolvingRequestId, setResolvingRequestId] = useState(null);
 
   useEffect(() => {
     setLoading(true);
@@ -737,10 +746,12 @@ export default function Usuarios() {
       fetch(`${API_URL}/api/starvl-users`).then(r => r.json()).catch(() => []),
       fetch(`${API_URL}/api/profiles`).then(r => r.json()).catch(() => []),
       fetch(`${API_URL}/api/clients`).then(r => r.json()).catch(() => []),
-    ]).then(([users, profs, cls]) => {
+      fetch(`${API_URL}/api/password-resets?status=pendente`).then(r => r.json()).catch(() => []),
+    ]).then(([users, profs, cls, resets]) => {
       if (Array.isArray(users))  setUsuarios(users);
       if (Array.isArray(profs))  setProfiles(profs);
       if (Array.isArray(cls))    setClients(cls);
+      if (Array.isArray(resets)) setResetRequests(resets);
     }).finally(() => setLoading(false));
   }, []);
 
@@ -751,6 +762,22 @@ export default function Usuarios() {
       return [...prev, saved];
     });
     setModal(null);
+    if (resolvingRequestId) {
+      handleResolveRequest(resolvingRequestId);
+      setResolvingRequestId(null);
+    }
+  }
+
+  function openResetUser(req) {
+    const u = usuarios.find(x => x.id === req.userId);
+    if (!u) return;
+    setResolvingRequestId(req.id);
+    setModal(u);
+  }
+
+  async function handleResolveRequest(id) {
+    setResetRequests(prev => prev.filter(r => r.id !== id));
+    await fetch(`${API_URL}/api/password-resets/${id}/resolver`, { method: 'PATCH' }).catch(() => {});
   }
 
   function openCtxUser(e, usuario) {
@@ -804,11 +831,70 @@ export default function Usuarios() {
         <button className={`usr-tab${tab === 'perfis' ? ' active' : ''}`} onClick={() => setTab('perfis')}>
           {t('usr_tab_perfis')}
         </button>
+        <button className={`usr-tab${tab === 'redefinicoes' ? ' active' : ''}`} onClick={() => setTab('redefinicoes')}>
+          Redefinições de Senha
+          {resetRequests.length > 0 && <span className="usr-tab-badge">{resetRequests.length}</span>}
+        </button>
       </div>
 
       {/* ── Perfis de Acesso ───────────────────────────────────────────── */}
       {tab === 'perfis' && (
         <SecaoPerfis profiles={profiles} onProfilesChange={setProfiles} usuarios={usuarios} />
+      )}
+
+      {/* ── Redefinições de Senha ──────────────────────────────────────── */}
+      {tab === 'redefinicoes' && (
+        <div className="fade-up">
+          <div className="gu-header">
+            <div>
+              <h2 className="gu-title">Redefinições de Senha</h2>
+              <p className="gu-subtitle">Usuários que solicitaram redefinição de senha pela tela de login.</p>
+            </div>
+          </div>
+
+          <div className="param-group">
+            <div className="param-table-wrap">
+              {resetRequests.length === 0 ? (
+                <p className="rank-empty">Nenhuma solicitação pendente. Tudo em dia!</p>
+              ) : (
+                <table className="param-table">
+                  <thead>
+                    <tr>
+                      <th style={{ width: 52 }}></th>
+                      <th>{t('th_nome_usuario')}</th>
+                      <th>{t('th_email')}</th>
+                      <th>Solicitado em</th>
+                      <th style={{ textAlign: 'right' }}>{t('th_acoes')}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {resetRequests.map(req => (
+                      <tr key={req.id}>
+                        <td><Avatar name={req.nome || req.usuario} foto={req.foto} /></td>
+                        <td>
+                          <p className="gu-username">{req.nome || req.usuario}</p>
+                          {req.nome && <p className="gu-subtext">@{req.usuario}</p>}
+                        </td>
+                        <td className="gu-subtext">{req.email || '—'}</td>
+                        <td className="gu-subtext">{new Date(req.criadoEm).toLocaleString('pt-BR')}</td>
+                        <td className="td-actions">
+                          {req.userId && (
+                            <button className="btn-primary btn-sm" onClick={() => openResetUser(req)}>
+                              Redefinir agora
+                            </button>
+                          )}
+                          <button className="icon-btn" title="Dispensar" onClick={() => handleResolveRequest(req.id)}>
+                            <IconX />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+        </div>
       )}
 
       {/* ── Usuários ───────────────────────────────────────────────────── */}
@@ -946,7 +1032,7 @@ export default function Usuarios() {
           <ModalUsuario
             usuario={modal === 'novo' ? null : modal}
             onSave={handleSaveUser}
-            onClose={() => setModal(null)}
+            onClose={() => { setModal(null); setResolvingRequestId(null); }}
             profiles={profiles}
             clients={clients}
           />
