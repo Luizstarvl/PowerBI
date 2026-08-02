@@ -1,16 +1,11 @@
 import React from 'react';
 import { useT } from '../i18n';
 import { NAV_ITEMS } from '../constants/nav';
-import { Logo } from '../components/ui';
 
 export default function NavBar({ page, onPageChange }) {
   const { t } = useT();
   return (
     <aside className="sidebar">
-      <div className="sidebar-brand">
-        <Logo className="sidebar-brand-logo" />
-      </div>
-
       <div className="sidebar-section-label">Menu</div>
 
       <nav className="sidebar-nav">
