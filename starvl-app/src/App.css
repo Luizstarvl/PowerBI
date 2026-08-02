@@ -165,8 +165,19 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .login-bg-glow  { position: absolute; border-radius: 50%; filter: blur(60px); }
 .login-bg-glow--1 { width: 640px; height: 640px; top: -220px; right: -160px; background: radial-gradient(circle, rgba(255,106,0,.20), transparent 70%); }
 .login-bg-glow--2 { width: 520px; height: 520px; bottom: -220px; left: -120px; background: radial-gradient(circle, rgba(255,138,0,.10), transparent 70%); }
-.map-layer, .particle-layer { position: absolute; inset: 0; width: 100%; height: 100%; }
-.map-layer { opacity: .55; }
+.particle-layer { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+.login-bg-photo {
+  position: absolute; inset: 0;
+  background-repeat: no-repeat;
+  background-position: center 42%;
+  background-size: contain;
+}
+/* Esmaece o topo/base da foto pro texto (título, cards, indicadores) ficar
+   legível, mantendo a ilustração (posto + mapa) nítida na faixa do meio. */
+.login-bg-fade { position: absolute; left: 0; right: 0; pointer-events: none; }
+.login-bg-fade--top    { top: 0; height: 30%; background: linear-gradient(180deg, #090909 0%, rgba(9,9,9,0) 100%); }
+.login-bg-fade--bottom { bottom: 0; height: 32%; background: linear-gradient(0deg, #090909 0%, rgba(9,9,9,0) 100%); }
 
 .login-left-content { position: relative; z-index: 1; display: flex; flex-direction: column; gap: 26px; flex: 1; }
 
@@ -204,8 +215,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .login-checklist li { display: flex; align-items: center; gap: 10px; font-size: 13px; color: #D4D4D8; }
 .login-checklist li svg { color: #FB923C; flex-shrink: 0; }
 
-.station-illustration-wrap { display: flex; justify-content: center; margin: 2px 0; }
-.station-illustration { width: 100%; max-width: 520px; height: auto; }
+.station-photo-window { flex: 1; min-height: 200px; }
 
 .login-metrics-title { font-size: 13px; font-weight: 700; color: #fff; margin-bottom: 12px; }
 .metric-grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 12px; }

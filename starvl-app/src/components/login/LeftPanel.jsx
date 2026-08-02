@@ -4,7 +4,6 @@ import AnimatedBackground from './AnimatedBackground';
 import HeroSection from './HeroSection';
 import FeatureCard from './FeatureCard';
 import MetricCard from './MetricCard';
-import GasStationIllustration from './GasStationIllustration';
 import FooterStatus from './FooterStatus';
 import { FEATURE_CARDS, CHECKLIST_ITEMS, METRIC_CARDS } from '../../constants/login';
 
@@ -26,9 +25,10 @@ export default function LeftPanel() {
           ))}
         </ul>
 
-        <div className="station-illustration-wrap reveal reveal-5">
-          <GasStationIllustration />
-        </div>
+        {/* Espaço reservado: a ilustração do posto já vem na foto de fundo
+            (AnimatedBackground); essa faixa só garante que ela fique visível
+            entre o checklist e os indicadores. */}
+        <div className="station-photo-window" aria-hidden="true" />
 
         <div className="login-metrics reveal reveal-6">
           <div className="login-metrics-title">Indicadores em tempo real</div>

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 
-const PARTICLE_COUNT = 34;
+const PARTICLE_COUNT = 55;
 const RGB = '249,115,22';
 
 function rand(min, max) { return Math.random() * (max - min) + min; }
