@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import Portal from './Portal';
-import { useT } from './i18n';
+import Portal from '../Portal';
+import { useT } from '../i18n';
+import { AVATAR_COLORS } from '../theme/tokens';
 
 const API_URL = process.env.REACT_APP_API_URL
   || (window.location.hostname === 'localhost' ? 'http://localhost:3001' : '');
 
 const PER_PAGE = 8;
-const AVATAR_COLORS = ['#2563EB', '#16A34A', '#D97706', '#7C3AED', '#DC2626', '#0891B2'];
 
 /* ── CustomSelect ─────────────────────────────────────────────────────────── */
 // options: string[] | { value, label }[]
@@ -28,7 +28,7 @@ function CustomSelect({ value, onChange, options, placeholder }) {
   return (
     <div className="csel" ref={ref}>
       <button type="button" className="csel-trigger" onClick={() => setOpen(o => !o)}>
-        <span style={!selected && placeholder ? { color: 'var(--text-muted)' } : {}}>
+        <span style={!selected && placeholder ? { color: 'var(--color-text-muted)' } : {}}>
           {selected ? selected.label : (placeholder || '—')}
         </span>
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -308,7 +308,7 @@ function ModalAlerta({ titulo, mensagem, onClose }) {
           <span style={{
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             width: 36, height: 36, borderRadius: 10, flexShrink: 0,
-            background: 'var(--red-soft)', color: 'var(--red)',
+            background: 'var(--color-error-light)', color: 'var(--color-error)',
           }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="10"/>
@@ -319,7 +319,7 @@ function ModalAlerta({ titulo, mensagem, onClose }) {
           <h3 className="modal-title" style={{ padding: 0 }}>{titulo}</h3>
         </div>
         <div className="modal-body" style={{ paddingTop: 14 }}>
-          <p style={{ fontSize: 13.5, color: 'var(--text-sub)', lineHeight: 1.65 }}>{mensagem}</p>
+          <p style={{ fontSize: 13.5, color: 'var(--color-text-secondary)', lineHeight: 1.65 }}>{mensagem}</p>
         </div>
         <div className="modal-footer">
           <button className="btn-primary" onClick={onClose}>Entendido</button>
@@ -830,7 +830,7 @@ export default function Usuarios() {
 
           <div className="gu-kpis">
             <div className="gu-kpi">
-              <div className="gu-kpi-icon" style={{ background: '#EFF6FF', color: '#2563EB' }}>
+              <div className="gu-kpi-icon" style={{ background: 'var(--color-primary-light)', color: 'var(--color-primary)' }}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
                   <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
@@ -839,7 +839,7 @@ export default function Usuarios() {
               <div><p className="gu-kpi-label">{t('gu_total')}</p><p className="gu-kpi-value">{usuarios.length}</p></div>
             </div>
             <div className="gu-kpi">
-              <div className="gu-kpi-icon" style={{ background: '#F0FDF4', color: '#16A34A' }}>
+              <div className="gu-kpi-icon" style={{ background: 'var(--color-success-light)', color: 'var(--color-success)' }}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
                 </svg>
@@ -847,7 +847,7 @@ export default function Usuarios() {
               <div><p className="gu-kpi-label">{t('gu_ativos')}</p><p className="gu-kpi-value">{totalAtivos}</p></div>
             </div>
             <div className="gu-kpi">
-              <div className="gu-kpi-icon" style={{ background: '#FFF1F2', color: '#DC2626' }}>
+              <div className="gu-kpi-icon" style={{ background: 'var(--color-error-light)', color: 'var(--color-error)' }}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
                 </svg>

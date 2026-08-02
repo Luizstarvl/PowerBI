@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import Login from './Login';
-import TopBar from './TopBar';
-import NavBar from './NavBar';
-import Dashboard from './Dashboard';
-import Usuarios from './Usuarios';
-import Parametros from './Parametros';
+import Login from './pages/Login';
+import TopBar from './layout/TopBar';
+import NavBar from './layout/NavBar';
+import Dashboard from './pages/Dashboard';
+import Usuarios from './pages/Usuarios';
+import Parametros from './pages/Parametros';
 import { LangProvider } from './i18n';
 import './App.css';
 

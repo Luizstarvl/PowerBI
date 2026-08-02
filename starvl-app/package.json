@@ -1,7 +1,7 @@
 {
   "name": "starvl-app",
   "version": "2.2.0",
-  "description": "Sistema de Gestão de Postos - STARVL",
+  "description": "Horse - Sistema de Gestão de Postos",
   "private": true,
   "dependencies": {
     "lucide-react": "^0.294.0",

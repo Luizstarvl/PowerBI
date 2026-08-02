@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useT } from './i18n';
+import { Search, Bell, Sun, Moon, Monitor, ChevronDown, LogOut } from 'lucide-react';
+import { useT } from '../i18n';
 
 function initials(name) {
   if (!name) return '?';
@@ -7,58 +8,6 @@ function initials(name) {
   if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
   return name.slice(0, 2).toUpperCase();
 }
-
-const IconSearch = () => (
-  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="11" cy="11" r="8"/>
-    <path d="m21 21-4.35-4.35"/>
-  </svg>
-);
-
-const IconBell = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/>
-    <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>
-  </svg>
-);
-
-const IconSun = () => (
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="5"/>
-    <line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
-    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-    <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
-    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-  </svg>
-);
-
-const IconMoon = () => (
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-  </svg>
-);
-
-const IconMonitor = () => (
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="2" y="3" width="20" height="14" rx="2"/>
-    <line x1="8" y1="21" x2="16" y2="21"/>
-    <line x1="12" y1="17" x2="12" y2="21"/>
-  </svg>
-);
-
-const IconChevron = () => (
-  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="6 9 12 15 18 9"/>
-  </svg>
-);
-
-const IconLogOut = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-    <polyline points="16 17 21 12 16 7"/>
-    <line x1="21" y1="12" x2="9" y2="12"/>
-  </svg>
-);
 
 export default function TopBar({ user, clients, selectedClient, onClientChange, onLogout, themeMode, onThemeToggle }) {
   const { t } = useT();
@@ -101,7 +50,7 @@ export default function TopBar({ user, clients, selectedClient, onClientChange, 
 
       {/* Center: global search */}
       <div className="topbar-search">
-        <span className="topbar-search-icon"><IconSearch /></span>
+        <span className="topbar-search-icon"><Search size={13} strokeWidth={2.5} /></span>
         <input
           className="topbar-search-input"
           type="text"
@@ -112,14 +61,14 @@ export default function TopBar({ user, clients, selectedClient, onClientChange, 
       {/* Right: controls */}
       <div className="topbar-user">
         <button className="topbar-icon-btn" title="Notificações" style={{ position: 'relative' }}>
-          <IconBell />
+          <Bell size={16} strokeWidth={2} />
         </button>
 
         <button className="topbar-theme" onClick={onThemeToggle}
           title={themeMode === 'dark' ? 'Tema Escuro' : themeMode === 'light' ? 'Tema Claro' : 'Tema Automático'}>
-          {themeMode === 'dark'  ? <IconSun />     :
-           themeMode === 'light' ? <IconMoon />    :
-                                   <IconMonitor />}
+          {themeMode === 'dark'  ? <Sun size={15} strokeWidth={2} />     :
+           themeMode === 'light' ? <Moon size={15} strokeWidth={2} />   :
+                                   <Monitor size={15} strokeWidth={2} />}
         </button>
 
         <div style={{ position: 'relative' }} ref={profileRef}>
@@ -135,7 +84,7 @@ export default function TopBar({ user, clients, selectedClient, onClientChange, 
               <span className="topbar-profile-name">{user?.nome || user?.usuario}</span>
               <span className="topbar-profile-role">{roleName}</span>
             </div>
-            <IconChevron />
+            <ChevronDown size={12} strokeWidth={2.5} />
           </button>
 
           {profileOpen && (
@@ -146,7 +95,7 @@ export default function TopBar({ user, clients, selectedClient, onClientChange, 
               </div>
               <div className="topbar-dropdown-divider" />
               <button className="topbar-dropdown-item danger" onClick={() => { setProfileOpen(false); onLogout(); }}>
-                <IconLogOut />
+                <LogOut size={14} strokeWidth={2} />
                 {t('topbar_logout')}
               </button>
             </div>

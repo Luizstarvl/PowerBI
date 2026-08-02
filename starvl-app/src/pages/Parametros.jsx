@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import Portal from './Portal';
-import { useT } from './i18n';
+import Portal from '../Portal';
+import { useT } from '../i18n';
 
 const API_URL = process.env.REACT_APP_API_URL
   || (window.location.hostname === 'localhost' ? 'http://localhost:3001' : '');
@@ -204,9 +204,9 @@ const DB_TIPOS = [
 /* ── Badge de status ─────────────────────────────────────────────────────────── */
 function ConexaoStatus({ status, erro }) {
   const MAP = {
-    ok:      { label: 'Conectado', dot: '#22C55E', bg: 'rgba(34,197,94,.1)',  text: '#16A34A' },
-    error:   { label: 'Erro',      dot: '#EF4444', bg: 'rgba(239,68,68,.1)', text: '#DC2626' },
-    pending: { label: 'Pendente',  dot: '#94A3B8', bg: 'rgba(148,163,184,.1)', text: '#64748B' },
+    ok:      { label: 'Conectado', dot: 'var(--color-success)', bg: 'var(--color-success-light)', text: 'var(--color-success)' },
+    error:   { label: 'Erro',      dot: 'var(--color-error)',   bg: 'var(--color-error-light)',   text: 'var(--color-error)'   },
+    pending: { label: 'Pendente',  dot: 'var(--color-neutral)', bg: 'var(--color-neutral-light)', text: 'var(--color-neutral)' },
   };
   const s = MAP[status] || MAP.pending;
   return (
@@ -220,7 +220,7 @@ function ConexaoStatus({ status, erro }) {
         {s.label}
       </span>
       {status === 'error' && erro && (
-        <span style={{ fontSize: 11, color: 'var(--red)', maxWidth: 260, lineHeight: 1.4, paddingLeft: 2 }}>{erro}</span>
+        <span style={{ fontSize: 11, color: 'var(--color-error)', maxWidth: 260, lineHeight: 1.4, paddingLeft: 2 }}>{erro}</span>
       )}
     </div>
   );
@@ -356,22 +356,22 @@ function ModalConexaoForm({ conexao, onSave, onClose }) {
           {testResult && (
             <div style={{
               marginTop: 12, padding: '10px 14px', borderRadius: 10,
-              background: testResult.status === 'ok' ? 'rgba(34,197,94,.08)' : 'rgba(239,68,68,.08)',
-              border: `1px solid ${testResult.status === 'ok' ? 'rgba(34,197,94,.25)' : 'rgba(239,68,68,.25)'}`,
+              background: testResult.status === 'ok' ? 'var(--color-success-light)' : 'var(--color-error-light)',
+              border: `1px solid ${testResult.status === 'ok' ? 'var(--color-success)' : 'var(--color-error)'}`,
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 {testResult.status === 'ok'
-                  ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16A34A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-                  : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                  ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-success)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                  : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-error)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
                 }
-                <span style={{ fontSize: 13, fontWeight: 600, color: testResult.status === 'ok' ? '#16A34A' : '#DC2626' }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: testResult.status === 'ok' ? 'var(--color-success)' : 'var(--color-error)' }}>
                   {testResult.status === 'ok'
                     ? `Conexão bem-sucedida${testResult.latencia ? ` — ${testResult.latencia}ms` : ''}`
                     : 'Falha na conexão'}
                 </span>
               </div>
               {testResult.status === 'error' && testResult.erro && (
-                <p style={{ fontSize: 12, color: 'var(--text-sub)', marginTop: 5, paddingLeft: 22, lineHeight: 1.5 }}>{testResult.erro}</p>
+                <p style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 5, paddingLeft: 22, lineHeight: 1.5 }}>{testResult.erro}</p>
               )}
             </div>
           )}
@@ -383,7 +383,7 @@ function ModalConexaoForm({ conexao, onSave, onClose }) {
           <button className="btn-outline-sm" style={{ padding: '8px 16px', fontSize: 13 }}
             onClick={handleTest} disabled={testing}>
             {testing
-              ? <><span style={{ display: 'inline-block', width: 12, height: 12, border: '2px solid var(--blue)', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin .7s linear infinite', marginRight: 6 }} />Testando...</>
+              ? <><span style={{ display: 'inline-block', width: 12, height: 12, border: '2px solid var(--color-primary)', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin .7s linear infinite', marginRight: 6 }} />Testando...</>
               : '⚡ Testar Conexão'}
           </button>
           <button className="btn-primary" onClick={handleSave} disabled={loading}>
@@ -435,7 +435,7 @@ function SecaoEmpresas() {
                   <tr key={c.id} className="tr-ctx" onContextMenu={e => { e.stopPropagation(); openCtx(e, c); }}>
                     <td className="gu-username">{c.nome}</td>
                     <td className="td-id">{c.codigoEmpresa}</td>
-                    <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>{fmtDate(c.criado)}</td>
+                    <td style={{ color: 'var(--color-text-muted)', fontSize: 12 }}>{fmtDate(c.criado)}</td>
                     <td className="td-actions">
                       <button className="icon-btn danger" title={t('emp_remover')} onClick={() => handleDelete(c.codigoEmpresa)}>
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -593,13 +593,13 @@ function SecaoConexao() {
                           <ConexaoStatus status={c.status} erro={c.erro} />
                         </td>
                         <td className="gu-username">{c.nome}</td>
-                        <td style={{ color: 'var(--text-sub)', fontSize: 13 }}>
+                        <td style={{ color: 'var(--color-text-secondary)', fontSize: 13 }}>
                           <span style={{ fontWeight: 600, color: 'var(--text)' }}>{tipoLabel}</span>
-                          <span style={{ color: 'var(--text-muted)' }}> · </span>
+                          <span style={{ color: 'var(--color-text-muted)' }}> · </span>
                           {c.servidor}:{c.porta}
                         </td>
                         <td><code className="db-name">{c.banco}</code></td>
-                        <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>{fmtUltimoTeste(c.ultimoTeste)}</td>
+                        <td style={{ color: 'var(--color-text-muted)', fontSize: 12 }}>{fmtUltimoTeste(c.ultimoTeste)}</td>
                         <td className="td-actions">
                           <button className="btn-outline-sm" title="Editar"
                             onClick={() => setModal({ conexao: c })}>
@@ -610,7 +610,7 @@ function SecaoConexao() {
                             onClick={() => handleTestar(c.id)}
                             style={{ minWidth: 32 }}>
                             {testando === c.id
-                              ? <span style={{ display: 'inline-block', width: 11, height: 11, border: '2px solid var(--blue)', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin .7s linear infinite' }} />
+                              ? <span style={{ display: 'inline-block', width: 11, height: 11, border: '2px solid var(--color-primary)', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin .7s linear infinite' }} />
                               : <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
                             }
                           </button>
@@ -1119,7 +1119,7 @@ function SecaoSistema({ themeMode, onThemeModeChange }) {
             const sel = themeMode === m.key;
             return (
               <button key={m.key} className={`lang-row${sel ? ' selected' : ''}`} onClick={() => onThemeModeChange(m.key)}>
-                <span style={{ display: 'flex', alignItems: 'center', flexShrink: 0, color: sel ? 'var(--blue)' : 'var(--text-muted)' }}><m.Icon /></span>
+                <span style={{ display: 'flex', alignItems: 'center', flexShrink: 0, color: sel ? 'var(--color-primary)' : 'var(--color-text-muted)' }}><m.Icon /></span>
                 <div className="lang-row-info">
                   <span className="lang-row-nome">{t(m.tagKey)}</span>
                   <span className="lang-row-regiao">{t(`${m.tagKey}_desc`)}</span>

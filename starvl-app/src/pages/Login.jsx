@@ -35,11 +35,14 @@ export default function Login({ onLogin }) {
   return (
     <div className="login-bg">
       <div className="login-panel">
-        <div className="login-panel-brand">
-          <div className="login-panel-logo">PowerBI</div>
+        <div>
+          <div className="login-panel-brand">
+            <div className="login-panel-logomark">H</div>
+            <div className="login-panel-logo">Horse</div>
+          </div>
           <div className="login-panel-sub">Gestão de Postos</div>
         </div>
-        <div className="login-panel-footer">© 2026 STARVL</div>
+        <div className="login-panel-footer">© 2026 Horse</div>
       </div>
 
       <div className="login-form-side">
