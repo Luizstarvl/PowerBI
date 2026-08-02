@@ -220,7 +220,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   margin-bottom: 16px;
   flex-shrink: 0;
 }
-.sidebar-brand-logo { width: 100%; height: auto; }
+.sidebar-brand-logo { width: 70%; height: auto; }
 
 .sidebar-section-label {
   font-size: 10px; font-weight: 700; color: var(--color-text-muted);
