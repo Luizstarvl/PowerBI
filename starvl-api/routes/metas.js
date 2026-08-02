@@ -346,6 +346,30 @@ router.get('/notificacoes', async (req, res) => {
   }
 });
 
+// ── GET /api/metas/evolucao — total lançado por mês (últimos N meses) ──────
+router.get('/evolucao', async (req, res) => {
+  const empresa = parseInt(req.query.empresa);
+  if (!empresa) return res.status(400).json({ error: 'empresa é obrigatório.' });
+  const meses = Math.min(Math.max(parseInt(req.query.meses) || 6, 1), 24);
+  try {
+    const { rows } = await pool.query(
+      `SELECT TO_CHAR(DATE_TRUNC('month', r.smr_data), 'YYYY-MM') AS mes,
+              COALESCE(SUM(r.smr_valor), 0) AS valor
+       FROM starvl_meta_resultados r
+       JOIN starvl_metas m ON m.sm_id = r.smr_meta_id
+       WHERE m.sm_empresa_id = $1
+         AND r.smr_data >= DATE_TRUNC('month', CURRENT_DATE) - ($2 || ' months')::interval
+       GROUP BY 1
+       ORDER BY 1`,
+      [empresa, meses - 1]
+    );
+    res.json(rows.map(r => ({ mes: r.mes, valor: parseFloat(r.valor) })));
+  } catch (err) {
+    console.error('GET /metas/evolucao:', err.message);
+    res.status(500).json({ error: 'Erro ao calcular evolução.' });
+  }
+});
+
 router.patch('/notificacoes/:metaId/:tipo/lida', async (req, res) => {
   const metaId = parseInt(req.params.metaId);
   const { tipo } = req.params;

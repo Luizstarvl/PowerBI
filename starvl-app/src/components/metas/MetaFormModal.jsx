@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import Portal from '../../Portal';
-import { Button } from '../ui';
+import { Button, Select } from '../ui';
 import {
   TIPOS_META, CATEGORIAS_META, INDICADORES_POR_CATEGORIA,
   FREQUENCIAS_META, PRIORIDADES_META,
@@ -65,9 +65,7 @@ export default function MetaFormModal({ meta, onClose, onSave }) {
 
               <div className="form-field">
                 <label>Tipo da meta</label>
-                <select value={form.tipo} onChange={e => set('tipo', e.target.value)}>
-                  {TIPOS_META.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-                </select>
+                <Select value={form.tipo} onChange={v => set('tipo', v)} options={TIPOS_META} searchPlaceholder="Buscar tipo…" />
               </div>
               <div className="form-field">
                 <label>Referência (opcional)</label>
@@ -76,15 +74,11 @@ export default function MetaFormModal({ meta, onClose, onSave }) {
 
               <div className="form-field">
                 <label>Categoria</label>
-                <select value={form.categoria} onChange={e => set('categoria', e.target.value)}>
-                  {CATEGORIAS_META.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
+                <Select value={form.categoria} onChange={v => set('categoria', v)} options={CATEGORIAS_META} />
               </div>
               <div className="form-field">
                 <label>Indicador</label>
-                <select value={form.indicador} onChange={e => set('indicador', e.target.value)}>
-                  {indicadores.map(i => <option key={i.value} value={i.value}>{i.label}</option>)}
-                </select>
+                <Select value={form.indicador} onChange={v => set('indicador', v)} options={indicadores} searchPlaceholder="Buscar indicador…" />
               </div>
 
               <div className="form-field">
@@ -93,9 +87,7 @@ export default function MetaFormModal({ meta, onClose, onSave }) {
               </div>
               <div className="form-field">
                 <label>Prioridade</label>
-                <select value={form.prioridade} onChange={e => set('prioridade', e.target.value)}>
-                  {PRIORIDADES_META.map(p => <option key={p} value={p}>{p}</option>)}
-                </select>
+                <Select value={form.prioridade} onChange={v => set('prioridade', v)} options={PRIORIDADES_META} />
               </div>
 
               <div className="form-field">
@@ -109,9 +101,7 @@ export default function MetaFormModal({ meta, onClose, onSave }) {
 
               <div className="form-field">
                 <label>Frequência</label>
-                <select value={form.frequencia} onChange={e => set('frequencia', e.target.value)}>
-                  {FREQUENCIAS_META.map(f => <option key={f} value={f}>{f}</option>)}
-                </select>
+                <Select value={form.frequencia} onChange={v => set('frequencia', v)} options={FREQUENCIAS_META} />
               </div>
               <div className="form-field">
                 <label>Responsável</label>

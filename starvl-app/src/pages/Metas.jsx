@@ -1,12 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
+  PieChart, Pie, Cell, RadialBarChart, RadialBar, PolarAngleAxis, LineChart, Line,
 } from 'recharts';
 import {
   Target, CheckCircle2, Clock, AlertTriangle, TrendingUp, Award, TrendingDown,
   ChevronDown, Bell, Plus,
 } from 'lucide-react';
-import { KpiCard, Button } from '../components/ui';
+import { KpiCard, Button, Select, CountUp } from '../components/ui';
 import MetaCard from '../components/metas/MetaCard';
 import MetaFormModal from '../components/metas/MetaFormModal';
 import MetaDetailModal from '../components/metas/MetaDetailModal';
@@ -19,7 +20,7 @@ import { CHART_COLORS } from '../theme/tokens';
 const API_URL = process.env.REACT_APP_API_URL
   || (window.location.hostname === 'localhost' ? 'http://localhost:3001' : '');
 
-const number = new Intl.NumberFormat('pt-BR');
+const currency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 
 const KPI_ICON = { total: Target, concluidas: CheckCircle2, emAndamento: Clock, atrasadas: AlertTriangle };
 
@@ -31,6 +32,14 @@ const ALERT_ICON_VARIANT = {
   abaixo_esperado: 'warning',
 };
 
+const STATUS_COLOR_VAR = {
+  'Não iniciada': 'var(--color-neutral)',
+  'Em andamento': 'var(--color-warning)',
+  'Concluída':    'var(--color-success)',
+  'Atrasada':     'var(--color-error)',
+  'Cancelada':    'var(--color-text-muted)',
+};
+
 const tooltipStyle = {
   background: 'var(--color-surface)',
   border: '1px solid var(--color-border)',
@@ -39,6 +48,10 @@ const tooltipStyle = {
   color: 'var(--color-text)',
 };
 
+const FILTRO_TIPO_OPTS       = [{ value: '', label: 'Todos os tipos' },       ...TIPOS_META];
+const FILTRO_CATEGORIA_OPTS  = [{ value: '', label: 'Todas as categorias' },  ...CATEGORIAS_META.map(c => ({ value: c, label: c }))];
+const FILTRO_STATUS_OPTS     = [{ value: '', label: 'Todos os status' },      ...STATUS_META.map(s => ({ value: s, label: s }))];
+
 function useDebounced(value, delay) {
   const [debounced, setDebounced] = useState(value);
   useEffect(() => {
@@ -46,6 +59,13 @@ function useDebounced(value, delay) {
     return () => clearTimeout(id);
   }, [value, delay]);
   return debounced;
+}
+
+function mesLabel(mes) {
+  const [ano, mesNum] = mes.split('-');
+  const d = new Date(Date.UTC(parseInt(ano), parseInt(mesNum) - 1, 1));
+  const label = d.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit', timeZone: 'UTC' });
+  return label.charAt(0).toUpperCase() + label.slice(1).replace('.', '');
 }
 
 export default function Metas({ empresa, user }) {
@@ -61,6 +81,7 @@ export default function Metas({ empresa, user }) {
   const [kpis, setKpis] = useState(null);
   const [rankingTipo, setRankingTipo] = useState('vendedores');
   const [ranking, setRanking] = useState([]);
+  const [evolucao, setEvolucao] = useState([]);
   const [notificacoes, setNotificacoes] = useState([]);
   const [notifOpen, setNotifOpen] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -86,11 +107,12 @@ export default function Metas({ empresa, user }) {
       const listaQs = new URLSearchParams(queryFiltros); listaQs.set('page', page); listaQs.set('perPage', 12);
       const todasQs = new URLSearchParams(queryFiltros); todasQs.set('perPage', 50);
 
-      const [listaRes, todasRes, kpisRes, rankingRes, notifRes] = await Promise.all([
+      const [listaRes, todasRes, kpisRes, rankingRes, evolucaoRes, notifRes] = await Promise.all([
         fetch(`${API_URL}/api/metas?${listaQs}`).then(r => r.json()),
         fetch(`${API_URL}/api/metas?${todasQs}`).then(r => r.json()),
         fetch(`${API_URL}/api/metas/resumo?empresa=${empresa}`).then(r => r.json()),
         fetch(`${API_URL}/api/metas/ranking?empresa=${empresa}&tipo=${rankingTipo}`).then(r => r.json()),
+        fetch(`${API_URL}/api/metas/evolucao?empresa=${empresa}&meses=6`).then(r => r.json()),
         fetch(`${API_URL}/api/metas/notificacoes?empresa=${empresa}`).then(r => r.json()),
       ]);
 
@@ -98,6 +120,7 @@ export default function Metas({ empresa, user }) {
       if (todasRes && Array.isArray(todasRes.data)) setTodasMetas(todasRes.data);
       if (kpisRes && !kpisRes.error) setKpis(kpisRes);
       if (Array.isArray(rankingRes)) setRanking(rankingRes);
+      if (Array.isArray(evolucaoRes)) setEvolucao(evolucaoRes.map(e => ({ ...e, mesLabel: mesLabel(e.mes) })));
       if (Array.isArray(notifRes)) setNotificacoes(notifRes);
     } catch {
       // silencioso — mantém último estado válido na tela
@@ -176,17 +199,22 @@ export default function Metas({ empresa, user }) {
     const counts = {};
     for (const s of STATUS_META) counts[s] = 0;
     for (const m of todasMetas) counts[m.status] = (counts[m.status] || 0) + 1;
-    return STATUS_META.map(s => ({ status: s, total: counts[s] }));
+    return STATUS_META.map(s => ({ status: s, total: counts[s] })).filter(s => s.total > 0);
   }, [todasMetas]);
 
+  // Normalizado em % (não em valor bruto): metas de indicadores diferentes
+  // (R$, %, contagem) não são comparáveis na mesma escala — % sempre é.
   const metaVsRealizado = useMemo(() => (
     [...todasMetas]
-      .sort((a, b) => b.valorMeta - a.valorMeta)
+      .sort((a, b) => b.percentual - a.percentual)
       .slice(0, 8)
-      .map(m => ({ nome: m.nome.length > 16 ? `${m.nome.slice(0, 16)}…` : m.nome, Meta: m.valorMeta, Realizado: m.valorAtual }))
+      .map(m => ({ nome: m.nome.length > 16 ? `${m.nome.slice(0, 16)}…` : m.nome, Meta: 100, Realizado: Math.round(m.percentual) }))
   ), [todasMetas]);
 
+  const gaugeData = [{ name: 'Cumprimento', value: Math.min(kpis?.mediaCumprimento || 0, 100), fill: CHART_COLORS[0] }];
+
   const indicadoresFiltro = filtros.categoria ? (INDICADORES_POR_CATEGORIA[filtros.categoria] || []) : [];
+  const indicadorFiltroOpts = [{ value: '', label: 'Todos os indicadores' }, ...indicadoresFiltro];
 
   return (
     <main className="dashboard">
@@ -206,32 +234,51 @@ export default function Metas({ empresa, user }) {
         <p className="chart-empty">Selecione uma empresa para ver as metas.</p>
       ) : (
         <>
-          <div className="kpi-grid">
-            <KpiCard icon={KPI_ICON.total}       label="Total de metas"      value={kpis ? number.format(kpis.total) : '—'} />
-            <KpiCard icon={KPI_ICON.concluidas}  label="Concluídas"          value={kpis ? number.format(kpis.concluidas) : '—'} />
-            <KpiCard icon={KPI_ICON.emAndamento} label="Em andamento"        value={kpis ? number.format(kpis.emAndamento) : '—'} />
-            <KpiCard icon={KPI_ICON.atrasadas}   label="Atrasadas"           value={kpis ? number.format(kpis.atrasadas) : '—'} />
-            <KpiCard icon={TrendingUp}           label="Média de cumprimento" value={kpis ? `${kpis.mediaCumprimento}%` : '—'} />
-            <KpiCard icon={Award}                label="Melhor desempenho"   value={kpis?.melhorDesempenho ? `${kpis.melhorDesempenho.percentual}%` : '—'} sub={kpis?.melhorDesempenho?.nome} />
-            <KpiCard icon={TrendingDown}          label="Pior desempenho"     value={kpis?.piorDesempenho ? `${kpis.piorDesempenho.percentual}%` : '—'} sub={kpis?.piorDesempenho?.nome} />
+          <div className="kpi-grid stagger-children">
+            <KpiCard tilt icon={KPI_ICON.total}       label="Total de metas"      value={kpis ? <CountUp value={kpis.total} /> : '—'} />
+            <KpiCard tilt icon={KPI_ICON.concluidas}  label="Concluídas"          value={kpis ? <CountUp value={kpis.concluidas} /> : '—'} />
+            <KpiCard tilt icon={KPI_ICON.emAndamento} label="Em andamento"        value={kpis ? <CountUp value={kpis.emAndamento} /> : '—'} />
+            <KpiCard tilt icon={KPI_ICON.atrasadas}   label="Atrasadas"           value={kpis ? <CountUp value={kpis.atrasadas} /> : '—'} />
+            <KpiCard tilt icon={TrendingUp}           label="Média de cumprimento" value={kpis ? <CountUp value={kpis.mediaCumprimento} formatter={n => `${n.toFixed(1)}%`} /> : '—'} />
+            <KpiCard tilt icon={Award}                label="Melhor desempenho"   value={kpis?.melhorDesempenho ? <CountUp value={kpis.melhorDesempenho.percentual} formatter={n => `${Math.round(n)}%`} /> : '—'} sub={kpis?.melhorDesempenho?.nome} />
+            <KpiCard tilt icon={TrendingDown}          label="Pior desempenho"     value={kpis?.piorDesempenho ? <CountUp value={kpis.piorDesempenho.percentual} formatter={n => `${Math.round(n)}%`} /> : '—'} sub={kpis?.piorDesempenho?.nome} />
           </div>
 
-          <div className="chart-grid">
+          <div className="chart-grid stagger-children">
+            <div className="chart-card">
+              <div className="chart-card-header">
+                <div className="chart-card-title">Cumprimento geral</div>
+                <div className="chart-card-desc">Média de todas as metas ativas</div>
+              </div>
+              <div className="gauge-wrap">
+                <ResponsiveContainer width="100%" height={190}>
+                  <RadialBarChart cx="50%" cy="80%" innerRadius="85%" outerRadius="130%" startAngle={180} endAngle={0} data={gaugeData} barSize={16}>
+                    <PolarAngleAxis type="number" domain={[0, 100]} tick={false} />
+                    <RadialBar background dataKey="value" cornerRadius={8} isAnimationActive animationDuration={900} />
+                  </RadialBarChart>
+                </ResponsiveContainer>
+                <div className="gauge-center">
+                  <span className="gauge-value">{kpis ? `${Math.round(kpis.mediaCumprimento)}%` : '—'}</span>
+                  <span className="gauge-label">cumprimento</span>
+                </div>
+              </div>
+            </div>
+
             <div className="chart-card">
               <div className="chart-card-header">
                 <div className="chart-card-title">Meta × Realizado</div>
-                <div className="chart-card-desc">Comparativo das principais metas do período</div>
+                <div className="chart-card-desc">% atingido — comparável entre indicadores diferentes</div>
               </div>
               {metaVsRealizado.length === 0 ? <p className="chart-empty">Sem metas cadastradas.</p> : (
                 <ResponsiveContainer width="100%" height={260}>
                   <BarChart data={metaVsRealizado}>
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
                     <XAxis dataKey="nome" stroke="var(--color-text-muted)" fontSize={10} tickLine={false} axisLine={false} />
-                    <YAxis stroke="var(--color-text-muted)" fontSize={11} tickLine={false} axisLine={false} width={60} />
-                    <Tooltip contentStyle={tooltipStyle} />
+                    <YAxis stroke="var(--color-text-muted)" fontSize={11} tickLine={false} axisLine={false} width={44} unit="%" />
+                    <Tooltip contentStyle={tooltipStyle} formatter={v => `${v}%`} />
                     <Legend wrapperStyle={{ fontSize: 12 }} />
-                    <Bar dataKey="Meta" fill={CHART_COLORS[3]} radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="Realizado" fill={CHART_COLORS[0]} radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="Meta" fill={CHART_COLORS[3]} radius={[4, 4, 0, 0]} isAnimationActive animationDuration={800} />
+                    <Bar dataKey="Realizado" fill={CHART_COLORS[0]} radius={[4, 4, 0, 0]} isAnimationActive animationDuration={800} />
                   </BarChart>
                 </ResponsiveContainer>
               )}
@@ -239,30 +286,49 @@ export default function Metas({ empresa, user }) {
 
             <div className="chart-card">
               <div className="chart-card-header">
-                <div className="chart-card-title">Metas por status</div>
-                <div className="chart-card-desc">Distribuição atual de todas as metas</div>
+                <div className="chart-card-title">Distribuição por status</div>
+                <div className="chart-card-desc">Onde as metas estão hoje</div>
               </div>
-              <ResponsiveContainer width="100%" height={260}>
-                <BarChart data={statusDist}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
-                  <XAxis dataKey="status" stroke="var(--color-text-muted)" fontSize={10} tickLine={false} axisLine={false} />
-                  <YAxis stroke="var(--color-text-muted)" fontSize={11} tickLine={false} axisLine={false} width={40} allowDecimals={false} />
-                  <Tooltip contentStyle={tooltipStyle} />
-                  <Bar dataKey="total" fill={CHART_COLORS[0]} radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+              {statusDist.length === 0 ? <p className="chart-empty">Sem metas cadastradas.</p> : (
+                <ResponsiveContainer width="100%" height={260}>
+                  <PieChart>
+                    <Pie data={statusDist} dataKey="total" nameKey="status" innerRadius={58} outerRadius={90} paddingAngle={3} isAnimationActive animationDuration={800}>
+                      {statusDist.map(s => <Cell key={s.status} fill={STATUS_COLOR_VAR[s.status]} />)}
+                    </Pie>
+                    <Tooltip contentStyle={tooltipStyle} />
+                    <Legend wrapperStyle={{ fontSize: 12 }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              )}
             </div>
 
             <div className="chart-card">
-              <div className="chart-card-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div className="chart-card-header">
+                <div className="chart-card-title">Evolução mensal</div>
+                <div className="chart-card-desc">Total lançado por mês (últimos 6 meses)</div>
+              </div>
+              {evolucao.length === 0 ? <p className="chart-empty">Nenhum resultado lançado ainda.</p> : (
+                <ResponsiveContainer width="100%" height={260}>
+                  <LineChart data={evolucao}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+                    <XAxis dataKey="mesLabel" stroke="var(--color-text-muted)" fontSize={11} tickLine={false} axisLine={false} />
+                    <YAxis stroke="var(--color-text-muted)" fontSize={11} tickLine={false} axisLine={false} width={70} />
+                    <Tooltip contentStyle={tooltipStyle} formatter={v => currency.format(v)} />
+                    <Line type="monotone" dataKey="valor" name="Total lançado" stroke={CHART_COLORS[0]} strokeWidth={2.5} dot={{ r: 4 }} isAnimationActive animationDuration={900} />
+                  </LineChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+
+            <div className="chart-card">
+              <div className="chart-card-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
                 <div>
                   <div className="chart-card-title">Ranking</div>
                   <div className="chart-card-desc">Top 10 por percentual de cumprimento</div>
                 </div>
-                <select value={rankingTipo} onChange={e => setRankingTipo(e.target.value)}
-                  style={{ background: 'var(--color-surface)', border: '1.5px solid var(--color-border)', borderRadius: 9, padding: '6px 10px', fontSize: 12, color: 'var(--color-text)' }}>
-                  {RANKING_TIPOS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
-                </select>
+                <div style={{ width: 160, flexShrink: 0 }}>
+                  <Select value={rankingTipo} onChange={setRankingTipo} options={RANKING_TIPOS} />
+                </div>
               </div>
               {ranking.length === 0 ? <p className="chart-empty">Sem dados para esse ranking ainda.</p> : (
                 <ResponsiveContainer width="100%" height={260}>
@@ -271,7 +337,7 @@ export default function Metas({ empresa, user }) {
                     <XAxis type="number" stroke="var(--color-text-muted)" fontSize={11} tickLine={false} axisLine={false} unit="%" />
                     <YAxis type="category" dataKey="nome" stroke="var(--color-text-muted)" fontSize={11} tickLine={false} axisLine={false} width={100} />
                     <Tooltip contentStyle={tooltipStyle} formatter={v => `${v}%`} />
-                    <Bar dataKey="percentual" fill={CHART_COLORS[0]} radius={[0, 4, 4, 0]} />
+                    <Bar dataKey="percentual" fill={CHART_COLORS[0]} radius={[0, 4, 4, 0]} isAnimationActive animationDuration={800} />
                   </BarChart>
                 </ResponsiveContainer>
               )}
@@ -307,22 +373,21 @@ export default function Metas({ empresa, user }) {
           </div>
 
           <div className="metas-filter-bar">
-            <select value={filtros.tipo} onChange={e => setFiltros(f => ({ ...f, tipo: e.target.value }))}>
-              <option value="">Todos os tipos</option>
-              {TIPOS_META.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-            </select>
-            <select value={filtros.categoria} onChange={e => setFiltros(f => ({ ...f, categoria: e.target.value, indicador: '' }))}>
-              <option value="">Todas as categorias</option>
-              {CATEGORIAS_META.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
-            <select value={filtros.indicador} onChange={e => setFiltros(f => ({ ...f, indicador: e.target.value }))} disabled={!filtros.categoria}>
-              <option value="">Todos os indicadores</option>
-              {indicadoresFiltro.map(i => <option key={i.value} value={i.value}>{i.label}</option>)}
-            </select>
-            <select value={filtros.status} onChange={e => setFiltros(f => ({ ...f, status: e.target.value }))}>
-              <option value="">Todos os status</option>
-              {STATUS_META.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
+            <div style={{ width: 170 }}>
+              <Select value={filtros.tipo} onChange={v => setFiltros(f => ({ ...f, tipo: v }))} options={FILTRO_TIPO_OPTS} searchPlaceholder="Buscar tipo…" />
+            </div>
+            <div style={{ width: 190 }}>
+              <Select value={filtros.categoria} onChange={v => setFiltros(f => ({ ...f, categoria: v, indicador: '' }))} options={FILTRO_CATEGORIA_OPTS} />
+            </div>
+            <div style={{ width: 190 }}>
+              <Select
+                value={filtros.indicador} onChange={v => setFiltros(f => ({ ...f, indicador: v }))}
+                options={indicadorFiltroOpts} disabled={!filtros.categoria} searchPlaceholder="Buscar indicador…"
+              />
+            </div>
+            <div style={{ width: 170 }}>
+              <Select value={filtros.status} onChange={v => setFiltros(f => ({ ...f, status: v }))} options={FILTRO_STATUS_OPTS} />
+            </div>
             <input type="text" placeholder="Buscar por responsável…" value={filtros.responsavel} onChange={e => setFiltros(f => ({ ...f, responsavel: e.target.value }))} />
           </div>
 
@@ -331,7 +396,7 @@ export default function Metas({ empresa, user }) {
           ) : lista.data.length === 0 ? (
             <p className="chart-empty">Nenhuma meta encontrada com esses filtros.</p>
           ) : (
-            <div className="meta-grid">
+            <div className="meta-grid stagger-children">
               {lista.data.map(m => <MetaCard key={m.id} meta={m} onClick={abrirDetalhe} />)}
             </div>
           )}

@@ -503,6 +503,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   border-color: var(--color-primary);
   box-shadow: 0 0 0 3px var(--color-primary-light);
 }
+.cselect-trigger:disabled { opacity: .5; cursor: not-allowed; }
+.cselect-trigger:disabled:hover { border-color: var(--color-border); box-shadow: none; }
 .cselect-value {
   flex: 1;
   overflow: hidden;
@@ -555,13 +557,28 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   transition: background .1s;
   line-height: 1.35;
 }
-.cselect-item:hover:not(.selected) { background: var(--color-primary-light); }
+.cselect-item:hover:not(.selected),
+.cselect-item.highlighted:not(.selected) { background: var(--color-primary-light); }
 .cselect-item.selected {
   background: var(--color-primary);
   color: #fff;
   font-weight: 600;
 }
 .cselect-item.selected:hover { background: var(--color-primary-hover); }
+
+.cselect-search-wrap {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px; margin-bottom: 4px;
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+}
+.cselect-search {
+  flex: 1; border: none; outline: none; background: transparent;
+  font-size: 13px; color: var(--color-text); font-family: inherit;
+}
+.cselect-search::placeholder { color: var(--color-text-muted); }
+.cselect-items { max-height: 240px; overflow-y: auto; }
+.cselect-empty { padding: 16px 12px; text-align: center; font-size: 12px; color: var(--color-text-muted); }
 
 /* ── Modal ───────────────────────────────────────────────────────────────────── */
 .modal-overlay {
@@ -826,15 +843,58 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .kpi-sub   { font-size: 12px; color: var(--color-text-muted); margin-top: 4px; }
 
 .chart-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 20px; }
+@media (max-width: 640px) {
+  .kpi-grid   { grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
+  .chart-grid { grid-template-columns: 1fr; }
+  .meta-grid  { grid-template-columns: 1fr; }
+  .metas-filter-bar > div, .metas-filter-bar input { width: 100% !important; }
+}
 .chart-card {
   background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 16px;
   padding: 22px; transition: border-color .15s;
 }
-.chart-card:hover { border-color: var(--color-primary-glow); }
+.chart-card:hover { border-color: var(--color-primary-glow); box-shadow: var(--shadow-md); }
 .chart-card-header { margin-bottom: 18px; }
 .chart-card-title  { font-size: 14px; font-weight: 700; color: var(--color-text); }
 .chart-card-desc   { font-size: 12px; color: var(--color-text-muted); margin-top: 2px; }
 .chart-empty { font-size: 13px; color: var(--color-text-muted); text-align: center; padding: 48px 0; }
+
+/* ── Tilt 3D + glass sutil (KPI cards com tilt=true) ────────────────────────── */
+.kpi-card--tilt {
+  position: relative; overflow: hidden;
+  --tilt-x: 0deg; --tilt-y: 0deg;
+  transform: perspective(700px) rotateX(var(--tilt-x)) rotateY(var(--tilt-y));
+  transition: transform .15s ease-out, border-color .15s, box-shadow .15s;
+  will-change: transform;
+}
+.kpi-card--tilt::before {
+  content: '';
+  position: absolute; inset: 0; border-radius: inherit;
+  background: linear-gradient(135deg, rgba(255,255,255,.07), transparent 45%);
+  pointer-events: none;
+}
+.kpi-card--tilt:hover { border-color: var(--color-primary-glow); box-shadow: var(--shadow-lg); }
+
+/* ── Entrada escalonada (fade + slide up) ────────────────────────────────────── */
+.stagger-children > * { opacity: 0; animation: fadeUp .45s var(--ease) forwards; }
+.stagger-children > *:nth-child(1) { animation-delay: .00s; }
+.stagger-children > *:nth-child(2) { animation-delay: .05s; }
+.stagger-children > *:nth-child(3) { animation-delay: .10s; }
+.stagger-children > *:nth-child(4) { animation-delay: .15s; }
+.stagger-children > *:nth-child(5) { animation-delay: .20s; }
+.stagger-children > *:nth-child(6) { animation-delay: .25s; }
+.stagger-children > *:nth-child(7) { animation-delay: .30s; }
+.stagger-children > *:nth-child(8) { animation-delay: .35s; }
+.stagger-children > *:nth-child(n+9) { animation-delay: .40s; }
+
+/* ── Gauge (RadialBarChart) ──────────────────────────────────────────────────── */
+.gauge-wrap { position: relative; }
+.gauge-center {
+  position: absolute; left: 0; right: 0; bottom: 18%;
+  display: flex; flex-direction: column; align-items: center; pointer-events: none;
+}
+.gauge-value { font-size: 30px; font-weight: 800; color: var(--color-text); font-variant-numeric: tabular-nums; line-height: 1; }
+.gauge-label { font-size: 11px; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: .5px; margin-top: 4px; }
 
 /* ── Timezone Selector ───────────────────────────────────────────────────────── */
 .tz-current {
