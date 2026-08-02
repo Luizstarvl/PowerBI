@@ -199,35 +199,6 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 }
 .feature-card-label { font-size: 12px; font-weight: 500; color: #D4D4D8; }
 
-.login-checklist { display: flex; flex-direction: column; gap: 10px; list-style: none; }
-.login-checklist li { display: flex; align-items: center; gap: 10px; font-size: 13px; color: #D4D4D8; }
-.login-checklist li svg { color: #FB923C; flex-shrink: 0; }
-
-.station-photo-window { flex: 1; min-height: 200px; }
-
-.login-metrics-title { font-size: 13px; font-weight: 700; color: #fff; margin-bottom: 12px; }
-.metric-grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 12px; }
-.metric-card {
-  background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.07);
-  border-radius: 14px; padding: 14px 16px;
-  transition: border-color .2s, transform .2s;
-}
-.metric-card:hover { border-color: rgba(255,106,0,.3); transform: translateY(-2px); }
-.metric-card-header  { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
-.metric-card-icon    { color: #FB923C; display: flex; }
-.metric-card-label   { font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; color: #A1A1AA; }
-.metric-card-value   { font-size: 17px; font-weight: 800; color: #fff; font-variant-numeric: tabular-nums; }
-.metric-card-comparison { font-size: 11px; color: #A1A1AA; margin-top: 2px; display: flex; align-items: center; gap: 3px; }
-.metric-card-comparison.up { color: #22C55E; }
-.sparkline { width: 100%; height: 30px; margin-top: 8px; display: block; }
-.sparkline-line {
-  stroke: #FB923C; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
-  stroke-dasharray: 400; stroke-dashoffset: 400;
-  animation: sparklineDraw 1.1s var(--ease) forwards;
-  animation-delay: .5s;
-}
-@keyframes sparklineDraw { to { stroke-dashoffset: 0; } }
-
 .login-footer-status {
   display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;
   padding-top: 18px; margin-top: auto; border-top: 1px solid rgba(255,255,255,.08);
@@ -239,7 +210,6 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 
 @media (max-width: 1240px) {
   .feature-grid { grid-template-columns: repeat(3, 1fr); }
-  .metric-grid  { grid-template-columns: repeat(2, 1fr); }
   .login-hero-title { font-size: 36px; }
 }
 
