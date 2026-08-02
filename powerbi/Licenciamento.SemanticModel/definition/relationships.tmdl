@@ -1,0 +1,7 @@
+relationship rel_FatoLicenciamento_DimPlano
+	fromColumn: FatoLicenciamento.PlanoID
+	toColumn: DimPlano.PlanoID
+
+relationship rel_FatoLicenciamento_DimEmpresa
+	fromColumn: FatoLicenciamento.EmpresaID
+	toColumn: DimEmpresa.EmpresaID

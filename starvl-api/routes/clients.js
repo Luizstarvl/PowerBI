@@ -17,6 +17,10 @@ mainPool.query(`ALTER TABLE starvl_clients ADD COLUMN IF NOT EXISTS sc_ie       
 mainPool.query(`ALTER TABLE starvl_clients ADD COLUMN IF NOT EXISTS sc_endereco    TEXT`).catch(() => {});
 mainPool.query(`ALTER TABLE starvl_clients ADD COLUMN IF NOT EXISTS sc_contato     VARCHAR(100)`).catch(() => {});
 mainPool.query(`ALTER TABLE starvl_clients ADD COLUMN IF NOT EXISTS sc_responsavel VARCHAR(150)`).catch(() => {});
+// Colunas usadas como dimensões de filtro no dashboard de Licenciamento (Power BI)
+mainPool.query(`ALTER TABLE starvl_clients ADD COLUMN IF NOT EXISTS sc_regiao      VARCHAR(50)`).catch(() => {});
+mainPool.query(`ALTER TABLE starvl_clients ADD COLUMN IF NOT EXISTS sc_cidade      VARCHAR(100)`).catch(() => {});
+mainPool.query(`ALTER TABLE starvl_clients ADD COLUMN IF NOT EXISTS sc_consultor   VARCHAR(100)`).catch(() => {});
 
 const toPublic = r => ({
   id:            r.sc_id,
@@ -32,6 +36,9 @@ const toPublic = r => ({
   endereco:      r.sc_endereco     || null,
   contato:       r.sc_contato      || null,
   responsavel:   r.sc_responsavel  || null,
+  regiao:        r.sc_regiao       || null,
+  cidade:        r.sc_cidade       || null,
+  consultor:     r.sc_consultor    || null,
 });
 
 // GET /api/clients
@@ -39,7 +46,8 @@ router.get('/', async (req, res) => {
   try {
     const { rows } = await mainPool.query(
       `SELECT sc_id, sc_nome, sc_codigo, sc_banco, sc_host, sc_criado,
-              sc_logo, sc_cnpj, sc_ie, sc_endereco, sc_contato, sc_responsavel
+              sc_logo, sc_cnpj, sc_ie, sc_endereco, sc_contato, sc_responsavel,
+              sc_regiao, sc_cidade, sc_consultor
        FROM starvl_clients ORDER BY sc_id`
     );
     res.json(rows.map(toPublic));
@@ -52,7 +60,7 @@ router.get('/', async (req, res) => {
 // POST /api/clients — cadastra empresa (nome + código apenas; conexão configurada depois via PUT)
 // Body: { nome, codigoEmpresa }
 router.post('/', async (req, res) => {
-  const { nome, codigoEmpresa, logo, cnpj, ie, endereco, contato, responsavel } = req.body;
+  const { nome, codigoEmpresa, logo, cnpj, ie, endereco, contato, responsavel, regiao, cidade, consultor } = req.body;
 
   if (!nome?.trim() || !codigoEmpresa) {
     return res.status(400).json({ error: 'nome e codigoEmpresa são obrigatórios.' });
@@ -72,11 +80,12 @@ router.post('/', async (req, res) => {
     }
 
     const { rows } = await mainPool.query(
-      `INSERT INTO starvl_clients (sc_nome, sc_codigo, sc_logo, sc_cnpj, sc_ie, sc_endereco, sc_contato, sc_responsavel)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      `INSERT INTO starvl_clients (sc_nome, sc_codigo, sc_logo, sc_cnpj, sc_ie, sc_endereco, sc_contato, sc_responsavel, sc_regiao, sc_cidade, sc_consultor)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
        RETURNING sc_id, sc_nome, sc_codigo, sc_banco, sc_host, sc_criado,
-                 sc_logo, sc_cnpj, sc_ie, sc_endereco, sc_contato, sc_responsavel`,
-      [nome.trim(), codigo, logo||null, cnpj?.trim()||null, ie?.trim()||null, endereco?.trim()||null, contato?.trim()||null, responsavel?.trim()||null]
+                 sc_logo, sc_cnpj, sc_ie, sc_endereco, sc_contato, sc_responsavel,
+                 sc_regiao, sc_cidade, sc_consultor`,
+      [nome.trim(), codigo, logo||null, cnpj?.trim()||null, ie?.trim()||null, endereco?.trim()||null, contato?.trim()||null, responsavel?.trim()||null, regiao?.trim()||null, cidade?.trim()||null, consultor?.trim()||null]
     );
 
     console.log(`[clients] nova empresa: "${nome}" (código ${codigo})`);
@@ -95,17 +104,18 @@ router.patch('/:codigoEmpresa', async (req, res) => {
   const codigo = parseInt(req.params.codigoEmpresa);
   if (isNaN(codigo) || codigo <= 0) return res.status(400).json({ error: 'codigoEmpresa inválido.' });
 
-  const { nome, logo, cnpj, ie, endereco, contato, responsavel } = req.body;
+  const { nome, logo, cnpj, ie, endereco, contato, responsavel, regiao, cidade, consultor } = req.body;
   if (!nome?.trim()) return res.status(400).json({ error: 'nome é obrigatório.' });
 
   try {
     const { rows } = await mainPool.query(
       `UPDATE starvl_clients
-       SET sc_nome=$1, sc_logo=$2, sc_cnpj=$3, sc_ie=$4, sc_endereco=$5, sc_contato=$6, sc_responsavel=$7
-       WHERE sc_codigo=$8
+       SET sc_nome=$1, sc_logo=$2, sc_cnpj=$3, sc_ie=$4, sc_endereco=$5, sc_contato=$6, sc_responsavel=$7, sc_regiao=$8, sc_cidade=$9, sc_consultor=$10
+       WHERE sc_codigo=$11
        RETURNING sc_id, sc_nome, sc_codigo, sc_banco, sc_host, sc_criado,
-                 sc_logo, sc_cnpj, sc_ie, sc_endereco, sc_contato, sc_responsavel`,
-      [nome.trim(), logo||null, cnpj?.trim()||null, ie?.trim()||null, endereco?.trim()||null, contato?.trim()||null, responsavel?.trim()||null, codigo]
+                 sc_logo, sc_cnpj, sc_ie, sc_endereco, sc_contato, sc_responsavel,
+                 sc_regiao, sc_cidade, sc_consultor`,
+      [nome.trim(), logo||null, cnpj?.trim()||null, ie?.trim()||null, endereco?.trim()||null, contato?.trim()||null, responsavel?.trim()||null, regiao?.trim()||null, cidade?.trim()||null, consultor?.trim()||null, codigo]
     );
     if (!rows.length) return res.status(404).json({ error: 'Empresa não encontrada.' });
     console.log(`[clients] empresa atualizada: "${nome}" (código ${codigo})`);

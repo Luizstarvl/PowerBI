@@ -1,0 +1,82 @@
+table DimPlano
+
+	column PlanoID
+		dataType: int64
+		formatString: 0
+		summarizeBy: none
+		isHidden
+		sourceColumn: PlanoID
+
+	column NomePlano
+		dataType: string
+		summarizeBy: none
+		sourceColumn: NomePlano
+
+	column Categoria
+		dataType: string
+		summarizeBy: none
+		sourceColumn: Categoria
+
+	column ValorMensal
+		dataType: double
+		formatString: #,##0.00
+		summarizeBy: sum
+		sourceColumn: ValorMensal
+
+	column ValorAnual
+		dataType: double
+		formatString: #,##0.00
+		summarizeBy: sum
+		sourceColumn: ValorAnual
+
+	column PermiteMultiempresa
+		dataType: boolean
+		summarizeBy: none
+		sourceColumn: PermiteMultiempresa
+
+	column PermiteAPI
+		dataType: boolean
+		summarizeBy: none
+		sourceColumn: PermiteAPI
+
+	column PermiteMobile
+		dataType: boolean
+		summarizeBy: none
+		sourceColumn: PermiteMobile
+
+	column PermiteBI
+		dataType: boolean
+		summarizeBy: none
+		sourceColumn: PermiteBI
+
+	column PermiteIntegracoes
+		dataType: boolean
+		summarizeBy: none
+		sourceColumn: PermiteIntegracoes
+
+	column Situacao
+		dataType: string
+		summarizeBy: none
+		sourceColumn: Situacao
+
+	partition DimPlano = m
+		mode: import
+		source =
+				let
+				    Source = PostgreSQL.Database("SEU_HOST_POSTGRES", "SEU_BANCO_STARVL"),
+				    starvl_plans = Source{[Schema="public",Item="starvl_plans"]}[Data],
+				    Renomeado = Table.RenameColumns(starvl_plans, {
+				        {"sp_id", "PlanoID"}, {"sp_nome", "NomePlano"}, {"sp_categoria", "Categoria"},
+				        {"sp_valor_mensal", "ValorMensal"}, {"sp_valor_anual", "ValorAnual"},
+				        {"sp_permite_multiempresa", "PermiteMultiempresa"}, {"sp_permite_api", "PermiteAPI"},
+				        {"sp_permite_mobile", "PermiteMobile"}, {"sp_permite_bi", "PermiteBI"},
+				        {"sp_permite_integracoes", "PermiteIntegracoes"}, {"sp_situacao", "Situacao"}
+				    }),
+				    Selecionado = Table.SelectColumns(Renomeado, {
+				        "PlanoID","NomePlano","Categoria","ValorMensal","ValorAnual",
+				        "PermiteMultiempresa","PermiteAPI","PermiteMobile","PermiteBI","PermiteIntegracoes","Situacao"
+				    })
+				in
+				    Selecionado
+
+	annotation PBI_ResultType = Table

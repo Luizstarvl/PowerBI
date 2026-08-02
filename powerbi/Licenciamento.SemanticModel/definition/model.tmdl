@@ -1,0 +1,9 @@
+model Model
+	defaultPowerBIDataSourceVersion: powerBI_V3
+
+	annotation PBI_QueryOrder = ["DimPlano","DimEmpresa","FatoLicenciamento","Medidas"]
+
+ref table DimPlano
+ref table DimEmpresa
+ref table FatoLicenciamento
+ref table Medidas

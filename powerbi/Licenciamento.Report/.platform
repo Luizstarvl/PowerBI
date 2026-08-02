@@ -1,0 +1,11 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "Report",
+    "displayName": "Licenciamento"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "8f3f0a6e-1c2a-4b7a-9b0a-2f6b9d3a4c11"
+  }
+}

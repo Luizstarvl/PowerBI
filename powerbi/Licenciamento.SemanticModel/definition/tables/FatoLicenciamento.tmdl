@@ -1,0 +1,167 @@
+table FatoLicenciamento
+
+	column LicencaID
+		dataType: int64
+		formatString: 0
+		summarizeBy: none
+		isHidden
+		sourceColumn: LicencaID
+
+	column EmpresaID
+		dataType: int64
+		formatString: 0
+		summarizeBy: none
+		isHidden
+		sourceColumn: EmpresaID
+
+	column PlanoID
+		dataType: int64
+		formatString: 0
+		summarizeBy: none
+		isHidden
+		sourceColumn: PlanoID
+
+	column NumeroLicenca
+		dataType: string
+		summarizeBy: none
+		sourceColumn: NumeroLicenca
+
+	column Status
+		dataType: string
+		summarizeBy: none
+		sourceColumn: Status
+
+	column DataAtivacao
+		dataType: dateTime
+		formatString: dd/mm/yyyy
+		summarizeBy: none
+		sourceColumn: DataAtivacao
+
+	column DataExpiracao
+		dataType: dateTime
+		formatString: dd/mm/yyyy
+		summarizeBy: none
+		sourceColumn: DataExpiracao
+
+	column LimiteUsuarios
+		dataType: int64
+		formatString: 0
+		summarizeBy: sum
+		sourceColumn: LimiteUsuarios
+
+	column UsuariosUtilizados
+		dataType: int64
+		formatString: 0
+		summarizeBy: sum
+		sourceColumn: UsuariosUtilizados
+
+	column LimiteEmpresas
+		dataType: int64
+		formatString: 0
+		summarizeBy: sum
+		sourceColumn: LimiteEmpresas
+
+	column EmpresasUtilizadas
+		dataType: int64
+		formatString: 0
+		summarizeBy: sum
+		sourceColumn: EmpresasUtilizadas
+
+	column LimiteConexoes
+		dataType: int64
+		formatString: 0
+		summarizeBy: sum
+		sourceColumn: LimiteConexoes
+
+	column ConexoesUtilizadas
+		dataType: int64
+		formatString: 0
+		summarizeBy: sum
+		sourceColumn: ConexoesUtilizadas
+
+	column ValorLicenca
+		dataType: double
+		formatString: #,##0.00
+		summarizeBy: sum
+		sourceColumn: ValorLicenca
+
+	column UltimaAtualizacao
+		dataType: dateTime
+		formatString: dd/mm/yyyy hh:mm
+		summarizeBy: none
+		sourceColumn: UltimaAtualizacao
+
+	/// Dias até o vencimento na data do último refresh do modelo (negativo = já vencida)
+	column DiasRestantes =
+			DATEDIFF(TODAY(), 'FatoLicenciamento'[DataExpiracao], DAY)
+		dataType: int64
+		formatString: 0
+		summarizeBy: none
+
+	column PctUsuarios =
+			DIVIDE('FatoLicenciamento'[UsuariosUtilizados], 'FatoLicenciamento'[LimiteUsuarios])
+		dataType: double
+		formatString: 0%
+		summarizeBy: none
+
+	column PctEmpresas =
+			DIVIDE('FatoLicenciamento'[EmpresasUtilizadas], 'FatoLicenciamento'[LimiteEmpresas])
+		dataType: double
+		formatString: 0%
+		summarizeBy: none
+
+	column PctConexoes =
+			DIVIDE('FatoLicenciamento'[ConexoesUtilizadas], 'FatoLicenciamento'[LimiteConexoes])
+		dataType: double
+		formatString: 0%
+		summarizeBy: none
+
+	/// Classificação de vencimento usada nos ícones de alerta da tabela Empresas
+	column AlertaVencimento =
+			SWITCH(
+			    TRUE(),
+			    'FatoLicenciamento'[DiasRestantes] < 0, "Vencida",
+			    'FatoLicenciamento'[DiasRestantes] = 0, "Vence hoje",
+			    'FatoLicenciamento'[DiasRestantes] <= 7, "Vence em 7 dias",
+			    'FatoLicenciamento'[DiasRestantes] <= 15, "Vence em 15 dias",
+			    'FatoLicenciamento'[DiasRestantes] <= 30, "Vence em 30 dias",
+			    "OK"
+			)
+		dataType: string
+		summarizeBy: none
+
+	/// Classificação de utilização (verde/amarelo/vermelho) usada na formatação condicional
+	column AlertaUtilizacao =
+			SWITCH(
+			    TRUE(),
+			    'FatoLicenciamento'[PctUsuarios] > 1 || 'FatoLicenciamento'[PctEmpresas] > 1 || 'FatoLicenciamento'[PctConexoes] > 1, "Limite excedido",
+			    'FatoLicenciamento'[PctUsuarios] >= 0.9 || 'FatoLicenciamento'[PctEmpresas] >= 0.9 || 'FatoLicenciamento'[PctConexoes] >= 0.9, "Atenção",
+			    "Normal"
+			)
+		dataType: string
+		summarizeBy: none
+
+	partition FatoLicenciamento = m
+		mode: import
+		source =
+				let
+				    Source = PostgreSQL.Database("SEU_HOST_POSTGRES", "SEU_BANCO_STARVL"),
+				    starvl_licenses = Source{[Schema="public",Item="starvl_licenses"]}[Data],
+				    Renomeado = Table.RenameColumns(starvl_licenses, {
+				        {"sl_id", "LicencaID"}, {"sl_empresa_id", "EmpresaID"}, {"sl_plano_id", "PlanoID"},
+				        {"sl_numero_licenca", "NumeroLicenca"}, {"sl_status", "Status"},
+				        {"sl_data_ativacao", "DataAtivacao"}, {"sl_data_expiracao", "DataExpiracao"},
+				        {"sl_limite_usuarios", "LimiteUsuarios"}, {"sl_usuarios_utilizados", "UsuariosUtilizados"},
+				        {"sl_limite_empresas", "LimiteEmpresas"}, {"sl_empresas_utilizadas", "EmpresasUtilizadas"},
+				        {"sl_limite_conexoes", "LimiteConexoes"}, {"sl_conexoes_utilizadas", "ConexoesUtilizadas"},
+				        {"sl_valor_licenca", "ValorLicenca"}, {"sl_ultima_atualizacao", "UltimaAtualizacao"}
+				    }),
+				    Selecionado = Table.SelectColumns(Renomeado, {
+				        "LicencaID","EmpresaID","PlanoID","NumeroLicenca","Status","DataAtivacao","DataExpiracao",
+				        "LimiteUsuarios","UsuariosUtilizados","LimiteEmpresas","EmpresasUtilizadas",
+				        "LimiteConexoes","ConexoesUtilizadas","ValorLicenca","UltimaAtualizacao"
+				    })
+				in
+				    Selecionado
+
+	annotation PBI_ResultType = Table

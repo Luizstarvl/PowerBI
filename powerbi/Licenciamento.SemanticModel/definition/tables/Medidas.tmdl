@@ -1,0 +1,119 @@
+table Medidas
+
+	measure 'Licenças Ativas' = CALCULATE(COUNTROWS('FatoLicenciamento'), 'FatoLicenciamento'[Status] = "Ativa")
+		formatString: #,0
+		displayFolder: Contagem por Status
+
+	measure 'Licenças Expiradas' = CALCULATE(COUNTROWS('FatoLicenciamento'), 'FatoLicenciamento'[Status] = "Expirada")
+		formatString: #,0
+		displayFolder: Contagem por Status
+
+	measure 'Licenças Bloqueadas' = CALCULATE(COUNTROWS('FatoLicenciamento'), 'FatoLicenciamento'[Status] = "Bloqueada")
+		formatString: #,0
+		displayFolder: Contagem por Status
+
+	measure 'Licenças em Teste' = CALCULATE(COUNTROWS('FatoLicenciamento'), 'FatoLicenciamento'[Status] = "Teste")
+		formatString: #,0
+		displayFolder: Contagem por Status
+
+	measure 'Licenças Canceladas' = CALCULATE(COUNTROWS('FatoLicenciamento'), 'FatoLicenciamento'[Status] = "Cancelada")
+		formatString: #,0
+		displayFolder: Contagem por Status
+
+	measure 'Dias Restantes' = AVERAGE('FatoLicenciamento'[DiasRestantes])
+		formatString: #,0
+		displayFolder: Vencimento
+
+	measure 'Licenças vencendo em 30 dias' = CALCULATE(COUNTROWS('FatoLicenciamento'), 'FatoLicenciamento'[DiasRestantes] >= 0 && 'FatoLicenciamento'[DiasRestantes] <= 30)
+		formatString: #,0
+		displayFolder: Vencimento
+
+	measure 'Licenças vencendo em 15 dias' = CALCULATE(COUNTROWS('FatoLicenciamento'), 'FatoLicenciamento'[DiasRestantes] >= 0 && 'FatoLicenciamento'[DiasRestantes] <= 15)
+		formatString: #,0
+		displayFolder: Vencimento
+
+	measure 'Licenças vencendo em 7 dias' = CALCULATE(COUNTROWS('FatoLicenciamento'), 'FatoLicenciamento'[DiasRestantes] >= 0 && 'FatoLicenciamento'[DiasRestantes] <= 7)
+		formatString: #,0
+		displayFolder: Vencimento
+
+	measure 'Licenças vencidas' = CALCULATE(COUNTROWS('FatoLicenciamento'), 'FatoLicenciamento'[DiasRestantes] < 0)
+		formatString: #,0
+		displayFolder: Vencimento
+
+	measure 'Total de Usuários Utilizados' = SUM('FatoLicenciamento'[UsuariosUtilizados])
+		formatString: #,0
+		displayFolder: Utilização\Usuários
+
+	measure 'Total de Usuários Permitidos' = SUM('FatoLicenciamento'[LimiteUsuarios])
+		formatString: #,0
+		displayFolder: Utilização\Usuários
+
+	measure '% Utilização de Usuários' = DIVIDE([Total de Usuários Utilizados], [Total de Usuários Permitidos])
+		formatString: 0.0%
+		displayFolder: Utilização\Usuários
+
+	measure 'Total de Empresas Utilizadas' = SUM('FatoLicenciamento'[EmpresasUtilizadas])
+		formatString: #,0
+		displayFolder: Utilização\Empresas
+
+	measure 'Total de Empresas Permitidas' = SUM('FatoLicenciamento'[LimiteEmpresas])
+		formatString: #,0
+		displayFolder: Utilização\Empresas
+
+	measure '% Utilização de Empresas' = DIVIDE([Total de Empresas Utilizadas], [Total de Empresas Permitidas])
+		formatString: 0.0%
+		displayFolder: Utilização\Empresas
+
+	measure 'Total de Conexões Utilizadas' = SUM('FatoLicenciamento'[ConexoesUtilizadas])
+		formatString: #,0
+		displayFolder: Utilização\Conexões
+
+	measure 'Total de Conexões Permitidas' = SUM('FatoLicenciamento'[LimiteConexoes])
+		formatString: #,0
+		displayFolder: Utilização\Conexões
+
+	measure '% Utilização de Conexões' = DIVIDE([Total de Conexões Utilizadas], [Total de Conexões Permitidas])
+		formatString: 0.0%
+		displayFolder: Utilização\Conexões
+
+	measure 'Licenças com Limite de Usuários Atingido' = CALCULATE(COUNTROWS('FatoLicenciamento'), 'FatoLicenciamento'[PctUsuarios] >= 1)
+		formatString: #,0
+		displayFolder: Alertas
+
+	measure 'Licenças com Limite de Empresas Atingido' = CALCULATE(COUNTROWS('FatoLicenciamento'), 'FatoLicenciamento'[PctEmpresas] >= 1)
+		formatString: #,0
+		displayFolder: Alertas
+
+	measure 'Licenças com Limite de Conexões Atingido' = CALCULATE(COUNTROWS('FatoLicenciamento'), 'FatoLicenciamento'[PctConexoes] >= 1)
+		formatString: #,0
+		displayFolder: Alertas
+
+	measure 'Total de Empresas' = DISTINCTCOUNT('FatoLicenciamento'[EmpresaID])
+		formatString: #,0
+		displayFolder: Comercial
+
+	measure MRR = SUMX(FILTER('FatoLicenciamento', 'FatoLicenciamento'[Status] = "Ativa"), RELATED('DimPlano'[ValorMensal]))
+		formatString: #,##0.00
+		displayFolder: Comercial
+
+	measure ARR = [MRR] * 12
+		formatString: #,##0.00
+		displayFolder: Comercial
+
+	measure 'Ticket Médio' = DIVIDE([MRR], [Licenças Ativas])
+		formatString: #,##0.00
+		displayFolder: Comercial
+
+	measure 'Clientes por Plano' = DISTINCTCOUNT('FatoLicenciamento'[EmpresaID])
+		formatString: #,0
+		displayFolder: Comercial
+
+	partition Medidas = m
+		mode: import
+		source =
+				let
+				    Source = Table.FromRows({}, {})
+				in
+				    Source
+
+	annotation PBI_ResultType = Table

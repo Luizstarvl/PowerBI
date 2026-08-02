@@ -1,0 +1,57 @@
+table DimEmpresa
+
+	column EmpresaID
+		dataType: int64
+		formatString: 0
+		summarizeBy: none
+		isHidden
+		sourceColumn: EmpresaID
+
+	column NomeEmpresa
+		dataType: string
+		summarizeBy: none
+		sourceColumn: NomeEmpresa
+
+	column CodigoEmpresa
+		dataType: int64
+		formatString: 0
+		summarizeBy: none
+		sourceColumn: CodigoEmpresa
+
+	column CNPJ
+		dataType: string
+		summarizeBy: none
+		sourceColumn: CNPJ
+
+	column Regiao
+		dataType: string
+		summarizeBy: none
+		sourceColumn: Regiao
+
+	column Cidade
+		dataType: string
+		summarizeBy: none
+		sourceColumn: Cidade
+
+	column Consultor
+		dataType: string
+		summarizeBy: none
+		sourceColumn: Consultor
+
+	partition DimEmpresa = m
+		mode: import
+		source =
+				let
+				    Source = PostgreSQL.Database("SEU_HOST_POSTGRES", "SEU_BANCO_STARVL"),
+				    starvl_clients = Source{[Schema="public",Item="starvl_clients"]}[Data],
+				    Renomeado = Table.RenameColumns(starvl_clients, {
+				        {"sc_id", "EmpresaID"}, {"sc_nome", "NomeEmpresa"}, {"sc_codigo", "CodigoEmpresa"},
+				        {"sc_cnpj", "CNPJ"}, {"sc_regiao", "Regiao"}, {"sc_cidade", "Cidade"}, {"sc_consultor", "Consultor"}
+				    }),
+				    Selecionado = Table.SelectColumns(Renomeado, {
+				        "EmpresaID","NomeEmpresa","CodigoEmpresa","CNPJ","Regiao","Cidade","Consultor"
+				    })
+				in
+				    Selecionado
+
+	annotation PBI_ResultType = Table
