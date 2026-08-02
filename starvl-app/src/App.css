@@ -167,18 +167,6 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .login-bg-glow--2 { width: 520px; height: 520px; bottom: -220px; left: -120px; background: radial-gradient(circle, rgba(255,138,0,.10), transparent 70%); }
 .particle-layer { position: absolute; inset: 0; width: 100%; height: 100%; }
 
-.login-bg-photo {
-  position: absolute; inset: 0;
-  background-repeat: no-repeat;
-  background-position: center 42%;
-  background-size: contain;
-}
-/* Esmaece o topo/base da foto pro texto (título, cards, indicadores) ficar
-   legível, mantendo a ilustração (posto + mapa) nítida na faixa do meio. */
-.login-bg-fade { position: absolute; left: 0; right: 0; pointer-events: none; }
-.login-bg-fade--top    { top: 0; height: 30%; background: linear-gradient(180deg, #090909 0%, rgba(9,9,9,0) 100%); }
-.login-bg-fade--bottom { bottom: 0; height: 32%; background: linear-gradient(0deg, #090909 0%, rgba(9,9,9,0) 100%); }
-
 .login-left-content { position: relative; z-index: 1; display: flex; flex-direction: column; gap: 26px; flex: 1; }
 
 .login-hero-brand {
@@ -330,6 +318,20 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   color: #fff; font-size: 14px; font-family: inherit; height: 100%;
 }
 .login-inputv2-wrap input::placeholder { color: #71717A; }
+/* O navegador força um fundo claro (branco/amarelo) em campos com
+   autofill/gerenciador de senha, quebrando o visual do input escuro —
+   isso "sequestra" o fundo via box-shadow inset gigante, mantendo texto
+   e cursor brancos. O delay enorme na transition evita o flash de cor
+   nativo do Chrome antes do nosso estilo entrar em vigor. */
+.login-inputv2-wrap input:-webkit-autofill,
+.login-inputv2-wrap input:-webkit-autofill:hover,
+.login-inputv2-wrap input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #fff;
+  -webkit-box-shadow: 0 0 0 1000px #1A1A1A inset;
+  box-shadow: 0 0 0 1000px #1A1A1A inset;
+  caret-color: #fff;
+  transition: background-color 9999s ease-in-out 0s;
+}
 .login-input-toggle {
   background: none; border: none; color: #71717A; cursor: pointer; padding: 4px;
   display: flex; flex-shrink: 0; transition: color .15s;
