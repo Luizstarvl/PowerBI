@@ -145,6 +145,10 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   display: grid;
   grid-template-columns: 3fr 2fr;
   background: #090909;
+  /* Evita selecionar texto arrastando o mouse pela tela (o campo de
+     usuário/senha continua selecionável normalmente — isso não afeta
+     o conteúdo de <input>). */
+  -webkit-user-select: none; -moz-user-select: none; user-select: none;
 }
 
 /* ── Painel esquerdo ─────────────────────────────────────────────────────────── */
