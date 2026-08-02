@@ -24,7 +24,6 @@ export default function RightPanel({ onSubmit, loading, erro }) {
 
   return (
     <div className="login-right">
-      <div className="login-right-glowline" aria-hidden="true" />
       <div
         ref={cardRef}
         className="login-card reveal reveal-7"
