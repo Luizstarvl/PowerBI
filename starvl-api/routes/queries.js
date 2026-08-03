@@ -65,18 +65,28 @@ function validateSQL(sql) {
   }
 }
 
-// Substituição simples de parâmetros nomeados {{CHAVE}} por valores sanitizados
+// Converte {{CHAVE}} em parâmetros nativos do PostgreSQL ($1, $2…).
+// Retorna { sql, values } — o pg faz a conversão de tipo corretamente,
+// eliminando o problema de date = integer quando strings são injetadas sem aspas.
 function applyParams(sql, params = {}) {
   let result = sql;
+  const values   = [];
+  const indexMap = {}; // nome -> índice $N (reutiliza se o mesmo param aparece 2x)
+
   for (const [key, value] of Object.entries(params)) {
-    const safe = String(value).replace(/['";\\]/g, '');
-    result = result.replace(new RegExp(`\\{\\{\\s*${key}\\s*\\}\\}`, 'gi'), safe);
+    result = result.replace(new RegExp(`\\{\\{\\s*${key}\\s*\\}\\}`, 'gi'), () => {
+      if (indexMap[key] !== undefined) return `$${indexMap[key]}`;
+      values.push(value);
+      indexMap[key] = values.length;
+      return `$${values.length}`;
+    });
   }
-  return result;
+
+  return { sql: result, values };
 }
 
 // Executa SQL em uma starvl_connection; usa READ ONLY como segunda camada de proteção
-async function executeOnConnection(sql, bancoId, timeoutMs = 30000) {
+async function executeOnConnection(sql, bancoId, timeoutMs = 30000, values = []) {
   const { rows } = await pool.query(
     'SELECT sc_servidor, sc_porta, sc_banco, sc_usuario, sc_senha, sc_timeout FROM starvl_connections WHERE sc_id = $1',
     [bancoId]
@@ -100,7 +110,7 @@ async function executeOnConnection(sql, bancoId, timeoutMs = 30000) {
   try {
     await client.connect();
     await client.query('BEGIN TRANSACTION READ ONLY');
-    const result = await client.query(sql);
+    const result = await client.query(sql, values.length ? values : undefined);
     await client.query('COMMIT');
     return {
       columns:       result.fields?.map(f => f.name) || [],
@@ -325,8 +335,10 @@ router.post('/test-sql', requireAuth, requireAdmin, async (req, res) => {
 
   try {
     validateSQL(sql);
-    const finalSql = params && typeof params === 'object' ? applyParams(sql, params) : sql;
-    const result = await executeOnConnection(finalSql, bancoId);
+    const { sql: finalSql, values } = params && typeof params === 'object'
+      ? applyParams(sql, params)
+      : { sql, values: [] };
+    const result = await executeOnConnection(finalSql, bancoId, 30000, values);
     res.json({ ok: true, ...result });
   } catch (err) {
     res.json({ ok: false, error: err.message });
@@ -347,10 +359,10 @@ router.get('/execute/:codigo', requireAuth, async (req, res) => {
     if (!q.sq_banco_id) return res.status(400).json({ error: 'Consulta sem conexão de banco configurada.' });
 
     // Aplica parâmetros da query string como {{CHAVE}}
-    const sql = applyParams(q.sq_sql, req.query);
-    validateSQL(sql);
+    const { sql: finalSql, values } = applyParams(q.sq_sql, req.query);
+    validateSQL(finalSql);
 
-    const result = await executeOnConnection(sql, q.sq_banco_id);
+    const result = await executeOnConnection(finalSql, q.sq_banco_id, 30000, values);
     res.json({ ok: true, codigo: req.params.codigo, ...result });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
