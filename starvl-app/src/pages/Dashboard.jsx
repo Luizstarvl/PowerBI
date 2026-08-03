@@ -5,7 +5,6 @@ import {
 } from 'recharts';
 import { ShoppingCart, Fuel, Package, Truck, Boxes, Gauge } from 'lucide-react';
 import { KpiCard } from '../components/ui';
-import TarefasAlertasCard from '../components/tarefas/TarefasAlertasCard';
 import { CHART_COLORS } from '../theme/tokens';
 
 const API_URL = process.env.REACT_APP_API_URL
@@ -38,7 +37,7 @@ const tooltipStyle = {
   color: 'var(--color-text)',
 };
 
-export default function Dashboard({ empresa, period, resumo, onNavigate }) {
+export default function Dashboard({ empresa, period, onNavigate }) {
   const months = useMemo(() => lastMonths(6), []);
   const [selectedPeriod, setSelectedPeriod] = useState(period || months[0].value);
   const [kpis, setKpis] = useState(null);
@@ -81,10 +80,6 @@ export default function Dashboard({ empresa, period, resumo, onNavigate }) {
 
   return (
     <main className="dashboard">
-      {resumo && (
-        <TarefasAlertasCard counts={resumo.counts} loading={resumo.loading} onAbrir={() => onNavigate?.('tarefas')} />
-      )}
-
       <div className="dashboard-header">
         <div>
           <div className="section-title">Visão geral</div>

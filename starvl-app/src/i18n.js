@@ -4,7 +4,6 @@ const T = {
   'pt-BR': {
     // NavBar
     nav_dashboard: 'Dashboard',
-    nav_tarefas: 'Tarefas e Alertas',
     nav_usuarios: 'Usuários',
     nav_metas: 'Metas',
     nav_parametros: 'Parâmetros',
@@ -177,7 +176,6 @@ const T = {
   },
   'en': {
     nav_dashboard: 'Dashboard',
-    nav_tarefas: 'Tasks & Alerts',
     nav_usuarios: 'Users',
     nav_metas: 'Goals',
     nav_parametros: 'Settings',
@@ -335,7 +333,6 @@ const T = {
   },
   'es': {
     nav_dashboard: 'Panel',
-    nav_tarefas: 'Tareas y Alertas',
     nav_usuarios: 'Usuarios',
     nav_metas: 'Metas',
     nav_parametros: 'Parámetros',

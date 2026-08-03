@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, Bell, Sun, Moon, Monitor, ChevronDown, LogOut } from 'lucide-react';
+import { Search, Sun, Moon, Monitor, ChevronDown, LogOut } from 'lucide-react';
 import { useT } from '../i18n';
 import { Logo } from '../components/ui';
 
@@ -10,31 +10,20 @@ function initials(name) {
   return name.slice(0, 2).toUpperCase();
 }
 
-const SEVERIDADE_ICON_VARIANT = { critico: 'error', atencao: 'warning', info: 'info', concluido: 'success' };
-
-export default function TopBar({ user, clients, selectedClient, onClientChange, onLogout, themeMode, onThemeToggle, alerts, onNavigateToTarefas }) {
+export default function TopBar({ user, clients, selectedClient, onClientChange, onLogout, themeMode, onThemeToggle }) {
   const { t } = useT();
   const [profileOpen, setProfileOpen] = useState(false);
-  const [notifOpen, setNotifOpen] = useState(false);
   const profileRef = useRef(null);
-  const notifRef = useRef(null);
 
   useEffect(() => {
     function handleClick(e) {
       if (profileRef.current && !profileRef.current.contains(e.target)) {
         setProfileOpen(false);
       }
-      if (notifRef.current && !notifRef.current.contains(e.target)) {
-        setNotifOpen(false);
-      }
     }
-    if (profileOpen || notifOpen) document.addEventListener('mousedown', handleClick);
+    if (profileOpen) document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
-  }, [profileOpen, notifOpen]);
-
-  const alertasAtivos = (alerts || []).filter(a => !a.resolvidoEm);
-  const naoLidos = alertasAtivos.filter(a => !a.lido).length;
-  const topAlertas = alertasAtivos.slice(0, 5);
+  }, [profileOpen]);
 
   const roleName = user?.perfil === 'admin' ? 'Administrador' : 'Usuário';
 
@@ -73,44 +62,6 @@ export default function TopBar({ user, clients, selectedClient, onClientChange, 
 
       {/* Right: controls */}
       <div className="topbar-user">
-        <div style={{ position: 'relative' }} ref={notifRef}>
-          <button
-            className="topbar-icon-btn" title="Notificações" style={{ position: 'relative' }}
-            onClick={() => setNotifOpen(o => !o)}
-          >
-            <Bell size={16} strokeWidth={2} />
-            {naoLidos > 0 && <span className="topbar-bell-badge">{naoLidos}</span>}
-          </button>
-
-          {notifOpen && (
-            <div className="topbar-dropdown topbar-notif-dropdown">
-              <div className="topbar-dropdown-user">
-                <div className="topbar-dropdown-name">Alertas</div>
-              </div>
-              <div className="topbar-dropdown-divider" />
-              {topAlertas.length === 0 ? (
-                <p className="notif-empty">Nenhum alerta ativo.</p>
-              ) : (
-                <div className="notif-list">
-                  {topAlertas.map(a => (
-                    <div key={a.id} className={`notif-item${a.lido ? '' : ' unread'}`}>
-                      <Bell size={14} className={`notif-item-icon--${SEVERIDADE_ICON_VARIANT[a.severidade] || 'info'}`} />
-                      <div className="notif-item-text">
-                        {a.titulo}
-                        <div className="notif-item-meta">{a.modulo || 'Sistema'}</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-              <div className="topbar-dropdown-divider" />
-              <button className="topbar-dropdown-item" onClick={() => { setNotifOpen(false); onNavigateToTarefas?.(); }}>
-                Ver todas
-              </button>
-            </div>
-          )}
-        </div>
-
         <button className="topbar-theme" onClick={onThemeToggle}
           title={themeMode === 'dark' ? 'Tema Escuro' : themeMode === 'light' ? 'Tema Claro' : 'Tema Automático'}>
           {themeMode === 'dark'  ? <Sun size={15} strokeWidth={2} />     :
