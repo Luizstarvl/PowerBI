@@ -77,12 +77,18 @@ const RANK_GRAD = [
   'linear-gradient(135deg,#f472b6,#be185d)',
 ];
 
+const TPB_SIZES = [
+  { w: 164, avatar: 76,  avatarFs: 30, nameFs: 12, qtyFs: 22, badgeFs: 9,  nameMt: 10, qtyMt: 6,  badgeMt: 8,  pad: '14px 12px 12px' },
+  { w: 130, avatar: 52,  avatarFs: 19, nameFs: 10, qtyFs: 15, badgeFs: 8,  nameMt: 8,  qtyMt: 4,  badgeMt: 6,  pad: '12px 8px 10px'  },
+  { w: 100, avatar: 42,  avatarFs: 15, nameFs: 9,  qtyFs: 11, badgeFs: 7,  nameMt: 6,  qtyMt: 3,  badgeMt: 5,  pad: '10px 6px 8px'   },
+];
+
 function TopProdutosBanner({ dados, loading }) {
   const [featured, setFeatured] = useState(0);
 
   useEffect(() => {
     if (!dados || dados.length < 2) return;
-    const id = setInterval(() => setFeatured(f => (f + 1) % dados.length), 4000);
+    const id = setInterval(() => setFeatured(f => (f + 1) % dados.length), 3500);
     return () => clearInterval(id);
   }, [dados]);
 
@@ -101,13 +107,8 @@ function TopProdutosBanner({ dados, loading }) {
   );
 
   const n = dados.length;
-  const half = Math.min(2, Math.floor((n - 1) / 2));
-  const offsets = Array.from({ length: 2 * half + 1 }, (_, i) => i - half);
-
-  const cards = offsets.map(offset => {
-    const idx = ((featured + offset) % n + n) % n;
-    return { ...dados[idx], rank: idx + 1, offset };
-  });
+  const spread = Math.min(2, Math.floor((n - 1) / 2));
+  const offsets = Array.from({ length: 2 * spread + 1 }, (_, i) => i - spread);
 
   return (
     <div className="tpb-root">
@@ -119,14 +120,26 @@ function TopProdutosBanner({ dados, loading }) {
       </div>
 
       <div className="tpb-stage">
-        {cards.map(card => {
-          const isCenter = card.offset === 0;
-          const dist = Math.abs(card.offset);
+        {offsets.map(offset => {
+          const idx   = ((featured + offset) % n + n) % n;
+          const item  = dados[idx];
+          const rank  = idx + 1;
+          const abs   = Math.abs(offset);
+          const isCenter = offset === 0;
+          const sz    = TPB_SIZES[Math.min(abs, 2)];
+
           return (
             <div
-              key={`${card.rank}-${card.offset}`}
-              className={`tpb-card tpb-dist-${dist}${isCenter ? ' tpb-featured' : ''}`}
-              onClick={isCenter ? undefined : () => setFeatured(card.rank - 1)}
+              key={rank}
+              className={`tpb-card${isCenter ? ' tpb-featured' : ''}`}
+              style={{
+                width: sz.w,
+                padding: sz.pad,
+                opacity: isCenter ? 1 : abs === 1 ? 0.72 : 0.42,
+                transform: `translateX(calc(-50% + ${offset * 158}px)) translateY(-50%) rotateY(${-offset * 33}deg) translateZ(${-abs * 72}px)`,
+                zIndex: 10 - abs,
+              }}
+              onClick={isCenter ? undefined : () => setFeatured(idx)}
             >
               {isCenter ? (
                 <div className="tpb-crown">
@@ -135,18 +148,32 @@ function TopProdutosBanner({ dados, loading }) {
                   </svg>
                 </div>
               ) : (
-                <div className="tpb-side-rank">{card.rank}°</div>
+                <div className="tpb-side-rank">{rank}°</div>
               )}
 
-              <div className="tpb-avatar" style={{ background: RANK_GRAD[(card.rank - 1) % RANK_GRAD.length] }}>
-                {card.name.charAt(0).toUpperCase()}
+              <div
+                className="tpb-avatar"
+                style={{
+                  width: sz.avatar, height: sz.avatar, fontSize: sz.avatarFs,
+                  background: RANK_GRAD[(rank - 1) % RANK_GRAD.length],
+                  boxShadow: isCenter ? '0 0 24px rgba(255,140,0,.5)' : 'none',
+                }}
+              >
+                {item.name.charAt(0).toUpperCase()}
               </div>
 
-              <div className="tpb-card-name">{card.name}</div>
-              <div className="tpb-card-qty">
-                {number.format(Math.round(card.qty))} <small>un.</small>
+              <div className="tpb-card-name" style={{ fontSize: sz.nameFs, marginTop: sz.nameMt }}>
+                {item.name}
               </div>
-              <div className={`tpb-badge tpb-badge--${card.rank}`}>{card.rank}° Lugar</div>
+              <div className="tpb-card-qty" style={{ fontSize: sz.qtyFs, marginTop: sz.qtyMt }}>
+                {number.format(Math.round(item.qty))} <small>un.</small>
+              </div>
+              <div
+                className={`tpb-badge tpb-badge--${rank}`}
+                style={{ fontSize: sz.badgeFs, marginTop: sz.badgeMt, padding: abs === 2 ? '2px 6px' : '3px 9px' }}
+              >
+                {rank}° Lugar
+              </div>
             </div>
           );
         })}
