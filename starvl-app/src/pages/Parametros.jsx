@@ -238,10 +238,18 @@ function ModalConexaoForm({ conexao, onSave, onClose }) {
     senha:    '',
     timeout:  conexao?.timeout  || 30,
   });
-  const [erro,       setErro]       = useState('');
-  const [loading,    setLoading]    = useState(false);
-  const [testing,    setTesting]    = useState(false);
-  const [testResult, setTestResult] = useState(null);
+  const [tipoCliente, setTipoCliente] = useState(conexao?.tipoCliente || 'unica');
+  const [empresaIds,  setEmpresaIds]  = useState(() => conexao?.empresas?.map(e => e.id) || []);
+  const [allEmpresas, setAllEmpresas] = useState([]);
+  const [busca,       setBusca]       = useState('');
+  const [erro,        setErro]        = useState('');
+  const [loading,     setLoading]     = useState(false);
+  const [testing,     setTesting]     = useState(false);
+  const [testResult,  setTestResult]  = useState(null);
+
+  useEffect(() => {
+    apiFetch('/api/clients').then(r => r.json()).then(d => setAllEmpresas(Array.isArray(d) ? d : [])).catch(() => {});
+  }, []);
 
   function set(f, v) { setForm(p => ({ ...p, [f]: v })); setTestResult(null); }
 
@@ -251,19 +259,38 @@ function ModalConexaoForm({ conexao, onSave, onClose }) {
     setTestResult(null);
   }
 
+  function handleTipoClienteChange(val) {
+    setTipoCliente(val);
+    if (val === 'unica') setEmpresaIds(prev => prev.slice(0, 1));
+  }
+
+  function toggleEmpresa(id) {
+    if (tipoCliente === 'unica') {
+      setEmpresaIds(prev => prev[0] === id ? [] : [id]);
+    } else {
+      setEmpresaIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+    }
+  }
+
+  const empresasFiltradas = allEmpresas.filter(e =>
+    !busca ||
+    e.nome.toLowerCase().includes(busca.toLowerCase()) ||
+    String(e.codigoEmpresa).includes(busca)
+  );
+
+  const selecionadas = allEmpresas.filter(e => empresaIds.includes(e.id));
+
   async function handleTest() {
     if (!form.servidor.trim() || !form.banco.trim()) {
-      setErro('Preencha Servidor e Banco para testar.');
-      return;
+      setErro('Preencha Servidor e Banco para testar.'); return;
     }
     setErro(''); setTesting(true); setTestResult(null);
     try {
-      const res  = await apiFetch(`/api/connections/test`, {
+      const res  = await apiFetch('/api/connections/test', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
       });
-      const data = await res.json();
-      setTestResult(data);
+      setTestResult(await res.json());
     } catch { setTestResult({ status: 'error', erro: 'Erro ao comunicar com o servidor.' }); }
     finally { setTesting(false); }
   }
@@ -272,11 +299,12 @@ function ModalConexaoForm({ conexao, onSave, onClose }) {
     if (!form.nome.trim())     return setErro('Nome é obrigatório.');
     if (!form.servidor.trim()) return setErro('Servidor é obrigatório.');
     if (!form.banco.trim())    return setErro('Banco é obrigatório.');
+    if (empresaIds.length === 0) return setErro('Vincule ao menos uma empresa à conexão.');
     setErro(''); setLoading(true);
     try {
-      const url    = conexao ? `/api/connections/${conexao.id}` : `/api/connections`;
+      const url    = conexao ? `/api/connections/${conexao.id}` : '/api/connections';
       const method = conexao ? 'PUT' : 'POST';
-      const res    = await apiFetch(url, { method, body: JSON.stringify(form) });
+      const res    = await apiFetch(url, { method, body: JSON.stringify({ ...form, tipoCliente, empresaIds }) });
       const data   = await res.json();
       if (!res.ok) return setErro(data.error || 'Erro ao salvar.');
       onSave(data);
@@ -284,106 +312,187 @@ function ModalConexaoForm({ conexao, onSave, onClose }) {
     finally { setLoading(false); }
   }
 
+  const Spin = () => (
+    <span style={{ display: 'inline-block', width: 12, height: 12, border: '2px solid var(--color-primary)', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin .7s linear infinite', marginRight: 6 }} />
+  );
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal modal-lg" onClick={e => e.stopPropagation()}>
+    <div className="modal-overlay" onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="modal modal--conexao" onClick={e => e.stopPropagation()}>
         <h3 className="modal-title">{conexao ? 'Editar Conexão' : 'Nova Conexão'}</h3>
-        <div className="modal-body">
 
-          {/* Nome */}
-          <div className="form-field">
-            <label>Nome da Conexão</label>
-            <input type="text" value={form.nome} onChange={e => set('nome', e.target.value)}
-              placeholder="Ex: Posto Central - Produção" autoFocus autoComplete="off" />
-          </div>
+        <div className="modal-body modal-body--conexao">
 
-          {/* Tipo + Timeout */}
-          <div className="modal-grid-2">
+          {/* ── Coluna esquerda: campos de conexão ── */}
+          <div className="cx-col-left">
             <div className="form-field">
-              <label>Tipo</label>
-              <CustomSelect
-                value={form.tipo}
-                onChange={handleTipoChange}
-                options={DB_TIPOS.map(t => ({ value: t.value, label: t.label }))}
-              />
+              <label>Nome da Conexão</label>
+              <input type="text" value={form.nome} onChange={e => set('nome', e.target.value)}
+                placeholder="Ex: Posto Central - Produção" autoFocus autoComplete="off" />
             </div>
-            <div className="form-field">
-              <label>Timeout (segundos)</label>
-              <input type="number" min={5} max={120} value={form.timeout}
-                onChange={e => set('timeout', parseInt(e.target.value) || 30)} />
-            </div>
-          </div>
 
-          {/* Servidor + Porta */}
-          <div className="modal-section-label">Conexão</div>
-          <div className="modal-grid-2" style={{ gridTemplateColumns: '1fr 120px' }}>
-            <div className="form-field">
-              <label>Servidor</label>
-              <input type="text" value={form.servidor} onChange={e => set('servidor', e.target.value)}
-                placeholder="db.servidor.com" autoComplete="off" />
-            </div>
-            <div className="form-field">
-              <label>Porta</label>
-              <input type="number" value={form.porta} onChange={e => set('porta', parseInt(e.target.value) || '')} />
-            </div>
-          </div>
-
-          {/* Banco */}
-          <div className="form-field">
-            <label>Banco de Dados</label>
-            <input type="text" value={form.banco} onChange={e => set('banco', e.target.value)}
-              placeholder="nome_do_banco" autoComplete="off" />
-          </div>
-
-          {/* Usuário + Senha */}
-          <div className="modal-section-label">Autenticação</div>
-          <div className="modal-grid-2">
-            <div className="form-field">
-              <label>Usuário</label>
-              <input type="text" value={form.usuario} onChange={e => set('usuario', e.target.value)}
-                placeholder="postgres" autoComplete="off" />
-            </div>
-            <div className="form-field">
-              <label>{conexao ? 'Senha (deixe vazio para manter)' : 'Senha'}</label>
-              <input type="password" value={form.senha} onChange={e => set('senha', e.target.value)}
-                placeholder="••••••" autoComplete="new-password" />
-            </div>
-          </div>
-
-          {/* Resultado do teste */}
-          {testResult && (
-            <div style={{
-              marginTop: 12, padding: '10px 14px', borderRadius: 10,
-              background: testResult.status === 'ok' ? 'var(--color-success-light)' : 'var(--color-error-light)',
-              border: `1px solid ${testResult.status === 'ok' ? 'var(--color-success)' : 'var(--color-error)'}`,
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                {testResult.status === 'ok'
-                  ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-success)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-                  : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-error)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                }
-                <span style={{ fontSize: 13, fontWeight: 600, color: testResult.status === 'ok' ? 'var(--color-success)' : 'var(--color-error)' }}>
-                  {testResult.status === 'ok'
-                    ? `Conexão bem-sucedida${testResult.latencia ? ` — ${testResult.latencia}ms` : ''}`
-                    : 'Falha na conexão'}
-                </span>
+            <div className="modal-grid-2">
+              <div className="form-field">
+                <label>Tipo</label>
+                <CustomSelect value={form.tipo} onChange={handleTipoChange}
+                  options={DB_TIPOS.map(t => ({ value: t.value, label: t.label }))} />
               </div>
-              {testResult.status === 'error' && testResult.erro && (
-                <p style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 5, paddingLeft: 22, lineHeight: 1.5 }}>{testResult.erro}</p>
-              )}
+              <div className="form-field">
+                <label>Timeout (s)</label>
+                <input type="number" min={5} max={120} value={form.timeout}
+                  onChange={e => set('timeout', parseInt(e.target.value) || 30)} />
+              </div>
             </div>
-          )}
 
-          {erro && <p className="form-erro">{erro}</p>}
+            <div className="modal-section-label">Conexão</div>
+            <div className="modal-grid-2" style={{ gridTemplateColumns: '1fr 100px' }}>
+              <div className="form-field">
+                <label>Servidor</label>
+                <input type="text" value={form.servidor} onChange={e => set('servidor', e.target.value)}
+                  placeholder="db.servidor.com" autoComplete="off" />
+              </div>
+              <div className="form-field">
+                <label>Porta</label>
+                <input type="number" value={form.porta}
+                  onChange={e => set('porta', parseInt(e.target.value) || '')} />
+              </div>
+            </div>
+
+            <div className="form-field">
+              <label>Banco de Dados</label>
+              <input type="text" value={form.banco} onChange={e => set('banco', e.target.value)}
+                placeholder="nome_do_banco" autoComplete="off" />
+            </div>
+
+            <div className="modal-section-label">Autenticação</div>
+            <div className="modal-grid-2">
+              <div className="form-field">
+                <label>Usuário</label>
+                <input type="text" value={form.usuario} onChange={e => set('usuario', e.target.value)}
+                  placeholder="postgres" autoComplete="off" />
+              </div>
+              <div className="form-field">
+                <label>{conexao ? 'Senha (vazio = manter)' : 'Senha'}</label>
+                <input type="password" value={form.senha} onChange={e => set('senha', e.target.value)}
+                  placeholder="••••••" autoComplete="new-password" />
+              </div>
+            </div>
+
+            {/* Resultado do teste */}
+            {testResult && (
+              <div style={{
+                padding: '10px 14px', borderRadius: 10,
+                background: testResult.status === 'ok' ? 'var(--color-success-light)' : 'var(--color-error-light)',
+                border: `1px solid ${testResult.status === 'ok' ? 'var(--color-success)' : 'var(--color-error)'}`,
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  {testResult.status === 'ok'
+                    ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-success)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                    : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-error)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                  }
+                  <span style={{ fontSize: 13, fontWeight: 600, color: testResult.status === 'ok' ? 'var(--color-success)' : 'var(--color-error)' }}>
+                    {testResult.status === 'ok'
+                      ? `Conexão bem-sucedida${testResult.latencia ? ` — ${testResult.latencia}ms` : ''}`
+                      : 'Falha na conexão'}
+                  </span>
+                </div>
+                {testResult.status === 'error' && testResult.erro && (
+                  <p style={{ fontSize: 12, color: 'var(--color-text-secondary)', margin: '5px 0 0', paddingLeft: 22, lineHeight: 1.5 }}>{testResult.erro}</p>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* ── Coluna direita: tipo de cliente + empresas ── */}
+          <div className="cx-col-right">
+            <div className="modal-section-label" style={{ marginBottom: 10 }}>Tipo de Cliente</div>
+            <div className="cx-tipo-grupo">
+              {[['unica', 'Empresa Única'], ['multiempresa', 'Multiempresa']].map(([val, label]) => (
+                <label
+                  key={val}
+                  className={`cx-tipo-opcao${tipoCliente === val ? ' active' : ''}`}
+                  onClick={() => handleTipoClienteChange(val)}
+                >
+                  <div className={`cx-tipo-radio${tipoCliente === val ? ' on' : ''}`} />
+                  <span>{label}</span>
+                </label>
+              ))}
+            </div>
+
+            <div className="cx-empresas-card">
+              <div className="cx-empresas-header">
+                <span>Empresas Vinculadas</span>
+                <span className="cx-empresas-badge">{empresaIds.length}</span>
+              </div>
+
+              {/* Chips */}
+              {selecionadas.length > 0 && (
+                <div className="cx-chips">
+                  {selecionadas.map(e => (
+                    <span key={e.id} className="cx-chip">
+                      {e.nome}
+                      <button type="button" onClick={() => setEmpresaIds(p => p.filter(x => x !== e.id))}>
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {/* Busca */}
+              <div style={{ position: 'relative' }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                  style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)', pointerEvents: 'none' }}>
+                  <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                </svg>
+                <input
+                  className="themed-input"
+                  type="text"
+                  placeholder="Buscar empresa..."
+                  value={busca}
+                  onChange={e => setBusca(e.target.value)}
+                  style={{ width: '100%', paddingLeft: 28, boxSizing: 'border-box' }}
+                />
+              </div>
+
+              {/* Lista */}
+              <div className="cx-empresas-lista">
+                {allEmpresas.length === 0 ? (
+                  <div className="cx-empresas-vazio">Nenhuma empresa cadastrada</div>
+                ) : empresasFiltradas.length === 0 ? (
+                  <div className="cx-empresas-vazio">Nenhum resultado para "{busca}"</div>
+                ) : (
+                  empresasFiltradas.map(e => (
+                    <label
+                      key={e.id}
+                      className={`cx-empresa-row${empresaIds.includes(e.id) ? ' selected' : ''}`}
+                      onClick={() => toggleEmpresa(e.id)}
+                    >
+                      <div className={`cx-empresa-check${empresaIds.includes(e.id) ? ' on' : ''}`}>
+                        {tipoCliente === 'unica'
+                          ? <div className="cx-radio-dot" />
+                          : empresaIds.includes(e.id) && (
+                            <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                          )
+                        }
+                      </div>
+                      <span className="cx-empresa-nome">{e.nome}</span>
+                      <span className="cx-empresa-cod">#{e.codigoEmpresa}</span>
+                    </label>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
         </div>
+
+        {erro && <p className="form-erro" style={{ margin: '0 24px 4px' }}>{erro}</p>}
+
         <div className="modal-footer">
           <button className="btn-ghost" onClick={onClose}>Cancelar</button>
           <button className="btn-outline-sm" style={{ padding: '8px 16px', fontSize: 13 }}
             onClick={handleTest} disabled={testing}>
-            {testing
-              ? <><span style={{ display: 'inline-block', width: 12, height: 12, border: '2px solid var(--color-primary)', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin .7s linear infinite', marginRight: 6 }} />Testando...</>
-              : '⚡ Testar Conexão'}
+            {testing ? <><Spin />Testando...</> : '⚡ Testar Conexão'}
           </button>
           <button className="btn-primary" onClick={handleSave} disabled={loading}>
             {loading ? 'Salvando...' : 'Salvar'}
@@ -577,13 +686,14 @@ function SecaoConexao() {
                   <th>Nome</th>
                   <th>Tipo / Servidor</th>
                   <th>Banco</th>
+                  <th>Empresas</th>
                   <th>Último Teste</th>
                   <th style={{ textAlign: 'right' }}>Ações</th>
                 </tr>
               </thead>
               <tbody>
                 {conexoes.length === 0
-                  ? <tr><td colSpan={6} className="rank-empty">Nenhuma conexão cadastrada</td></tr>
+                  ? <tr><td colSpan={7} className="rank-empty">Nenhuma conexão cadastrada</td></tr>
                   : conexoes.map(c => {
                     const tipoLabel = DB_TIPOS.find(d => d.value === c.tipo)?.label || c.tipo;
                     return (
@@ -598,6 +708,16 @@ function SecaoConexao() {
                           {c.servidor}:{c.porta}
                         </td>
                         <td><code className="db-name">{c.banco}</code></td>
+                        <td>
+                          <span style={{
+                            display: 'inline-flex', alignItems: 'center', gap: 5,
+                            fontSize: 11, fontWeight: 600, padding: '2px 9px', borderRadius: 20,
+                            background: c.tipoCliente === 'multiempresa' ? 'var(--color-primary-light)' : 'var(--color-bg-secondary)',
+                            color: c.tipoCliente === 'multiempresa' ? 'var(--color-primary)' : 'var(--color-text-muted)',
+                          }}>
+                            {c.empresasCount} {c.tipoCliente === 'multiempresa' ? 'empresas' : 'empresa'}
+                          </span>
+                        </td>
                         <td style={{ color: 'var(--color-text-muted)', fontSize: 12 }}>{fmtUltimoTeste(c.ultimoTeste)}</td>
                         <td className="td-actions">
                           <button className="btn-outline-sm" title="Editar"
