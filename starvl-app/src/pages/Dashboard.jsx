@@ -6,9 +6,7 @@ import {
 import { ShoppingCart, Fuel, Package, Truck, Boxes, Gauge } from 'lucide-react';
 import { KpiCard } from '../components/ui';
 import { CHART_COLORS } from '../theme/tokens';
-
-const API_URL = process.env.REACT_APP_API_URL
-  || (window.location.hostname === 'localhost' ? 'http://localhost:3001' : '');
+import { apiFetch } from '../api';
 
 const currency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 const number   = new Intl.NumberFormat('pt-BR');
@@ -56,9 +54,9 @@ export default function Dashboard({ empresa, period, onNavigate }) {
     const qs = `empresa=${empresa}&periodo=${periodo}`;
 
     Promise.all([
-      fetch(`${API_URL}/api/dashboard/kpis?${qs}`).then(r => r.json()),
-      fetch(`${API_URL}/api/dashboard/vendas-diarias-full?${qs}`).then(r => r.json()),
-      fetch(`${API_URL}/api/dashboard/vendas-horarias?${qs}`).then(r => r.json()),
+      apiFetch(`/api/dashboard/kpis?${qs}`).then(r => r.json()),
+      apiFetch(`/api/dashboard/vendas-diarias-full?${qs}`).then(r => r.json()),
+      apiFetch(`/api/dashboard/vendas-horarias?${qs}`).then(r => r.json()),
     ])
       .then(([kpisData, diariasData, horariasData]) => {
         if (cancelado) return;

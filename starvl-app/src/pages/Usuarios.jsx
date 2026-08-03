@@ -2,9 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Portal from '../Portal';
 import { useT } from '../i18n';
 import { AVATAR_COLORS } from '../theme/tokens';
-
-const API_URL = process.env.REACT_APP_API_URL
-  || (window.location.hostname === 'localhost' ? 'http://localhost:3001' : '');
+import { apiFetch } from '../api';
 
 const PER_PAGE = 8;
 
@@ -208,11 +206,10 @@ function ModalPerfil({ perfil, onSave, onClose }) {
     if (!nome.trim()) return setErro(t('pf_nome') + ' é obrigatório.');
     setErro(''); setLoading(true);
     try {
-      const url    = perfil ? `${API_URL}/api/profiles/${perfil.id}` : `${API_URL}/api/profiles`;
+      const url    = perfil ? `/api/profiles/${perfil.id}` : `/api/profiles`;
       const method = perfil ? 'PUT' : 'POST';
-      const res    = await fetch(url, {
+      const res    = await apiFetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ nome: nome.trim(), descricao: desc.trim() || null, permissoes: perm }),
       });
       const data = await res.json();
@@ -445,7 +442,7 @@ function SecaoPerfis({ profiles, onProfilesChange, usuarios }) {
     }
     if (!window.confirm(t('pf_excluir'))) return;
     try {
-      const res  = await fetch(`${API_URL}/api/profiles/${pf.id}`, { method: 'DELETE' });
+      const res  = await apiFetch(`/api/profiles/${pf.id}`, { method: 'DELETE' });
       const data = await res.json();
       if (!res.ok) return setAlertMsg(data.error || t('me_erro'));
       onProfilesChange(prev => prev.filter(p => p.id !== pf.id));
@@ -595,8 +592,8 @@ function ModalUsuario({ usuario, onSave, onClose, profiles, clients }) {
         foto,
       };
       if (form.senha.trim()) body.senha = form.senha;
-      const url  = isEdit ? `${API_URL}/api/starvl-users/${usuario.id}` : `${API_URL}/api/starvl-users`;
-      const res  = await fetch(url, { method: isEdit ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const url  = isEdit ? `/api/starvl-users/${usuario.id}` : `/api/starvl-users`;
+      const res  = await apiFetch(url, { method: isEdit ? 'PUT' : 'POST', body: JSON.stringify(body) });
       const data = await res.json();
       if (!res.ok) return setErro(data.error || t('me_erro'));
       onSave(data);
@@ -725,8 +722,24 @@ function ModalUsuario({ usuario, onSave, onClose, profiles, clients }) {
   );
 }
 
+/* ── Acesso negado ────────────────────────────────────────────────────────── */
+function AccessDenied() {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60vh', gap: 12 }}>
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--color-error)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+        <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+      </svg>
+      <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--color-text)', margin: 0 }}>Acesso Negado</h2>
+      <p style={{ color: 'var(--color-text-muted)', fontSize: 14, margin: 0 }}>
+        Você não tem permissão para acessar esta área.
+      </p>
+    </div>
+  );
+}
+
 /* ── Página principal ─────────────────────────────────────────────────────── */
-export default function Usuarios() {
+export default function Usuarios({ user }) {
   const { t } = useT();
   const [tab,      setTab]      = useState('usuarios');
   const [usuarios, setUsuarios] = useState([]);
@@ -743,10 +756,10 @@ export default function Usuarios() {
   useEffect(() => {
     setLoading(true);
     Promise.all([
-      fetch(`${API_URL}/api/starvl-users`).then(r => r.json()).catch(() => []),
-      fetch(`${API_URL}/api/profiles`).then(r => r.json()).catch(() => []),
-      fetch(`${API_URL}/api/clients`).then(r => r.json()).catch(() => []),
-      fetch(`${API_URL}/api/password-resets?status=pendente`).then(r => r.json()).catch(() => []),
+      apiFetch('/api/starvl-users').then(r => r.json()).catch(() => []),
+      apiFetch('/api/profiles').then(r => r.json()).catch(() => []),
+      apiFetch('/api/clients').then(r => r.json()).catch(() => []),
+      apiFetch('/api/password-resets?status=pendente').then(r => r.json()).catch(() => []),
     ]).then(([users, profs, cls, resets]) => {
       if (Array.isArray(users))  setUsuarios(users);
       if (Array.isArray(profs))  setProfiles(profs);
@@ -777,7 +790,7 @@ export default function Usuarios() {
 
   async function handleResolveRequest(id) {
     setResetRequests(prev => prev.filter(r => r.id !== id));
-    await fetch(`${API_URL}/api/password-resets/${id}/resolver`, { method: 'PATCH' }).catch(() => {});
+    await apiFetch(`/api/password-resets/${id}/resolver`, { method: 'PATCH' }).catch(() => {});
   }
 
   function openCtxUser(e, usuario) {
@@ -788,9 +801,8 @@ export default function Usuarios() {
 
   async function handleToggleAtivo(u) {
     const next = u.ativo === false;
-    const res = await fetch(`${API_URL}/api/starvl-users/${u.id}`, {
+    const res = await apiFetch(`/api/starvl-users/${u.id}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         usuario: u.usuario, perfil: u.perfil, foto: u.foto,
         nome: u.nome, email: u.email, ativo: next,
@@ -802,7 +814,7 @@ export default function Usuarios() {
 
   async function handleDeleteUser(id) {
     if (!window.confirm(t('gu_excluir'))) return;
-    await fetch(`${API_URL}/api/starvl-users/${id}`, { method: 'DELETE' });
+    await apiFetch(`/api/starvl-users/${id}`, { method: 'DELETE' });
     setUsuarios(prev => prev.filter(u => u.id !== id));
   }
 
@@ -820,6 +832,8 @@ export default function Usuarios() {
   const slice       = filtrados.slice((paginaAtual - 1) * PER_PAGE, paginaAtual * PER_PAGE);
   const totalAtivos   = usuarios.filter(u => u.ativo !== false).length;
   const totalInativos = usuarios.filter(u => u.ativo === false).length;
+
+  if (user?.perfil !== 'admin') return <AccessDenied />;
 
   return (
     <main className="dashboard">

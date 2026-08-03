@@ -7,22 +7,27 @@ import Usuarios from './pages/Usuarios';
 import Metas from './pages/Metas';
 import Parametros from './pages/Parametros';
 import { LangProvider } from './i18n';
+import { apiFetch, setApiToken, clearApiToken } from './api';
 import './App.css';
-
-const API_URL = process.env.REACT_APP_API_URL
-  || (window.location.hostname === 'localhost' ? 'http://localhost:3001' : '');
 
 function getCurrentPeriod() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
 
+function initUserFromStorage() {
+  try {
+    const stored = sessionStorage.getItem('pbi_user') || localStorage.getItem('pbi_user');
+    if (!stored) return null;
+    const u = JSON.parse(stored);
+    const t = sessionStorage.getItem('pbi_token') || localStorage.getItem('pbi_token');
+    if (t) setApiToken(t);
+    return u;
+  } catch { return null; }
+}
+
 export default function App() {
-  const [user, setUser] = useState(() => {
-    try {
-      return JSON.parse(sessionStorage.getItem('pbi_user') || localStorage.getItem('pbi_user')) || null;
-    } catch { return null; }
-  });
+  const [user, setUser] = useState(initUserFromStorage);
   const [clients, setClients] = useState([]);
   const [selectedClient, setSelectedClient] = useState(null);
   const [period] = useState(getCurrentPeriod);
@@ -52,9 +57,16 @@ export default function App() {
     document.documentElement.setAttribute('data-theme', appliedTheme);
   }, [appliedTheme]);
 
+  // Auto-logout quando o JWT expira (401 vindo da API)
+  useEffect(() => {
+    const handler = () => handleLogout();
+    window.addEventListener('starvl:unauthorized', handler);
+    return () => window.removeEventListener('starvl:unauthorized', handler);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     if (!user) return;
-    fetch(`${API_URL}/api/clients`)
+    apiFetch('/api/clients')
       .then(r => r.json())
       .then(data => {
         if (Array.isArray(data) && data.length) {
@@ -66,15 +78,30 @@ export default function App() {
   }, [user]);
 
   function handleLogin(data, lembrar) {
-    const json = JSON.stringify(data);
+    const { token, ...userObj } = data;
+    const json = JSON.stringify(userObj);
     if (lembrar) {
-      localStorage.setItem('pbi_user', json);
+      localStorage.setItem('pbi_user',  json);
+      localStorage.setItem('pbi_token', token);
       sessionStorage.removeItem('pbi_user');
+      sessionStorage.removeItem('pbi_token');
     } else {
-      sessionStorage.setItem('pbi_user', json);
+      sessionStorage.setItem('pbi_user',  json);
+      sessionStorage.setItem('pbi_token', token);
       localStorage.removeItem('pbi_user');
+      localStorage.removeItem('pbi_token');
     }
-    setUser(data);
+    setApiToken(token);
+    setUser(userObj);
+  }
+
+  function handleLogout() {
+    sessionStorage.removeItem('pbi_user');
+    sessionStorage.removeItem('pbi_token');
+    localStorage.removeItem('pbi_user');
+    localStorage.removeItem('pbi_token');
+    clearApiToken();
+    setUser(null);
   }
 
   function handleThemeModeChange(mode) {
@@ -92,12 +119,6 @@ export default function App() {
     setPage(newPage);
   }
 
-  function handleLogout() {
-    sessionStorage.removeItem('pbi_user');
-    localStorage.removeItem('pbi_user');
-    setUser(null);
-  }
-
   if (!user) return <Login onLogin={handleLogin} />;
 
   return (
@@ -113,16 +134,11 @@ export default function App() {
         onThemeToggle={handleThemeToggle}
       />
       <div className="app-body">
-        <NavBar page={page} onPageChange={handlePageChange} />
+        <NavBar page={page} onPageChange={handlePageChange} user={user} />
         <div className="app-content">
           {visited.has('dashboard') && (
             <div className={`page-slot${page === 'dashboard' ? ' page-active' : ''}`}>
               <Dashboard empresa={selectedClient?.codigoEmpresa} period={period} onNavigate={handlePageChange} />
-            </div>
-          )}
-          {visited.has('usuarios') && (
-            <div className={`page-slot${page === 'usuarios' ? ' page-active' : ''}`}>
-              <Usuarios />
             </div>
           )}
           {visited.has('metas') && (
@@ -130,9 +146,14 @@ export default function App() {
               <Metas empresa={selectedClient?.id} empresaNome={selectedClient?.nome} user={user} onNavigate={handlePageChange} />
             </div>
           )}
+          {visited.has('usuarios') && (
+            <div className={`page-slot${page === 'usuarios' ? ' page-active' : ''}`}>
+              <Usuarios user={user} />
+            </div>
+          )}
           {visited.has('parametros') && (
             <div className={`page-slot${page === 'parametros' ? ' page-active' : ''}`}>
-              <Parametros themeMode={themeMode} onThemeModeChange={handleThemeModeChange} />
+              <Parametros themeMode={themeMode} onThemeModeChange={handleThemeModeChange} user={user} />
             </div>
           )}
         </div>

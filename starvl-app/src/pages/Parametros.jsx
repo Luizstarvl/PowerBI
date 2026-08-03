@@ -1,9 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Portal from '../Portal';
 import { useT } from '../i18n';
-
-const API_URL = process.env.REACT_APP_API_URL
-  || (window.location.hostname === 'localhost' ? 'http://localhost:3001' : '');
+import { apiFetch } from '../api';
 
 function fmtDate(s) {
   if (!s) return '—';
@@ -50,8 +48,8 @@ function ModalEmpresa({ empresa, onSave, onClose }) {
         responsavel: form.responsavel.trim() || undefined,
       };
       const res = editando
-        ? await fetch(`${API_URL}/api/clients/${empresa.codigoEmpresa}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
-        : await fetch(`${API_URL}/api/clients`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...payload, codigoEmpresa: parseInt(form.codigoEmpresa) }) });
+        ? await apiFetch(`/api/clients/${empresa.codigoEmpresa}`, { method: 'PATCH', body: JSON.stringify(payload) })
+        : await apiFetch(`/api/clients`, { method: 'POST', body: JSON.stringify({ ...payload, codigoEmpresa: parseInt(form.codigoEmpresa) }) });
       const data = await res.json();
       if (!res.ok) return setErro(data.error || t('me_erro'));
       onSave(data);
@@ -259,7 +257,7 @@ function ModalConexaoForm({ conexao, onSave, onClose }) {
     }
     setErro(''); setTesting(true); setTestResult(null);
     try {
-      const res  = await fetch(`${API_URL}/api/connections/test`, {
+      const res  = await apiFetch(`/api/connections/test`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
       });
@@ -275,9 +273,9 @@ function ModalConexaoForm({ conexao, onSave, onClose }) {
     if (!form.banco.trim())    return setErro('Banco é obrigatório.');
     setErro(''); setLoading(true);
     try {
-      const url    = conexao ? `${API_URL}/api/connections/${conexao.id}` : `${API_URL}/api/connections`;
+      const url    = conexao ? `/api/connections/${conexao.id}` : `/api/connections`;
       const method = conexao ? 'PUT' : 'POST';
-      const res    = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
+      const res    = await apiFetch(url, { method, body: JSON.stringify(form) });
       const data   = await res.json();
       if (!res.ok) return setErro(data.error || 'Erro ao salvar.');
       onSave(data);
@@ -406,14 +404,14 @@ function SecaoEmpresas() {
 
   useEffect(() => {
     setLoading(true);
-    fetch(`${API_URL}/api/clients`).then(r => r.json()).then(d => setClientes(Array.isArray(d) ? d : [])).catch(() => {}).finally(() => setLoading(false));
+    apiFetch('/api/clients').then(r => r.json()).then(d => setClientes(Array.isArray(d) ? d : [])).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
   function handleSaveNova(saved) { setClientes(p => [...p, saved]); setNova(false); }
   function handleSaveEdit(updated) { setClientes(p => p.map(c => c.codigoEmpresa === updated.codigoEmpresa ? { ...c, ...updated } : c)); setEditando(null); }
   async function handleDelete(cod) {
     if (!window.confirm(t('emp_remover'))) return;
-    const res = await fetch(`${API_URL}/api/clients/${cod}`, { method: 'DELETE' });
+    const res = await apiFetch(`/api/clients/${cod}`, { method: 'DELETE' });
     if (res.ok) setClientes(p => p.filter(c => c.codigoEmpresa !== cod));
   }
   function openCtx(e, empresa) { e.preventDefault(); setCtxMenu({ x: e.clientX, y: e.clientY, empresa }); }
@@ -513,7 +511,7 @@ function SecaoConexao() {
 
   function load() {
     setLoading(true);
-    fetch(`${API_URL}/api/connections`)
+    apiFetch('/api/connections')
       .then(r => r.json())
       .then(d => setConexoes(Array.isArray(d) ? d : []))
       .catch(() => {})
@@ -533,7 +531,7 @@ function SecaoConexao() {
   async function handleTestar(id) {
     setTestando(id);
     try {
-      const res  = await fetch(`${API_URL}/api/connections/${id}/test`, { method: 'POST' });
+      const res  = await apiFetch(`/api/connections/${id}/test`, { method: 'POST' });
       const data = await res.json();
       setConexoes(p => p.map(c => c.id === id
         ? { ...c, status: data.status, erro: data.erro || null, ultimoTeste: data.ultimoTeste }
@@ -545,7 +543,7 @@ function SecaoConexao() {
 
   async function handleDelete(id) {
     if (!window.confirm('Excluir esta conexão?')) return;
-    const res = await fetch(`${API_URL}/api/connections/${id}`, { method: 'DELETE' });
+    const res = await apiFetch(`/api/connections/${id}`, { method: 'DELETE' });
     if (res.ok) setConexoes(p => p.filter(c => c.id !== id));
   }
 
@@ -1140,9 +1138,26 @@ function SecaoSistema({ themeMode, onThemeModeChange }) {
 }
 
 /* ── Sub-nav principal ───────────────────────────────────────────────────────── */
-export default function Parametros({ themeMode, onThemeModeChange }) {
+function AccessDenied() {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60vh', gap: 12 }}>
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--color-error)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+        <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+      </svg>
+      <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--color-text)', margin: 0 }}>Acesso Negado</h2>
+      <p style={{ color: 'var(--color-text-muted)', fontSize: 14, margin: 0 }}>
+        Você não tem permissão para acessar esta área.
+      </p>
+    </div>
+  );
+}
+
+export default function Parametros({ themeMode, onThemeModeChange, user }) {
   const { t } = useT();
   const [sub, setSub] = useState('empresas');
+
+  if (user?.perfil !== 'admin' && !user?.permissoes?.configuracoes) return <AccessDenied />;
 
   const SUB_PAGES = [
     { key: 'empresas',   tk: 'param_empresas_menu'  },

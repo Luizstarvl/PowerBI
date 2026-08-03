@@ -3,6 +3,7 @@ const router  = express.Router();
 const pool    = require('../db/pool');
 const net     = require('net');
 const { Client } = require('pg');
+const { requireAuth, requirePerm } = require('../middleware/auth');
 
 pool.query(`
   CREATE TABLE IF NOT EXISTS starvl_connections (
@@ -81,6 +82,9 @@ async function testarConexao({ tipo, servidor, porta, banco, usuario, senha, tim
     });
   });
 }
+
+// Todas as rotas de conexão exigem autenticação + permissão de configurações
+router.use(requireAuth, requirePerm('configuracoes'));
 
 /* ── GET all ─────────────────────────────────────────────────────────────────── */
 router.get('/', async (req, res) => {

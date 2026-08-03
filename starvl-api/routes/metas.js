@@ -8,6 +8,7 @@
 const express = require('express');
 const router  = express.Router();
 const pool    = require('../db/pool');
+const { requireAuth, requireAdmin, requirePerm } = require('../middleware/auth');
 
 const TIPOS = [
   'empresa', 'filial', 'departamento', 'equipe', 'funcionario', 'vendedor',
@@ -176,6 +177,17 @@ const SELECT_COM_VALOR = `
   LEFT JOIN starvl_meta_resultados r
     ON r.smr_meta_id = m.sm_id AND r.smr_data BETWEEN m.sm_data_inicial AND m.sm_data_final
 `;
+
+// Autenticação obrigatória em todas as rotas de metas
+router.use(requireAuth);
+
+// Operações de escrita exigem modo 'completo'; DELETE exige admin
+const requireWrite = requirePerm('modo', 'completo');
+router.use((req, res, next) => {
+  if (req.method === 'DELETE')                             return requireAdmin(req, res, next);
+  if (['POST', 'PUT', 'PATCH'].includes(req.method))      return requireWrite(req, res, next);
+  next();
+});
 
 // ── GET /api/metas — lista com filtros + paginação ─────────────────────────
 router.get('/', async (req, res) => {

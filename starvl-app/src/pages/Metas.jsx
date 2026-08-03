@@ -6,8 +6,7 @@ import {
   INDICADORES_POR_CATEGORIA, indicadorLabel,
 } from '../constants/metas';
 
-const API_URL = process.env.REACT_APP_API_URL
-  || (window.location.hostname === 'localhost' ? 'http://localhost:3001' : '');
+import { apiFetch } from '../api';
 
 /* ── Formatadores ──────────────────────────────────────────────────────────── */
 const fmtBRL = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2 });
@@ -143,6 +142,7 @@ function AcoesMenu({ meta, onVer, onEditar, onExcluir, onClose }) {
 /* ── Componente principal ──────────────────────────────────────────────────── */
 export default function Metas({ empresa, empresaNome, user, onNavigate }) {
   const isAdmin    = user?.perfil === 'admin';
+  const canEdit    = isAdmin || user?.permissoes?.modo === 'completo';
   const currentUser = user?.nome || user?.usuario || '';
 
   /* estado de filtros — pending (editando) vs aplicado (busca ativa) */
@@ -185,8 +185,8 @@ export default function Metas({ empresa, empresaNome, user, onNavigate }) {
       listaQs.set('perPage', perPage);
 
       const [listaRes, kpisRes] = await Promise.all([
-        fetch(`${API_URL}/api/metas?${listaQs}`).then(r => r.json()),
-        fetch(`${API_URL}/api/metas/resumo?empresa=${empresa}`).then(r => r.json()),
+        apiFetch(`/api/metas?${listaQs}`).then(r => r.json()),
+        apiFetch(`/api/metas/resumo?empresa=${empresa}`).then(r => r.json()),
       ]);
 
       if (listaRes?.data) setLista(listaRes);
@@ -203,16 +203,16 @@ export default function Metas({ empresa, empresaNome, user, onNavigate }) {
 
   async function abrirDetalhe(meta) {
     try {
-      const full = await fetch(`${API_URL}/api/metas/${meta.id}`).then(r => r.json());
+      const full = await apiFetch(`/api/metas/${meta.id}`).then(r => r.json());
       setDetailMeta(full);
     } catch { setDetailMeta(meta); }
   }
 
   async function handleSalvar(form) {
     const payload = { ...form, empresaId: empresa, usuario: currentUser };
-    const url    = editingMeta ? `${API_URL}/api/metas/${editingMeta.id}` : `${API_URL}/api/metas`;
+    const url    = editingMeta ? `/api/metas/${editingMeta.id}` : `/api/metas`;
     const method = editingMeta ? 'PUT' : 'POST';
-    const res  = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    const res  = await apiFetch(url, { method, body: JSON.stringify(payload) });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Erro ao salvar.');
     setFormOpen(false); setEditingMeta(null); carregar();
@@ -220,13 +220,13 @@ export default function Metas({ empresa, empresaNome, user, onNavigate }) {
 
   async function handleExcluir(meta) {
     if (!window.confirm(`Excluir a meta "${meta.nome}"?`)) return;
-    await fetch(`${API_URL}/api/metas/${meta.id}`, { method: 'DELETE' });
+    await apiFetch(`/api/metas/${meta.id}`, { method: 'DELETE' });
     setDetailMeta(null); setAcoesMeta(null); carregar();
   }
 
   async function handleLancarResultado(payload) {
-    const res  = await fetch(`${API_URL}/api/metas/${detailMeta.id}/resultados`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+    const res  = await apiFetch(`/api/metas/${detailMeta.id}/resultados`, {
+      method: 'POST',
       body: JSON.stringify({ ...payload, usuario: currentUser }),
     });
     const data = await res.json();
@@ -236,8 +236,8 @@ export default function Metas({ empresa, empresaNome, user, onNavigate }) {
   }
 
   async function handleComentar(texto) {
-    await fetch(`${API_URL}/api/metas/${detailMeta.id}/comentarios`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+    await apiFetch(`/api/metas/${detailMeta.id}/comentarios`, {
+      method: 'POST',
       body: JSON.stringify({ usuario: currentUser, texto }),
     });
     await abrirDetalhe(detailMeta);
@@ -297,7 +297,7 @@ export default function Metas({ empresa, empresaNome, user, onNavigate }) {
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             Exportar
           </button>
-          {isAdmin && (
+          {canEdit && (
             <button className="btn-primary" onClick={() => { setEditingMeta(null); setFormOpen(true); }}>
               + Nova Meta
             </button>
@@ -521,7 +521,7 @@ export default function Metas({ empresa, empresaNome, user, onNavigate }) {
       {detailMeta && (
         <MetaDetailModal
           meta={detailMeta}
-          isAdmin={isAdmin}
+          isAdmin={canEdit}
           currentUser={currentUser}
           onClose={() => setDetailMeta(null)}
           onEdit={meta => { setDetailMeta(null); setEditingMeta(meta); setFormOpen(true); }}

@@ -2,14 +2,28 @@ import React from 'react';
 import { useT } from '../i18n';
 import { NAV_ITEMS } from '../constants/nav';
 
-export default function NavBar({ page, onPageChange, badges }) {
+function canAccessPage(user, key) {
+  if (!user) return false;
+  if (user.perfil === 'admin') return true;
+  switch (key) {
+    case 'dashboard':  return true;
+    case 'metas':      return true;
+    case 'usuarios':   return false;
+    case 'parametros': return !!user.permissoes?.configuracoes;
+    default:           return false;
+  }
+}
+
+export default function NavBar({ page, onPageChange, user, badges }) {
   const { t } = useT();
+  const visibleItems = NAV_ITEMS.filter(item => canAccessPage(user, item.key));
+
   return (
     <aside className="sidebar">
       <div className="sidebar-section-label">Menu</div>
 
       <nav className="sidebar-nav">
-        {NAV_ITEMS.map(({ key, tk, Icon }) => {
+        {visibleItems.map(({ key, tk, Icon }) => {
           const count = badges?.[key] || 0;
           return (
             <button

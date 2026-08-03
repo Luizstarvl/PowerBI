@@ -1,6 +1,7 @@
 const express = require('express');
 const router  = express.Router();
 const pool    = require('../db/pool');
+const { requireAuth, requireAdmin } = require('../middleware/auth');
 
 pool.query(`
   CREATE TABLE IF NOT EXISTS starvl_profiles (
@@ -39,6 +40,14 @@ const toRow = r => ({
   permissoes: r.sp_permissoes || {},
   builtin:    r.sp_builtin,
   criado:     r.sp_criado,
+});
+
+// Leitura: qualquer usuário autenticado (precisa para popular dropdowns)
+// Escrita: somente admin
+router.use(requireAuth);
+router.use((req, res, next) => {
+  if (req.method !== 'GET') return requireAdmin(req, res, next);
+  next();
 });
 
 router.get('/', async (req, res) => {

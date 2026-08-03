@@ -2,8 +2,12 @@ const express  = require('express');
 const router   = express.Router();
 const pool     = require('../db/pool');
 const bcrypt   = require('bcryptjs');
+const jwt      = require('jsonwebtoken');
+const { requireAuth, requireAdmin } = require('../middleware/auth');
 
 const SALT_ROUNDS = 10;
+const JWT_SECRET  = process.env.JWT_SECRET || 'starvl-dev-fallback-change-in-production';
+const ADMIN_PERMS = { dashboards: 'todos', configuracoes: true, postos: 'todos', modo: 'completo' };
 
 function isBcryptHash(str) {
   return typeof str === 'string' && /^\$2[ab]\$\d{2}\$/.test(str);
@@ -54,7 +58,7 @@ const toRow = r => ({
   profileId:     r.su_profile_id     || null,
 });
 
-// ── POST /api/starvl-users/auth ───────────────────────────────────────────────
+// ── POST /api/starvl-users/auth  (público) ───────────────────────────────────
 router.post('/auth', async (req, res) => {
   const { usuario, senha } = req.body;
   if (!usuario?.trim() || !senha?.trim()) {
@@ -62,7 +66,8 @@ router.post('/auth', async (req, res) => {
   }
   try {
     const result = await pool.query(
-      `SELECT su_id, su_usuario, su_perfil, su_senha, su_foto
+      `SELECT su_id, su_usuario, su_perfil, su_senha, su_foto,
+              su_nome, su_email, su_ativo, su_profile_id
        FROM starvl_users
        WHERE LOWER(TRIM(su_usuario)) = LOWER(TRIM($1))
        LIMIT 1`,
@@ -72,6 +77,11 @@ router.post('/auth', async (req, res) => {
       return res.status(401).json({ ok: false, error: 'Usuário ou senha inválidos.' });
     }
     const u = result.rows[0];
+
+    if (!u.su_ativo) {
+      return res.status(403).json({ ok: false, error: 'Usuário inativo. Contate o administrador.' });
+    }
+
     let valid = false;
     if (isBcryptHash(u.su_senha)) {
       valid = await bcrypt.compare(senha, u.su_senha);
@@ -87,12 +97,54 @@ router.post('/auth', async (req, res) => {
       }
     }
     if (!valid) return res.status(401).json({ ok: false, error: 'Usuário ou senha inválidos.' });
-    res.json({ ok: true, id: u.su_id, usuario: u.su_usuario, perfil: u.su_perfil, foto: u.su_foto || null });
+
+    // Carrega permissões do perfil vinculado
+    let permissoes  = {};
+    let profileNome = null;
+    if (u.su_profile_id) {
+      const profResult = await pool.query(
+        `SELECT sp_nome, sp_permissoes FROM starvl_profiles WHERE sp_id = $1`,
+        [u.su_profile_id]
+      );
+      if (profResult.rows.length) {
+        permissoes  = profResult.rows[0].sp_permissoes || {};
+        profileNome = profResult.rows[0].sp_nome;
+      }
+    }
+
+    // Admin sempre recebe permissões completas, independente do perfil vinculado
+    if (u.su_perfil === 'admin') {
+      permissoes  = ADMIN_PERMS;
+      profileNome = 'Administrador';
+    }
+
+    const token = jwt.sign(
+      { id: u.su_id, usuario: u.su_usuario, perfil: u.su_perfil, profileId: u.su_profile_id, permissoes },
+      JWT_SECRET,
+      { expiresIn: '8h' }
+    );
+
+    res.json({
+      ok:          true,
+      token,
+      id:          u.su_id,
+      usuario:     u.su_usuario,
+      perfil:      u.su_perfil,
+      nome:        u.su_nome        || null,
+      email:       u.su_email       || null,
+      foto:        u.su_foto        || null,
+      profileId:   u.su_profile_id  || null,
+      profileNome,
+      permissoes,
+    });
   } catch (err) {
     console.error('POST /starvl-users/auth:', err.message);
     res.status(500).json({ ok: false, error: 'Erro interno ao autenticar.' });
   }
 });
+
+// ── Rotas protegidas: autenticação + perfil admin obrigatórios ───────────────
+router.use(requireAuth, requireAdmin);
 
 // GET /api/starvl-users
 router.get('/', async (req, res) => {
@@ -138,7 +190,6 @@ router.put('/:id', async (req, res) => {
   if (!usuario?.trim()) return res.status(400).json({ error: 'usuario é obrigatório' });
   try {
     let result;
-    // shared param order: usuario, perfil, foto, nome, email, ativo, cargo, empresaAcesso, profileId
     const shared = [
       usuario.trim(), perfil || 'user',
       foto !== undefined ? foto : null, nome?.trim() || null, email?.trim() || null, ativo !== false,
@@ -175,6 +226,10 @@ router.put('/:id', async (req, res) => {
 // DELETE /api/starvl-users/:id
 router.delete('/:id', async (req, res) => {
   const id = parseInt(req.params.id);
+  // Impede auto-exclusão
+  if (id === req.user.id) {
+    return res.status(400).json({ error: 'Você não pode excluir sua própria conta.' });
+  }
   try {
     const result = await pool.query(`DELETE FROM starvl_users WHERE su_id=$1 RETURNING su_id`, [id]);
     if (!result.rows.length) return res.status(404).json({ error: 'Usuário não encontrado' });
