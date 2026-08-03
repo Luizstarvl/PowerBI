@@ -223,7 +223,7 @@ function ModalPerfil({ perfil, onSave, onClose }) {
 
   return (
     <div className="modal-overlay" onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="modal" style={{ maxWidth: 480 }}>
+      <div className="modal" style={{ maxWidth: 560 }}>
         <h3 className="modal-title">{perfil ? t('pf_editar') : t('pf_novo')}</h3>
         <div className="modal-body">
           <div className="modal-grid-2">
@@ -249,8 +249,9 @@ function ModalPerfil({ perfil, onSave, onClose }) {
           </div>
 
           {!isAdmin && (
-            <>
-              <div className="pf-perm-section">
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 24px' }}>
+              {/* Coluna esquerda: Dashboards */}
+              <div className="pf-perm-section" style={{ marginTop: 4 }}>
                 <p className="pf-perm-title">Dashboards</p>
                 <div className="pf-perm-group">
                   <label className="pf-check-row">
@@ -268,43 +269,46 @@ function ModalPerfil({ perfil, onSave, onClose }) {
                 </div>
               </div>
 
-              <div className="pf-perm-section">
-                <p className="pf-perm-title">Sistema</p>
-                <div className="pf-perm-group">
-                  <label className="pf-check-row">
-                    <input type="checkbox" checked={!!perm.configuracoes}
-                      onChange={e => setP('configuracoes', e.target.checked)} />
-                    <span>{t('pf_configuracoes')}</span>
-                  </label>
-                </div>
-              </div>
-
-              <div className="pf-perm-section">
-                <p className="pf-perm-title">Postos</p>
-                <div className="pf-perm-group">
-                  {[['todos', t('pf_todos_postos')], ['proprios', t('pf_postos_proprios')]].map(([v, l]) => (
-                    <label key={v} className="pf-check-row">
-                      <input type="radio" name="pf-postos" checked={perm.postos === v}
-                        onChange={() => setP('postos', v)} />
-                      <span>{l}</span>
+              {/* Coluna direita: Sistema + Postos + Modo */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+                <div className="pf-perm-section" style={{ marginTop: 4 }}>
+                  <p className="pf-perm-title">Sistema</p>
+                  <div className="pf-perm-group">
+                    <label className="pf-check-row">
+                      <input type="checkbox" checked={!!perm.configuracoes}
+                        onChange={e => setP('configuracoes', e.target.checked)} />
+                      <span>{t('pf_configuracoes')}</span>
                     </label>
-                  ))}
+                  </div>
                 </div>
-              </div>
 
-              <div className="pf-perm-section">
-                <p className="pf-perm-title">Modo de Acesso</p>
-                <div className="pf-perm-group">
-                  {[['completo', t('pf_completo')], ['consulta', t('pf_consulta')]].map(([v, l]) => (
-                    <label key={v} className="pf-check-row">
-                      <input type="radio" name="pf-modo" checked={perm.modo === v}
-                        onChange={() => setP('modo', v)} />
-                      <span>{l}</span>
-                    </label>
-                  ))}
+                <div className="pf-perm-section">
+                  <p className="pf-perm-title">Postos</p>
+                  <div className="pf-perm-group">
+                    {[['todos', t('pf_todos_postos')], ['proprios', t('pf_postos_proprios')]].map(([v, l]) => (
+                      <label key={v} className="pf-check-row">
+                        <input type="radio" name="pf-postos" checked={perm.postos === v}
+                          onChange={() => setP('postos', v)} />
+                        <span>{l}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="pf-perm-section">
+                  <p className="pf-perm-title">Modo de Acesso</p>
+                  <div className="pf-perm-group">
+                    {[['completo', t('pf_completo')], ['consulta', t('pf_consulta')]].map(([v, l]) => (
+                      <label key={v} className="pf-check-row">
+                        <input type="radio" name="pf-modo" checked={perm.modo === v}
+                          onChange={() => setP('modo', v)} />
+                        <span>{l}</span>
+                      </label>
+                    ))}
+                  </div>
                 </div>
               </div>
-            </>
+            </div>
           )}
 
           {isAdmin && (

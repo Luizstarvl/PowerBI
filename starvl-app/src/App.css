@@ -869,10 +869,12 @@ select.themed-select option {
   background: var(--color-surface); border: 1px solid var(--color-border);
   border-radius: 18px; width: 100%; max-width: 440px;
   box-shadow: var(--shadow-xl); animation: scaleIn .2s ease-out both;
+  display: flex; flex-direction: column;
+  max-height: calc(100vh - 64px);
 }
-.modal-title          { font-size: 16px; font-weight: 700; color: var(--color-text); padding: 24px 24px 0; }
-.modal-body           { padding: 20px 24px; display: flex; flex-direction: column; gap: 16px; }
-.modal-footer         { display: flex; justify-content: flex-end; gap: 10px; padding: 4px 24px 24px; }
+.modal-title          { font-size: 16px; font-weight: 700; color: var(--color-text); padding: 24px 24px 0; flex-shrink: 0; }
+.modal-body           { padding: 20px 24px; display: flex; flex-direction: column; gap: 16px; overflow-y: auto; flex: 1; }
+.modal-footer         { display: flex; justify-content: flex-end; gap: 10px; padding: 12px 24px 20px; flex-shrink: 0; border-top: 1px solid var(--color-border); }
 .modal-grid-2         { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .modal-section-label  {
   font-size: 11px; font-weight: 700; color: var(--color-text-muted);
