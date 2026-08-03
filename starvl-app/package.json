@@ -1,9 +1,10 @@
 {
   "name": "starvl-app",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "description": "Horse - Sistema de Gestão de Postos",
   "private": true,
   "dependencies": {
+    "@monaco-editor/react": "^4.7.0",
     "lucide-react": "^0.294.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",

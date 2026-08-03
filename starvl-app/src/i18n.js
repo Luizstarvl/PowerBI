@@ -90,6 +90,7 @@ const T = {
     me_erro_conexao:'Erro ao conectar ao servidor.',
     // Conexão
     param_conexao_menu:  'Conexão',
+    param_consultas_menu: 'Gerenciador de Consultas',
     con2_titulo:         'Conexão com Banco de Dados',
     con2_desc:           'Configure a conexão de cada empresa com seu banco de dados.',
     con2_configurar:     'Configurar',
@@ -254,6 +255,7 @@ const T = {
     me_erro: 'Error saving.',
     me_erro_conexao: 'Failed to connect to server.',
     param_conexao_menu:  'Connection',
+    param_consultas_menu: 'Query Manager',
     con2_titulo:         'Database Connection',
     con2_desc:           'Configure each company\'s database connection.',
     con2_configurar:     'Configure',
@@ -411,6 +413,7 @@ const T = {
     me_erro: 'Error al guardar.',
     me_erro_conexao: 'Error al conectar con el servidor.',
     param_conexao_menu:  'Conexión',
+    param_consultas_menu: 'Gestor de Consultas',
     con2_titulo:         'Conexión con Base de Datos',
     con2_desc:           'Configure la conexión de cada empresa con su base de datos.',
     con2_configurar:     'Configurar',
