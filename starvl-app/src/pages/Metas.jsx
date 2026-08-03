@@ -1,185 +1,231 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
-  PieChart, Pie, Cell, RadialBarChart, RadialBar, PolarAngleAxis, LineChart, Line,
-} from 'recharts';
-import {
-  Target, CheckCircle2, Clock, AlertTriangle, TrendingUp, DollarSign, Plus,
-  ChevronDown, SlidersHorizontal, BarChart3, Crown, CalendarClock,
-  LayoutGrid, Trophy, TrendingDown,
-} from 'lucide-react';
-import { KpiCard, Button, Select, CountUp } from '../components/ui';
-import MetaTable from '../components/metas/MetaTable';
-import MetaFormModal from '../components/metas/MetaFormModal';
+import MetaFormModal  from '../components/metas/MetaFormModal';
 import MetaDetailModal from '../components/metas/MetaDetailModal';
 import {
-  TIPOS_META, CATEGORIAS_META, INDICADORES_POR_CATEGORIA, STATUS_META,
-  RANKING_TIPOS, STATUS_COLOR_VAR,
+  TIPOS_META, STATUS_META, CATEGORIAS_META,
+  INDICADORES_POR_CATEGORIA, indicadorLabel,
 } from '../constants/metas';
-import { CHART_COLORS } from '../theme/tokens';
 
 const API_URL = process.env.REACT_APP_API_URL
   || (window.location.hostname === 'localhost' ? 'http://localhost:3001' : '');
 
-const currencyCompact = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
+/* ── Formatadores ──────────────────────────────────────────────────────────── */
+const fmtBRL = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2 });
 
-const tooltipStyle = {
-  background: 'var(--color-surface)',
-  border: '1px solid var(--color-border)',
-  borderRadius: 10,
-  fontSize: 12,
-  color: 'var(--color-text)',
+function fmtPeriodo(dateStr) {
+  if (!dateStr) return '—';
+  try {
+    const d = new Date(dateStr);
+    const mes  = d.toLocaleDateString('pt-BR', { month: 'short', timeZone: 'UTC' });
+    const ano  = d.getUTCFullYear();
+    return `${mes.charAt(0).toUpperCase() + mes.slice(1).replace('.', '')}/${ano}`;
+  } catch { return '—'; }
+}
+
+/* ── Opções de filtro ──────────────────────────────────────────────────────── */
+const TIPO_OPTS = [
+  { value: '', label: 'Todos' },
+  ...TIPOS_META,
+];
+const STATUS_OPTS = [
+  { value: '', label: 'Todos' },
+  ...STATUS_META.map(s => ({ value: s, label: s })),
+];
+const CATEGORIA_OPTS = [
+  { value: '', label: 'Todos' },
+  ...CATEGORIAS_META.map(c => ({ value: c, label: c })),
+];
+function anoOpts() {
+  const ano = new Date().getFullYear();
+  return [{ value: '', label: 'Ano' }, ...Array.from({ length: 5 }, (_, i) => ({ value: String(ano - i), label: String(ano - i) }))];
+}
+function mesOpts() {
+  const nomes = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  return [{ value: '', label: 'Mês' }, ...nomes.map((n, i) => ({ value: String(i + 1).padStart(2, '0'), label: n }))];
+}
+const ANO_OPTS = anoOpts();
+const MES_OPTS = mesOpts();
+const PER_PAGE_OPTS = [10, 25, 50, 100];
+
+const FILTRO_VAZIO = { tipo: '', indicador: '', categoria: '', ano: '', mes: '', status: '', responsavel: '' };
+
+/* ── StatusBadge ───────────────────────────────────────────────────────────── */
+const STATUS_CFG = {
+  'Concluída':    { dot: '#22C55E', bg: 'rgba(34,197,94,.10)',   text: '#16A34A', label: 'Atingida'       },
+  'Em andamento': { dot: '#F59E0B', bg: 'rgba(245,158,11,.10)',  text: '#B45309', label: 'Em andamento'   },
+  'Não iniciada': { dot: '#94A3B8', bg: 'rgba(148,163,184,.10)', text: '#64748B', label: 'Não iniciada'   },
+  'Atrasada':     { dot: '#EF4444', bg: 'rgba(239,68,68,.10)',   text: '#DC2626', label: 'Abaixo da meta' },
+  'Cancelada':    { dot: '#6B7280', bg: 'rgba(107,114,128,.10)', text: '#4B5563', label: 'Cancelada'      },
 };
 
-const FILTRO_TIPO_OPTS      = [{ value: '', label: 'Todos os tipos' },      ...TIPOS_META];
-const FILTRO_CATEGORIA_OPTS = [{ value: '', label: 'Todas as categorias' }, ...CATEGORIAS_META.map(c => ({ value: c, label: c }))];
-const FILTRO_STATUS_OPTS    = [{ value: '', label: 'Todos os status' },     ...STATUS_META.map(s => ({ value: s, label: s }))];
-
-function periodoOpts(n = 12) {
-  const now = new Date();
-  const opts = [{ value: '', label: 'Todos os períodos' }];
-  for (let i = 0; i < n; i++) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const yyyy = d.getFullYear(), mm = String(d.getMonth() + 1).padStart(2, '0');
-    const label = d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
-    opts.push({ value: `${yyyy}-${mm}`, label: label.charAt(0).toUpperCase() + label.slice(1) });
-  }
-  return opts;
+function StatusBadge({ status }) {
+  const cfg = STATUS_CFG[status] || STATUS_CFG['Não iniciada'];
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: 5,
+      background: cfg.bg, color: cfg.text,
+      padding: '3px 9px', borderRadius: 20, fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap',
+    }}>
+      <span style={{ width: 6, height: 6, borderRadius: '50%', background: cfg.dot, flexShrink: 0 }} />
+      {cfg.label}
+    </span>
+  );
 }
-const PERIODO_OPTS = periodoOpts();
 
-function useDebounced(value, delay) {
-  const [debounced, setDebounced] = useState(value);
+/* ── BarraPercentual ───────────────────────────────────────────────────────── */
+function BarraPercentual({ pct }) {
+  const clamped = Math.min(pct, 100);
+  const cor = pct >= 100 ? '#22C55E' : pct >= 75 ? '#F59E0B' : '#EF4444';
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 100 }}>
+      <div style={{ flex: 1, height: 5, background: 'var(--border, rgba(255,255,255,.1))', borderRadius: 4, overflow: 'hidden' }}>
+        <div style={{ width: `${clamped}%`, height: '100%', background: cor, borderRadius: 4, transition: 'width .3s' }} />
+      </div>
+      <span style={{ fontSize: 12, fontWeight: 700, color: cor, minWidth: 38, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+        {pct.toFixed(1)}%
+      </span>
+    </div>
+  );
+}
+
+/* ── KPI Card ──────────────────────────────────────────────────────────────── */
+function KpiMeta({ icon, iconBg, iconColor, label, value, sub, progress }) {
+  return (
+    <div className="mgt-kpi-card">
+      <div className="mgt-kpi-icon" style={{ background: iconBg }}>
+        <span style={{ color: iconColor, fontSize: 18 }}>{icon}</span>
+      </div>
+      <div className="mgt-kpi-content">
+        <div className="mgt-kpi-label">{label}</div>
+        <div className="mgt-kpi-value">{value}</div>
+        {progress != null && (
+          <div style={{ marginTop: 6 }}>
+            <div style={{ height: 4, background: 'rgba(255,255,255,.08)', borderRadius: 4, overflow: 'hidden' }}>
+              <div style={{ width: `${Math.min(progress, 100)}%`, height: '100%', background: '#F59E0B', borderRadius: 4 }} />
+            </div>
+          </div>
+        )}
+        <div className="mgt-kpi-sub">{sub}</div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Context Menu Ações ────────────────────────────────────────────────────── */
+function AcoesMenu({ meta, onVer, onEditar, onExcluir, onClose }) {
+  const ref = React.useRef(null);
   useEffect(() => {
-    const id = setTimeout(() => setDebounced(value), delay);
-    return () => clearTimeout(id);
-  }, [value, delay]);
-  return debounced;
+    const onDown = e => { if (!ref.current?.contains(e.target)) onClose(); };
+    const onKey  = e => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown',   onKey);
+    return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey); };
+  }, [onClose]);
+  return (
+    <div ref={ref} className="ctx-menu" style={{ position: 'fixed', zIndex: 500 }}>
+      <button className="ctx-item" onClick={() => { onVer(); onClose(); }}>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        Ver detalhe
+      </button>
+      <button className="ctx-item" onClick={() => { onEditar(); onClose(); }}>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        Alterar
+      </button>
+      <div className="ctx-divider" />
+      <button className="ctx-item danger" onClick={() => { onExcluir(); onClose(); }}>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+        Excluir
+      </button>
+    </div>
+  );
 }
 
-function mesLabel(mes) {
-  const [ano, mesNum] = mes.split('-');
-  const d = new Date(Date.UTC(parseInt(ano), parseInt(mesNum) - 1, 1));
-  const label = d.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit', timeZone: 'UTC' });
-  return label.charAt(0).toUpperCase() + label.slice(1).replace('.', '');
-}
-
-// Comparação com o mesmo bloco { atual, anterior } que a API devolve —
-// null quando não há base de comparação (mês anterior sem dados).
-function trendFrom(comp) {
-  if (!comp || !comp.anterior) return null;
-  const delta = ((comp.atual - comp.anterior) / comp.anterior) * 100;
-  return { positive: delta >= 0, text: `${delta >= 0 ? '+' : ''}${Math.round(delta)}% vs mês anterior` };
-}
-
-function diasAte(data) {
-  return Math.ceil((new Date(data) - new Date()) / 86400000);
-}
-
+/* ── Componente principal ──────────────────────────────────────────────────── */
 export default function Metas({ empresa, empresaNome, user, onNavigate }) {
-  const isAdmin = user?.perfil === 'admin';
-  const currentUser = user?.nome || user?.usuario || 'Usuário';
+  const isAdmin    = user?.perfil === 'admin';
+  const currentUser = user?.nome || user?.usuario || '';
 
-  const [filtros, setFiltros] = useState({ tipo: '', categoria: '', indicador: '', status: '', responsavel: '', periodo: '' });
-  const responsavelDebounced = useDebounced(filtros.responsavel, 400);
-  const [filtrosOpen, setFiltrosOpen] = useState(false);
+  /* estado de filtros — pending (editando) vs aplicado (busca ativa) */
+  const [pending,  setPending]  = useState({ ...FILTRO_VAZIO });
+  const [filtros,  setFiltros]  = useState({ ...FILTRO_VAZIO });
+  const [page,     setPage]     = useState(1);
+  const [perPage,  setPerPage]  = useState(10);
+  const [lista,    setLista]    = useState({ data: [], total: 0, totalPages: 1 });
+  const [kpis,     setKpis]     = useState(null);
+  const [loading,  setLoading]  = useState(false);
 
-  const [page, setPage] = useState(1);
-  const [lista, setLista] = useState({ data: [], total: 0, totalPages: 1 });
-  const [todasMetas, setTodasMetas] = useState([]);
-  const [kpis, setKpis] = useState(null);
-  const [rankingTipo, setRankingTipo] = useState('responsaveis');
-  const [ranking, setRanking] = useState([]);
-  const [rankingResponsaveis, setRankingResponsaveis] = useState([]);
-  const [evolucao, setEvolucao] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [formOpen,     setFormOpen]     = useState(false);
+  const [editingMeta,  setEditingMeta]  = useState(null);
+  const [detailMeta,   setDetailMeta]   = useState(null);
+  const [acoesMeta,    setAcoesMeta]    = useState(null); /* { meta, x, y } */
 
-  const [formOpen, setFormOpen] = useState(false);
-  const [editingMeta, setEditingMeta] = useState(null);
-  const [detailMeta, setDetailMeta] = useState(null);
+  /* indicadores filtrados por categoria */
+  const indicOpts = useMemo(() => {
+    const lista = pending.categoria ? (INDICADORES_POR_CATEGORIA[pending.categoria] || []) : [];
+    return [{ value: '', label: 'Todos' }, ...lista];
+  }, [pending.categoria]);
 
-  const queryFiltros = useMemo(() => {
-    const qs = new URLSearchParams({ empresa: empresa || '' });
-    if (filtros.tipo)       qs.set('tipo', filtros.tipo);
-    if (filtros.categoria)  qs.set('categoria', filtros.categoria);
-    if (filtros.indicador)  qs.set('indicador', filtros.indicador);
-    if (filtros.status)     qs.set('status', filtros.status);
-    if (filtros.periodo)    qs.set('periodo', filtros.periodo);
-    if (responsavelDebounced) qs.set('responsavel', responsavelDebounced);
-    return qs;
-  }, [empresa, filtros.tipo, filtros.categoria, filtros.indicador, filtros.status, filtros.periodo, responsavelDebounced]);
+  /* monta querystring de filtros aplicados */
+  const qs = useMemo(() => {
+    const p = new URLSearchParams({ empresa: empresa || '' });
+    if (filtros.tipo)       p.set('tipo', filtros.tipo);
+    if (filtros.indicador)  p.set('indicador', filtros.indicador);
+    if (filtros.status)     p.set('status', filtros.status);
+    if (filtros.responsavel) p.set('responsavel', filtros.responsavel);
+    if (filtros.ano && filtros.mes) p.set('periodo', `${filtros.ano}-${filtros.mes}`);
+    return p;
+  }, [empresa, filtros]);
 
   const carregar = useCallback(async (opts = {}) => {
     if (!empresa) return;
     if (!opts.silent) setLoading(true);
     try {
-      const listaQs = new URLSearchParams(queryFiltros); listaQs.set('page', page); listaQs.set('perPage', 12);
-      const todasQs = new URLSearchParams(queryFiltros); todasQs.set('perPage', 50);
+      const listaQs = new URLSearchParams(qs);
+      listaQs.set('page', page);
+      listaQs.set('perPage', perPage);
 
-      const [listaRes, todasRes, kpisRes, rankingRes, rankingRespRes, evolucaoRes] = await Promise.all([
+      const [listaRes, kpisRes] = await Promise.all([
         fetch(`${API_URL}/api/metas?${listaQs}`).then(r => r.json()),
-        fetch(`${API_URL}/api/metas?${todasQs}`).then(r => r.json()),
         fetch(`${API_URL}/api/metas/resumo?empresa=${empresa}`).then(r => r.json()),
-        fetch(`${API_URL}/api/metas/ranking?empresa=${empresa}&tipo=${rankingTipo}`).then(r => r.json()),
-        fetch(`${API_URL}/api/metas/ranking?empresa=${empresa}&tipo=responsaveis`).then(r => r.json()),
-        fetch(`${API_URL}/api/metas/evolucao?empresa=${empresa}&meses=6`).then(r => r.json()),
       ]);
 
-      if (listaRes && Array.isArray(listaRes.data)) setLista(listaRes);
-      if (todasRes && Array.isArray(todasRes.data)) setTodasMetas(todasRes.data);
+      if (listaRes?.data) setLista(listaRes);
       if (kpisRes && !kpisRes.error) setKpis(kpisRes);
-      if (Array.isArray(rankingRes)) setRanking(rankingRes);
-      if (Array.isArray(rankingRespRes)) setRankingResponsaveis(rankingRespRes);
-      if (Array.isArray(evolucaoRes)) setEvolucao(evolucaoRes.map(e => ({ ...e, mesLabel: mesLabel(e.mes) })));
-    } catch {
-      // silencioso — mantém último estado válido na tela
-    } finally {
-      if (!opts.silent) setLoading(false);
-    }
-  }, [empresa, queryFiltros, page, rankingTipo]);
+    } catch { /* mantém último estado */ }
+    finally { if (!opts.silent) setLoading(false); }
+  }, [empresa, qs, page, perPage]);
 
   useEffect(() => { carregar(); }, [carregar]);
 
-  // Atualização leve em segundo plano, só com a aba visível
-  useEffect(() => {
-    const id = setInterval(() => {
-      if (document.visibilityState === 'visible') carregar({ silent: true });
-    }, 30000);
-    return () => clearInterval(id);
-  }, [carregar]);
-
-  useEffect(() => { setPage(1); }, [filtros.tipo, filtros.categoria, filtros.indicador, filtros.status, filtros.periodo, responsavelDebounced]);
+  /* reseta página ao aplicar filtros */
+  function aplicarFiltros() { setFiltros({ ...pending }); setPage(1); }
+  function limparFiltros()   { const z = { ...FILTRO_VAZIO }; setPending(z); setFiltros(z); setPage(1); }
 
   async function abrirDetalhe(meta) {
     try {
       const full = await fetch(`${API_URL}/api/metas/${meta.id}`).then(r => r.json());
       setDetailMeta(full);
-    } catch {
-      setDetailMeta(meta);
-    }
+    } catch { setDetailMeta(meta); }
   }
 
   async function handleSalvar(form) {
     const payload = { ...form, empresaId: empresa, usuario: currentUser };
-    const url = editingMeta ? `${API_URL}/api/metas/${editingMeta.id}` : `${API_URL}/api/metas`;
+    const url    = editingMeta ? `${API_URL}/api/metas/${editingMeta.id}` : `${API_URL}/api/metas`;
     const method = editingMeta ? 'PUT' : 'POST';
-    const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    const res  = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Erro ao salvar meta.');
-    setFormOpen(false);
-    setEditingMeta(null);
-    carregar();
+    if (!res.ok) throw new Error(data.error || 'Erro ao salvar.');
+    setFormOpen(false); setEditingMeta(null); carregar();
   }
 
   async function handleExcluir(meta) {
-    if (!window.confirm(`Excluir a meta "${meta.nome}"? Essa ação não pode ser desfeita.`)) return;
+    if (!window.confirm(`Excluir a meta "${meta.nome}"?`)) return;
     await fetch(`${API_URL}/api/metas/${meta.id}`, { method: 'DELETE' });
-    setDetailMeta(null);
-    carregar();
+    setDetailMeta(null); setAcoesMeta(null); carregar();
   }
 
   async function handleLancarResultado(payload) {
-    const res = await fetch(`${API_URL}/api/metas/${detailMeta.id}/resultados`, {
+    const res  = await fetch(`${API_URL}/api/metas/${detailMeta.id}/resultados`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...payload, usuario: currentUser }),
     });
@@ -197,274 +243,271 @@ export default function Metas({ empresa, empresaNome, user, onNavigate }) {
     await abrirDetalhe(detailMeta);
   }
 
-  const statusDist = useMemo(() => {
-    const counts = {};
-    for (const s of STATUS_META) counts[s] = 0;
-    for (const m of todasMetas) counts[m.status] = (counts[m.status] || 0) + 1;
-    return STATUS_META.map(s => ({ status: s, total: counts[s] })).filter(s => s.total > 0);
-  }, [todasMetas]);
+  function handleExportar() {
+    const cabecalho = ['Empresa','Posto','Indicador','Meta','Realizado','%','Responsável','Status','Período'];
+    const linhas = lista.data.map(m => [
+      empresaNome || '',
+      m.referencia || '',
+      indicadorLabel(m.categoria, m.indicador),
+      m.valorMeta.toFixed(2),
+      m.valorAtual.toFixed(2),
+      m.percentual.toFixed(1) + '%',
+      m.responsavel || '',
+      m.status || '',
+      fmtPeriodo(m.dataFinal),
+    ]);
+    const csv = [cabecalho, ...linhas].map(r => r.join(';')).join('\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    a.download = `metas-${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+  }
 
-  const porDepartamento = useMemo(() => {
-    const grupos = {};
-    todasMetas.forEach(m => {
-      if (!grupos[m.categoria]) grupos[m.categoria] = { categoria: m.categoria, soma: 0, count: 0 };
-      grupos[m.categoria].soma += m.percentual;
-      grupos[m.categoria].count += 1;
-    });
-    return Object.values(grupos)
-      .map(g => ({ categoria: g.categoria, percentual: Math.round((g.soma / g.count) * 10) / 10 }))
-      .sort((a, b) => b.percentual - a.percentual);
-  }, [todasMetas]);
+  function openAcoes(e, meta) {
+    e.stopPropagation();
+    const rect = e.currentTarget.getBoundingClientRect();
+    setAcoesMeta({ meta, x: rect.right - 160, y: rect.bottom + 4 });
+  }
 
-  const abertas = useMemo(() => todasMetas.filter(m => !['Concluída', 'Cancelada'].includes(m.status)), [todasMetas]);
-  const alertasVencidas  = useMemo(() => todasMetas.filter(m => m.status === 'Atrasada').sort((a, b) => new Date(a.dataFinal) - new Date(b.dataFinal)), [todasMetas]);
-  const alertasVencendo  = useMemo(() => abertas.filter(m => { const d = diasAte(m.dataFinal); return d >= 0 && d <= 7; }).sort((a, b) => new Date(a.dataFinal) - new Date(b.dataFinal)), [abertas]);
-  const alertasConcluidasRecentes = useMemo(() => todasMetas
-    .filter(m => m.status === 'Concluída' && (Date.now() - new Date(m.atualizado)) < 14 * 86400000)
-    .sort((a, b) => new Date(b.atualizado) - new Date(a.atualizado)), [todasMetas]);
-  const alertasAbaixo50 = useMemo(() => abertas.filter(m => m.percentual < 50).sort((a, b) => a.percentual - b.percentual), [abertas]);
+  /* paginação */
+  const from  = lista.total === 0 ? 0 : (page - 1) * perPage + 1;
+  const to    = Math.min(page * perPage, lista.total);
+  const pages = Array.from({ length: Math.min(lista.totalPages, 5) }, (_, i) => {
+    const half  = 2;
+    const start = Math.max(1, Math.min(page - half, lista.totalPages - 4));
+    return start + i;
+  }).filter(p => p >= 1 && p <= lista.totalPages);
 
-  // "Vence em breve" só faz sentido pra prazos que ainda não passaram — uma
-  // meta atrasada já venceu, não está "próxima do vencimento".
-  const metaProximaVencimento = useMemo(() => {
-    const pendentes = abertas.filter(m => m.status !== 'Atrasada');
-    return pendentes.length ? [...pendentes].sort((a, b) => new Date(a.dataFinal) - new Date(b.dataFinal))[0] : null;
-  }, [abertas]);
-  const topResponsavel = rankingResponsaveis[0] || null;
-  const deptoMelhor = porDepartamento[0] || null;
-  const deptoPior   = porDepartamento.length ? porDepartamento[porDepartamento.length - 1] : null;
-
-  const gaugeData = [{ name: 'Cumprimento', value: Math.min(kpis?.mediaCumprimento || 0, 100), fill: CHART_COLORS[0] }];
-  const indicadoresFiltro = filtros.categoria ? (INDICADORES_POR_CATEGORIA[filtros.categoria] || []) : [];
-  const indicadorFiltroOpts = [{ value: '', label: 'Todos os indicadores' }, ...indicadoresFiltro];
+  /* ── metas ativas = total excluindo canceladas e concluídas */
+  const metasAtivas = kpis
+    ? (kpis.total || 0) - (kpis.canceladas || 0) - (kpis.concluidas || 0)
+    : null;
 
   return (
     <main className="dashboard">
-      <div className="dashboard-header">
+
+      {/* ── Header ─────────────────────────────────────────────────────── */}
+      <div className="mgt-header">
         <div>
-          <div className="section-title">📈 Gestão de Metas</div>
-          <div className="section-sub">Acompanhe objetivos, desempenho e resultados em tempo real.</div>
+          <h2 className="mgt-title">Gerenciamento de Metas</h2>
+          <p className="mgt-subtitle">Acompanhe o desempenho das metas e alcance melhores resultados.</p>
         </div>
-        <div className="metas-header-actions">
-          <div style={{ width: 170 }}>
-            <Select value={filtros.periodo} onChange={v => setFiltros(f => ({ ...f, periodo: v }))} options={PERIODO_OPTS} searchPlaceholder="Buscar mês…" />
-          </div>
-          <input
-            type="text" placeholder="Buscar por responsável…" value={filtros.responsavel}
-            onChange={e => setFiltros(f => ({ ...f, responsavel: e.target.value }))}
-          />
-          {onNavigate && (
-            <Button variant="ghost" onClick={() => onNavigate('dashboard')}>
-              <LayoutGrid size={14} style={{ marginRight: 6, verticalAlign: -2 }} /> Dashboard
-            </Button>
-          )}
+        <div className="mgt-header-btns">
+          <button className="mgt-btn-export" onClick={handleExportar}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Exportar
+          </button>
           {isAdmin && (
-            <Button variant="primary" onClick={() => { setEditingMeta(null); setFormOpen(true); }}>
-              <Plus size={15} style={{ marginRight: 6, verticalAlign: -2 }} /> Nova Meta
-            </Button>
+            <button className="btn-primary" onClick={() => { setEditingMeta(null); setFormOpen(true); }}>
+              + Nova Meta
+            </button>
           )}
         </div>
       </div>
 
       {!empresa ? (
         <div className="metas-empty-state">
-          <div className="metas-empty-icon"><BarChart3 size={40} /></div>
-          <p>Selecione uma empresa para visualizar os indicadores e acompanhar o desempenho das metas.</p>
+          <p>Selecione uma empresa para visualizar as metas.</p>
         </div>
       ) : (
         <>
-          {/* ── Linha 1 — KPIs ─────────────────────────────────────────── */}
-          <div className="kpi-grid stagger-children">
-            <KpiCard tilt icon={Target}        label="Total de metas"      value={kpis ? <CountUp value={kpis.total} /> : '—'} trend={trendFrom(kpis?.comparativo?.total)} />
-            <KpiCard tilt icon={CheckCircle2}  label="Metas atingidas"     value={kpis ? <CountUp value={kpis.concluidas} /> : '—'} trend={trendFrom(kpis?.comparativo?.concluidas)} />
-            <KpiCard tilt icon={Clock}         label="Em andamento"        value={kpis ? <CountUp value={kpis.emAndamento} /> : '—'} trend={trendFrom(kpis?.comparativo?.emAndamento)} />
-            <KpiCard tilt icon={AlertTriangle} label="Metas atrasadas"     value={kpis ? <CountUp value={kpis.atrasadas} /> : '—'} trend={trendFrom(kpis?.comparativo?.atrasadas)} />
-            <KpiCard tilt icon={TrendingUp}    label="% médio de cumprimento" value={kpis ? <CountUp value={kpis.mediaCumprimento} formatter={n => `${n.toFixed(1)}%`} /> : '—'} />
-            <KpiCard tilt icon={DollarSign}    label="Valor total das metas" value={kpis ? currencyCompact.format(kpis.valorTotalMetas) : '—'} trend={trendFrom(kpis?.comparativo?.valorTotal)} />
+          {/* ── KPI Cards ──────────────────────────────────────────────── */}
+          <div className="mgt-kpi-grid">
+            <KpiMeta
+              icon="🎯"
+              iconBg="rgba(239,68,68,.15)" iconColor="#EF4444"
+              label="META TOTAL"
+              value={kpis ? fmtBRL.format(kpis.valorTotalMetas || 0) : '—'}
+              sub="Total das metas no período"
+            />
+            <KpiMeta
+              icon="📈"
+              iconBg="rgba(34,197,94,.12)" iconColor="#22C55E"
+              label="REALIZADO"
+              value={kpis ? fmtBRL.format(kpis.valorTotalAtual || 0) : '—'}
+              sub="Total realizado no período"
+            />
+            <KpiMeta
+              icon="⚡"
+              iconBg="rgba(245,158,11,.12)" iconColor="#F59E0B"
+              label="ATINGIMENTO"
+              value={kpis ? `${(kpis.mediaCumprimento || 0).toFixed(1)}%` : '—'}
+              progress={kpis?.mediaCumprimento}
+              sub="Percentual de atingimento"
+            />
+            <KpiMeta
+              icon="🚩"
+              iconBg="rgba(99,102,241,.12)" iconColor="#818CF8"
+              label="METAS ATIVAS"
+              value={metasAtivas != null ? String(metasAtivas) : '—'}
+              sub="Total de metas ativas"
+            />
           </div>
 
-          {/* ── Linha 2 — Evolução + Cumprimento geral ────────────────── */}
-          <div className="metas-row-2 stagger-children">
-            <div className="chart-card">
-              <div className="chart-card-header">
-                <div className="chart-card-title">Evolução das metas</div>
-                <div className="chart-card-desc">Criadas, concluídas e vencidas por mês (últimos 6 meses)</div>
-              </div>
-              {evolucao.length === 0 ? <p className="chart-empty">Sem dados suficientes ainda.</p> : (
-                <ResponsiveContainer width="100%" height={260}>
-                  <LineChart data={evolucao}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
-                    <XAxis dataKey="mesLabel" stroke="var(--color-text-muted)" fontSize={11} tickLine={false} axisLine={false} />
-                    <YAxis stroke="var(--color-text-muted)" fontSize={11} tickLine={false} axisLine={false} width={36} allowDecimals={false} />
-                    <Tooltip contentStyle={tooltipStyle} />
-                    <Legend wrapperStyle={{ fontSize: 12 }} />
-                    <Line type="monotone" dataKey="criadas"    name="Criadas"    stroke={CHART_COLORS[3]} strokeWidth={2.5} dot={{ r: 3 }} isAnimationActive animationDuration={900} />
-                    <Line type="monotone" dataKey="concluidas" name="Concluídas" stroke={CHART_COLORS[4]} strokeWidth={2.5} dot={{ r: 3 }} isAnimationActive animationDuration={900} />
-                    <Line type="monotone" dataKey="vencidas"   name="Vencidas"   stroke="var(--color-error)" strokeWidth={2.5} dot={{ r: 3 }} isAnimationActive animationDuration={900} />
-                  </LineChart>
-                </ResponsiveContainer>
-              )}
-            </div>
+          {/* ── Filtros ────────────────────────────────────────────────── */}
+          <div className="mgt-filter-card">
+            <div className="mgt-filter-row">
 
-            <div className="chart-card">
-              <div className="chart-card-header">
-                <div className="chart-card-title">Cumprimento geral</div>
-                <div className="chart-card-desc">Média de todas as metas ativas</div>
+              <div className="mgt-filter-group">
+                <label>Empresa</label>
+                <select value="" disabled>
+                  <option>{empresaNome || 'Empresa'}</option>
+                </select>
               </div>
-              <div className="gauge-wrap">
-                <ResponsiveContainer width="100%" height={190}>
-                  <RadialBarChart cx="50%" cy="80%" innerRadius="85%" outerRadius="130%" startAngle={180} endAngle={0} data={gaugeData} barSize={16}>
-                    <PolarAngleAxis type="number" domain={[0, 100]} tick={false} />
-                    <RadialBar background dataKey="value" cornerRadius={8} isAnimationActive animationDuration={900} />
-                  </RadialBarChart>
-                </ResponsiveContainer>
-                <div className="gauge-center">
-                  <span className="gauge-value">{kpis ? `${Math.round(kpis.mediaCumprimento)}%` : '—'}</span>
-                  <span className="gauge-label">cumprimento</span>
-                </div>
-              </div>
-            </div>
-          </div>
 
-          {/* ── Linha 3 — Ranking + Departamento + Status ─────────────── */}
-          <div className="metas-row-3 stagger-children">
-            <div className="chart-card">
-              <div className="chart-card-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-                <div>
-                  <div className="chart-card-title">Ranking dos responsáveis</div>
-                  <div className="chart-card-desc">Top 10 por percentual atingido</div>
-                </div>
-                <div style={{ width: 150, flexShrink: 0 }}>
-                  <Select value={rankingTipo} onChange={setRankingTipo} options={RANKING_TIPOS} />
-                </div>
+              <div className="mgt-filter-group">
+                <label>Posto / Tipo</label>
+                <select value={pending.tipo} onChange={e => setPending(p => ({ ...p, tipo: e.target.value }))}>
+                  {TIPO_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
               </div>
-              {ranking.length === 0 ? <p className="chart-empty">Sem dados para esse ranking ainda.</p> : (
-                <ResponsiveContainer width="100%" height={260}>
-                  <BarChart data={ranking} layout="vertical" margin={{ left: 10 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" horizontal={false} />
-                    <XAxis type="number" stroke="var(--color-text-muted)" fontSize={11} tickLine={false} axisLine={false} unit="%" />
-                    <YAxis type="category" dataKey="nome" stroke="var(--color-text-muted)" fontSize={11} tickLine={false} axisLine={false} width={100} />
-                    <Tooltip contentStyle={tooltipStyle} formatter={v => `${v}%`} />
-                    <Bar dataKey="percentual" fill={CHART_COLORS[0]} radius={[0, 4, 4, 0]} isAnimationActive animationDuration={800} />
-                  </BarChart>
-                </ResponsiveContainer>
-              )}
-            </div>
 
-            <div className="chart-card">
-              <div className="chart-card-header">
-                <div className="chart-card-title">Metas por departamento</div>
-                <div className="chart-card-desc">% médio de cumprimento por área</div>
+              <div className="mgt-filter-group">
+                <label>Categoria</label>
+                <select value={pending.categoria} onChange={e => setPending(p => ({ ...p, categoria: e.target.value, indicador: '' }))}>
+                  {CATEGORIA_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
               </div>
-              {porDepartamento.length === 0 ? <p className="chart-empty">Sem metas cadastradas.</p> : (
-                <ResponsiveContainer width="100%" height={260}>
-                  <BarChart data={porDepartamento}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
-                    <XAxis dataKey="categoria" stroke="var(--color-text-muted)" fontSize={10.5} tickLine={false} axisLine={false} />
-                    <YAxis stroke="var(--color-text-muted)" fontSize={11} tickLine={false} axisLine={false} width={36} unit="%" />
-                    <Tooltip contentStyle={tooltipStyle} formatter={v => `${v}%`} />
-                    <Bar dataKey="percentual" fill={CHART_COLORS[1]} radius={[4, 4, 0, 0]} isAnimationActive animationDuration={800} />
-                  </BarChart>
-                </ResponsiveContainer>
-              )}
-            </div>
 
-            <div className="chart-card">
-              <div className="chart-card-header">
-                <div className="chart-card-title">Status das metas</div>
-                <div className="chart-card-desc">Onde as metas estão hoje</div>
+              <div className="mgt-filter-group">
+                <label>Indicador</label>
+                <select value={pending.indicador} onChange={e => setPending(p => ({ ...p, indicador: e.target.value }))} disabled={!pending.categoria}>
+                  {indicOpts.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
               </div>
-              {statusDist.length === 0 ? <p className="chart-empty">Sem metas cadastradas.</p> : (
-                <ResponsiveContainer width="100%" height={260}>
-                  <PieChart>
-                    <Pie data={statusDist} dataKey="total" nameKey="status" innerRadius={58} outerRadius={90} paddingAngle={3} isAnimationActive animationDuration={800}>
-                      {statusDist.map(s => <Cell key={s.status} fill={STATUS_COLOR_VAR[s.status]} />)}
-                    </Pie>
-                    <Tooltip contentStyle={tooltipStyle} />
-                    <Legend wrapperStyle={{ fontSize: 12 }} />
-                  </PieChart>
-                </ResponsiveContainer>
-              )}
+
+              <div className="mgt-filter-group mgt-filter-group--sm">
+                <label>Ano</label>
+                <select value={pending.ano} onChange={e => setPending(p => ({ ...p, ano: e.target.value }))}>
+                  {ANO_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </div>
+
+              <div className="mgt-filter-group mgt-filter-group--sm">
+                <label>Mês</label>
+                <select value={pending.mes} onChange={e => setPending(p => ({ ...p, mes: e.target.value }))}>
+                  {MES_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </div>
+
+              <div className="mgt-filter-group">
+                <label>Status</label>
+                <select value={pending.status} onChange={e => setPending(p => ({ ...p, status: e.target.value }))}>
+                  {STATUS_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </div>
+
+              <div className="mgt-filter-group">
+                <label>Responsável</label>
+                <input
+                  type="text"
+                  placeholder="Todos"
+                  value={pending.responsavel}
+                  onChange={e => setPending(p => ({ ...p, responsavel: e.target.value }))}
+                />
+              </div>
+
+            </div>
+            <div className="mgt-filter-actions">
+              <button className="mgt-btn-limpar" onClick={limparFiltros}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.73"/></svg>
+                Limpar
+              </button>
+              <button className="mgt-btn-aplicar" onClick={aplicarFiltros}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="6" x2="2" y2="6"/><line x1="17" y1="12" x2="7" y2="12"/><line x1="12" y1="18" x2="12" y2="18" strokeWidth="3" strokeLinecap="round"/></svg>
+                Aplicar filtros
+              </button>
             </div>
           </div>
 
-          {/* ── Linha 4/5 — Tabela + painel de alertas ────────────────── */}
-          <div className="metas-main-grid">
-            <div className="metas-tabela-col">
-              <div className="filtros-panel">
-                <button className="filtros-panel-header" onClick={() => setFiltrosOpen(o => !o)}>
-                  <span className="filtros-panel-title"><SlidersHorizontal size={14} /> Filtros</span>
-                  <ChevronDown size={16} className={`filtros-panel-chevron${filtrosOpen ? ' open' : ''}`} />
-                </button>
-                {filtrosOpen && (
-                  <div className="metas-filter-bar">
-                    <div style={{ width: 170 }}>
-                      <Select value={filtros.tipo} onChange={v => setFiltros(f => ({ ...f, tipo: v }))} options={FILTRO_TIPO_OPTS} searchPlaceholder="Buscar tipo…" />
-                    </div>
-                    <div style={{ width: 190 }}>
-                      <Select value={filtros.categoria} onChange={v => setFiltros(f => ({ ...f, categoria: v, indicador: '' }))} options={FILTRO_CATEGORIA_OPTS} />
-                    </div>
-                    <div style={{ width: 190 }}>
-                      <Select
-                        value={filtros.indicador} onChange={v => setFiltros(f => ({ ...f, indicador: v }))}
-                        options={indicadorFiltroOpts} disabled={!filtros.categoria} searchPlaceholder="Buscar indicador…"
-                      />
-                    </div>
-                    <div style={{ width: 170 }}>
-                      <Select value={filtros.status} onChange={v => setFiltros(f => ({ ...f, status: v }))} options={FILTRO_STATUS_OPTS} />
-                    </div>
-                  </div>
-                )}
-              </div>
-
+          {/* ── Tabela ─────────────────────────────────────────────────── */}
+          <div className="mgt-table-card">
+            <div className="mgt-table-wrap">
               {loading ? (
-                <p className="chart-empty">Carregando…</p>
+                <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--text-muted, #6B7280)', fontSize: 14 }}>Carregando…</div>
               ) : (
-                <MetaTable metas={lista.data} onOpen={abrirDetalhe} empresaNome={empresaNome} />
+                <table className="mgt-table">
+                  <thead>
+                    <tr>
+                      <th>EMPRESA</th>
+                      <th>POSTO</th>
+                      <th>INDICADOR</th>
+                      <th style={{ textAlign: 'right' }}>META (R$)</th>
+                      <th style={{ textAlign: 'right' }}>REALIZADO (R$)</th>
+                      <th style={{ minWidth: 140 }}>%</th>
+                      <th>RESPONSÁVEL</th>
+                      <th>STATUS</th>
+                      <th>PERÍODO</th>
+                      <th style={{ textAlign: 'center', width: 52 }}>AÇÕES</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {lista.data.length === 0 ? (
+                      <tr>
+                        <td colSpan={10} style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted, #6B7280)', fontSize: 14 }}>
+                          Nenhuma meta encontrada
+                        </td>
+                      </tr>
+                    ) : lista.data.map(m => (
+                      <tr key={m.id} className="mgt-tr" onDoubleClick={() => abrirDetalhe(m)}>
+                        <td className="mgt-td-empresa">{empresaNome || '—'}</td>
+                        <td className="mgt-td-ref">{m.referencia || m.tipo || '—'}</td>
+                        <td className="mgt-td-indicador">{indicadorLabel(m.categoria, m.indicador)}</td>
+                        <td className="mgt-td-num">{fmtBRL.format(m.valorMeta)}</td>
+                        <td className="mgt-td-num">{fmtBRL.format(m.valorAtual)}</td>
+                        <td><BarraPercentual pct={m.percentual} /></td>
+                        <td className="mgt-td-resp">{m.responsavel || '—'}</td>
+                        <td><StatusBadge status={m.status} /></td>
+                        <td className="mgt-td-periodo">{fmtPeriodo(m.dataFinal)}</td>
+                        <td style={{ textAlign: 'center' }}>
+                          <button className="mgt-acoes-btn" onClick={e => openAcoes(e, m)} title="Ações">
+                            <span>⋮</span>
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               )}
+            </div>
 
-              {lista.totalPages > 1 && (
-                <div className="pagination">
-                  <button className="page-btn" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page <= 1}>‹</button>
-                  {Array.from({ length: lista.totalPages }, (_, i) => i + 1).map(p => (
-                    <button key={p} className={`page-btn${p === page ? ' active' : ''}`} onClick={() => setPage(p)}>{p}</button>
+            {/* ── Paginação ────────────────────────────────────────────── */}
+            {lista.total > 0 && (
+              <div className="mgt-pagination">
+                <span className="mgt-pag-info">
+                  Mostrando {from} a {to} de {lista.total} registros
+                </span>
+                <div className="mgt-pag-btns">
+                  <button className="mgt-pag-btn" onClick={() => setPage(1)}  disabled={page <= 1}>«</button>
+                  <button className="mgt-pag-btn" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page <= 1}>‹</button>
+                  {pages.map(p => (
+                    <button key={p} className={`mgt-pag-btn${p === page ? ' active' : ''}`} onClick={() => setPage(p)}>{p}</button>
                   ))}
-                  <button className="page-btn" onClick={() => setPage(p => Math.min(lista.totalPages, p + 1))} disabled={page >= lista.totalPages}>›</button>
+                  <button className="mgt-pag-btn" onClick={() => setPage(p => Math.min(lista.totalPages, p + 1))} disabled={page >= lista.totalPages}>›</button>
+                  <button className="mgt-pag-btn" onClick={() => setPage(lista.totalPages)} disabled={page >= lista.totalPages}>»</button>
                 </div>
-              )}
-            </div>
-
-            <div className="metas-alertas-col">
-              <div className="param-group alertas-panel">
-                <h3 className="gu-title" style={{ fontSize: 15, padding: '16px 20px 4px' }}>Alertas</h3>
-                <AlertaSecao titulo="🚨 Metas vencidas" itens={alertasVencidas} critico onOpen={abrirDetalhe} vazio="Nenhuma meta vencida." />
-                <AlertaSecao titulo="⚠️ Vencendo em breve" itens={alertasVencendo} onOpen={abrirDetalhe} vazio="Nada vencendo nos próximos dias." />
-                <AlertaSecao titulo="🏆 Concluídas recentemente" itens={alertasConcluidasRecentes} onOpen={abrirDetalhe} vazio="Nenhuma conclusão recente." />
-                <AlertaSecao titulo="📉 Abaixo de 50%" itens={alertasAbaixo50} onOpen={abrirDetalhe} vazio="Nenhuma meta abaixo de 50%." ultimo />
+                <div className="mgt-pag-perpage">
+                  <select value={perPage} onChange={e => { setPerPage(Number(e.target.value)); setPage(1); }}>
+                    {PER_PAGE_OPTS.map(n => <option key={n} value={n}>{n} por página</option>)}
+                  </select>
+                </div>
               </div>
-            </div>
-          </div>
-
-          {/* ── Linha 6 — Indicadores estratégicos ────────────────────── */}
-          <div className="gu-kpis" style={{ marginTop: 20 }}>
-            <div className="gu-kpi" style={{ cursor: topResponsavel ? 'pointer' : 'default' }} onClick={() => topResponsavel && setFiltros(f => ({ ...f, responsavel: topResponsavel.nome }))}>
-              <div className="gu-kpi-icon" style={{ background: 'var(--color-primary-light)', color: 'var(--color-primary)' }}><Crown size={20} /></div>
-              <div><p className="gu-kpi-label">Top responsável</p><p className="gu-kpi-value" style={{ fontSize: 16 }}>{topResponsavel?.nome || '—'}</p></div>
-            </div>
-            <div className="gu-kpi">
-              <div className="gu-kpi-icon" style={{ background: 'var(--color-success-light)', color: 'var(--color-success)' }}><Trophy size={20} /></div>
-              <div><p className="gu-kpi-label">Melhor departamento</p><p className="gu-kpi-value" style={{ fontSize: 16 }}>{deptoMelhor?.categoria || '—'}</p></div>
-            </div>
-            <div className="gu-kpi">
-              <div className="gu-kpi-icon" style={{ background: 'var(--color-error-light)', color: 'var(--color-error)' }}><TrendingDown size={20} /></div>
-              <div><p className="gu-kpi-label">Departamento a atenção</p><p className="gu-kpi-value" style={{ fontSize: 16 }}>{deptoPior?.categoria || '—'}</p></div>
-            </div>
-            <div className="gu-kpi" style={{ cursor: metaProximaVencimento ? 'pointer' : 'default' }} onClick={() => metaProximaVencimento && abrirDetalhe(metaProximaVencimento)}>
-              <div className="gu-kpi-icon" style={{ background: 'var(--color-warning-light)', color: 'var(--color-warning)' }}><CalendarClock size={20} /></div>
-              <div><p className="gu-kpi-label">Vence em breve</p><p className="gu-kpi-value" style={{ fontSize: 16 }}>{metaProximaVencimento?.nome || '—'}</p></div>
-            </div>
+            )}
           </div>
         </>
+      )}
+
+      {/* ── Context menu ações ─────────────────────────────────────────── */}
+      {acoesMeta && (
+        <div style={{ position: 'fixed', left: acoesMeta.x, top: acoesMeta.y, zIndex: 500 }}>
+          <AcoesMenu
+            meta={acoesMeta.meta}
+            onVer={() => abrirDetalhe(acoesMeta.meta)}
+            onEditar={() => { setEditingMeta(acoesMeta.meta); setFormOpen(true); }}
+            onExcluir={() => handleExcluir(acoesMeta.meta)}
+            onClose={() => setAcoesMeta(null)}
+          />
+        </div>
       )}
 
       {formOpen && (
@@ -481,35 +524,12 @@ export default function Metas({ empresa, empresaNome, user, onNavigate }) {
           isAdmin={isAdmin}
           currentUser={currentUser}
           onClose={() => setDetailMeta(null)}
-          onEdit={(meta) => { setDetailMeta(null); setEditingMeta(meta); setFormOpen(true); }}
+          onEdit={meta => { setDetailMeta(null); setEditingMeta(meta); setFormOpen(true); }}
           onDelete={handleExcluir}
           onLancarResultado={handleLancarResultado}
           onComentar={handleComentar}
         />
       )}
     </main>
-  );
-}
-
-function AlertaSecao({ titulo, itens, onOpen, vazio, critico, ultimo }) {
-  return (
-    <div className={`alerta-secao${ultimo ? '' : ' alerta-secao-divider'}`}>
-      <div className="alerta-secao-titulo">{titulo} {itens.length > 0 && <span className="alerta-secao-count">{itens.length}</span>}</div>
-      {itens.length === 0 ? (
-        <p className="notif-empty" style={{ padding: '6px 20px 14px' }}>{vazio}</p>
-      ) : (
-        <div className="alerta-secao-lista">
-          {itens.slice(0, 5).map(m => (
-            <button
-              key={m.id} className={`alerta-item${critico ? ' critico' : ''}`}
-              onClick={() => onOpen(m)}
-            >
-              <span className="alerta-item-nome">{m.nome}</span>
-              <span className="alerta-item-sub">{m.responsavel || 'Sem responsável'} · {m.percentual}%</span>
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
   );
 }
