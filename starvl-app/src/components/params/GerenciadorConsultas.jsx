@@ -12,10 +12,19 @@ import Portal from '../../Portal';
 const CATEGORIAS = ['Dashboard', 'Indicadores', 'Relatórios', 'Cards', 'Gráficos', 'Listagens', 'Outros'];
 
 const DASHBOARD_SLOTS = [
-  { value: '',                label: '— Nenhum (card extra ao final) —' },
-  { value: 'top5_convenio',   label: 'Banner Top 5 Conveniência' },
-  { value: 'vendas_diarias',  label: 'Gráfico Vendas Diárias' },
-  { value: 'vendas_horarias', label: 'Gráfico Vendas por Hora' },
+  { value: '',                 label: '— Nenhum —' },
+  // Banner
+  { value: 'top5_convenio',   label: '🏆 Banner Top 5 Conveniência' },
+  // KPI Cards
+  { value: 'kpi_vendas',      label: '📊 KPI — Vendas Totais' },
+  { value: 'kpi_combustivel', label: '⛽ KPI — Combustível' },
+  { value: 'kpi_conveniencia',label: '🛒 KPI — Conveniência' },
+  { value: 'kpi_compras_comb',label: '🚛 KPI — Compras Combustível' },
+  { value: 'kpi_compras_conv',label: '📦 KPI — Compras Conveniência' },
+  { value: 'kpi_afericoes',   label: '🔧 KPI — Aferições' },
+  // Gráficos (futuramente)
+  { value: 'vendas_diarias',  label: '📈 Gráfico Vendas Diárias' },
+  { value: 'vendas_horarias', label: '⏱ Gráfico Vendas por Hora' },
 ];
 
 const CAT_COLORS = {

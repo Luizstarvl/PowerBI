@@ -49,6 +49,22 @@ function mapToTopProdutos(result) {
   }));
 }
 
+// Mapeia primeira linha de resultado genérico para estrutura { valor, total, litros, qtd }
+function mapKpiRow(result) {
+  if (!result?.ok || !result.rows?.length) return null;
+  const row  = result.rows[0];
+  const cols = result.columns || [];
+  const num  = cols.filter(c => row[c] !== null && row[c] !== undefined && !isNaN(Number(row[c])));
+  const col  = pattern => cols.find(c => new RegExp(`^(${pattern})$`, 'i').test(c));
+  const val  = c => c ? Number(row[c] ?? 0) : undefined;
+  return {
+    valor:  val(col('valor|value|total_valor')) ?? (num[0] ? Number(row[num[0]]) : 0),
+    total:  val(col('total|total_vendas|count')) ?? (num[1] ? Number(row[num[1]]) : undefined),
+    litros: val(col('litros|volume|lts')),
+    qtd:    val(col('qtd|quantidade|qty')),
+  };
+}
+
 function lastMonths(n = 6) {
   const now = new Date();
   return Array.from({ length: n }, (_, i) => {
@@ -137,6 +153,12 @@ function TopProdutosBanner({ dados, loading }) {
       </div>
 
       <div className="tpb-stage">
+        {n > 1 && (
+          <button className="tpb-nav tpb-nav--prev" onClick={() => setFeatured(f => (f - 1 + n) % n)} aria-label="Anterior">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+          </button>
+        )}
+
         {offsets.map(offset => {
           const idx      = ((featured + offset) % n + n) % n;
           const item     = dados[idx];
@@ -208,6 +230,12 @@ function TopProdutosBanner({ dados, loading }) {
             </div>
           );
         })}
+
+        {n > 1 && (
+          <button className="tpb-nav tpb-nav--next" onClick={() => setFeatured(f => (f + 1) % n)} aria-label="Próximo">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+        )}
       </div>
 
       <div className="tpb-dots">
@@ -228,6 +256,7 @@ export default function Dashboard({ empresas, period, onNavigate }) {
   const [topProdutos, setTopProdutos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [slotLoading, setSlotLoading] = useState(false);
+  const [slotKpiData, setSlotKpiData] = useState({});
   const [erro, setErro] = useState('');
   const [dashQueries, setDashQueries] = useState([]);
 
@@ -246,6 +275,25 @@ export default function Dashboard({ empresas, period, onNavigate }) {
     () => Object.fromEntries(dashQueries.filter(q => q.slot).map(q => [q.slot, q])),
     [dashQueries]
   );
+
+  // Effect para KPI slots — busca em paralelo todos os KPIs configurados
+  useEffect(() => {
+    if (!empresasKey || !selectedPeriod) return;
+    const KPI_KEYS = ['kpi_vendas','kpi_combustivel','kpi_conveniencia','kpi_compras_comb','kpi_compras_conv','kpi_afericoes'];
+    const active = KPI_KEYS.filter(k => slotMap[k]);
+    if (!active.length) return;
+    let cancelado = false;
+    const qs = buildSlotQs(empresasKey, selectedPeriod);
+    Promise.all(active.map(k =>
+      apiFetch(`/api/queries/execute/${slotMap[k].codigo}?${qs}`)
+        .then(r => r.json())
+        .then(d => [k, mapKpiRow(d)])
+        .catch(() => [k, null])
+    )).then(entries => {
+      if (!cancelado) setSlotKpiData(Object.fromEntries(entries.filter(([, v]) => v)));
+    });
+    return () => { cancelado = true; };
+  }, [slotMap, empresasKey, selectedPeriod]);
 
   // Effect separado para dados de widgets vinculados a slots
   useEffect(() => {
@@ -321,12 +369,25 @@ export default function Dashboard({ empresas, period, onNavigate }) {
       {empresasKey && !erro && (
         <>
           <div className="kpi-grid">
-            <KpiCard icon={ShoppingCart} label="Vendas totais" value={loading ? '—' : currency.format(kpis?.vendas.valor || 0)} sub={loading ? '' : `${number.format(kpis?.vendas.total || 0)} vendas`} />
-            <KpiCard icon={Fuel}         label="Combustível"   value={loading ? '—' : currency.format(kpis?.combustivel.valor || 0)} sub={loading ? '' : `${number.format(kpis?.combustivel.litros || 0)} L`} />
-            <KpiCard icon={Package}      label="Conveniência"  value={loading ? '—' : currency.format(kpis?.conveniencia.valor || 0)} sub={loading ? '' : `${number.format(kpis?.conveniencia.total || 0)} vendas`} />
-            <KpiCard icon={Truck}        label="Compras combustível" value={loading ? '—' : currency.format(kpis?.comprasComb.valor || 0)} />
-            <KpiCard icon={Boxes}        label="Compras conveniência" value={loading ? '—' : currency.format(kpis?.comprasConv.valor || 0)} />
-            <KpiCard icon={Gauge}        label="Aferições" value={loading ? '—' : number.format(kpis?.afericoes.total || 0)} sub={loading ? '' : `${number.format(kpis?.afericoes.qtd || 0)} un.`} />
+            {(() => {
+              // Helper: usa dado do slot quando configurado, caso contrário usa API principal
+              const kpi = (slotKey, apiObj) => slotKpiData[slotKey] || apiObj || {};
+              const v = (slotKey, apiObj) => kpi(slotKey, apiObj);
+              const vendas    = v('kpi_vendas',      kpis?.vendas);
+              const comb      = v('kpi_combustivel', kpis?.combustivel);
+              const conv      = v('kpi_conveniencia',kpis?.conveniencia);
+              const compComb  = v('kpi_compras_comb',kpis?.comprasComb);
+              const compConv  = v('kpi_compras_conv',kpis?.comprasConv);
+              const afer      = v('kpi_afericoes',   kpis?.afericoes);
+              return (<>
+                <KpiCard icon={ShoppingCart} label="Vendas totais"        value={loading ? '—' : currency.format(vendas.valor || 0)}   sub={loading ? '' : `${number.format(vendas.total || 0)} vendas`} />
+                <KpiCard icon={Fuel}         label="Combustível"           value={loading ? '—' : currency.format(comb.valor   || 0)}   sub={loading ? '' : `${number.format(comb.litros  || comb.total || 0)} L`} />
+                <KpiCard icon={Package}      label="Conveniência"          value={loading ? '—' : currency.format(conv.valor   || 0)}   sub={loading ? '' : `${number.format(conv.total   || 0)} vendas`} />
+                <KpiCard icon={Truck}        label="Compras combustível"   value={loading ? '—' : currency.format(compComb.valor || 0)} />
+                <KpiCard icon={Boxes}        label="Compras conveniência"  value={loading ? '—' : currency.format(compConv.valor || 0)} />
+                <KpiCard icon={Gauge}        label="Aferições"             value={loading ? '—' : number.format(afer.total || 0)}       sub={loading ? '' : `${number.format(afer.qtd || 0)} un.`} />
+              </>);
+            })()}
           </div>
 
           <TopProdutosBanner dados={topProdutos} loading={loading || slotLoading} />
