@@ -2114,6 +2114,43 @@ select.themed-select option {
 .tpb-badge--4 { background: rgba(192,132,252,.18); color: #d8b4fe; }
 .tpb-badge--5 { background: rgba(244,114,182,.18); color: #f9a8d4; }
 
+/* Centro de cards que não são 1° lugar */
+.tpb-center-rank {
+  font-size: 14px; font-weight: 800; letter-spacing: .04em;
+  color: rgba(255,255,255,.6);
+  margin-bottom: 6px; line-height: 1;
+}
+
+/* 1° lugar em destaque: glow dourado pulsante */
+.tpb-rank1 {
+  animation: tpb-rank1-glow 2s ease-in-out infinite alternate !important;
+}
+@keyframes tpb-rank1-glow {
+  from { box-shadow: 0 0 40px rgba(255,107,0,.4), 0 0 80px rgba(255,107,0,.12); }
+  to   { box-shadow: 0 0 55px rgba(255,215,0,.65), 0 0 100px rgba(255,165,0,.22), 0 0 0 2px rgba(255,215,0,.4); }
+}
+
+/* Estrelas flutuantes (1° lugar) */
+.tpb-stars {
+  position: absolute; inset: 0;
+  pointer-events: none; border-radius: 14px;
+  overflow: visible;
+}
+.tpb-star {
+  position: absolute;
+  color: #ffd700; opacity: 0;
+  animation: tpb-star-rise 2.6s ease-in-out infinite;
+}
+.tpb-star-0 { font-size: 11px; left: 14%; bottom: 28%; animation-delay: 0s; }
+.tpb-star-1 { font-size:  9px; right: 11%; bottom: 32%; animation-delay: 1s; }
+.tpb-star-2 { font-size: 13px; left: 58%; bottom: 18%; animation-delay: 1.9s; }
+@keyframes tpb-star-rise {
+  0%   { opacity: 0; transform: translateY(0) rotate(0deg) scale(.6); }
+  25%  { opacity: 1; }
+  80%  { opacity: .7; }
+  100% { opacity: 0; transform: translateY(-46px) rotate(18deg) scale(1.1); }
+}
+
 /* Dots */
 .tpb-dots {
   display: flex; align-items: center; justify-content: center; gap: 6px;

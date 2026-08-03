@@ -78,13 +78,15 @@ const RANK_GRAD = [
 ];
 
 const TPB_SIZES = [
-  { w: 164, avatar: 76,  avatarFs: 30, nameFs: 12, qtyFs: 22, badgeFs: 9,  nameMt: 10, qtyMt: 6,  badgeMt: 8,  pad: '14px 12px 12px' },
-  { w: 130, avatar: 52,  avatarFs: 19, nameFs: 10, qtyFs: 15, badgeFs: 8,  nameMt: 8,  qtyMt: 4,  badgeMt: 6,  pad: '12px 8px 10px'  },
-  { w: 100, avatar: 42,  avatarFs: 15, nameFs: 9,  qtyFs: 11, badgeFs: 7,  nameMt: 6,  qtyMt: 3,  badgeMt: 5,  pad: '10px 6px 8px'   },
+  { w: 164, avatar: 76, avatarFs: 30, nameFs: 12, qtyFs: 22, badgeFs: 9, nameMt: 10, qtyMt: 6, badgeMt: 8, pad: '14px 12px 12px' },
+  { w: 130, avatar: 52, avatarFs: 19, nameFs: 10, qtyFs: 15, badgeFs: 8, nameMt: 8,  qtyMt: 4, badgeMt: 6, pad: '12px 8px 10px'  },
 ];
 
 function TopProdutosBanner({ dados, loading }) {
   const [featured, setFeatured] = useState(0);
+
+  // Reseta posição sempre que os dados mudarem (troca de período)
+  useEffect(() => { setFeatured(0); }, [dados]);
 
   useEffect(() => {
     if (!dados || dados.length < 2) return;
@@ -107,7 +109,8 @@ function TopProdutosBanner({ dados, loading }) {
   );
 
   const n = dados.length;
-  const spread = Math.min(2, Math.floor((n - 1) / 2));
+  // spread = 1: apenas 3 cards visíveis (-1, 0, +1) — evita o bug de teleporte
+  const spread = n >= 3 ? 1 : Math.floor((n - 1) / 2);
   const offsets = Array.from({ length: 2 * spread + 1 }, (_, i) => i - spread);
 
   return (
@@ -121,34 +124,45 @@ function TopProdutosBanner({ dados, loading }) {
 
       <div className="tpb-stage">
         {offsets.map(offset => {
-          const idx   = ((featured + offset) % n + n) % n;
-          const item  = dados[idx];
-          const rank  = idx + 1;
-          const abs   = Math.abs(offset);
+          const idx      = ((featured + offset) % n + n) % n;
+          const item     = dados[idx];
+          const rank     = idx + 1;
+          const abs      = Math.abs(offset);
           const isCenter = offset === 0;
-          const sz    = TPB_SIZES[Math.min(abs, 2)];
+          const isFirst  = isCenter && rank === 1;
+          const sz       = TPB_SIZES[abs] || TPB_SIZES[1];
 
           return (
             <div
               key={rank}
-              className={`tpb-card${isCenter ? ' tpb-featured' : ''}`}
+              className={`tpb-card${isCenter ? ' tpb-featured' : ''}${isFirst ? ' tpb-rank1' : ''}`}
               style={{
                 width: sz.w,
                 padding: sz.pad,
-                opacity: isCenter ? 1 : abs === 1 ? 0.72 : 0.42,
+                opacity: isCenter ? 1 : 0.72,
                 transform: `translateX(calc(-50% + ${offset * 158}px)) translateY(-50%) rotateY(${-offset * 33}deg) translateZ(${-abs * 72}px)`,
-                zIndex: 10 - abs,
+                zIndex: isCenter ? 10 : 9,
               }}
               onClick={isCenter ? undefined : () => setFeatured(idx)}
             >
-              {isCenter ? (
+              {/* Estrelas flutuantes: só para 1° lugar no centro */}
+              {isFirst && (
+                <div className="tpb-stars" aria-hidden="true">
+                  <span className="tpb-star tpb-star-0">✦</span>
+                  <span className="tpb-star tpb-star-1">★</span>
+                  <span className="tpb-star tpb-star-2">✦</span>
+                </div>
+              )}
+
+              {/* Coroa: só para 1° lugar no centro | número do rank nos demais */}
+              {isCenter && rank === 1 ? (
                 <div className="tpb-crown">
                   <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
                     <path d="M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11H5zm14 3a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-1h14v1z"/>
                   </svg>
                 </div>
               ) : (
-                <div className="tpb-side-rank">{rank}°</div>
+                <div className={isCenter ? 'tpb-center-rank' : 'tpb-side-rank'}>{rank}°</div>
               )}
 
               <div
@@ -156,7 +170,7 @@ function TopProdutosBanner({ dados, loading }) {
                 style={{
                   width: sz.avatar, height: sz.avatar, fontSize: sz.avatarFs,
                   background: RANK_GRAD[(rank - 1) % RANK_GRAD.length],
-                  boxShadow: isCenter ? '0 0 24px rgba(255,140,0,.5)' : 'none',
+                  boxShadow: isFirst ? '0 0 28px rgba(255,180,0,.6)' : isCenter ? '0 0 22px rgba(255,140,0,.45)' : 'none',
                 }}
               >
                 {item.name.charAt(0).toUpperCase()}
@@ -170,7 +184,7 @@ function TopProdutosBanner({ dados, loading }) {
               </div>
               <div
                 className={`tpb-badge tpb-badge--${rank}`}
-                style={{ fontSize: sz.badgeFs, marginTop: sz.badgeMt, padding: abs === 2 ? '2px 6px' : '3px 9px' }}
+                style={{ fontSize: sz.badgeFs, marginTop: sz.badgeMt, padding: '3px 9px' }}
               >
                 {rank}° Lugar
               </div>
@@ -196,6 +210,7 @@ export default function Dashboard({ empresas, period, onNavigate }) {
   const [vendasHorarias, setVendasHorarias] = useState([]);
   const [topProdutos, setTopProdutos] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [slotLoading, setSlotLoading] = useState(false);
   const [erro, setErro] = useState('');
   const [dashQueries, setDashQueries] = useState([]);
 
@@ -221,11 +236,13 @@ export default function Dashboard({ empresas, period, onNavigate }) {
     const top5Q = slotMap.top5_convenio;
     if (!top5Q) return;
     let cancelado = false;
+    setSlotLoading(true);
     const qs = buildSlotQs(empresasKey, selectedPeriod);
     apiFetch(`/api/queries/execute/${top5Q.codigo}?${qs}`)
       .then(r => r.json())
       .then(d => { if (!cancelado) setTopProdutos(mapToTopProdutos(d)); })
-      .catch(() => { if (!cancelado) setTopProdutos([]); });
+      .catch(() => { if (!cancelado) setTopProdutos([]); })
+      .finally(() => { if (!cancelado) setSlotLoading(false); });
     return () => { cancelado = true; };
   }, [slotMap, empresasKey, selectedPeriod]);
 
@@ -286,8 +303,6 @@ export default function Dashboard({ empresas, period, onNavigate }) {
 
       {empresasKey && !erro && (
         <>
-          <TopProdutosBanner dados={topProdutos} loading={loading} />
-
           <div className="kpi-grid">
             <KpiCard icon={ShoppingCart} label="Vendas totais" value={loading ? '—' : currency.format(kpis?.vendas.valor || 0)} sub={loading ? '' : `${number.format(kpis?.vendas.total || 0)} vendas`} />
             <KpiCard icon={Fuel}         label="Combustível"   value={loading ? '—' : currency.format(kpis?.combustivel.valor || 0)} sub={loading ? '' : `${number.format(kpis?.combustivel.litros || 0)} L`} />
@@ -296,6 +311,8 @@ export default function Dashboard({ empresas, period, onNavigate }) {
             <KpiCard icon={Boxes}        label="Compras conveniência" value={loading ? '—' : currency.format(kpis?.comprasConv.valor || 0)} />
             <KpiCard icon={Gauge}        label="Aferições" value={loading ? '—' : number.format(kpis?.afericoes.total || 0)} sub={loading ? '' : `${number.format(kpis?.afericoes.qtd || 0)} un.`} />
           </div>
+
+          <TopProdutosBanner dados={topProdutos} loading={loading || slotLoading} />
 
           <div className="chart-grid">
             <div className="chart-card">
