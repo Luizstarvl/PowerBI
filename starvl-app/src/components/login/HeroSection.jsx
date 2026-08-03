@@ -5,10 +5,7 @@ export default function HeroSection() {
   return (
     <div className="login-hero">
       <div className="login-hero-brand reveal reveal-1">
-        <div className="login-logo-wrap">
-          <Logo className="login-hero-logo" variant="dark" />
-          <span className="login-logo-neon" aria-hidden="true" />
-        </div>
+        <Logo className="login-hero-logo" variant="dark" />
       </div>
       <h1 className="login-hero-title reveal reveal-2">
         Controle completo<br /><span>do seu posto.</span>
