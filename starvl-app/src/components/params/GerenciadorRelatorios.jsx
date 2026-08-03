@@ -334,7 +334,7 @@ export default function GerenciadorRelatorios({ user }) {
           {/* Tabela */}
           {result.ok && view === 'table' && displayRows.length > 0 && (
             <div style={{ overflow: 'auto', maxHeight: 440 }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+              <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, fontSize: 12 }}>
                 <thead>
                   <tr>
                     {result.columns.map(col => (
@@ -343,7 +343,7 @@ export default function GerenciadorRelatorios({ user }) {
                         background: 'var(--color-bg-secondary)',
                         padding: '7px 14px', textAlign: 'left', fontWeight: 700,
                         color: 'var(--color-text-secondary)',
-                        borderBottom: '2px solid var(--color-primary)',
+                        boxShadow: '0 2px 0 var(--color-primary)',
                         whiteSpace: 'nowrap',
                       }}>
                         {col}
