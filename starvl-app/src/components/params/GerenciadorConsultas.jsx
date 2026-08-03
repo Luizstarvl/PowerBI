@@ -128,6 +128,90 @@ function ModalHistorico({ queryId, queryNome, onClose }) {
   );
 }
 
+// ── Helpers de parâmetros ─────────────────────────────────────────────────────
+function detectParams(sql) {
+  const re = /\{\{\s*(\w+)\s*\}\}/g;
+  const found = new Set();
+  let m;
+  while ((m = re.exec(sql)) !== null) found.add(m[1]);
+  return [...found];
+}
+
+function autoDefaultValue(name) {
+  const n = name.toLowerCase();
+  const today = new Date();
+  const yyyy  = today.getFullYear();
+  const mm    = String(today.getMonth() + 1).padStart(2, '0');
+  const dd    = String(today.getDate()).padStart(2, '0');
+  if (n === 'hoje' || n === 'data' || n === 'data_hoje') return `${yyyy}-${mm}-${dd}`;
+  if (n === 'data_inicio' || n === 'datainicio')         return `${yyyy}-${mm}-01`;
+  if (n.includes('data_fim') || n === 'datafim')         return `${yyyy}-${mm}-${dd}`;
+  if (n === 'mes' || n === 'mes_atual')                  return String(today.getMonth() + 1);
+  if (n === 'ano' || n === 'ano_atual')                  return String(yyyy);
+  if (n === 'periodo')                                   return `${mm}${yyyy}`;
+  return '';
+}
+
+function paramLabel(name) {
+  const map = {
+    empresa: 'Código da empresa (ex: 7432)',
+    empresa_id: 'Código da empresa',
+    cod_empresa: 'Código da empresa',
+    hoje: 'Data de hoje (AAAA-MM-DD)',
+    data: 'Data (AAAA-MM-DD)',
+    data_inicio: 'Data início (AAAA-MM-DD)',
+    data_fim: 'Data fim (AAAA-MM-DD)',
+    mes: 'Mês (1–12)',
+    ano: 'Ano (AAAA)',
+    periodo: 'Período (MMAAAA)',
+  };
+  return map[name.toLowerCase()] || name;
+}
+
+// ── Modal de preenchimento de parâmetros ──────────────────────────────────────
+function ParamInputModal({ params, onConfirm, onCancel }) {
+  const [values, setValues] = useState(() =>
+    Object.fromEntries(params.map(p => [p, autoDefaultValue(p)]))
+  );
+  function set(k, v) { setValues(prev => ({ ...prev, [k]: v })); }
+  const allFilled = params.every(p => String(values[p] ?? '').trim() !== '');
+  return (
+    <div className="modal-overlay" onClick={onCancel}>
+      <div className="modal" style={{ maxWidth: 420, minWidth: 320 }} onClick={e => e.stopPropagation()}>
+        <h3 className="modal-title">Parâmetros da consulta</h3>
+        <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <p style={{ fontSize: 13, color: 'var(--color-text-muted)', margin: 0 }}>
+            Preencha os valores para <strong style={{ color: 'var(--color-text)' }}>{'{{param}}'}</strong> encontrados na SQL.
+          </p>
+          {params.map(p => (
+            <div className="form-field" key={p} style={{ margin: 0 }}>
+              <label style={{ fontSize: 12 }}>
+                <code style={{ background: 'var(--color-bg)', padding: '1px 5px', borderRadius: 4, fontSize: 11 }}>{`{{${p}}}`}</code>
+                {'  '}{paramLabel(p)}
+              </label>
+              <input
+                type="text"
+                autoFocus={params[0] === p}
+                value={values[p] ?? ''}
+                onChange={e => set(p, e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && allFilled) onConfirm(values); }}
+                placeholder={autoDefaultValue(p) || `valor de ${p}`}
+                autoComplete="off"
+              />
+            </div>
+          ))}
+        </div>
+        <div className="modal-footer">
+          <button className="btn-ghost" onClick={onCancel}>Cancelar</button>
+          <button className="btn-primary" onClick={() => onConfirm(values)} disabled={!allFilled}>
+            ▶ Executar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Modal Formulário (criar / editar) ──────────────────────────────────────────
 function ModalQueryForm({ query, conexoes, onSave, onClose }) {
   const editando = !!query;
@@ -141,26 +225,37 @@ function ModalQueryForm({ query, conexoes, onSave, onClose }) {
     ativa:     query?.ativa     !== false,
     motivo:    '',
   });
-  const [erro,     setErro]     = useState('');
-  const [loading,  setLoading]  = useState(false);
-  const [testing,  setTesting]  = useState(false);
-  const [testRes,  setTestRes]  = useState(null);
+  const [erro,       setErro]       = useState('');
+  const [loading,    setLoading]    = useState(false);
+  const [testing,    setTesting]    = useState(false);
+  const [testRes,    setTestRes]    = useState(null);
+  const [paramModal, setParamModal] = useState(null); // null | string[] (lista de params pendentes)
   const [fullscreen, setFullscreen] = useState(false);
   const isDark = document.documentElement.dataset.theme !== 'light';
 
   function set(f, v) { setForm(p => ({ ...p, [f]: v })); }
 
-  async function handleTest() {
+  async function runTest(params = {}) {
+    setParamModal(null);
     setTesting(true); setTestRes(null);
     try {
       const res  = await apiFetch('/api/queries/test-sql', {
         method: 'POST',
-        body: JSON.stringify({ sql: form.sql, bancoId: form.bancoId }),
+        body: JSON.stringify({ sql: form.sql, bancoId: form.bancoId, params }),
       });
       const data = await res.json();
       setTestRes(data);
     } catch { setTestRes({ ok: false, error: 'Erro ao comunicar com o servidor.' }); }
     finally { setTesting(false); }
+  }
+
+  function handleTest() {
+    const params = detectParams(form.sql);
+    if (params.length > 0) {
+      setParamModal(params); // abre modal de preenchimento
+    } else {
+      runTest();
+    }
   }
 
   async function handleSave() {
@@ -289,7 +384,9 @@ function ModalQueryForm({ query, conexoes, onSave, onClose }) {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
               <label style={{ margin: 0 }}>SQL</label>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                <span style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>Apenas SELECT e WITH são permitidos</span>
+                <span style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>
+                  Apenas SELECT e WITH · use <code style={{ background: 'var(--color-bg)', padding: '1px 4px', borderRadius: 3 }}>{'{{param}}'}</code> para valores dinâmicos
+                </span>
                 <button
                   type="button"
                   className="btn-outline-sm"
@@ -327,6 +424,17 @@ function ModalQueryForm({ query, conexoes, onSave, onClose }) {
           </button>
         </div>
       </div>
+
+      {/* Modal de preenchimento de parâmetros */}
+      {paramModal && (
+        <Portal>
+          <ParamInputModal
+            params={paramModal}
+            onConfirm={values => runTest(values)}
+            onCancel={() => setParamModal(null)}
+          />
+        </Portal>
+      )}
     </div>
   );
 }

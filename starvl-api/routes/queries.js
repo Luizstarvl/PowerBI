@@ -319,13 +319,14 @@ router.post('/:id/test', requireAuth, requireAdmin, async (req, res) => {
 
 // ── POST /test-sql — testa SQL avulsa (usada no editor antes de salvar) ────────
 router.post('/test-sql', requireAuth, requireAdmin, async (req, res) => {
-  const { sql, bancoId } = req.body;
+  const { sql, bancoId, params } = req.body;
   if (!sql?.trim())  return res.status(400).json({ ok: false, error: 'SQL é obrigatória.' });
   if (!bancoId)      return res.status(400).json({ ok: false, error: 'Selecione uma conexão de banco.' });
 
   try {
     validateSQL(sql);
-    const result = await executeOnConnection(sql, bancoId);
+    const finalSql = params && typeof params === 'object' ? applyParams(sql, params) : sql;
+    const result = await executeOnConnection(finalSql, bancoId);
     res.json({ ok: true, ...result });
   } catch (err) {
     res.json({ ok: false, error: err.message });
