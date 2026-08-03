@@ -2333,6 +2333,49 @@ select.themed-select option {
 [data-theme="light"] .tpb-dot { background: rgba(30,10,0,.22); }
 [data-theme="light"] .tpb-dot.on { background: #ff6b00; }
 
+/* Content wrapper for card animation */
+.tpb-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  position: relative;
+}
+
+/* Center-card content entrance: slide + scale (GPU only) */
+.tpb-inner--fwd {
+  animation: tpb-content-fwd 560ms cubic-bezier(.25,.46,.45,.94) both;
+}
+.tpb-inner--bwd {
+  animation: tpb-content-bwd 560ms cubic-bezier(.25,.46,.45,.94) both;
+}
+
+@keyframes tpb-content-fwd {
+  from { transform: translateX(30px) scale(0.97); }
+  to   { transform: none; }
+}
+@keyframes tpb-content-bwd {
+  from { transform: translateX(-30px) scale(0.97); }
+  to   { transform: none; }
+}
+
+/* Stagger fade-in for each child element inside entering card */
+.tpb-inner--fwd > *,
+.tpb-inner--bwd > * {
+  animation: tpb-child-in 480ms cubic-bezier(.25,.46,.45,.94) both;
+}
+.tpb-inner--fwd > *:nth-child(1), .tpb-inner--bwd > *:nth-child(1) { animation-delay:   0ms; }
+.tpb-inner--fwd > *:nth-child(2), .tpb-inner--bwd > *:nth-child(2) { animation-delay:  50ms; }
+.tpb-inner--fwd > *:nth-child(3), .tpb-inner--bwd > *:nth-child(3) { animation-delay: 100ms; }
+.tpb-inner--fwd > *:nth-child(4), .tpb-inner--bwd > *:nth-child(4) { animation-delay: 150ms; }
+.tpb-inner--fwd > *:nth-child(5), .tpb-inner--bwd > *:nth-child(5) { animation-delay: 200ms; }
+.tpb-inner--fwd > *:nth-child(6), .tpb-inner--bwd > *:nth-child(6) { animation-delay: 240ms; }
+
+@keyframes tpb-child-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: none; }
+}
+
 /* Canvas de confetes — cobre todo o banner atrás dos cards */
 .tpb-confetti {
   position: absolute;

@@ -265,7 +265,7 @@ function ConfettiCanvas() {
       w:     4 + Math.random() * 5,
       h:     3 + Math.random() * 4,
       color: CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)],
-      vy:    0.8 + Math.random() * 1.6,
+      vy:    0.42 + Math.random() * 0.72,
       vx:    (Math.random() - 0.5) * 1.0,
       rot:   Math.random() * Math.PI * 2,
       drot:  (Math.random() - 0.5) * 0.07,
@@ -309,6 +309,8 @@ function TopProdutosBanner({ dados, loading }) {
   const n = dados?.length ?? 0;
   const [featured, setFeatured] = useState(0);
   const [noTransRank, setNoTransRank] = useState(null);
+  const [direction, setDirection] = useState(1);
+  const [navGen, setNavGen] = useState(0);
   const timerRef   = useRef(null);
   const featuredRef = useRef(0);
 
@@ -319,15 +321,14 @@ function TopProdutosBanner({ dados, loading }) {
   const spread = n >= 5 ? 2 : n >= 3 ? 1 : Math.max(0, n - 1);
 
   function doNavigate(dir, prev) {
+    setDirection(dir);
+    setNavGen(g => g + 1);
     const next = (prev + dir + n) % n;
     if (spread >= 2) {
-      // Identifica o rank que iria "teleportar" de uma extremidade à outra
       const wrapOffset = dir > 0 ? -spread : spread;
       const wrapIdx    = ((prev + wrapOffset) % n + n) % n;
-      // Desabilita transição de transform para esse rank no mesmo render que muda featured
       setNoTransRank(wrapIdx + 1);
       setFeatured(next);
-      // Reabilita após dois frames (card já está na nova posição sem animação)
       requestAnimationFrame(() => requestAnimationFrame(() => setNoTransRank(null)));
     } else {
       setFeatured(next);
@@ -398,6 +399,50 @@ function TopProdutosBanner({ dados, loading }) {
           const sz       = TPB_SIZES[abs] || TPB_SIZES[2];
           const skipTrans = noTransRank === rank;
 
+          const innerContent = (
+            <>
+              {isFirst && (
+                <div className="tpb-stars" aria-hidden="true">
+                  <span className="tpb-star tpb-star-0">✦</span>
+                  <span className="tpb-star tpb-star-1">★</span>
+                  <span className="tpb-star tpb-star-2">✦</span>
+                  <span className="tpb-star tpb-star-3">✦</span>
+                  <span className="tpb-star tpb-star-4">★</span>
+                  <span className="tpb-star tpb-star-5">✦</span>
+                </div>
+              )}
+              {rank === 1 ? (
+                <div className="tpb-crown">{CROWN_SVG}</div>
+              ) : (
+                <div className={isCenter ? 'tpb-center-rank' : 'tpb-side-rank'}>{rank}°</div>
+              )}
+              <div
+                className="tpb-avatar"
+                style={{
+                  width: sz.avatar, height: sz.avatar, fontSize: sz.avatarFs,
+                  background: RANK_GRAD[(rank - 1) % RANK_GRAD.length],
+                  boxShadow: isFirst
+                    ? '0 0 28px rgba(255,180,0,.6)'
+                    : isCenter ? '0 0 22px rgba(255,140,0,.45)' : 'none',
+                }}
+              >
+                {item.name.charAt(0).toUpperCase()}
+              </div>
+              <div className="tpb-card-name" style={{ fontSize: sz.nameFs, marginTop: sz.nameMt }}>
+                {item.name}
+              </div>
+              <div className="tpb-card-qty" style={{ fontSize: sz.qtyFs, marginTop: sz.qtyMt }}>
+                {number.format(Math.round(item.qty))} <small>un.</small>
+              </div>
+              <div
+                className={`tpb-badge tpb-badge--${rank}`}
+                style={{ fontSize: sz.badgeFs, marginTop: sz.badgeMt, padding: '3px 9px' }}
+              >
+                {rank}° Lugar
+              </div>
+            </>
+          );
+
           return (
             <div
               key={rank}
@@ -413,50 +458,24 @@ function TopProdutosBanner({ dados, loading }) {
                   : 'transform .5s cubic-bezier(.25,.46,.45,.94), opacity .4s ease, box-shadow .4s',
                 cursor: isCenter ? 'default' : 'pointer',
               }}
-              onClick={() => { if (!isCenter) { setFeatured(idx); startTimer(); } }}
+              onClick={() => {
+                if (!isCenter) {
+                  setDirection(offset > 0 ? 1 : -1);
+                  setNavGen(g => g + 1);
+                  setFeatured(idx);
+                  startTimer();
+                }
+              }}
             >
-              {isFirst && (
-                <div className="tpb-stars" aria-hidden="true">
-                  <span className="tpb-star tpb-star-0">✦</span>
-                  <span className="tpb-star tpb-star-1">★</span>
-                  <span className="tpb-star tpb-star-2">✦</span>
-                  <span className="tpb-star tpb-star-3">✦</span>
-                  <span className="tpb-star tpb-star-4">★</span>
-                  <span className="tpb-star tpb-star-5">✦</span>
+              {isCenter ? (
+                <div key={navGen} className={`tpb-inner tpb-inner--${direction > 0 ? 'fwd' : 'bwd'}`}>
+                  {innerContent}
+                </div>
+              ) : (
+                <div className="tpb-inner">
+                  {innerContent}
                 </div>
               )}
-
-              {rank === 1 ? (
-                <div className="tpb-crown">{CROWN_SVG}</div>
-              ) : (
-                <div className={isCenter ? 'tpb-center-rank' : 'tpb-side-rank'}>{rank}°</div>
-              )}
-
-              <div
-                className="tpb-avatar"
-                style={{
-                  width: sz.avatar, height: sz.avatar, fontSize: sz.avatarFs,
-                  background: RANK_GRAD[(rank - 1) % RANK_GRAD.length],
-                  boxShadow: isFirst
-                    ? '0 0 28px rgba(255,180,0,.6)'
-                    : isCenter ? '0 0 22px rgba(255,140,0,.45)' : 'none',
-                }}
-              >
-                {item.name.charAt(0).toUpperCase()}
-              </div>
-
-              <div className="tpb-card-name" style={{ fontSize: sz.nameFs, marginTop: sz.nameMt }}>
-                {item.name}
-              </div>
-              <div className="tpb-card-qty" style={{ fontSize: sz.qtyFs, marginTop: sz.qtyMt }}>
-                {number.format(Math.round(item.qty))} <small>un.</small>
-              </div>
-              <div
-                className={`tpb-badge tpb-badge--${rank}`}
-                style={{ fontSize: sz.badgeFs, marginTop: sz.badgeMt, padding: '3px 9px' }}
-              >
-                {rank}° Lugar
-              </div>
             </div>
           );
         })}
@@ -469,7 +488,14 @@ function TopProdutosBanner({ dados, loading }) {
             <button
               key={i}
               className={`tpb-dot${featured === i ? ' on' : ''}`}
-              onClick={() => { setFeatured(i); startTimer(); }}
+              onClick={() => {
+                if (i !== featured) {
+                  setDirection(i > featured ? 1 : -1);
+                  setNavGen(g => g + 1);
+                  setFeatured(i);
+                  startTimer();
+                }
+              }}
               aria-label={`Ir para ${i + 1}°`}
             />
           ))}
