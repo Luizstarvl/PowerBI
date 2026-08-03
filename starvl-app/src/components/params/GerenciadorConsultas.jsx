@@ -611,9 +611,10 @@ export default function GerenciadorConsultas({ user }) {
   const [loading,   setLoading]   = useState(true);
   const [modal,     setModal]     = useState(null);   // null | { query? }
   const [histModal, setHistModal] = useState(null);   // null | { id, nome }
-  const [testRes,   setTestRes]   = useState(null);
-  const [testingId, setTestingId] = useState(null);
-  const [ctxMenu,   setCtxMenu]   = useState(null);  // null | { x, y, query }
+  const [testRes,       setTestRes]       = useState(null);
+  const [testingId,     setTestingId]     = useState(null);
+  const [testParamModal,setTestParamModal]= useState(null); // null | { query, params[] }
+  const [ctxMenu,       setCtxMenu]       = useState(null);  // null | { x, y, query }
   const [filtro,    setFiltro]    = useState('');
   const [filtCat,   setFiltCat]   = useState('');
   const [filtAtiva, setFiltAtiva] = useState('');
@@ -654,10 +655,41 @@ export default function GerenciadorConsultas({ user }) {
   async function handleTest(q) {
     setTestingId(q.id); setTestRes(null);
     try {
-      const res  = await apiFetch(`/api/queries/${q.id}/test`, { method: 'POST' });
-      const data = await res.json();
-      setTestRes({ queryId: q.id, queryNome: q.nome, ...data });
+      // Busca SQL completa para detectar params (listagem omite SQL por performance)
+      const fetchRes = await apiFetch(`/api/queries/${q.id}`);
+      const fullQ    = await fetchRes.json();
+      if (!fetchRes.ok) {
+        setTestRes({ queryId: q.id, queryNome: q.nome, ok: false, error: fullQ.error || 'Erro ao buscar consulta.' });
+        return;
+      }
+      const params = detectParams(fullQ.sql || '');
+      if (params.length > 0) {
+        setTestingId(null);
+        setTestParamModal({ query: { id: q.id, sql: fullQ.sql, bancoId: fullQ.bancoId, nome: q.nome }, params });
+      } else {
+        const res  = await apiFetch(`/api/queries/${q.id}/test`, { method: 'POST' });
+        const data = await res.json();
+        setTestRes({ queryId: q.id, queryNome: q.nome, ...data });
+      }
     } catch { setTestRes({ queryId: q.id, queryNome: q.nome, ok: false, error: 'Erro de comunicação.' }); }
+    finally { setTestingId(null); }
+  }
+
+  async function runTestWithParams(values) {
+    const { query } = testParamModal;
+    setTestParamModal(null);
+    setTestingId(query.id); setTestRes(null);
+    try {
+      const converted = Object.fromEntries(
+        Object.entries(values).map(([k, v]) => [k, isDateParam(k) ? toISODate(v) : v])
+      );
+      const res  = await apiFetch('/api/queries/test-sql', {
+        method: 'POST',
+        body: JSON.stringify({ sql: query.sql, bancoId: query.bancoId, params: converted }),
+      });
+      const data = await res.json();
+      setTestRes({ queryId: query.id, queryNome: query.nome, ...data });
+    } catch { setTestRes({ queryId: query.id, queryNome: query.nome, ok: false, error: 'Erro de comunicação.' }); }
     finally { setTestingId(null); }
   }
 
@@ -868,6 +900,15 @@ export default function GerenciadorConsultas({ user }) {
             conexoes={conexoes}
             onSave={handleSaved}
             onClose={() => setModal(null)}
+          />
+        </Portal>
+      )}
+      {testParamModal && (
+        <Portal>
+          <ParamInputModal
+            params={testParamModal.params}
+            onConfirm={values => runTestWithParams(values)}
+            onCancel={() => { setTestParamModal(null); setTestingId(null); }}
           />
         </Portal>
       )}
