@@ -3,9 +3,10 @@
  * Editor profissional de consultas SQL para o módulo de Parâmetros.
  * Monaco Editor (VSCode) · Validação de segurança · Histórico de versões
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Editor from '@monaco-editor/react';
 import { apiFetch } from '../../api';
+import Portal from '../../Portal';
 
 // ── Constantes ─────────────────────────────────────────────────────────────────
 const CATEGORIAS = ['Dashboard', 'Indicadores', 'Relatórios', 'Cards', 'Gráficos', 'Listagens', 'Outros'];
@@ -394,6 +395,74 @@ function TestResultPanel({ result }) {
   );
 }
 
+// ── Context Menu ───────────────────────────────────────────────────────────────
+function CtxMenuQuery({ x, y, query, isAdmin, onClose, onIncluir, onEditar, onExecutar, onHistorico, onDuplicar, onExcluir }) {
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    if (rect.right  > window.innerWidth)  el.style.left = `${x - rect.width}px`;
+    if (rect.bottom > window.innerHeight) el.style.top  = `${y - rect.height}px`;
+  }, [x, y]);
+
+  useEffect(() => {
+    const onDown = e => { if (!ref.current?.contains(e.target)) onClose(); };
+    const onKey  = e => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown',   onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown',   onKey);
+    };
+  }, [onClose]);
+
+  return (
+    <Portal>
+      <div ref={ref} className="ctx-menu" style={{ position: 'fixed', left: x, top: y, zIndex: 9999 }}>
+        {isAdmin && (
+          <button className="ctx-item" onClick={() => { onIncluir(); onClose(); }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Incluir
+          </button>
+        )}
+        {query && (
+          <>
+            {query.bancoId && query.ativa && (
+              <button className="ctx-item" onClick={() => { onExecutar(); onClose(); }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                Executar
+              </button>
+            )}
+            <button className="ctx-item" onClick={() => { onHistorico(); onClose(); }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><polyline points="12 7 12 12 15 15"/></svg>
+              Histórico
+            </button>
+            {isAdmin && (
+              <>
+                <button className="ctx-item" onClick={() => { onEditar(); onClose(); }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                  Alterar
+                </button>
+                <button className="ctx-item" onClick={() => { onDuplicar(); onClose(); }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                  Duplicar
+                </button>
+                <div className="ctx-divider" />
+                <button className="ctx-item danger" onClick={() => { onExcluir(); onClose(); }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+                  Excluir
+                </button>
+              </>
+            )}
+          </>
+        )}
+      </div>
+    </Portal>
+  );
+}
+
 // ── Componente principal ───────────────────────────────────────────────────────
 export default function GerenciadorConsultas({ user }) {
   const [queries,   setQueries]   = useState([]);
@@ -403,6 +472,7 @@ export default function GerenciadorConsultas({ user }) {
   const [histModal, setHistModal] = useState(null);   // null | { id, nome }
   const [testRes,   setTestRes]   = useState(null);
   const [testingId, setTestingId] = useState(null);
+  const [ctxMenu,   setCtxMenu]   = useState(null);  // null | { x, y, query }
   const [filtro,    setFiltro]    = useState('');
   const [filtCat,   setFiltCat]   = useState('');
   const [filtAtiva, setFiltAtiva] = useState('');
@@ -468,6 +538,12 @@ export default function GerenciadorConsultas({ user }) {
     setModal(null);
   }
 
+  function openCtxMenu(e, q = null) {
+    e.preventDefault();
+    e.stopPropagation();
+    setCtxMenu({ x: e.clientX, y: e.clientY, query: q });
+  }
+
   const conexaoNome = (id) => conexoes.find(c => c.id === id)?.nome || '—';
 
   return (
@@ -528,7 +604,7 @@ export default function GerenciadorConsultas({ user }) {
       )}
 
       {/* Tabela */}
-      <div className="param-card">
+      <div className="param-card" onContextMenu={e => openCtxMenu(e, null)}>
         <div className="param-table-wrap">
           {loading ? (
             <div style={{ padding: 32, textAlign: 'center' }}><Spin size={22} /></div>
@@ -556,7 +632,7 @@ export default function GerenciadorConsultas({ user }) {
               </thead>
               <tbody>
                 {queries.map(q => (
-                  <tr key={q.id}>
+                  <tr key={q.id} onContextMenu={e => openCtxMenu(e, q)}>
                     <td>
                       <code style={{ fontSize: 12, background: 'var(--color-bg-secondary)', padding: '2px 7px', borderRadius: 5, fontFamily: 'monospace', color: 'var(--color-primary)' }}>
                         {q.codigo}
@@ -645,18 +721,39 @@ export default function GerenciadorConsultas({ user }) {
 
       {/* Modais */}
       {modal !== null && (
-        <ModalQueryForm
-          query={modal.query || null}
-          conexoes={conexoes}
-          onSave={handleSaved}
-          onClose={() => setModal(null)}
-        />
+        <Portal>
+          <ModalQueryForm
+            query={modal.query || null}
+            conexoes={conexoes}
+            onSave={handleSaved}
+            onClose={() => setModal(null)}
+          />
+        </Portal>
       )}
       {histModal && (
-        <ModalHistorico
-          queryId={histModal.id}
-          queryNome={histModal.nome}
-          onClose={() => setHistModal(null)}
+        <Portal>
+          <ModalHistorico
+            queryId={histModal.id}
+            queryNome={histModal.nome}
+            onClose={() => setHistModal(null)}
+          />
+        </Portal>
+      )}
+
+      {/* Context Menu */}
+      {ctxMenu && (
+        <CtxMenuQuery
+          x={ctxMenu.x}
+          y={ctxMenu.y}
+          query={ctxMenu.query}
+          isAdmin={user?.perfil === 'admin'}
+          onClose={() => setCtxMenu(null)}
+          onIncluir={() => setModal({})}
+          onEditar={() => openEdit(ctxMenu.query)}
+          onExecutar={() => handleTest(ctxMenu.query)}
+          onHistorico={() => setHistModal({ id: ctxMenu.query.id, nome: ctxMenu.query.nome })}
+          onDuplicar={() => handleDuplicate(ctxMenu.query)}
+          onExcluir={() => handleDelete(ctxMenu.query)}
         />
       )}
     </div>
