@@ -138,14 +138,15 @@ function detectParams(sql) {
 }
 
 function autoDefaultValue(name) {
-  const n = name.toLowerCase();
+  const n     = name.toLowerCase();
   const today = new Date();
   const yyyy  = today.getFullYear();
   const mm    = String(today.getMonth() + 1).padStart(2, '0');
   const dd    = String(today.getDate()).padStart(2, '0');
-  if (n === 'hoje' || n === 'data' || n === 'data_hoje') return `${yyyy}-${mm}-${dd}`;
-  if (n === 'data_inicio' || n === 'datainicio')         return `${yyyy}-${mm}-01`;
-  if (n.includes('data_fim') || n === 'datafim')         return `${yyyy}-${mm}-${dd}`;
+  if (n === 'hoje' || n === 'data' || n === 'data_hoje') return `${dd}-${mm}-${yyyy}`;
+  if (n === 'data_inicio' || n === 'datainicio')         return `01-${mm}-${yyyy}`;
+  if (n.includes('data_fim') || n === 'datafim'
+   || n === 'data_final'     || n === 'datafinal')       return `${dd}-${mm}-${yyyy}`;
   if (n === 'mes' || n === 'mes_atual')                  return String(today.getMonth() + 1);
   if (n === 'ano' || n === 'ano_atual')                  return String(yyyy);
   if (n === 'periodo')                                   return `${mm}${yyyy}`;
@@ -154,18 +155,29 @@ function autoDefaultValue(name) {
 
 function paramLabel(name) {
   const map = {
-    empresa: 'Código da empresa (ex: 7432)',
-    empresa_id: 'Código da empresa',
+    empresa:     'Código da empresa (ex: 7432)',
+    empresa_id:  'Código da empresa',
     cod_empresa: 'Código da empresa',
-    hoje: 'Data de hoje (AAAA-MM-DD)',
-    data: 'Data (AAAA-MM-DD)',
-    data_inicio: 'Data início (AAAA-MM-DD)',
-    data_fim: 'Data fim (AAAA-MM-DD)',
-    mes: 'Mês (1–12)',
-    ano: 'Ano (AAAA)',
-    periodo: 'Período (MMAAAA)',
+    hoje:        'Data de hoje (DD-MM-AAAA)',
+    data:        'Data (DD-MM-AAAA)',
+    data_inicio: 'Data início (DD-MM-AAAA)',
+    data_fim:    'Data fim (DD-MM-AAAA)',
+    data_final:  'Data final (DD-MM-AAAA)',
+    mes:         'Mês (1–12)',
+    ano:         'Ano (AAAA)',
+    periodo:     'Período (MMAAAA)',
   };
   return map[name.toLowerCase()] || name;
+}
+
+function isDateParam(name) {
+  const n = name.toLowerCase();
+  return n.includes('data') || n === 'hoje' || n === 'date';
+}
+
+function toISODate(value) {
+  const m = String(value).match(/^(\d{2})-(\d{2})-(\d{4})$/);
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : value;
 }
 
 // ── Modal de preenchimento de parâmetros ──────────────────────────────────────
@@ -247,9 +259,12 @@ function ModalQueryForm({ query, conexoes, onSave, onClose }) {
     setParamModal(null);
     setTesting(true); setTestRes(null);
     try {
+      const converted = Object.fromEntries(
+        Object.entries(params).map(([k, v]) => [k, isDateParam(k) ? toISODate(v) : v])
+      );
       const res  = await apiFetch('/api/queries/test-sql', {
         method: 'POST',
-        body: JSON.stringify({ sql: form.sql, bancoId: form.bancoId, params }),
+        body: JSON.stringify({ sql: form.sql, bancoId: form.bancoId, params: converted }),
       });
       const data = await res.json();
       setTestRes(data);

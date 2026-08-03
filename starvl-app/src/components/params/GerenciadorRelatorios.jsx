@@ -27,9 +27,10 @@ function autoDefault(name) {
   const yy = d.getFullYear();
   const mm = String(d.getMonth() + 1).padStart(2, '0');
   const dd = String(d.getDate()).padStart(2, '0');
-  if (n === 'data_inicio' || n === 'datainicio') return `${yy}-${mm}-01`;
-  if (n === 'data_fim'    || n === 'datafim')    return `${yy}-${mm}-${dd}`;
-  if (n === 'data'        || n === 'hoje')       return `${yy}-${mm}-${dd}`;
+  if (n === 'data_inicio' || n === 'datainicio') return `01-${mm}-${yy}`;
+  if (n === 'data_fim'    || n === 'datafim'
+   || n === 'data_final'  || n === 'datafinal')  return `${dd}-${mm}-${yy}`;
+  if (n === 'data'        || n === 'hoje')       return `${dd}-${mm}-${yy}`;
   if (n === 'mes'         || n === 'mes_atual')  return String(d.getMonth() + 1);
   if (n === 'ano'         || n === 'ano_atual')  return String(yy);
   if (n === 'periodo')                           return `${mm}${yy}`;
@@ -40,14 +41,26 @@ function paramLabel(name) {
   const map = {
     empresa:    'Empresa (código)',
     empresa_id: 'Empresa (código)',
-    data:       'Data (AAAA-MM-DD)',
-    data_inicio:'Data início (AAAA-MM-DD)',
-    data_fim:   'Data fim (AAAA-MM-DD)',
+    data:       'Data (DD-MM-AAAA)',
+    data_inicio:'Data início (DD-MM-AAAA)',
+    data_fim:   'Data fim (DD-MM-AAAA)',
+    data_final: 'Data final (DD-MM-AAAA)',
     mes:        'Mês (1–12)',
     ano:        'Ano (AAAA)',
     periodo:    'Período (MMAAAA)',
   };
   return map[name.toLowerCase()] || name;
+}
+
+// Converte DD-MM-AAAA → AAAA-MM-DD antes de enviar ao PostgreSQL
+function toISODate(value) {
+  const m = String(value).match(/^(\d{2})-(\d{2})-(\d{4})$/);
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : value;
+}
+
+function isDateParam(name) {
+  const n = name.toLowerCase();
+  return n.includes('data') || n === 'hoje' || n === 'date';
 }
 
 function Spin({ size = 14 }) {
@@ -160,7 +173,10 @@ export default function GerenciadorRelatorios({ user }) {
     if (!selQuery) return;
     setExecuting(true); setResult(null);
     try {
-      const qs  = new URLSearchParams(params).toString();
+      const converted = Object.fromEntries(
+        Object.entries(params).map(([k, v]) => [k, isDateParam(k) ? toISODate(v) : v])
+      );
+      const qs  = new URLSearchParams(converted).toString();
       const url = `/api/queries/execute/${selQuery.codigo}${qs ? '?' + qs : ''}`;
       const res = await apiFetch(url);
       const data = await res.json();
