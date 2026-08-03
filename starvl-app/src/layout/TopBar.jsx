@@ -29,9 +29,22 @@ export default function TopBar({ user, clients, selectedClient, onClientChange, 
 
   return (
     <header className="topbar">
-      {/* Left: brand + company selector */}
+      {/* Left: brand only */}
       <div className="topbar-brand">
         <Logo className="topbar-brand-logo" />
+      </div>
+
+      {/* Center: search + company selector */}
+      <div className="topbar-center">
+        <div className="topbar-search">
+          <span className="topbar-search-icon"><Search size={13} strokeWidth={2.5} /></span>
+          <input
+            className="topbar-search-input"
+            type="text"
+            placeholder="Buscar…"
+          />
+        </div>
+
         {clients.length > 1 ? (
           <select
             className="topbar-select"
@@ -45,19 +58,9 @@ export default function TopBar({ user, clients, selectedClient, onClientChange, 
               <option key={c.codigoEmpresa} value={c.codigoEmpresa}>{c.nome}</option>
             ))}
           </select>
-        ) : (
-          <span className="topbar-client">{selectedClient?.nome}</span>
-        )}
-      </div>
-
-      {/* Center: global search */}
-      <div className="topbar-search">
-        <span className="topbar-search-icon"><Search size={13} strokeWidth={2.5} /></span>
-        <input
-          className="topbar-search-input"
-          type="text"
-          placeholder="Buscar…"
-        />
+        ) : selectedClient?.nome ? (
+          <span className="topbar-client">{selectedClient.nome}</span>
+        ) : null}
       </div>
 
       {/* Right: controls */}
