@@ -5,7 +5,7 @@ import {
 } from 'recharts';
 import { ShoppingCart, Fuel, Package, Truck, Boxes, Gauge } from 'lucide-react';
 import { KpiCard } from '../components/ui';
-import QueryWidget from '../components/dashboard/QueryWidget';
+
 import { CHART_COLORS } from '../theme/tokens';
 import { apiFetch } from '../api';
 
@@ -315,38 +315,6 @@ export default function Dashboard({ empresas, period, onNavigate }) {
             </div>
           </div>
 
-          {/* Consultas personalizadas: queries com categoria Dashboard mas sem slot vinculado */}
-          {dashQueries.filter(q => !q.slot).length > 0 && (
-            <div style={{ marginTop: 24 }}>
-              <div style={{
-                display: 'flex', alignItems: 'center', gap: 10,
-                marginBottom: 16, paddingBottom: 10,
-                borderBottom: '1px solid var(--color-border)',
-              }}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <ellipse cx="12" cy="5" rx="9" ry="3"/>
-                  <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
-                  <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
-                </svg>
-                <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '.05em' }}>
-                  Consultas Personalizadas
-                </span>
-              </div>
-              {(() => { const extras = dashQueries.filter(q => !q.slot); return (
-              <div className="chart-grid" style={{ gridTemplateColumns: extras.length === 1 ? '1fr' : undefined }}>
-                {extras.map(q => (
-                  <QueryWidget
-                    key={q.codigo}
-                    codigo={q.codigo}
-                    titulo={q.nome}
-                    empresas={empresas}
-                    selectedPeriod={selectedPeriod}
-                  />
-                ))}
-              </div>
-              ); })()}
-            </div>
-          )}
         </>
       )}
     </main>
