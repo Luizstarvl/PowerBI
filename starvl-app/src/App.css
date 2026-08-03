@@ -2179,6 +2179,39 @@ select.themed-select option {
   100% { opacity: 0; transform: translate(40px,-48px)   scale(1.2); }
 }
 
+/* Setas de navegação */
+.tpb-nav {
+  position: absolute; top: 50%; transform: translateY(-50%);
+  z-index: 30; width: 38px; height: 38px; border-radius: 50%;
+  border: 1px solid rgba(255,255,255,.13); background: rgba(15,7,0,.65);
+  color: rgba(255,255,255,.6); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .22s, border-color .22s, color .22s, transform .22s;
+  font-size: 18px; line-height: 1;
+}
+.tpb-nav:hover {
+  background: rgba(255,107,0,.22); border-color: rgba(255,107,0,.5);
+  color: #ff9840; transform: translateY(-50%) scale(1.1);
+}
+[data-theme="light"] .tpb-nav { background: rgba(30,10,0,.55); border-color: rgba(255,255,255,.2); }
+[data-theme="light"] .tpb-nav:hover { background: rgba(255,107,0,.28); border-color: rgba(255,107,0,.6); }
+.tpb-nav--prev { left: 10px; }
+.tpb-nav--next { right: 10px; }
+
+/* Dots de posição */
+.tpb-dots {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  margin-top: 10px; position: relative; z-index: 5;
+}
+.tpb-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  border: none; background: rgba(255,255,255,.22); cursor: pointer; padding: 0;
+  transition: background .2s, width .25s, border-radius .25s;
+}
+.tpb-dot.on { background: #ff6b00; width: 20px; border-radius: 3px; }
+[data-theme="light"] .tpb-dot { background: rgba(30,10,0,.22); }
+[data-theme="light"] .tpb-dot.on { background: #ff6b00; }
+
 /* Canvas de confetes — cobre todo o banner atrás dos cards */
 .tpb-confetti {
   position: absolute;

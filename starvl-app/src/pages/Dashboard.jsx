@@ -83,10 +83,6 @@ const TPB_SIZES = [
   { w:  94, avatar: 38, avatarFs: 15, nameFs:  9, qtyFs: 11, badgeFs: 7,  nameMt: 6,  qtyMt: 3, badgeMt: 4, pad: '10px 6px 8px'   },
 ];
 
-// Layout estático simétrico: rank 1 sempre no centro, ranks 2-5 espalhados por distância
-// offset -2 → rank 4 (idx 3)  |  -1 → rank 2 (idx 1)  |  0 → rank 1 (idx 0)
-// offset +1 → rank 3 (idx 2)  |  +2 → rank 5 (idx 4)
-const OFFSET_TO_IDX = { '-2': 3, '-1': 1, 0: 0, 1: 2, 2: 4 };
 const OFFSET_X_PX   = { '-2': -284, '-1': -148, 0: 0, 1: 148, 2: 284 };
 const OFFSET_RY_DEG = { '-2': 42,   '-1': 26,   0: 0, 1: -26, 2: -42 };
 const OFFSET_TZ_PX  = { '-2': -108, '-1': -55,  0: 0, 1: -55, 2: -108 };
@@ -104,7 +100,7 @@ function ConfettiCanvas() {
     canvas.height = canvas.offsetHeight || 290;
     const W = canvas.width;
     const H = canvas.height;
-    const particles = Array.from({ length: 60 }, () => ({
+    const particles = Array.from({ length: 36 }, () => ({
       x:     Math.random() * W,
       y:     Math.random() * H - H * 0.6,
       w:     4 + Math.random() * 5,
@@ -151,7 +147,50 @@ const EYEBROW_ICON = (
 );
 
 function TopProdutosBanner({ dados, loading }) {
-  if (loading && (!dados || dados.length === 0)) {
+  const n = dados?.length ?? 0;
+  const [featured, setFeatured] = useState(0);
+  const [noTransRank, setNoTransRank] = useState(null);
+  const timerRef   = useRef(null);
+  const featuredRef = useRef(0);
+
+  useEffect(() => { featuredRef.current = featured; }, [featured]);
+  useEffect(() => { setFeatured(0); setNoTransRank(null); }, [dados]);
+
+  // Calcula o spread: quantos cards de cada lado ficam visíveis
+  const spread = n >= 5 ? 2 : n >= 3 ? 1 : Math.max(0, n - 1);
+
+  function doNavigate(dir, prev) {
+    const next = (prev + dir + n) % n;
+    if (spread >= 2) {
+      // Identifica o rank que iria "teleportar" de uma extremidade à outra
+      const wrapOffset = dir > 0 ? -spread : spread;
+      const wrapIdx    = ((prev + wrapOffset) % n + n) % n;
+      // Desabilita transição de transform para esse rank no mesmo render que muda featured
+      setNoTransRank(wrapIdx + 1);
+      setFeatured(next);
+      // Reabilita após dois frames (card já está na nova posição sem animação)
+      requestAnimationFrame(() => requestAnimationFrame(() => setNoTransRank(null)));
+    } else {
+      setFeatured(next);
+    }
+  }
+
+  function startTimer() {
+    clearInterval(timerRef.current);
+    if (n < 2) return;
+    timerRef.current = setInterval(() => doNavigate(1, featuredRef.current), 3500);
+  }
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { startTimer(); return () => clearInterval(timerRef.current); }, [n]);
+
+  function go(dir) {
+    if (n < 2) return;
+    doNavigate(dir, featured);
+    startTimer();
+  }
+
+  if (loading && n === 0) {
     return (
       <div className="tpb-root tpb-skeleton">
         <div className="tpb-eyebrow">{EYEBROW_ICON} Top 5 Mais Vendidos · Conveniência</div>
@@ -164,7 +203,7 @@ function TopProdutosBanner({ dados, loading }) {
     );
   }
 
-  if (!loading && (!dados || dados.length === 0)) {
+  if (!loading && n === 0) {
     return (
       <div className="tpb-root tpb-root--empty">
         <div className="tpb-eyebrow">{EYEBROW_ICON} Top 5 Mais Vendidos · Conveniência</div>
@@ -173,30 +212,31 @@ function TopProdutosBanner({ dados, loading }) {
     );
   }
 
-  const n = dados.length;
-
-  // Offsets visíveis: rank 1 sempre no centro, demais distribuídos por distância
-  const visibleOffsets = [];
-  if (n >= 4) visibleOffsets.push(-2);
-  if (n >= 2) visibleOffsets.push(-1);
-  visibleOffsets.push(0);
-  if (n >= 3) visibleOffsets.push(1);
-  if (n >= 5) visibleOffsets.push(2);
+  const visibleOffsets = Array.from({ length: 2 * spread + 1 }, (_, i) => i - spread);
 
   return (
     <div className="tpb-root">
       <ConfettiCanvas />
       <div className="tpb-eyebrow">{EYEBROW_ICON} Top 5 Mais Vendidos · Conveniência</div>
 
+      {/* Setas de navegação */}
+      {n >= 2 && (
+        <button className="tpb-nav tpb-nav--prev" onClick={() => go(-1)} aria-label="Anterior">&#8592;</button>
+      )}
+      {n >= 2 && (
+        <button className="tpb-nav tpb-nav--next" onClick={() => go(1)} aria-label="Próximo">&#8594;</button>
+      )}
+
       <div className="tpb-stage">
         {visibleOffsets.map(offset => {
-          const idx      = OFFSET_TO_IDX[offset];
+          const idx      = ((featured + offset) % n + n) % n;
           const item     = dados[idx];
           const rank     = idx + 1;
           const abs      = Math.abs(offset);
           const isCenter = offset === 0;
-          const isFirst  = rank === 1;
+          const isFirst  = isCenter && rank === 1;
           const sz       = TPB_SIZES[abs] || TPB_SIZES[2];
+          const skipTrans = noTransRank === rank;
 
           return (
             <div
@@ -208,7 +248,10 @@ function TopProdutosBanner({ dados, loading }) {
                 opacity:   isCenter ? 1 : abs === 1 ? 0.85 : 0.68,
                 transform: `translateX(calc(-50% + ${OFFSET_X_PX[offset]}px)) translateY(-50%) rotateY(${OFFSET_RY_DEG[offset]}deg) translateZ(${OFFSET_TZ_PX[offset]}px)`,
                 zIndex:    isCenter ? 10 : abs === 1 ? 9 : 8,
-                cursor:    'default',
+                transition: skipTrans
+                  ? 'opacity .4s ease, box-shadow .4s'
+                  : 'transform .5s cubic-bezier(.25,.46,.45,.94), opacity .4s ease, box-shadow .4s',
+                cursor: 'default',
               }}
             >
               {isFirst && (
@@ -257,6 +300,20 @@ function TopProdutosBanner({ dados, loading }) {
           );
         })}
       </div>
+
+      {/* Indicadores de posição */}
+      {n >= 2 && (
+        <div className="tpb-dots">
+          {Array.from({ length: n }, (_, i) => (
+            <button
+              key={i}
+              className={`tpb-dot${featured === i ? ' on' : ''}`}
+              onClick={() => { setFeatured(i); startTimer(); }}
+              aria-label={`Ir para ${i + 1}°`}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
