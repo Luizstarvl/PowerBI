@@ -182,7 +182,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   display: flex; align-items: flex-start;
   padding-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,.10); margin-bottom: 2px;
 }
-.login-hero-logo { height: 150px; }
+.login-hero-logo { height: 90px; }
 .login-hero-title   { font-size: 44px; font-weight: 800; line-height: 1.14; color: #fff; letter-spacing: -.5px; text-wrap: balance; }
 .login-hero-title span { color: #FF6A00; }
 .login-hero-desc    { font-size: 15px; color: #A1A1AA; max-width: 460px; line-height: 1.6; margin-top: 4px; }

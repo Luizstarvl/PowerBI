@@ -1283,6 +1283,24 @@ function AccessDenied() {
   );
 }
 
+function SecaoConsultas({ user }) {
+  const [tab, setTab] = useState('gerenciador');
+  return (
+    <div className="fade-up">
+      <div className="usr-tabnav">
+        <button className={`usr-tab${tab === 'gerenciador' ? ' active' : ''}`} onClick={() => setTab('gerenciador')}>
+          Gerenciador de Consultas
+        </button>
+        <button className={`usr-tab${tab === 'relatorios' ? ' active' : ''}`} onClick={() => setTab('relatorios')}>
+          Gerador de Relatórios
+        </button>
+      </div>
+      {tab === 'gerenciador' && <GerenciadorConsultas user={user} />}
+      {tab === 'relatorios'  && <GerenciadorRelatorios user={user} />}
+    </div>
+  );
+}
+
 export default function Parametros({ themeMode, onThemeModeChange, user }) {
   const { t } = useT();
   const [sub, setSub] = useState('empresas');
@@ -1316,17 +1334,7 @@ export default function Parametros({ themeMode, onThemeModeChange, user }) {
         {sub === 'regional' && <SecaoRegionalizacao />}
         {sub === 'sistema'  && <SecaoSistema themeMode={themeMode} onThemeModeChange={onThemeModeChange} />}
         {sub === 'conexao'  && <SecaoConexao />}
-        {sub === 'consultas' && (
-          <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start', minWidth: 0 }}>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <GerenciadorConsultas user={user} />
-            </div>
-            <div style={{ width: 1, alignSelf: 'stretch', background: 'var(--color-border)', flexShrink: 0 }} />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <GerenciadorRelatorios user={user} />
-            </div>
-          </div>
-        )}
+        {sub === 'consultas' && <SecaoConsultas user={user} />}
       </div>
     </div>
   );
