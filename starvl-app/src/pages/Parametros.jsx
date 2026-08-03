@@ -536,11 +536,19 @@ function SecaoEmpresas() {
         <div className="param-table-wrap">
           {loading ? <p className="rank-empty">{t('carregando')}</p> : (
             <table className="param-table">
-              <thead><tr><th>{t('th_empresa')}</th><th>{t('th_codigo')}</th><th>{t('th_cadastrado')}</th><th style={{ textAlign: 'right' }}>{t('th_acoes')}</th></tr></thead>
+              <thead><tr><th className="th-logo"></th><th>{t('th_empresa')}</th><th>{t('th_codigo')}</th><th>{t('th_cadastrado')}</th><th style={{ textAlign: 'right' }}>{t('th_acoes')}</th></tr></thead>
               <tbody>
-                {clientes.length === 0 ? <tr><td colSpan={4} className="rank-empty">{t('emp_nenhuma')}</td></tr>
+                {clientes.length === 0 ? <tr><td colSpan={5} className="rank-empty">{t('emp_nenhuma')}</td></tr>
                 : clientes.map(c => (
                   <tr key={c.id} className="tr-ctx" onContextMenu={e => { e.stopPropagation(); openCtx(e, c); }}>
+                    <td className="td-logo">
+                      {c.logo
+                        ? <img className="emp-table-logo" src={c.logo} alt={c.nome} />
+                        : <div className="emp-table-logo emp-table-logo--placeholder">
+                            {c.nome ? c.nome.charAt(0).toUpperCase() : '?'}
+                          </div>
+                      }
+                    </td>
                     <td className="gu-username">{c.nome}</td>
                     <td className="td-id">{c.codigoEmpresa}</td>
                     <td style={{ color: 'var(--color-text-muted)', fontSize: 12 }}>{fmtDate(c.criado)}</td>
