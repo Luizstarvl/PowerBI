@@ -61,7 +61,7 @@ function ModalEmpresa({ empresa, onSave, onClose }) {
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal modal--empresa" onClick={e => e.stopPropagation()}>
-        <h3 className="modal-title">{editando ? t('mu_editar') : t('me_titulo')}</h3>
+        <h3 className="modal-title">{editando ? t('me_editar') : t('me_titulo')}</h3>
         <div className="modal-body modal-body--empresa">
           <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleLogoChange} />
           <div className={`emp-logo-zone${logo ? ' emp-logo-zone--filled' : ''}`} onClick={() => fileRef.current?.click()}>

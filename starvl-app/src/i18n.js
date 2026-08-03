@@ -66,6 +66,7 @@ const T = {
     con_personalizada: 'Personalizada',
     con_padrao: 'Padrão',
     // Modal empresa
+    me_editar: 'Editar Empresa',
     me_titulo: 'Nova Empresa',
     me_nome: 'Nome da Empresa',
     me_codigo: 'Código da Empresa',
@@ -232,6 +233,7 @@ const T = {
     th_cadastrado: 'Registered',
     con_personalizada: 'Custom',
     con_padrao: 'Default',
+    me_editar: 'Edit Company',
     me_titulo: 'New Company',
     me_nome: 'Company Name',
     me_codigo: 'Company Code',
@@ -390,6 +392,7 @@ const T = {
     th_cadastrado: 'Registrado',
     con_personalizada: 'Personalizada',
     con_padrao: 'Estándar',
+    me_editar: 'Editar Empresa',
     me_titulo: 'Nueva Empresa',
     me_nome: 'Nombre de la Empresa',
     me_codigo: 'Código de Empresa',

@@ -1294,7 +1294,7 @@ select.themed-select option {
 .emp-logo-zone:hover          { border-color: var(--color-primary); background: var(--color-primary-light); }
 .emp-logo-zone--filled        { border-style: solid; }
 .emp-logo-zone--filled:hover  { border-color: var(--color-primary); }
-.emp-logo-preview-img         { width: 100%; height: 100%; object-fit: contain; padding: 14px; }
+.emp-logo-preview-img         { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; padding: 14px; box-sizing: border-box; }
 .emp-logo-overlay {
   position: absolute; inset: 0; background: rgba(0,0,0,.55);
   display: flex; flex-direction: column; align-items: center; justify-content: center;
