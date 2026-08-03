@@ -1994,6 +1994,156 @@ select.themed-select option {
   .mgt-pagination { flex-direction: column; align-items: flex-start; }
 }
 
+/* ── Top Produtos Banner ─────────────────────────────────────────────────────── */
+.tpb-root {
+  position: relative;
+  background: linear-gradient(160deg, #1a0a02 0%, #0e0e0e 55%, #0a0a0a 100%);
+  border: 1px solid rgba(255,107,0,.18);
+  border-radius: 16px;
+  padding: 22px 16px 16px;
+  margin-bottom: 24px;
+  overflow: hidden;
+}
+.tpb-root::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 50%; transform: translateX(-50%);
+  width: 260px; height: 1px;
+  background: linear-gradient(90deg, transparent, #ff6b00 50%, transparent);
+}
+
+.tpb-eyebrow {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+  color: rgba(255,150,50,.75);
+  margin-bottom: 18px;
+}
+
+/* Stage */
+.tpb-stage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 240px;
+}
+
+/* ── Card base ── */
+.tpb-card {
+  display: flex; flex-direction: column; align-items: center; gap: 0;
+  padding: 12px 8px 10px;
+  border-radius: 14px;
+  background: rgba(255,255,255,.03);
+  border: 1px solid rgba(255,255,255,.07);
+  transition: all .45s cubic-bezier(.4,0,.2,1);
+  cursor: pointer;
+  user-select: none;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+/* Distance variants */
+.tpb-dist-2 {
+  width: 96px; opacity: .38;
+  transform: scale(.72);
+  pointer-events: auto;
+}
+.tpb-dist-1 {
+  width: 120px; opacity: .72;
+  transform: scale(.86);
+}
+.tpb-featured {
+  width: 164px; opacity: 1;
+  transform: scale(1);
+  cursor: default;
+  background: rgba(18,6,0,.75);
+  border: 1.5px solid #ff6b00;
+  box-shadow: 0 0 32px rgba(255,107,0,.32), 0 0 64px rgba(255,107,0,.10);
+}
+
+/* Crown */
+.tpb-crown {
+  color: #ffd700;
+  line-height: 1;
+  margin-bottom: 6px;
+  animation: tpb-crown 2.2s ease-in-out infinite;
+}
+@keyframes tpb-crown {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50%       { transform: translateY(-4px) scale(1.12); }
+}
+
+/* Side rank number */
+.tpb-side-rank {
+  font-size: 11px; font-weight: 800; letter-spacing: .04em;
+  color: rgba(255,255,255,.45);
+  margin-bottom: 6px;
+  line-height: 1;
+}
+
+/* Avatar circle */
+.tpb-avatar {
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 900; color: #fff;
+  text-shadow: 0 1px 4px rgba(0,0,0,.5);
+  flex-shrink: 0;
+  transition: width .45s, height .45s, font-size .45s, box-shadow .45s;
+}
+.tpb-dist-2 .tpb-avatar { width: 42px; height: 42px; font-size: 15px; }
+.tpb-dist-1 .tpb-avatar { width: 52px; height: 52px; font-size: 19px; }
+.tpb-featured .tpb-avatar {
+  width: 76px; height: 76px; font-size: 30px;
+  box-shadow: 0 0 22px rgba(255,140,0,.45);
+}
+
+/* Name */
+.tpb-card-name {
+  font-weight: 700; color: #fff; line-height: 1.2;
+  overflow: hidden; display: -webkit-box;
+  -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  word-break: break-word;
+  transition: font-size .45s, margin-top .45s;
+}
+.tpb-dist-2 .tpb-card-name { font-size: 9px;  margin-top: 6px; }
+.tpb-dist-1 .tpb-card-name { font-size: 10px; margin-top: 8px; }
+.tpb-featured .tpb-card-name { font-size: 12px; margin-top: 10px; }
+
+/* Qty */
+.tpb-card-qty {
+  font-variant-numeric: tabular-nums; font-weight: 800; color: #fff;
+  transition: font-size .45s, margin-top .45s;
+}
+.tpb-dist-2 .tpb-card-qty { font-size: 11px; margin-top: 3px; }
+.tpb-dist-1 .tpb-card-qty { font-size: 13px; margin-top: 4px; }
+.tpb-featured .tpb-card-qty { font-size: 22px; margin-top: 6px; }
+.tpb-card-qty small { font-size: .55em; font-weight: 500; color: rgba(255,255,255,.55); }
+
+/* Rank badge */
+.tpb-badge {
+  margin-top: 8px; padding: 3px 9px; border-radius: 20px;
+  font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em;
+  background: rgba(255,255,255,.07); color: rgba(255,255,255,.5);
+  transition: font-size .45s, margin-top .45s;
+}
+.tpb-dist-2 .tpb-badge { font-size: 7px; margin-top: 5px; padding: 2px 6px; }
+.tpb-dist-1 .tpb-badge { font-size: 8px; margin-top: 6px; }
+.tpb-badge--1 { background: rgba(255,107,0,.28); color: #ff9840; }
+.tpb-badge--2 { background: rgba(96,165,250,.2);  color: #93c5fd; }
+.tpb-badge--3 { background: rgba(74,222,128,.18); color: #86efac; }
+
+/* Dots */
+.tpb-dots {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  margin-top: 14px;
+}
+.tpb-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  border: none; background: rgba(255,255,255,.18); cursor: pointer; padding: 0;
+  transition: background .2s, width .25s, border-radius .25s;
+}
+.tpb-dot.on { background: #ff6b00; width: 20px; border-radius: 3px; }
+
 /* ── EmpresaPicker ─────────────────────────────────────────────────────────── */
 .ep-root { position: relative; flex-shrink: 0; }
 

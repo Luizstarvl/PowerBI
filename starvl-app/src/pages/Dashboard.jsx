@@ -35,12 +35,94 @@ const tooltipStyle = {
   color: 'var(--color-text)',
 };
 
+/* ── Cores dos avatares por rank ─────────────────────────────────────────────── */
+const RANK_GRAD = [
+  'linear-gradient(135deg,#ff8c00,#ff4500)',
+  'linear-gradient(135deg,#60a5fa,#2563eb)',
+  'linear-gradient(135deg,#4ade80,#16a34a)',
+  'linear-gradient(135deg,#c084fc,#7c3aed)',
+  'linear-gradient(135deg,#f472b6,#be185d)',
+];
+
+function TopProdutosBanner({ dados }) {
+  const [featured, setFeatured] = useState(0);
+
+  useEffect(() => {
+    if (!dados || dados.length < 2) return;
+    const id = setInterval(() => setFeatured(f => (f + 1) % dados.length), 4000);
+    return () => clearInterval(id);
+  }, [dados]);
+
+  if (!dados || dados.length === 0) return null;
+
+  const n = dados.length;
+  const half = Math.min(2, Math.floor((n - 1) / 2));
+  const offsets = Array.from({ length: 2 * half + 1 }, (_, i) => i - half);
+
+  const cards = offsets.map(offset => {
+    const idx = ((featured + offset) % n + n) % n;
+    return { ...dados[idx], rank: idx + 1, offset };
+  });
+
+  return (
+    <div className="tpb-root">
+      <div className="tpb-eyebrow">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" style={{ color: '#ff8c00' }}>
+          <path d="M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11H5zm14 3a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-1h14v1z"/>
+        </svg>
+        Top 5 Mais Vendidos · Conveniência
+      </div>
+
+      <div className="tpb-stage">
+        {cards.map(card => {
+          const isCenter = card.offset === 0;
+          const dist = Math.abs(card.offset);
+          return (
+            <div
+              key={`${card.rank}-${card.offset}`}
+              className={`tpb-card tpb-dist-${dist}${isCenter ? ' tpb-featured' : ''}`}
+              onClick={isCenter ? undefined : () => setFeatured(card.rank - 1)}
+            >
+              {isCenter ? (
+                <div className="tpb-crown">
+                  <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+                    <path d="M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11H5zm14 3a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-1h14v1z"/>
+                  </svg>
+                </div>
+              ) : (
+                <div className="tpb-side-rank">{card.rank}°</div>
+              )}
+
+              <div className="tpb-avatar" style={{ background: RANK_GRAD[(card.rank - 1) % RANK_GRAD.length] }}>
+                {card.name.charAt(0).toUpperCase()}
+              </div>
+
+              <div className="tpb-card-name">{card.name}</div>
+              <div className="tpb-card-qty">
+                {number.format(Math.round(card.qty))} <small>un.</small>
+              </div>
+              <div className={`tpb-badge tpb-badge--${card.rank}`}>{card.rank}° Lugar</div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="tpb-dots">
+        {dados.map((_, i) => (
+          <button key={i} className={`tpb-dot${i === featured ? ' on' : ''}`} onClick={() => setFeatured(i)} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function Dashboard({ empresas, period, onNavigate }) {
   const months = useMemo(() => lastMonths(6), []);
   const [selectedPeriod, setSelectedPeriod] = useState(period || months[0].value);
   const [kpis, setKpis] = useState(null);
   const [vendasDiarias, setVendasDiarias] = useState([]);
   const [vendasHorarias, setVendasHorarias] = useState([]);
+  const [topProdutos, setTopProdutos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState('');
 
@@ -59,13 +141,15 @@ export default function Dashboard({ empresas, period, onNavigate }) {
       apiFetch(`/api/dashboard/kpis?${qs}`).then(r => r.json()),
       apiFetch(`/api/dashboard/vendas-diarias-full?${qs}`).then(r => r.json()),
       apiFetch(`/api/dashboard/vendas-horarias?${qs}`).then(r => r.json()),
+      apiFetch(`/api/dashboard/top-convenio?${qs}`).then(r => r.json()),
     ])
-      .then(([kpisData, diariasData, horariasData]) => {
+      .then(([kpisData, diariasData, horariasData, topData]) => {
         if (cancelado) return;
         if (kpisData?.error) throw new Error(kpisData.error);
         setKpis(kpisData);
         setVendasDiarias(Array.isArray(diariasData) ? diariasData : []);
         setVendasHorarias(Array.isArray(horariasData) ? horariasData : []);
+        setTopProdutos(Array.isArray(topData) ? topData : []);
       })
       .catch(() => { if (!cancelado) setErro('Não foi possível carregar os dados do período.'); })
       .finally(() => { if (!cancelado) setLoading(false); });
@@ -97,6 +181,8 @@ export default function Dashboard({ empresas, period, onNavigate }) {
 
       {empresasKey && !erro && (
         <>
+          <TopProdutosBanner dados={topProdutos} />
+
           <div className="kpi-grid">
             <KpiCard icon={ShoppingCart} label="Vendas totais" value={loading ? '—' : currency.format(kpis?.vendas.valor || 0)} sub={loading ? '' : `${number.format(kpis?.vendas.total || 0)} vendas`} />
             <KpiCard icon={Fuel}         label="Combustível"   value={loading ? '—' : currency.format(kpis?.combustivel.valor || 0)} sub={loading ? '' : `${number.format(kpis?.combustivel.litros || 0)} L`} />
