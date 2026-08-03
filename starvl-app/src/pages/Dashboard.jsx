@@ -180,6 +180,8 @@ export default function Dashboard({ empresas, period, onNavigate }) {
       .catch(() => {});
   }, []);
 
+  const empresasKey = (empresas || []).join(',');
+
   // Mapa slot → query para acesso rápido
   const slotMap = useMemo(
     () => Object.fromEntries(dashQueries.filter(q => q.slot).map(q => [q.slot, q])),
@@ -199,8 +201,6 @@ export default function Dashboard({ empresas, period, onNavigate }) {
       .catch(() => { if (!cancelado) setTopProdutos([]); });
     return () => { cancelado = true; };
   }, [slotMap, empresasKey, selectedPeriod]);
-
-  const empresasKey = (empresas || []).join(',');
 
   useEffect(() => {
     if (!empresasKey) return;
