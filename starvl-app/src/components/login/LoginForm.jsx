@@ -27,7 +27,8 @@ export default function LoginForm({ onSubmit, loading, erro }) {
         <div className="login-inputv2-wrap">
           <User size={17} className="login-input-icon" />
           <input
-            type="text" value={usuario} onChange={e => setUsuario(e.target.value)}
+            type="text" value={usuario}
+            onChange={e => { setUsuario(e.target.value); setSenha(''); setShowSenha(false); }}
             placeholder="Digite seu usuário" autoFocus autoComplete="username"
           />
         </div>
