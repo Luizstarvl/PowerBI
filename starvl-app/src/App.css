@@ -688,6 +688,23 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 }
 .form-field-row { flex-direction: row; align-items: center; justify-content: space-between; }
 
+/* Input tema-aware fora de .form-field (filtros, barras de busca) */
+input.themed-input {
+  background: var(--color-background);
+  border: 1.5px solid var(--color-border);
+  border-radius: 9px;
+  padding: 10px 13px;
+  font-size: 14px;
+  color: var(--color-text);
+  outline: none;
+  transition: border-color .15s, box-shadow .15s;
+}
+input.themed-input:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-light);
+}
+input.themed-input::placeholder { color: var(--color-text-muted); }
+
 /* Native select — tema-aware (usado em modais e filtros) */
 .form-field select,
 select.themed-select {
