@@ -38,7 +38,7 @@
   --shadow-xl:      0 20px 25px rgba(18,18,18,0.10), 0 10px 10px rgba(18,18,18,0.04);
 
   --sidebar-w:      240px;
-  --header-h:       90px;
+  --header-h:       72px;
   --ease:           cubic-bezier(0.4, 0, 0.2, 1);
   --ease-out:       cubic-bezier(0, 0, 0.2, 1);
 }
@@ -478,7 +478,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 }
 .topbar-brand { display: flex; align-items: center; gap: 12px; flex-shrink: 0; width: calc(var(--sidebar-w) - 24px); }
 .topbar-center { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
-.topbar-brand-logo { width: 100%; height: auto; display: block; }
+.topbar-brand-logo { height: 50px; width: auto; max-width: 180px; }
 .topbar-logo  { font-size: 17px; font-weight: 800; color: var(--color-primary); letter-spacing: 0.3px; }
 .topbar-divider { width: 1px; height: 20px; background: var(--color-border); }
 .topbar-sub   { font-size: 11px; font-weight: 500; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.8px; }
