@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import Portal from '../Portal';
 import { useT } from '../i18n';
 import { apiFetch } from '../api';
-import GerenciadorConsultas from '../components/params/GerenciadorConsultas';
+import GerenciadorConsultas  from '../components/params/GerenciadorConsultas';
+import GerenciadorRelatorios from '../components/params/GerenciadorRelatorios';
 
 function fmtDate(s) {
   if (!s) return '—';
@@ -1293,7 +1294,8 @@ export default function Parametros({ themeMode, onThemeModeChange, user }) {
     { key: 'regional',   tk: 'param_regional_menu'  },
     { key: 'sistema',    tk: 'param_sistema_menu'   },
     { key: 'conexao',    tk: 'param_conexao_menu'   },
-    { key: 'consultas',  tk: 'param_consultas_menu' },
+    { key: 'consultas',  tk: 'param_consultas_menu'  },
+    { key: 'relatorios', tk: 'param_relatorios_menu' },
   ];
 
   return (
@@ -1315,7 +1317,8 @@ export default function Parametros({ themeMode, onThemeModeChange, user }) {
         {sub === 'regional' && <SecaoRegionalizacao />}
         {sub === 'sistema'  && <SecaoSistema themeMode={themeMode} onThemeModeChange={onThemeModeChange} />}
         {sub === 'conexao'  && <SecaoConexao />}
-        {sub === 'consultas' && <GerenciadorConsultas user={user} />}
+        {sub === 'consultas'  && <GerenciadorConsultas  user={user} />}
+        {sub === 'relatorios' && <GerenciadorRelatorios user={user} />}
       </div>
     </div>
   );
