@@ -223,8 +223,8 @@ function ModalPerfil({ perfil, onSave, onClose }) {
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" style={{ maxWidth: 480 }} onClick={e => e.stopPropagation()}>
+    <div className="modal-overlay" onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="modal" style={{ maxWidth: 480 }}>
         <h3 className="modal-title">{perfil ? t('pf_editar') : t('pf_novo')}</h3>
         <div className="modal-body">
           <div className="modal-grid-2">
@@ -309,8 +309,8 @@ function ModalPerfil({ perfil, onSave, onClose }) {
 /* ── Modal Alerta ─────────────────────────────────────────────────────────── */
 function ModalAlerta({ titulo, mensagem, onClose }) {
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" style={{ maxWidth: 460 }} onClick={e => e.stopPropagation()}>
+    <div className="modal-overlay" onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="modal" style={{ maxWidth: 460 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '20px 24px 0' }}>
           <span style={{
             display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -615,8 +615,8 @@ function ModalUsuario({ usuario, onSave, onClose, profiles, clients }) {
   const avatarColor = AVATAR_COLORS[(form.usuario?.charCodeAt(0) || 0) % AVATAR_COLORS.length];
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal modal-lg" onClick={e => e.stopPropagation()}>
+    <div className="modal-overlay" onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="modal modal-lg">
         <h3 className="modal-title">{isEdit ? t('mu_editar') : t('mu_novo')}</h3>
         <div className="modal-body">
           {/* Avatar upload */}
@@ -657,11 +657,11 @@ function ModalUsuario({ usuario, onSave, onClose, profiles, clients }) {
           <div className="modal-grid-2">
             <div className="form-field">
               <label>{t('mu_usuario')}</label>
-              <input type="text" value={form.usuario} onChange={e => set('usuario', e.target.value)} placeholder="nome.usuario" />
+              <input type="text" value={form.usuario} onChange={e => set('usuario', e.target.value)} placeholder="nome.usuario" autoComplete="off" />
             </div>
             <div className="form-field">
               <label>{isEdit ? t('mu_nova_senha') : t('mu_senha')}</label>
-              <input type="password" value={form.senha} onChange={e => set('senha', e.target.value)} placeholder="••••••" />
+              <input type="password" value={form.senha} onChange={e => set('senha', e.target.value)} placeholder="••••••" autoComplete="new-password" />
             </div>
           </div>
 
