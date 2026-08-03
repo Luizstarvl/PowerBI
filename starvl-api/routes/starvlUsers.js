@@ -101,25 +101,30 @@ router.post('/auth', async (req, res) => {
     // Carrega permissões do perfil vinculado
     let permissoes  = {};
     let profileNome = null;
+    let profileIsAdmin = false;
     if (u.su_profile_id) {
       const profResult = await pool.query(
-        `SELECT sp_nome, sp_permissoes FROM starvl_profiles WHERE sp_id = $1`,
+        `SELECT sp_nome, sp_permissoes, sp_is_admin FROM starvl_profiles WHERE sp_id = $1`,
         [u.su_profile_id]
       );
       if (profResult.rows.length) {
-        permissoes  = profResult.rows[0].sp_permissoes || {};
-        profileNome = profResult.rows[0].sp_nome;
+        permissoes     = profResult.rows[0].sp_permissoes || {};
+        profileNome    = profResult.rows[0].sp_nome;
+        profileIsAdmin = !!profResult.rows[0].sp_is_admin;
       }
     }
 
-    // Admin sempre recebe permissões completas, independente do perfil vinculado
-    if (u.su_perfil === 'admin') {
+    // É admin se su_perfil = 'admin' OU se o nível de acesso tem sp_is_admin = true
+    const isAdmin = u.su_perfil === 'admin' || profileIsAdmin;
+    if (isAdmin) {
       permissoes  = ADMIN_PERMS;
-      profileNome = 'Administrador';
+      if (!profileNome) profileNome = 'Administrador';
     }
 
+    const efectivePerfil = isAdmin ? 'admin' : 'user';
+
     const token = jwt.sign(
-      { id: u.su_id, usuario: u.su_usuario, perfil: u.su_perfil, profileId: u.su_profile_id, permissoes },
+      { id: u.su_id, usuario: u.su_usuario, perfil: efectivePerfil, profileId: u.su_profile_id, permissoes },
       JWT_SECRET,
       { expiresIn: '8h' }
     );
@@ -129,7 +134,7 @@ router.post('/auth', async (req, res) => {
       token,
       id:          u.su_id,
       usuario:     u.su_usuario,
-      perfil:      u.su_perfil,
+      perfil:      efectivePerfil,
       nome:        u.su_nome        || null,
       email:       u.su_email       || null,
       foto:        u.su_foto        || null,

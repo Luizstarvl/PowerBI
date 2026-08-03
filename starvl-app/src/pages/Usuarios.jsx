@@ -171,6 +171,7 @@ function ModalPerfil({ perfil, onSave, onClose }) {
   const { t } = useT();
   const [nome,    setNome]    = useState(perfil?.nome      || '');
   const [desc,    setDesc]    = useState(perfil?.descricao || '');
+  const [isAdmin, setIsAdmin] = useState(perfil?.isAdmin   || false);
   const [perm,    setPerm]    = useState(() => ({
     dashboards:    'todos',
     configuracoes: false,
@@ -208,9 +209,10 @@ function ModalPerfil({ perfil, onSave, onClose }) {
     try {
       const url    = perfil ? `/api/profiles/${perfil.id}` : `/api/profiles`;
       const method = perfil ? 'PUT' : 'POST';
+      const efPerm = isAdmin ? { dashboards: 'todos', configuracoes: true, postos: 'todos', modo: 'completo' } : perm;
       const res    = await apiFetch(url, {
         method,
-        body: JSON.stringify({ nome: nome.trim(), descricao: desc.trim() || null, permissoes: perm }),
+        body: JSON.stringify({ nome: nome.trim(), descricao: desc.trim() || null, permissoes: efPerm, isAdmin }),
       });
       const data = await res.json();
       if (!res.ok) return setErro(data.error || t('me_erro'));
@@ -235,60 +237,81 @@ function ModalPerfil({ perfil, onSave, onClose }) {
             </div>
           </div>
 
-          <div className="pf-perm-section">
-            <p className="pf-perm-title">Dashboards</p>
-            <div className="pf-perm-group">
-              <label className="pf-check-row">
-                <input type="checkbox" checked={todosDash}
-                  onChange={e => setP('dashboards', e.target.checked ? 'todos' : [])} />
-                <span>{t('pf_todos_dash')}</span>
-              </label>
-              {DASH_MODULOS.map(m => (
-                <label key={m.key} className="pf-check-row pf-check-indent">
-                  <input type="checkbox" checked={isDashChecked(m.key)}
-                    onChange={e => handleDashModulo(m.key, e.target.checked)} />
-                  <span>{m.label}</span>
-                </label>
-              ))}
+          {/* Toggle de administrador */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid var(--color-border)', marginBottom: 4 }}>
+            <div>
+              <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-text)', margin: 0 }}>Acesso total (Administrador)</p>
+              <p style={{ fontSize: 12, color: 'var(--color-text-muted)', margin: '2px 0 0' }}>Concede todas as permissões, equivalente ao administrador do sistema</p>
+            </div>
+            <div className={`toggle-track${isAdmin ? ' on' : ''}`} onClick={() => setIsAdmin(v => !v)}>
+              <div className="toggle-thumb" />
             </div>
           </div>
 
-          <div className="pf-perm-section">
-            <p className="pf-perm-title">Sistema</p>
-            <div className="pf-perm-group">
-              <label className="pf-check-row">
-                <input type="checkbox" checked={!!perm.configuracoes}
-                  onChange={e => setP('configuracoes', e.target.checked)} />
-                <span>{t('pf_configuracoes')}</span>
-              </label>
-            </div>
-          </div>
+          {!isAdmin && (
+            <>
+              <div className="pf-perm-section">
+                <p className="pf-perm-title">Dashboards</p>
+                <div className="pf-perm-group">
+                  <label className="pf-check-row">
+                    <input type="checkbox" checked={todosDash}
+                      onChange={e => setP('dashboards', e.target.checked ? 'todos' : [])} />
+                    <span>{t('pf_todos_dash')}</span>
+                  </label>
+                  {DASH_MODULOS.map(m => (
+                    <label key={m.key} className="pf-check-row pf-check-indent">
+                      <input type="checkbox" checked={isDashChecked(m.key)}
+                        onChange={e => handleDashModulo(m.key, e.target.checked)} />
+                      <span>{m.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
 
-          <div className="pf-perm-section">
-            <p className="pf-perm-title">Postos</p>
-            <div className="pf-perm-group">
-              {[['todos', t('pf_todos_postos')], ['proprios', t('pf_postos_proprios')]].map(([v, l]) => (
-                <label key={v} className="pf-check-row">
-                  <input type="radio" name="pf-postos" checked={perm.postos === v}
-                    onChange={() => setP('postos', v)} />
-                  <span>{l}</span>
-                </label>
-              ))}
-            </div>
-          </div>
+              <div className="pf-perm-section">
+                <p className="pf-perm-title">Sistema</p>
+                <div className="pf-perm-group">
+                  <label className="pf-check-row">
+                    <input type="checkbox" checked={!!perm.configuracoes}
+                      onChange={e => setP('configuracoes', e.target.checked)} />
+                    <span>{t('pf_configuracoes')}</span>
+                  </label>
+                </div>
+              </div>
 
-          <div className="pf-perm-section">
-            <p className="pf-perm-title">Modo de Acesso</p>
-            <div className="pf-perm-group">
-              {[['completo', t('pf_completo')], ['consulta', t('pf_consulta')]].map(([v, l]) => (
-                <label key={v} className="pf-check-row">
-                  <input type="radio" name="pf-modo" checked={perm.modo === v}
-                    onChange={() => setP('modo', v)} />
-                  <span>{l}</span>
-                </label>
-              ))}
+              <div className="pf-perm-section">
+                <p className="pf-perm-title">Postos</p>
+                <div className="pf-perm-group">
+                  {[['todos', t('pf_todos_postos')], ['proprios', t('pf_postos_proprios')]].map(([v, l]) => (
+                    <label key={v} className="pf-check-row">
+                      <input type="radio" name="pf-postos" checked={perm.postos === v}
+                        onChange={() => setP('postos', v)} />
+                      <span>{l}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div className="pf-perm-section">
+                <p className="pf-perm-title">Modo de Acesso</p>
+                <div className="pf-perm-group">
+                  {[['completo', t('pf_completo')], ['consulta', t('pf_consulta')]].map(([v, l]) => (
+                    <label key={v} className="pf-check-row">
+                      <input type="radio" name="pf-modo" checked={perm.modo === v}
+                        onChange={() => setP('modo', v)} />
+                      <span>{l}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+
+          {isAdmin && (
+            <div style={{ padding: '12px 14px', borderRadius: 8, background: 'var(--color-success-light)', border: '1px solid var(--color-success)', fontSize: 13, color: 'var(--color-success)' }}>
+              Este nível de acesso concede permissões de administrador completo ao usuário.
             </div>
-          </div>
+          )}
 
           {erro && <p className="form-erro">{erro}</p>}
         </div>
@@ -464,7 +487,7 @@ function SecaoPerfis({ profiles, onProfilesChange, usuarios }) {
           <table className="param-table">
             <thead>
               <tr>
-                <th>Perfil</th>
+                <th>Nível de Acesso</th>
                 <th>{t('pf_permissoes')}</th>
                 <th style={{ textAlign: 'right' }}>{t('th_acoes')}</th>
               </tr>
@@ -477,7 +500,12 @@ function SecaoPerfis({ profiles, onProfilesChange, usuarios }) {
                     <td>
                       <p className="gu-username">{pf.nome}</p>
                       {pf.descricao && <p className="gu-subtext">{pf.descricao}</p>}
-                      {pf.builtin && (
+                      {pf.isAdmin && (
+                        <span className="badge badge-admin" style={{ marginTop: 6, display: 'inline-flex' }}>
+                          Admin
+                        </span>
+                      )}
+                      {pf.builtin && !pf.isAdmin && (
                         <span className="badge badge-admin" style={{ marginTop: 6, display: 'inline-flex' }}>
                           {t('pf_padrao')}
                         </span>
@@ -696,7 +724,7 @@ function ModalUsuario({ usuario, onSave, onClose, profiles, clients }) {
                 value={form.perfil}
                 onChange={v => set('perfil', v)}
                 options={[
-                  { value: 'admin', label: 'Administrador (sistema)' },
+                  { value: 'admin', label: 'Administrador' },
                   { value: 'user',  label: 'Usuário padrão' },
                 ]}
               />
