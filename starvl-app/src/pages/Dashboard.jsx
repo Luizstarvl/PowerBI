@@ -165,6 +165,9 @@ function TopProdutosBanner({ dados, loading }) {
                   <span className="tpb-star tpb-star-0">✦</span>
                   <span className="tpb-star tpb-star-1">★</span>
                   <span className="tpb-star tpb-star-2">✦</span>
+                  <span className="tpb-star tpb-star-3">✦</span>
+                  <span className="tpb-star tpb-star-4">★</span>
+                  <span className="tpb-star tpb-star-5">✦</span>
                 </div>
               )}
 

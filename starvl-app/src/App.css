@@ -2122,34 +2122,74 @@ select.themed-select option {
   margin-bottom: 6px; line-height: 1;
 }
 
-/* 1° lugar em destaque: glow dourado pulsante */
+/* ── 1° Lugar: borda giratória + glow dourado ─────────────────────────────── */
 .tpb-rank1 {
-  animation: tpb-rank1-glow 2s ease-in-out infinite alternate !important;
+  border-color: transparent !important;
+  animation: tpb-rank1-glow 1.8s ease-in-out infinite alternate !important;
+}
+/* Luz que percorre a borda (conic-gradient rotacionando) */
+.tpb-rank1::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: 16px;
+  z-index: -1;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    #ff4500 40deg,
+    #ffd700 90deg,
+    #fffde0 120deg,
+    #ffd700 150deg,
+    #ff4500 200deg,
+    transparent 240deg
+  );
+  animation: tpb-rank1-spin 1.8s linear infinite;
+}
+@keyframes tpb-rank1-spin {
+  to { transform: rotate(360deg); }
 }
 @keyframes tpb-rank1-glow {
-  from { box-shadow: 0 0 40px rgba(255,107,0,.4), 0 0 80px rgba(255,107,0,.12); }
-  to   { box-shadow: 0 0 55px rgba(255,215,0,.65), 0 0 100px rgba(255,165,0,.22), 0 0 0 2px rgba(255,215,0,.4); }
+  from { box-shadow: 0 0 45px rgba(255,107,0,.6),  0 0 90px  rgba(255,107,0,.2); }
+  to   { box-shadow: 0 0 70px rgba(255,215,0,.95), 0 0 140px rgba(255,165,0,.3); }
 }
 
-/* Estrelas flutuantes (1° lugar) */
+/* ── Partículas flutuantes (6 direções) ─────────────────────────────────── */
 .tpb-stars {
-  position: absolute; inset: 0;
-  pointer-events: none; border-radius: 14px;
-  overflow: visible;
+  position: absolute;
+  inset: -32px;
+  pointer-events: none;
+  z-index: 20;
 }
 .tpb-star {
   position: absolute;
-  color: #ffd700; opacity: 0;
-  animation: tpb-star-rise 2.6s ease-in-out infinite;
+  color: #ffd700; opacity: 0; line-height: 1;
 }
-.tpb-star-0 { font-size: 11px; left: 14%; bottom: 28%; animation-delay: 0s; }
-.tpb-star-1 { font-size:  9px; right: 11%; bottom: 32%; animation-delay: 1s; }
-.tpb-star-2 { font-size: 13px; left: 58%; bottom: 18%; animation-delay: 1.9s; }
-@keyframes tpb-star-rise {
-  0%   { opacity: 0; transform: translateY(0) rotate(0deg) scale(.6); }
-  25%  { opacity: 1; }
+/* Posições e direções */
+.tpb-star-0 { font-size: 13px; left:  6%; bottom: 18%; animation: tpb-s-ul 2.8s ease-out infinite 0s; }
+.tpb-star-1 { font-size: 10px; left: 45%; bottom:  2%; animation: tpb-s-up 2.8s ease-out infinite .7s; }
+.tpb-star-2 { font-size: 14px; right: 4%; bottom: 16%; animation: tpb-s-ur 2.8s ease-out infinite 1.4s; }
+.tpb-star-3 { font-size:  9px; left: 16%; top:    12%; animation: tpb-s-ul 2.8s ease-out infinite 2.1s; }
+.tpb-star-4 { font-size: 11px; right:14%; top:    18%; animation: tpb-s-ur 2.8s ease-out infinite .5s; }
+.tpb-star-5 { font-size:  8px; left: 62%; top:     8%; animation: tpb-s-up 2.8s ease-out infinite 1.3s; }
+
+@keyframes tpb-s-up {
+  0%   { opacity: 0; transform: translateY(0)          scale(.5); }
+  18%  { opacity: 1; }
   80%  { opacity: .7; }
-  100% { opacity: 0; transform: translateY(-46px) rotate(18deg) scale(1.1); }
+  100% { opacity: 0; transform: translateY(-58px)       scale(1.2); }
+}
+@keyframes tpb-s-ul {
+  0%   { opacity: 0; transform: translate(0,0)          scale(.5); }
+  18%  { opacity: 1; }
+  80%  { opacity: .7; }
+  100% { opacity: 0; transform: translate(-40px,-48px)  scale(1.2); }
+}
+@keyframes tpb-s-ur {
+  0%   { opacity: 0; transform: translate(0,0)          scale(.5); }
+  18%  { opacity: 1; }
+  80%  { opacity: .7; }
+  100% { opacity: 0; transform: translate(40px,-48px)   scale(1.2); }
 }
 
 /* Dots */
