@@ -231,7 +231,15 @@ function ModalQueryForm({ query, conexoes, onSave, onClose }) {
   const [testRes,    setTestRes]    = useState(null);
   const [paramModal, setParamModal] = useState(null); // null | string[] (lista de params pendentes)
   const [fullscreen, setFullscreen] = useState(false);
-  const isDark = document.documentElement.dataset.theme !== 'light';
+  const isDark      = document.documentElement.dataset.theme !== 'light';
+  const bodyRef     = useRef(null);
+  const resultRef   = useRef(null);
+
+  useEffect(() => {
+    if (testRes && bodyRef.current && resultRef.current) {
+      bodyRef.current.scrollTop = bodyRef.current.scrollHeight;
+    }
+  }, [testRes]);
 
   function set(f, v) { setForm(p => ({ ...p, [f]: v })); }
 
@@ -313,7 +321,7 @@ function ModalQueryForm({ query, conexoes, onSave, onClose }) {
           </button>
         </div>
 
-        <div className="modal-body" style={{ flex: 1, overflowY: 'auto', padding: '16px 24px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div ref={bodyRef} className="modal-body" style={{ flex: 1, overflowY: 'auto', padding: '16px 24px', display: 'flex', flexDirection: 'column', gap: 14 }}>
 
           {/* Linha 1: Código + Nome */}
           <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr', gap: 12 }}>
@@ -415,7 +423,7 @@ function ModalQueryForm({ query, conexoes, onSave, onClose }) {
           </div>
 
           {/* Resultado do teste */}
-          {testRes && <TestResultPanel result={testRes} />}
+          {testRes && <div ref={resultRef}><TestResultPanel result={testRes} /></div>}
 
           {erro && <p className="form-erro" style={{ margin: 0 }}>{erro}</p>}
         </div>
