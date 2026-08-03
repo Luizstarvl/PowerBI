@@ -15,18 +15,11 @@ function initDraft() {
 }
 
 function draftToRange(draft) {
-  const pad = n => String(n).padStart(2, '0');
-  switch (draft.mode) {
-    case 'dia':  return { inicio: draft.dia,   fim: draft.dia };
-    case 'semana': { const wb = computeWeekBounds(draft.semana); return { inicio: wb.inicio, fim: wb.fim }; }
-    case 'mes': {
-      const [y, m] = draft.mes.split('-').map(Number);
-      const last = new Date(y, m, 0).getDate();
-      return { inicio: `${y}-${pad(m)}-01`, fim: `${y}-${pad(m)}-${pad(last)}` };
-    }
-    case 'ano':  return { inicio: `${draft.ano}-01-01`, fim: `${draft.ano}-12-31` };
-    default:     return { inicio: draft.inicio || '', fim: draft.fim || '' };
-  }
+  if (!draft.mes) return { inicio: '', fim: '' };
+  const [y, m] = draft.mes.split('-').map(Number);
+  const pad  = n => String(n).padStart(2, '0');
+  const last = new Date(y, m, 0).getDate();
+  return { inicio: `${y}-${pad(m)}-01`, fim: `${y}-${pad(m)}-${pad(last)}` };
 }
 
 function buildApiQs(empresasKey, applied) {
