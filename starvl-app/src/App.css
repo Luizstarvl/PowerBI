@@ -1115,38 +1115,38 @@ select.themed-select option {
   background: var(--color-surface);
   border: 1.5px solid var(--color-border);
   border-radius: 14px;
-  padding: 20px 24px 22px;
-  display: flex; flex-direction: column; gap: 20px;
-  width: fit-content; max-width: 330px;
+  padding: 14px 16px 16px;
+  display: flex; flex-direction: column; gap: 12px;
+  width: fit-content; max-width: 310px;
 }
 
 /* Cabeçalho do card */
 .ppv3-header {
-  display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
 }
 .ppv3-title-group {
-  display: flex; align-items: center; gap: 12px;
+  display: flex; align-items: center; gap: 9px;
 }
 .ppv3-title-icon { color: var(--color-primary); flex-shrink: 0; }
-.ppv3-title   { font-size: 15px; font-weight: 700; color: var(--color-text); }
-.ppv3-subtitle { font-size: 12px; color: var(--color-text-muted); margin-top: 2px; }
+.ppv3-title   { font-size: 13px; font-weight: 700; color: var(--color-text); }
+.ppv3-subtitle { font-size: 11px; color: var(--color-text-muted); margin-top: 1px; }
 
 /* Botão Atualizar Consulta */
 .ppv3-apply-btn {
-  display: flex; align-items: center; justify-content: center; gap: 8px;
-  width: 100%; padding: 10px 22px; font-size: 14px;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  width: 100%; padding: 8px 14px; font-size: 12.5px;
 }
 
 /* Abas de modo */
 .ppv3-modes {
-  display: flex; gap: 10px; flex-wrap: wrap;
+  display: flex; gap: 6px; flex-wrap: wrap;
 }
 .ppv3-mode {
-  display: inline-flex; align-items: center; gap: 8px;
+  display: inline-flex; align-items: center; gap: 6px;
   flex: 0 0 auto; justify-content: center;
-  padding: 11px 18px; border-radius: 10px;
+  padding: 7px 12px; border-radius: 8px;
   background: var(--color-bg); border: 1.5px solid var(--color-border);
-  color: var(--color-text); font-size: 13.5px; font-weight: 500;
+  color: var(--color-text); font-size: 12px; font-weight: 500;
   cursor: pointer;
   transition: border-color .15s, background .15s, color .15s;
   position: relative;
@@ -1166,14 +1166,14 @@ select.themed-select option {
 
 /* Área de inputs de valor */
 .ppv3-values {
-  display: flex; gap: 24px; flex-wrap: wrap;
+  display: flex; gap: 10px; flex-wrap: wrap;
 }
 .ppv3-field {
-  display: flex; flex-direction: column; gap: 7px;
-  flex: 1 1 auto; min-width: 160px; max-width: 320px;
+  display: flex; flex-direction: column; gap: 5px;
+  flex: 1 1 auto; min-width: 130px; max-width: 320px;
 }
 .ppv3-label {
-  font-size: 12.5px; font-weight: 500; color: var(--color-text-muted);
+  font-size: 11px; font-weight: 500; color: var(--color-text-muted);
 }
 
 /* Wrapper comum para select e date input */
@@ -1181,11 +1181,11 @@ select.themed-select option {
   position: relative; display: flex; align-items: center;
 }
 .ppv3-input-icon {
-  position: absolute; left: 14px; pointer-events: none;
+  position: absolute; left: 10px; pointer-events: none;
   color: var(--color-primary); flex-shrink: 0; z-index: 1;
 }
 .ppv3-input-chevron {
-  position: absolute; right: 13px; pointer-events: none;
+  position: absolute; right: 9px; pointer-events: none;
   color: var(--color-text-muted);
 }
 
@@ -1193,8 +1193,8 @@ select.themed-select option {
 .ppv3-select {
   width: 100%; appearance: none;
   background: var(--color-bg); border: 1.5px solid var(--color-border);
-  border-radius: 10px; padding: 12px 38px 12px 42px;
-  font-size: 14px; font-weight: 500; color: var(--color-text);
+  border-radius: 8px; padding: 8px 30px 8px 34px;
+  font-size: 12.5px; font-weight: 500; color: var(--color-text);
   outline: none; cursor: pointer; transition: border-color .15s;
 }
 .ppv3-select:focus { border-color: var(--color-primary); }
@@ -1203,8 +1203,8 @@ select.themed-select option {
 .ppv3-date {
   width: 100%;
   background: var(--color-bg); border: 1.5px solid var(--color-border);
-  border-radius: 10px; padding: 12px 14px 12px 42px;
-  font-size: 14px; color: var(--color-text);
+  border-radius: 8px; padding: 8px 10px 8px 34px;
+  font-size: 12.5px; color: var(--color-text);
   outline: none; cursor: pointer; transition: border-color .15s;
 }
 .ppv3-date:focus { border-color: var(--color-primary); }
