@@ -202,9 +202,9 @@ export default function GerenciadorRelatorios({ user }) {
     <div className="fade-up">
       <div className="param-section-header">
         <div>
-          <h3 className="param-section-title">Gerador de Relatórios</h3>
+          <h3 className="param-section-title">Ambiente de Testes</h3>
           <p className="param-section-desc">
-            Selecione uma consulta salva, preencha os parâmetros e visualize os dados em tabela ou gráfico.
+            Selecione uma consulta salva, preencha os parâmetros e execute para visualizar os resultados.
           </p>
         </div>
       </div>

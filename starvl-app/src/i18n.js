@@ -92,7 +92,7 @@ const T = {
     // Conexão
     param_conexao_menu:  'Conexão',
     param_consultas_menu:  'Gerenciador de Consultas',
-    param_relatorios_menu: 'Gerador de Relatórios',
+    param_relatorios_menu: 'Ambiente de Testes',
     con2_titulo:         'Conexão com Banco de Dados',
     con2_desc:           'Configure a conexão de cada empresa com seu banco de dados.',
     con2_configurar:     'Configurar',

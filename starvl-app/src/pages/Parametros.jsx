@@ -1292,7 +1292,7 @@ function SecaoConsultas({ user }) {
           Gerenciador de Consultas
         </button>
         <button className={`usr-tab${tab === 'relatorios' ? ' active' : ''}`} onClick={() => setTab('relatorios')}>
-          Gerador de Relatórios
+          Ambiente de Testes
         </button>
       </div>
       {tab === 'gerenciador' && <GerenciadorConsultas user={user} />}

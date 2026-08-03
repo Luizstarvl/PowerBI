@@ -1,7 +1,7 @@
 /**
  * GerenciadorConsultas.jsx
- * Editor profissional de consultas SQL para o módulo de Parâmetros.
- * Monaco Editor (VSCode) · Validação de segurança · Histórico de versões
+ * Gerenciador de consultas SQL — lista, edição e histórico.
+ * Execução de consultas disponível exclusivamente no Ambiente de Testes.
  */
 import React, { useState, useEffect, useRef } from 'react';
 import Editor from '@monaco-editor/react';
@@ -12,29 +12,26 @@ import Portal from '../../Portal';
 const CATEGORIAS = ['Dashboard', 'Indicadores', 'Relatórios', 'Cards', 'Gráficos', 'Listagens', 'Outros'];
 
 const DASHBOARD_SLOTS = [
-  { value: '',                 label: '— Nenhum —' },
-  // Banner
-  { value: 'top5_convenio',   label: '🏆 Banner Top 5 Conveniência' },
-  // KPI Cards
-  { value: 'kpi_vendas',      label: '📊 KPI — Vendas Totais' },
-  { value: 'kpi_combustivel', label: '⛽ KPI — Combustível' },
-  { value: 'kpi_conveniencia',label: '🛒 KPI — Conveniência' },
-  { value: 'kpi_compras_comb',label: '🚛 KPI — Compras Combustível' },
-  { value: 'kpi_compras_conv',label: '📦 KPI — Compras Conveniência' },
-  { value: 'kpi_afericoes',   label: '🔧 KPI — Aferições' },
-  // Gráficos (futuramente)
-  { value: 'vendas_diarias',  label: '📈 Gráfico Vendas Diárias' },
-  { value: 'vendas_horarias', label: '⏱ Gráfico Vendas por Hora' },
+  { value: '',                  label: '— Nenhum —' },
+  { value: 'top5_convenio',    label: '🏆 Banner Top 5 Conveniência' },
+  { value: 'kpi_vendas',       label: '📊 KPI — Vendas Totais' },
+  { value: 'kpi_combustivel',  label: '⛽ KPI — Combustível' },
+  { value: 'kpi_conveniencia', label: '🛒 KPI — Conveniência' },
+  { value: 'kpi_compras_comb', label: '🚛 KPI — Compras Combustível' },
+  { value: 'kpi_compras_conv', label: '📦 KPI — Compras Conveniência' },
+  { value: 'kpi_afericoes',    label: '🔧 KPI — Aferições' },
+  { value: 'vendas_diarias',   label: '📈 Gráfico Vendas Diárias' },
+  { value: 'vendas_horarias',  label: '⏱ Gráfico Vendas por Hora' },
 ];
 
 const CAT_COLORS = {
-  Dashboard:    { bg: '#dbeafe', color: '#1d4ed8' },
-  Indicadores:  { bg: '#d1fae5', color: '#065f46' },
-  Relatórios:   { bg: '#ede9fe', color: '#5b21b6' },
-  Cards:        { bg: '#fef3c7', color: '#92400e' },
-  Gráficos:     { bg: '#fce7f3', color: '#9d174d' },
-  Listagens:    { bg: '#e0f2fe', color: '#075985' },
-  Outros:       { bg: '#f3f4f6', color: '#374151' },
+  Dashboard:   { bg: '#dbeafe', color: '#1d4ed8' },
+  Indicadores: { bg: '#d1fae5', color: '#065f46' },
+  Relatórios:  { bg: '#ede9fe', color: '#5b21b6' },
+  Cards:       { bg: '#fef3c7', color: '#92400e' },
+  Gráficos:    { bg: '#fce7f3', color: '#9d174d' },
+  Listagens:   { bg: '#e0f2fe', color: '#075985' },
+  Outros:      { bg: '#f3f4f6', color: '#374151' },
 };
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -55,7 +52,6 @@ function CatBadge({ cat }) {
   );
 }
 
-// ── Spinner ────────────────────────────────────────────────────────────────────
 function Spin({ size = 14, color = 'var(--color-primary)' }) {
   return (
     <span style={{
@@ -86,7 +82,7 @@ function ModalHistorico({ queryId, queryNome, onClose }) {
       <div className="modal modal-lg" style={{ maxWidth: 860, maxHeight: '90vh', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
         <h3 className="modal-title">Histórico de Versões — {queryNome}</h3>
         <div className="modal-body" style={{ display: 'flex', gap: 16, flex: 1, overflow: 'hidden', padding: 0 }}>
-          {/* Lista de versões */}
+          {/* Lista */}
           <div style={{ width: 200, flexShrink: 0, borderRight: '1px solid var(--color-border)', overflowY: 'auto', padding: '12px 0' }}>
             {loading && <div style={{ padding: 16 }}><Spin /></div>}
             {!loading && historico.length === 0 && (
@@ -99,7 +95,8 @@ function ModalHistorico({ queryId, queryNome, onClose }) {
                 style={{
                   display: 'block', width: '100%', padding: '10px 16px', textAlign: 'left',
                   background: selected?.id === h.id ? 'var(--color-primary-light)' : 'transparent',
-                  border: 'none', cursor: 'pointer', borderLeft: selected?.id === h.id ? '3px solid var(--color-primary)' : '3px solid transparent',
+                  border: 'none', cursor: 'pointer',
+                  borderLeft: selected?.id === h.id ? '3px solid var(--color-primary)' : '3px solid transparent',
                 }}
               >
                 <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-text)' }}>v{h.versao}</div>
@@ -112,12 +109,11 @@ function ModalHistorico({ queryId, queryNome, onClose }) {
 
           {/* Visualizador */}
           <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', padding: '16px 16px 0' }}>
-            {!selected && (
+            {!selected ? (
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, color: 'var(--color-text-muted)', fontSize: 13 }}>
                 Selecione uma versão para visualizar a SQL.
               </div>
-            )}
-            {selected && (
+            ) : (
               <>
                 <div style={{ marginBottom: 8, fontSize: 12, color: 'var(--color-text-muted)' }}>
                   Versão {selected.versao} — {fmtDate(selected.criado)} — {selected.usuario || '—'}
@@ -144,103 +140,7 @@ function ModalHistorico({ queryId, queryNome, onClose }) {
   );
 }
 
-// ── Helpers de parâmetros ─────────────────────────────────────────────────────
-function detectParams(sql) {
-  const re = /\{\{\s*(\w+)\s*\}\}/g;
-  const found = new Set();
-  let m;
-  while ((m = re.exec(sql)) !== null) found.add(m[1]);
-  return [...found];
-}
-
-function autoDefaultValue(name) {
-  const n     = name.toLowerCase();
-  const today = new Date();
-  const yyyy  = today.getFullYear();
-  const mm    = String(today.getMonth() + 1).padStart(2, '0');
-  const dd    = String(today.getDate()).padStart(2, '0');
-  if (n === 'hoje' || n === 'data' || n === 'data_hoje') return `${dd}-${mm}-${yyyy}`;
-  if (n === 'data_inicio' || n === 'datainicio')         return `01-${mm}-${yyyy}`;
-  if (n.includes('data_fim') || n === 'datafim'
-   || n === 'data_final'     || n === 'datafinal')       return `${dd}-${mm}-${yyyy}`;
-  if (n === 'mes' || n === 'mes_atual')                  return String(today.getMonth() + 1);
-  if (n === 'ano' || n === 'ano_atual')                  return String(yyyy);
-  if (n === 'periodo')                                   return `${mm}${yyyy}`;
-  return '';
-}
-
-function paramLabel(name) {
-  const map = {
-    empresa:     'Código da empresa (ex: 7432)',
-    empresa_id:  'Código da empresa',
-    cod_empresa: 'Código da empresa',
-    hoje:        'Data de hoje (DD-MM-AAAA)',
-    data:        'Data (DD-MM-AAAA)',
-    data_inicio: 'Data início (DD-MM-AAAA)',
-    data_fim:    'Data fim (DD-MM-AAAA)',
-    data_final:  'Data final (DD-MM-AAAA)',
-    mes:         'Mês (1–12)',
-    ano:         'Ano (AAAA)',
-    periodo:     'Período (MMAAAA)',
-  };
-  return map[name.toLowerCase()] || name;
-}
-
-function isDateParam(name) {
-  const n = name.toLowerCase();
-  return n.includes('data') || n === 'hoje' || n === 'date';
-}
-
-function toISODate(value) {
-  const m = String(value).match(/^(\d{2})-(\d{2})-(\d{4})$/);
-  return m ? `${m[3]}-${m[2]}-${m[1]}` : value;
-}
-
-// ── Modal de preenchimento de parâmetros ──────────────────────────────────────
-function ParamInputModal({ params, onConfirm, onCancel }) {
-  const [values, setValues] = useState(() =>
-    Object.fromEntries(params.map(p => [p, autoDefaultValue(p)]))
-  );
-  function set(k, v) { setValues(prev => ({ ...prev, [k]: v })); }
-  const allFilled = params.every(p => String(values[p] ?? '').trim() !== '');
-  return (
-    <div className="modal-overlay" onClick={onCancel}>
-      <div className="modal" style={{ maxWidth: 420, minWidth: 320 }} onClick={e => e.stopPropagation()}>
-        <h3 className="modal-title">Parâmetros da consulta</h3>
-        <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <p style={{ fontSize: 13, color: 'var(--color-text-muted)', margin: 0 }}>
-            Preencha os parâmetros detectados na SQL. Cada <code style={{ background: 'var(--color-bg)', padding: '1px 4px', borderRadius: 3, fontSize: 12 }}>{'{{nome}}'}</code> diferente gera um campo.
-          </p>
-          {params.map(p => (
-            <div className="form-field" key={p} style={{ margin: 0 }}>
-              <label style={{ fontSize: 12 }}>
-                <code style={{ background: 'var(--color-bg)', padding: '1px 5px', borderRadius: 4, fontSize: 11 }}>{`{{${p}}}`}</code>
-                {'  '}{paramLabel(p)}
-              </label>
-              <input
-                type="text"
-                autoFocus={params[0] === p}
-                value={values[p] ?? ''}
-                onChange={e => set(p, e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter' && allFilled) onConfirm(values); }}
-                placeholder={autoDefaultValue(p) || `valor de ${p}`}
-                autoComplete="off"
-              />
-            </div>
-          ))}
-        </div>
-        <div className="modal-footer">
-          <button className="btn-ghost" onClick={onCancel}>Cancelar</button>
-          <button className="btn-primary" onClick={() => onConfirm(values)} disabled={!allFilled}>
-            ▶ Executar
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── Modal Formulário (criar / editar) ──────────────────────────────────────────
+// ── Modal Formulário (criar / editar) — layout split-panel ────────────────────
 function ModalQueryForm({ query, conexoes, onSave, onClose }) {
   const editando = !!query;
   const [form, setForm] = useState({
@@ -256,47 +156,10 @@ function ModalQueryForm({ query, conexoes, onSave, onClose }) {
   });
   const [erro,       setErro]       = useState('');
   const [loading,    setLoading]    = useState(false);
-  const [testing,    setTesting]    = useState(false);
-  const [testRes,    setTestRes]    = useState(null);
-  const [paramModal, setParamModal] = useState(null); // null | string[] (lista de params pendentes)
   const [fullscreen, setFullscreen] = useState(false);
-  const isDark      = document.documentElement.dataset.theme !== 'light';
-  const bodyRef     = useRef(null);
-  const resultRef   = useRef(null);
-
-  useEffect(() => {
-    if (testRes && bodyRef.current && resultRef.current) {
-      bodyRef.current.scrollTop = bodyRef.current.scrollHeight;
-    }
-  }, [testRes]);
+  const isDark = document.documentElement.dataset.theme !== 'light';
 
   function set(f, v) { setForm(p => ({ ...p, [f]: v })); }
-
-  async function runTest(params = {}) {
-    setParamModal(null);
-    setTesting(true); setTestRes(null);
-    try {
-      const converted = Object.fromEntries(
-        Object.entries(params).map(([k, v]) => [k, isDateParam(k) ? toISODate(v) : v])
-      );
-      const res  = await apiFetch('/api/queries/test-sql', {
-        method: 'POST',
-        body: JSON.stringify({ sql: form.sql, bancoId: form.bancoId, params: converted }),
-      });
-      const data = await res.json();
-      setTestRes(data);
-    } catch { setTestRes({ ok: false, error: 'Erro ao comunicar com o servidor.' }); }
-    finally { setTesting(false); }
-  }
-
-  function handleTest() {
-    const params = detectParams(form.sql);
-    if (params.length > 0) {
-      setParamModal(params); // abre modal de preenchimento
-    } else {
-      runTest();
-    }
-  }
 
   async function handleSave() {
     if (!form.codigo.trim()) return setErro('Código é obrigatório.');
@@ -316,48 +179,84 @@ function ModalQueryForm({ query, conexoes, onSave, onClose }) {
 
   const editorOptions = {
     fontSize: 13,
+    fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Consolas', 'Courier New', monospace",
+    fontLigatures: true,
     minimap: { enabled: false },
     scrollBeyondLastLine: false,
     lineNumbers: 'on',
-    wordWrap: 'on',
+    wordWrap: 'off',
     formatOnPaste: true,
     suggestOnTriggerCharacters: true,
     quickSuggestions: true,
     folding: true,
+    renderLineHighlight: 'all',
+    cursorBlinking: 'smooth',
+    smoothScrolling: true,
+    scrollbar: {
+      vertical: 'visible',
+      horizontal: 'visible',
+      verticalScrollbarSize: 8,
+      horizontalScrollbarSize: 8,
+    },
+    padding: { top: 14, bottom: 14 },
+    tabSize: 2,
+    insertSpaces: true,
+    automaticLayout: true,
+    lineDecorationsWidth: 6,
+    glyphMargin: false,
   };
+
+  const modalW = fullscreen ? '100vw' : '96vw';
+  const modalH = fullscreen ? '100vh' : '95vh';
 
   return (
     <div className="modal-overlay" onMouseDown={e => { if (e.target === e.currentTarget && !fullscreen) onClose(); }}>
       <div
         className="modal"
         style={{
-          maxWidth: fullscreen ? '100vw' : 900, width: '100%',
-          maxHeight: fullscreen ? '100vh' : '94vh',
-          height: fullscreen ? '100vh' : undefined,
+          maxWidth: fullscreen ? '100vw' : 1320,
+          width: modalW, height: modalH, maxHeight: modalH,
           borderRadius: fullscreen ? 0 : undefined,
-          display: 'flex', flexDirection: 'column', transition: 'none',
+          display: 'flex', flexDirection: 'column',
+          overflow: 'hidden', transition: 'none', padding: 0,
         }}
         onClick={e => e.stopPropagation()}
       >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 24px 0' }}>
-          <h3 className="modal-title" style={{ margin: 0 }}>{editando ? 'Editar Consulta' : 'Nova Consulta'}</h3>
+        {/* ── Barra de título ── */}
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '14px 20px', borderBottom: '1px solid var(--color-border)', flexShrink: 0,
+          background: 'var(--color-surface)',
+        }}>
+          <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>
+            {editando ? 'Editar Consulta' : 'Nova Consulta'}
+          </h3>
           <button
             onClick={() => setFullscreen(f => !f)}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)', padding: 4 }}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)', padding: 6, borderRadius: 6 }}
             title={fullscreen ? 'Sair do modo tela cheia' : 'Tela cheia'}
           >
             {fullscreen
-              ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/></svg>
-              : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+              ? <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/></svg>
+              : <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
             }
           </button>
         </div>
 
-        <div ref={bodyRef} className="modal-body" style={{ flex: 1, overflowY: 'auto', padding: '16px 24px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+        {/* ── Corpo: dois paineis ── */}
+        <div style={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0 }}>
 
-          {/* Linha 1: Código + Nome */}
-          <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr', gap: 12 }}>
-            <div className="form-field">
+          {/* PAINEL ESQUERDO — campos do formulário */}
+          <div style={{
+            width: 308, flexShrink: 0,
+            borderRight: '1px solid var(--color-border)',
+            overflowY: 'auto', overflowX: 'hidden',
+            padding: '20px 18px',
+            display: 'flex', flexDirection: 'column', gap: 14,
+            background: 'var(--color-surface)',
+          }}>
+            {/* Código */}
+            <div className="form-field" style={{ margin: 0 }}>
               <label>Código (identificador único)</label>
               <input
                 type="text" value={form.codigo}
@@ -368,99 +267,123 @@ function ModalQueryForm({ query, conexoes, onSave, onClose }) {
                 autoComplete="off" autoFocus
               />
             </div>
-            <div className="form-field">
-              <label>Nome da Consulta</label>
-              <input type="text" value={form.nome} onChange={e => set('nome', e.target.value)} placeholder="Ex: Vendas do Mês por Produto" autoComplete="off" />
-            </div>
-          </div>
 
-          {/* Linha 2: Categoria + Banco + Ativa */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 120px', gap: 12 }}>
-            <div className="form-field">
+            {/* Nome */}
+            <div className="form-field" style={{ margin: 0 }}>
+              <label>Nome da Consulta</label>
+              <input
+                type="text" value={form.nome}
+                onChange={e => set('nome', e.target.value)}
+                placeholder="Ex: Vendas do Mês por Produto"
+                autoComplete="off"
+              />
+            </div>
+
+            {/* Categoria */}
+            <div className="form-field" style={{ margin: 0 }}>
               <label>Categoria</label>
               <select value={form.categoria} onChange={e => set('categoria', e.target.value)} style={{ width: '100%' }}>
                 {CATEGORIAS.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
-            <div className="form-field">
+
+            {/* Banco */}
+            <div className="form-field" style={{ margin: 0 }}>
               <label>Banco de Dados</label>
               <select value={form.bancoId} onChange={e => set('bancoId', parseInt(e.target.value) || '')} style={{ width: '100%' }}>
                 <option value="">— Selecione —</option>
                 {conexoes.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
               </select>
             </div>
-            <div className="form-field" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+
+            {/* Situação */}
+            <div className="form-field" style={{ margin: 0 }}>
               <label style={{ marginBottom: 6, display: 'block' }}>Situação</label>
               <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 14 }}>
-                <div className={`toggle-track${form.ativa ? ' on' : ''}`} onClick={() => set('ativa', !form.ativa)} style={{ flexShrink: 0 }}>
+                <div
+                  className={`toggle-track${form.ativa ? ' on' : ''}`}
+                  onClick={() => set('ativa', !form.ativa)}
+                  style={{ flexShrink: 0 }}
+                >
                   <div className="toggle-thumb" />
                 </div>
                 {form.ativa ? 'Ativa' : 'Inativa'}
               </label>
             </div>
+
+            {/* Widget do dashboard */}
+            {form.categoria === 'Dashboard' && (
+              <div className="form-field" style={{ margin: 0 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+                  </svg>
+                  Vincular ao widget do dashboard
+                </label>
+                <select value={form.slot} onChange={e => set('slot', e.target.value)} style={{ width: '100%' }}>
+                  {DASHBOARD_SLOTS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                </select>
+                <span style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4, display: 'block' }}>
+                  Os dados desta consulta substituem os dados padrão do widget selecionado.
+                </span>
+              </div>
+            )}
+
+            {/* Descrição */}
+            <div className="form-field" style={{ margin: 0 }}>
+              <label>Descrição (opcional)</label>
+              <textarea
+                value={form.descricao}
+                onChange={e => set('descricao', e.target.value)}
+                placeholder="Propósito, fontes de dados, observações..."
+                rows={3}
+                style={{ width: '100%', resize: 'vertical', minHeight: 64 }}
+              />
+            </div>
+
+            {/* Motivo da alteração */}
+            {editando && (
+              <div className="form-field" style={{ margin: 0 }}>
+                <label>Motivo da alteração</label>
+                <input
+                  type="text" value={form.motivo}
+                  onChange={e => set('motivo', e.target.value)}
+                  placeholder="Ex: Ajuste de filtro por data..."
+                  autoComplete="off"
+                />
+                <span style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4, display: 'block' }}>
+                  Registrado no histórico de versões.
+                </span>
+              </div>
+            )}
+
+            {/* Erro */}
+            {erro && <p className="form-erro" style={{ margin: 0 }}>{erro}</p>}
           </div>
 
-          {/* Vincular ao widget do dashboard (só aparece quando categoria = Dashboard) */}
-          {form.categoria === 'Dashboard' && (
-            <div className="form-field">
-              <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
-                </svg>
-                Vincular ao widget do dashboard
-              </label>
-              <select value={form.slot} onChange={e => set('slot', e.target.value)} style={{ width: '100%' }}>
-                {DASHBOARD_SLOTS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-              </select>
-              <span style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4, display: 'block' }}>
-                Quando vinculado, os dados desta consulta substituem os dados hardcoded daquele widget.
+          {/* PAINEL DIREITO — editor SQL */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
+            {/* Cabeçalho do editor */}
+            <div style={{
+              padding: '9px 16px',
+              borderBottom: '1px solid var(--color-border)',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              flexShrink: 0,
+              background: 'var(--color-surface)',
+            }}>
+              <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.08em', color: 'var(--color-text-muted)' }}>
+                SQL
+              </span>
+              <span style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>
+                Apenas SELECT e WITH · use{' '}
+                <code style={{ background: 'var(--color-background)', padding: '1px 5px', borderRadius: 3, fontSize: 10 }}>{'{{empresa}}'}</code>
+                {', '}
+                <code style={{ background: 'var(--color-background)', padding: '1px 5px', borderRadius: 3, fontSize: 10 }}>{'{{data_inicio}}'}</code>
               </span>
             </div>
-          )}
 
-          {/* Descrição */}
-          <div className="form-field">
-            <label>Descrição (opcional)</label>
-            <textarea
-              value={form.descricao} onChange={e => set('descricao', e.target.value)}
-              placeholder="Descreva o propósito desta consulta, fontes de dados e observações importantes..."
-              rows={2}
-              style={{ width: '100%', resize: 'vertical', minHeight: 56 }}
-            />
-          </div>
-
-          {/* Motivo da alteração (só no edit) */}
-          {editando && (
-            <div className="form-field">
-              <label>Motivo da alteração (registrado no histórico)</label>
-              <input type="text" value={form.motivo} onChange={e => set('motivo', e.target.value)} placeholder="Ex: Ajuste de performance, inclusão de filtro por data..." autoComplete="off" />
-            </div>
-          )}
-
-          {/* Editor SQL */}
-          <div className="form-field" style={{ flex: 1 }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-              <label style={{ margin: 0 }}>SQL</label>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                <span style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>
-                  Apenas SELECT e WITH · use <code style={{ background: 'var(--color-bg)', padding: '1px 4px', borderRadius: 3 }}>{'{{empresa}}'}</code>
-                  {', '}
-                  <code style={{ background: 'var(--color-bg)', padding: '1px 4px', borderRadius: 3 }}>{'{{data_inicio}}'}</code>
-                  {' '}(cada parâmetro com nome único)
-                </span>
-                <button
-                  type="button"
-                  className="btn-outline-sm"
-                  style={{ padding: '4px 12px', fontSize: 12 }}
-                  onClick={handleTest}
-                  disabled={testing || !form.bancoId}
-                  title={!form.bancoId ? 'Selecione um banco de dados primeiro' : ''}
-                >
-                  {testing ? <><Spin size={12} /> Executando...</> : '▶ Executar'}
-                </button>
-              </div>
-            </div>
-            <div style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid var(--color-border)', height: fullscreen ? 'calc(100vh - 560px)' : 280, minHeight: 200 }}>
+            {/* Monaco Editor — ocupa toda a altura restante */}
+            <div style={{ flex: 1, minHeight: 0 }}>
               <Editor
                 height="100%"
                 language="sql"
@@ -471,108 +394,22 @@ function ModalQueryForm({ query, conexoes, onSave, onClose }) {
               />
             </div>
           </div>
-
-          {/* Resultado do teste */}
-          {testRes && <div ref={resultRef}><TestResultPanel result={testRes} /></div>}
-
-          {erro && <p className="form-erro" style={{ margin: 0 }}>{erro}</p>}
         </div>
 
-        <div className="modal-footer">
+        {/* ── Rodapé ── */}
+        <div className="modal-footer" style={{ flexShrink: 0 }}>
           <button className="btn-ghost" onClick={onClose}>Cancelar</button>
           <button className="btn-primary" onClick={handleSave} disabled={loading}>
             {loading ? <><Spin size={13} color="#fff" /> Salvando...</> : 'Salvar'}
           </button>
         </div>
       </div>
-
-      {/* Modal de preenchimento de parâmetros */}
-      {paramModal && (
-        <Portal>
-          <ParamInputModal
-            params={paramModal}
-            onConfirm={values => runTest(values)}
-            onCancel={() => setParamModal(null)}
-          />
-        </Portal>
-      )}
-    </div>
-  );
-}
-
-// ── Painel de resultados do teste ──────────────────────────────────────────────
-function TestResultPanel({ result }) {
-  const ok = result?.ok;
-  return (
-    <div style={{
-      borderRadius: 8, overflow: 'hidden',
-      border: `1px solid ${ok ? 'var(--color-success)' : 'var(--color-error)'}`,
-    }}>
-      {/* Header */}
-      <div style={{
-        padding: '8px 14px', display: 'flex', alignItems: 'center', gap: 10,
-        background: ok ? 'var(--color-success-light)' : 'var(--color-error-light)',
-      }}>
-        {ok
-          ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-success)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-          : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-error)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-        }
-        <span style={{ fontSize: 13, fontWeight: 600, color: ok ? 'var(--color-success)' : 'var(--color-error)' }}>
-          {ok
-            ? `${result.rowCount ?? 0} linha(s) retornada(s) em ${result.executionTime}ms`
-            : `Erro: ${result.error}`
-          }
-        </span>
-      </div>
-
-      {/* Tabela de resultados */}
-      {ok && result.rows?.length > 0 && (
-        <div style={{ overflow: 'auto', maxHeight: 220 }}>
-          <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, fontSize: 12 }}>
-            <thead>
-              <tr>
-                {result.columns.map(col => (
-                  <th key={col} style={{
-                    position: 'sticky', top: 0, zIndex: 1,
-                    background: 'var(--color-bg-secondary)',
-                    padding: '7px 12px', textAlign: 'left', fontWeight: 700,
-                    color: 'var(--color-text-secondary)',
-                    boxShadow: '0 2px 0 var(--color-primary)',
-                    whiteSpace: 'nowrap',
-                  }}>
-                    {col}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {result.rows.slice(0, 100).map((row, i) => (
-                <tr key={i} style={{ borderBottom: '1px solid var(--color-border)' }}>
-                  {result.columns.map(col => (
-                    <td key={col} style={{ padding: '5px 12px', color: 'var(--color-text)', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {row[col] === null ? <span style={{ color: 'var(--color-text-muted)', fontStyle: 'italic' }}>null</span> : String(row[col])}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {result.rows.length > 100 && (
-            <p style={{ padding: '6px 12px', fontSize: 11, color: 'var(--color-text-muted)', margin: 0, borderTop: '1px solid var(--color-border)' }}>
-              Mostrando 100 de {result.rowCount} linhas.
-            </p>
-          )}
-        </div>
-      )}
-      {ok && result.rows?.length === 0 && (
-        <p style={{ padding: '10px 14px', fontSize: 13, color: 'var(--color-text-muted)', margin: 0 }}>Consulta retornou 0 linhas.</p>
-      )}
     </div>
   );
 }
 
 // ── Context Menu ───────────────────────────────────────────────────────────────
-function CtxMenuQuery({ x, y, query, isAdmin, onClose, onIncluir, onEditar, onExecutar, onHistorico, onDuplicar, onExcluir }) {
+function CtxMenuQuery({ x, y, query, isAdmin, onClose, onIncluir, onEditar, onHistorico, onDuplicar, onExcluir }) {
   const ref = useRef(null);
 
   useEffect(() => {
@@ -605,12 +442,6 @@ function CtxMenuQuery({ x, y, query, isAdmin, onClose, onIncluir, onEditar, onEx
         )}
         {query && (
           <>
-            {query.bancoId && query.ativa && (
-              <button className="ctx-item" onClick={() => { onExecutar(); onClose(); }}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                Executar
-              </button>
-            )}
             <button className="ctx-item" onClick={() => { onHistorico(); onClose(); }}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><polyline points="12 7 12 12 15 15"/></svg>
               Histórico
@@ -644,12 +475,9 @@ export default function GerenciadorConsultas({ user }) {
   const [queries,   setQueries]   = useState([]);
   const [conexoes,  setConexoes]  = useState([]);
   const [loading,   setLoading]   = useState(true);
-  const [modal,     setModal]     = useState(null);   // null | { query? }
-  const [histModal, setHistModal] = useState(null);   // null | { id, nome }
-  const [testRes,       setTestRes]       = useState(null);
-  const [testingId,     setTestingId]     = useState(null);
-  const [testParamModal,setTestParamModal]= useState(null); // null | { query, params[] }
-  const [ctxMenu,       setCtxMenu]       = useState(null);  // null | { x, y, query }
+  const [modal,     setModal]     = useState(null);
+  const [histModal, setHistModal] = useState(null);
+  const [ctxMenu,   setCtxMenu]   = useState(null);
   const [filtro,    setFiltro]    = useState('');
   const [filtCat,   setFiltCat]   = useState('');
   const [filtAtiva, setFiltAtiva] = useState('');
@@ -657,8 +485,8 @@ export default function GerenciadorConsultas({ user }) {
   function loadQueries() {
     setLoading(true);
     const params = new URLSearchParams();
-    if (filtro)   params.set('q', filtro);
-    if (filtCat)  params.set('categoria', filtCat);
+    if (filtro)         params.set('q', filtro);
+    if (filtCat)        params.set('categoria', filtCat);
     if (filtAtiva !== '') params.set('ativa', filtAtiva);
     apiFetch(`/api/queries?${params.toString()}`)
       .then(r => r.json())
@@ -683,53 +511,11 @@ export default function GerenciadorConsultas({ user }) {
   async function handleDuplicate(q) {
     const res  = await apiFetch(`/api/queries/${q.id}/duplicate`, { method: 'POST' });
     const data = await res.json();
-    if (res.ok) { setQueries(p => [data, ...p]); }
+    if (res.ok) setQueries(p => [data, ...p]);
     else alert(data.error || 'Erro ao duplicar.');
   }
 
-  async function handleTest(q) {
-    setTestingId(q.id); setTestRes(null);
-    try {
-      // Busca SQL completa para detectar params (listagem omite SQL por performance)
-      const fetchRes = await apiFetch(`/api/queries/${q.id}`);
-      const fullQ    = await fetchRes.json();
-      if (!fetchRes.ok) {
-        setTestRes({ queryId: q.id, queryNome: q.nome, ok: false, error: fullQ.error || 'Erro ao buscar consulta.' });
-        return;
-      }
-      const params = detectParams(fullQ.sql || '');
-      if (params.length > 0) {
-        setTestingId(null);
-        setTestParamModal({ query: { id: q.id, sql: fullQ.sql, bancoId: fullQ.bancoId, nome: q.nome }, params });
-      } else {
-        const res  = await apiFetch(`/api/queries/${q.id}/test`, { method: 'POST' });
-        const data = await res.json();
-        setTestRes({ queryId: q.id, queryNome: q.nome, ...data });
-      }
-    } catch { setTestRes({ queryId: q.id, queryNome: q.nome, ok: false, error: 'Erro de comunicação.' }); }
-    finally { setTestingId(null); }
-  }
-
-  async function runTestWithParams(values) {
-    const { query } = testParamModal;
-    setTestParamModal(null);
-    setTestingId(query.id); setTestRes(null);
-    try {
-      const converted = Object.fromEntries(
-        Object.entries(values).map(([k, v]) => [k, isDateParam(k) ? toISODate(v) : v])
-      );
-      const res  = await apiFetch('/api/queries/test-sql', {
-        method: 'POST',
-        body: JSON.stringify({ sql: query.sql, bancoId: query.bancoId, params: converted }),
-      });
-      const data = await res.json();
-      setTestRes({ queryId: query.id, queryNome: query.nome, ...data });
-    } catch { setTestRes({ queryId: query.id, queryNome: query.nome, ok: false, error: 'Erro de comunicação.' }); }
-    finally { setTestingId(null); }
-  }
-
   async function openEdit(q) {
-    // Busca SQL completa (listagem omite para performance)
     try {
       const res  = await apiFetch(`/api/queries/${q.id}`);
       const data = await res.json();
@@ -798,19 +584,6 @@ export default function GerenciadorConsultas({ user }) {
         </div>
       </div>
 
-      {/* Painel de resultado de teste (quando aberto fora do modal) */}
-      {testRes && (
-        <div className="param-card" style={{ padding: 0, marginBottom: 16, overflow: 'hidden' }}>
-          <div style={{ padding: '10px 16px', background: 'var(--color-bg-secondary)', borderBottom: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: 13, fontWeight: 600 }}>Resultado: {testRes.queryNome}</span>
-            <button onClick={() => setTestRes(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)', fontSize: 18, lineHeight: 1 }}>×</button>
-          </div>
-          <div style={{ padding: 16 }}>
-            <TestResultPanel result={testRes} />
-          </div>
-        </div>
-      )}
-
       {/* Tabela */}
       <div className="param-card" onContextMenu={e => openCtxMenu(e, null)}>
         <div className="param-table-wrap">
@@ -863,21 +636,6 @@ export default function GerenciadorConsultas({ user }) {
                     </td>
                     <td style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>{fmtDate(q.atualizado)}</td>
                     <td className="td-actions">
-                      {/* Executar */}
-                      <button
-                        className="btn-outline-sm"
-                        title="Executar consulta"
-                        disabled={testingId === q.id || !q.bancoId || !q.ativa}
-                        onClick={() => handleTest(q)}
-                        style={{ minWidth: 32 }}
-                      >
-                        {testingId === q.id ? <Spin size={12} /> : (
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <polygon points="5 3 19 12 5 21 5 3"/>
-                          </svg>
-                        )}
-                      </button>
-
                       {/* Histórico */}
                       <button
                         className="btn-outline-sm"
@@ -938,15 +696,6 @@ export default function GerenciadorConsultas({ user }) {
           />
         </Portal>
       )}
-      {testParamModal && (
-        <Portal>
-          <ParamInputModal
-            params={testParamModal.params}
-            onConfirm={values => runTestWithParams(values)}
-            onCancel={() => { setTestParamModal(null); setTestingId(null); }}
-          />
-        </Portal>
-      )}
       {histModal && (
         <Portal>
           <ModalHistorico
@@ -967,7 +716,6 @@ export default function GerenciadorConsultas({ user }) {
           onClose={() => setCtxMenu(null)}
           onIncluir={() => setModal({})}
           onEditar={() => openEdit(ctxMenu.query)}
-          onExecutar={() => handleTest(ctxMenu.query)}
           onHistorico={() => setHistModal({ id: ctxMenu.query.id, nome: ctxMenu.query.nome })}
           onDuplicar={() => handleDuplicate(ctxMenu.query)}
           onExcluir={() => handleDelete(ctxMenu.query)}
