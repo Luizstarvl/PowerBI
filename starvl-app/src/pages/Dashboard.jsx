@@ -94,9 +94,23 @@ function TopProdutosBanner({ dados, loading }) {
     return () => clearInterval(id);
   }, [dados]);
 
-  if (loading) return null;
+  if (loading && (!dados || dados.length === 0)) return (
+    <div className="tpb-root tpb-skeleton">
+      <div className="tpb-eyebrow">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" style={{ color: '#ff8c00' }}>
+          <path d="M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11H5zm14 3a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-1h14v1z"/>
+        </svg>
+        Top 5 Mais Vendidos · Conveniência
+      </div>
+      <div className="tpb-stage" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16 }}>
+        {[130, 164, 130].map((w, i) => (
+          <div key={i} className="tpb-skel-card" style={{ width: w, opacity: i === 1 ? 1 : 0.55 }} />
+        ))}
+      </div>
+    </div>
+  );
 
-  if (!dados || dados.length === 0) return (
+  if (!loading && (!dados || dados.length === 0)) return (
     <div className="tpb-root tpb-root--empty">
       <div className="tpb-eyebrow">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" style={{ color: '#ff8c00' }}>

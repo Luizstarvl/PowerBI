@@ -479,6 +479,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .topbar-brand { display: flex; align-items: center; gap: 12px; flex-shrink: 0; width: calc(var(--sidebar-w) - 24px); }
 .topbar-center { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
 .topbar-brand-logo { height: 50px; width: auto; max-width: 180px; }
+.topbar-brand-text { font-size: 18px; font-weight: 800; letter-spacing: .08em; color: var(--color-primary); }
 .topbar-logo  { font-size: 17px; font-weight: 800; color: var(--color-primary); letter-spacing: 0.3px; }
 .topbar-divider { width: 1px; height: 20px; background: var(--color-border); }
 .topbar-sub   { font-size: 11px; font-weight: 500; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.8px; }
@@ -2163,6 +2164,18 @@ select.themed-select option {
 }
 .tpb-dot.on { background: #ff6b00; width: 20px; border-radius: 3px; }
 .tpb-root--empty { padding: 18px 16px; }
+.tpb-skeleton .tpb-stage { position: static; height: 220px; perspective: none; }
+.tpb-skel-card {
+  height: 200px; border-radius: 14px;
+  background: linear-gradient(90deg, rgba(255,255,255,.04) 25%, rgba(255,255,255,.09) 50%, rgba(255,255,255,.04) 75%);
+  background-size: 200% 100%;
+  animation: tpb-shimmer 1.4s ease-in-out infinite;
+  flex-shrink: 0;
+}
+@keyframes tpb-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
 .tpb-empty-msg { text-align: center; font-size: 13px; color: rgba(255,255,255,.3); margin-top: 8px; padding-bottom: 4px; }
 
 /* ── EmpresaPicker ─────────────────────────────────────────────────────────── */

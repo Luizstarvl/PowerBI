@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Search, Sun, Moon, Monitor, ChevronDown, LogOut } from 'lucide-react';
 import { useT } from '../i18n';
-import { Logo } from '../components/ui';
+
 
 function initials(name) {
   if (!name) return '?';
@@ -128,9 +128,9 @@ export default function TopBar({ user, clients, selectedIds, onSelectionChange, 
 
   return (
     <header className="topbar">
-      {/* Left: brand only */}
+      {/* Left: brand */}
       <div className="topbar-brand">
-        <Logo className="topbar-brand-logo" />
+        <span className="topbar-brand-text">HORSE</span>
       </div>
 
       {/* Center: search + company picker */}
