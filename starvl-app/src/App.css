@@ -1110,65 +1110,118 @@ select.themed-select option {
 }
 .period-picker select:focus { border-color: var(--color-primary); }
 
-/* ── Filtros do Dashboard (picker + botão) ───────────────────────────────── */
-.dash-filters {
-  display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap;
-}
-
-/* Picker de período v2 */
-.ppv2 { display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
-
-.ppv2-modes {
-  display: flex; gap: 2px;
+/* ── Period Picker v3 — card design ─────────────────────────────────────── */
+.ppv3-card {
   background: var(--color-surface);
   border: 1.5px solid var(--color-border);
-  border-radius: 10px; padding: 3px;
+  border-radius: 14px;
+  padding: 20px 24px 22px;
+  display: flex; flex-direction: column; gap: 20px;
 }
-.ppv2-mode {
-  background: none; border: none; padding: 4px 11px;
-  font-size: 11.5px; font-weight: 500; color: var(--color-text-muted);
-  border-radius: 7px; cursor: pointer; white-space: nowrap;
-  transition: background .15s, color .15s;
+
+/* Cabeçalho do card */
+.ppv3-header {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
 }
-.ppv2-mode:hover  { background: var(--color-border); color: var(--color-text); }
-.ppv2-mode.active { background: var(--color-primary); color: #fff; }
+.ppv3-title-group {
+  display: flex; align-items: center; gap: 12px;
+}
+.ppv3-title-icon { color: var(--color-primary); flex-shrink: 0; }
+.ppv3-title   { font-size: 15px; font-weight: 700; color: var(--color-text); }
+.ppv3-subtitle { font-size: 12px; color: var(--color-text-muted); margin-top: 2px; }
 
-.ppv2-value { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+/* Botão Atualizar Consulta */
+.ppv3-apply-btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 10px 22px; font-size: 14px; white-space: nowrap;
+}
 
-.ppv2-select {
-  background: var(--color-surface); border: 1.5px solid var(--color-border); border-radius: 9px;
-  padding: 7px 12px; font-size: 13px; font-weight: 500; color: var(--color-text);
+/* Abas de modo */
+.ppv3-modes {
+  display: flex; gap: 10px; flex-wrap: wrap;
+}
+.ppv3-mode {
+  display: inline-flex; align-items: center; gap: 8px;
+  flex: 1; min-width: 90px; justify-content: center;
+  padding: 11px 18px; border-radius: 10px;
+  background: var(--color-bg); border: 1.5px solid var(--color-border);
+  color: var(--color-text); font-size: 13.5px; font-weight: 500;
+  cursor: pointer;
+  transition: border-color .15s, background .15s, color .15s;
+  position: relative;
+}
+.ppv3-mode:hover:not(.active) {
+  border-color: var(--color-primary); color: var(--color-primary);
+}
+.ppv3-mode.active {
+  background: var(--color-primary); border-color: var(--color-primary); color: #fff;
+}
+.ppv3-mode.active::after {
+  content: '';
+  position: absolute; bottom: -12px; left: 50%; transform: translateX(-50%);
+  width: 28px; height: 3px; border-radius: 2px;
+  background: var(--color-primary);
+}
+
+/* Área de inputs de valor */
+.ppv3-values {
+  display: flex; gap: 24px; flex-wrap: wrap;
+}
+.ppv3-field {
+  display: flex; flex-direction: column; gap: 7px;
+  flex: 1; min-width: 180px; max-width: 320px;
+}
+.ppv3-label {
+  font-size: 12.5px; font-weight: 500; color: var(--color-text-muted);
+}
+
+/* Wrapper comum para select e date input */
+.ppv3-input-wrap {
+  position: relative; display: flex; align-items: center;
+}
+.ppv3-input-icon {
+  position: absolute; left: 14px; pointer-events: none;
+  color: var(--color-primary); flex-shrink: 0; z-index: 1;
+}
+.ppv3-input-chevron {
+  position: absolute; right: 13px; pointer-events: none;
+  color: var(--color-text-muted);
+}
+
+/* Select estilizado */
+.ppv3-select {
+  width: 100%; appearance: none;
+  background: var(--color-bg); border: 1.5px solid var(--color-border);
+  border-radius: 10px; padding: 12px 38px 12px 42px;
+  font-size: 14px; font-weight: 500; color: var(--color-text);
   outline: none; cursor: pointer; transition: border-color .15s;
 }
-.ppv2-select:focus { border-color: var(--color-primary); }
+.ppv3-select:focus { border-color: var(--color-primary); }
 
-.ppv2-input {
-  background: var(--color-surface); border: 1.5px solid var(--color-border); border-radius: 9px;
-  padding: 7px 10px; font-size: 13px; color: var(--color-text);
+/* Date input estilizado */
+.ppv3-date {
+  width: 100%;
+  background: var(--color-bg); border: 1.5px solid var(--color-border);
+  border-radius: 10px; padding: 12px 14px 12px 42px;
+  font-size: 14px; color: var(--color-text);
   outline: none; cursor: pointer; transition: border-color .15s;
 }
-.ppv2-input:focus { border-color: var(--color-primary); }
-[data-theme="dark"] .ppv2-input { color-scheme: dark; }
+.ppv3-date:focus { border-color: var(--color-primary); }
+[data-theme="dark"] .ppv3-date { color-scheme: dark; }
 
-.ppv2-sep {
-  font-size: 12px; color: var(--color-text-muted); white-space: nowrap;
-}
-.ppv2-week-label {
-  font-size: 11px; color: var(--color-text-muted); white-space: nowrap;
-  padding: 5px 9px; background: var(--color-surface);
-  border: 1px solid var(--color-border); border-radius: 7px;
-}
-
-/* Botão Atualizar */
-.btn-refresh {
-  display: inline-flex; align-items: center; gap: 6px;
-  white-space: nowrap;
+/* Semana: range display */
+.ppv3-week-display {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--color-bg); border: 1.5px solid var(--color-border);
+  border-radius: 10px; padding: 12px 14px;
+  font-size: 14px; color: var(--color-text);
 }
 
 @media (max-width: 700px) {
-  .dash-filters { flex-direction: column; align-items: flex-start; }
-  .ppv2 { align-items: flex-start; }
-  .ppv2-modes { flex-wrap: wrap; }
+  .ppv3-modes { flex-wrap: wrap; }
+  .ppv3-mode  { flex: 0 1 calc(50% - 5px); min-width: 0; }
+  .ppv3-values { flex-direction: column; }
+  .ppv3-field { max-width: 100%; }
 }
 
 .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
