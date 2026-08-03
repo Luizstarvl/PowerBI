@@ -1,7 +1,8 @@
 import React from 'react';
 import { useT } from '../i18n';
 import { NAV_ITEMS } from '../constants/nav';
-import { version } from '../../package.json';
+import pkg from '../../package.json';
+const { version } = pkg;
 
 function canAccessPage(user, key) {
   if (!user) return false;
