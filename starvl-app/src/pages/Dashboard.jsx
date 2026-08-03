@@ -1,28 +1,148 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ShoppingCart, Fuel, Package, Truck, Boxes, Gauge } from 'lucide-react';
+import { ShoppingCart, Fuel, Package, Truck, Boxes, Gauge, RefreshCw } from 'lucide-react';
 import { KpiCard } from '../components/ui';
 import { apiFetch } from '../api';
 
 const currency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 const number   = new Intl.NumberFormat('pt-BR');
 
-function toPeriodoParam(period) {
-  const [yyyy, mm] = period.split('-');
-  return `${mm}${yyyy}`;
+const MONTH_NAMES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+const PERIOD_MODES = [
+  { id: 'dia',           label: 'Dia' },
+  { id: 'semana',        label: 'Semana' },
+  { id: 'mes',           label: 'Mês' },
+  { id: 'ano',           label: 'Ano' },
+  { id: 'personalizado', label: 'Personalizado' },
+];
+
+function initDraft() {
+  const now  = new Date();
+  const y    = now.getFullYear();
+  const m    = String(now.getMonth() + 1).padStart(2, '0');
+  const today = now.toISOString().slice(0, 10);
+  return { mode: 'mes', mes: `${y}-${m}`, ano: String(y), dia: today, semana: today, inicio: `${y}-${m}-01`, fim: today };
 }
 
-function buildSlotQs(empresasKey, selectedPeriod) {
-  const empresa = (empresasKey || '').split(',')[0];
-  const [y, m] = selectedPeriod.split('-').map(Number);
-  const last = new Date(y, m, 0).getDate();
+function computeWeekBounds(dateStr) {
+  const d   = new Date(`${dateStr}T12:00:00`);
+  const dow = d.getDay();
+  const s   = new Date(d); s.setDate(d.getDate() + (dow === 0 ? -6 : 1 - dow));
+  const e   = new Date(s); e.setDate(s.getDate() + 6);
+  const fmt = dt => dt.toISOString().slice(0, 10);
+  return { inicio: fmt(s), fim: fmt(e) };
+}
+
+function draftToRange(draft) {
   const pad = n => String(n).padStart(2, '0');
-  return new URLSearchParams({
-    empresa,
-    empresas:    empresasKey,
-    data_inicio: `${y}-${pad(m)}-01`,
-    data_final:  `${y}-${pad(m)}-${last}`,
-    periodo:     `${pad(m)}${y}`,
-  }).toString();
+  switch (draft.mode) {
+    case 'dia':  return { inicio: draft.dia,   fim: draft.dia };
+    case 'semana': { const wb = computeWeekBounds(draft.semana); return { inicio: wb.inicio, fim: wb.fim }; }
+    case 'mes': {
+      const [y, m] = draft.mes.split('-').map(Number);
+      const last = new Date(y, m, 0).getDate();
+      return { inicio: `${y}-${pad(m)}-01`, fim: `${y}-${pad(m)}-${pad(last)}` };
+    }
+    case 'ano':  return { inicio: `${draft.ano}-01-01`, fim: `${draft.ano}-12-31` };
+    default:     return { inicio: draft.inicio || '', fim: draft.fim || '' };
+  }
+}
+
+function buildApiQs(empresasKey, applied) {
+  const empresa = (empresasKey || '').split(',')[0];
+  const { inicio, fim } = draftToRange(applied);
+  if (!inicio || !fim) return new URLSearchParams({ empresa, empresas: empresasKey }).toString();
+  const [y, m] = inicio.split('-');
+  const periodo = m && y ? `${m}${y}` : '';
+  return new URLSearchParams({ empresa, empresas: empresasKey, data_inicio: inicio, data_final: fim, periodo }).toString();
+}
+
+function draftCanApply(d) {
+  if (d.mode === 'personalizado') return !!d.inicio && !!d.fim && d.inicio <= d.fim;
+  if (d.mode === 'mes')  return !!d.mes;
+  if (d.mode === 'ano')  return !!d.ano;
+  if (d.mode === 'dia')  return !!d.dia;
+  if (d.mode === 'semana') return !!d.semana;
+  return false;
+}
+
+/* ── Seletor de período ─────────────────────────────────────────────────────── */
+function PeriodPicker({ draft, onChange }) {
+  const currentYear = new Date().getFullYear();
+  const years       = Array.from({ length: 7 }, (_, i) => currentYear - i);
+  const today       = new Date().toISOString().slice(0, 10);
+
+  const set     = (key, val) => onChange({ ...draft, [key]: val });
+  const setMode = mode      => onChange({ ...draft, mode });
+
+  const [mesY, mesM] = (draft.mes || `${currentYear}-01`).split('-');
+  const weekBounds   = draft.mode === 'semana' ? computeWeekBounds(draft.semana || today) : null;
+
+  return (
+    <div className="ppv2">
+      <div className="ppv2-modes">
+        {PERIOD_MODES.map(pm => (
+          <button key={pm.id} type="button"
+            className={`ppv2-mode${draft.mode === pm.id ? ' active' : ''}`}
+            onClick={() => setMode(pm.id)}
+          >{pm.label}</button>
+        ))}
+      </div>
+
+      <div className="ppv2-value">
+        {draft.mode === 'dia' && (
+          <input className="ppv2-input" type="date" value={draft.dia} max={today}
+            onChange={e => set('dia', e.target.value)} />
+        )}
+
+        {draft.mode === 'semana' && (
+          <>
+            <input className="ppv2-input" type="date" value={draft.semana} max={today}
+              onChange={e => set('semana', e.target.value)} />
+            {weekBounds && (
+              <span className="ppv2-week-label">
+                {weekBounds.inicio.split('-').reverse().join('/')}
+                {' – '}
+                {weekBounds.fim.split('-').reverse().join('/')}
+              </span>
+            )}
+          </>
+        )}
+
+        {draft.mode === 'mes' && (
+          <>
+            <select className="ppv2-select" value={mesM}
+              onChange={e => set('mes', `${mesY}-${e.target.value}`)}>
+              {MONTH_NAMES.map((name, i) => (
+                <option key={i} value={String(i + 1).padStart(2, '0')}>{name}</option>
+              ))}
+            </select>
+            <select className="ppv2-select" value={mesY}
+              onChange={e => set('mes', `${e.target.value}-${mesM}`)}>
+              {years.map(y => <option key={y} value={String(y)}>{y}</option>)}
+            </select>
+          </>
+        )}
+
+        {draft.mode === 'ano' && (
+          <select className="ppv2-select" value={draft.ano}
+            onChange={e => set('ano', e.target.value)}>
+            {years.map(y => <option key={y} value={String(y)}>{y}</option>)}
+          </select>
+        )}
+
+        {draft.mode === 'personalizado' && (
+          <>
+            <input className="ppv2-input" type="date" value={draft.inicio} max={today}
+              onChange={e => set('inicio', e.target.value)} />
+            <span className="ppv2-sep">até</span>
+            <input className="ppv2-input" type="date" value={draft.fim}
+              max={today} min={draft.inicio}
+              onChange={e => set('fim', e.target.value)} />
+          </>
+        )}
+      </div>
+    </div>
+  );
 }
 
 function mapToTopProdutos(result) {
@@ -54,17 +174,6 @@ function mapKpiRow(result) {
     litros: val(col('litros|volume|lts')),
     qtd:    val(col('qtd|quantidade|qty')),
   };
-}
-
-function lastMonths(n = 6) {
-  const now = new Date();
-  return Array.from({ length: n }, (_, i) => {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const yyyy = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    const label = d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
-    return { value: `${yyyy}-${mm}`, label: label.charAt(0).toUpperCase() + label.slice(1) };
-  });
 }
 
 /* ── Gradientes dos avatares por rank ───────────────────────────────────────── */
@@ -319,14 +428,14 @@ function TopProdutosBanner({ dados, loading }) {
 }
 
 export default function Dashboard({ empresas, period, onNavigate }) {
-  const months = useMemo(() => lastMonths(6), []);
-  const [selectedPeriod, setSelectedPeriod] = useState(period || months[0].value);
-  const [kpis, setKpis]             = useState(null);
+  const [draft,   setDraft]   = useState(initDraft);
+  const [applied, setApplied] = useState(initDraft); // only changes on button click
+  const [kpis, setKpis]              = useState(null);
   const [topProdutos, setTopProdutos] = useState([]);
-  const [loading, setLoading]        = useState(true);
+  const [loading, setLoading]         = useState(true);
   const [slotLoading, setSlotLoading] = useState(false);
   const [slotKpiData, setSlotKpiData] = useState({});
-  const [erro, setErro]              = useState('');
+  const [erro, setErro]               = useState('');
   const [dashQueries, setDashQueries] = useState([]);
 
   useEffect(() => {
@@ -343,16 +452,18 @@ export default function Dashboard({ empresas, period, onNavigate }) {
     [dashQueries]
   );
 
-  // Busca paralela de todos os KPIs configurados via slot
+  // String que muda somente quando empresa ou filtro aplicado mudam
+  const apiQs = useMemo(() => buildApiQs(empresasKey, applied), [empresasKey, applied]);
+
+  // KPIs via slot
   useEffect(() => {
-    if (!empresasKey || !selectedPeriod) return;
+    if (!empresasKey) return;
     const KPI_KEYS = ['kpi_vendas','kpi_combustivel','kpi_conveniencia','kpi_compras_comb','kpi_compras_conv','kpi_afericoes'];
     const active = KPI_KEYS.filter(k => slotMap[k]);
     if (!active.length) return;
     let cancelado = false;
-    const qs = buildSlotQs(empresasKey, selectedPeriod);
     Promise.all(active.map(k =>
-      apiFetch(`/api/queries/execute/${slotMap[k].codigo}?${qs}`)
+      apiFetch(`/api/queries/execute/${slotMap[k].codigo}?${apiQs}`)
         .then(r => r.json())
         .then(d => [k, mapKpiRow(d)])
         .catch(() => [k, null])
@@ -360,39 +471,36 @@ export default function Dashboard({ empresas, period, onNavigate }) {
       if (!cancelado) setSlotKpiData(Object.fromEntries(entries.filter(([, v]) => v)));
     });
     return () => { cancelado = true; };
-  }, [slotMap, empresasKey, selectedPeriod]);
+  }, [slotMap, apiQs]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Busca Top 5 via slot configurado
+  // Top 5 via slot
   useEffect(() => {
-    if (!empresasKey || !selectedPeriod) return;
+    if (!empresasKey) return;
     const top5Q = slotMap.top5_convenio;
     if (!top5Q) return;
     let cancelado = false;
     setSlotLoading(true);
-    const qs = buildSlotQs(empresasKey, selectedPeriod);
-    apiFetch(`/api/queries/execute/${top5Q.codigo}?${qs}`)
+    apiFetch(`/api/queries/execute/${top5Q.codigo}?${apiQs}`)
       .then(r => r.json())
       .then(d => { if (!cancelado) setTopProdutos(mapToTopProdutos(d)); })
       .catch(() => { if (!cancelado) setTopProdutos([]); })
       .finally(() => { if (!cancelado) setSlotLoading(false); });
     return () => { cancelado = true; };
-  }, [slotMap, empresasKey, selectedPeriod]);
+  }, [slotMap, apiQs]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Busca principal: KPIs + top convenio fallback (sem slot)
+  // KPIs principais (endpoint legado)
   useEffect(() => {
     if (!empresasKey) return;
     let cancelado = false;
     setLoading(true);
     setErro('');
-    const periodo = toPeriodoParam(selectedPeriod);
-    const qs = `empresas=${empresasKey}&periodo=${periodo}`;
     const hasTop5Slot = !!slotMap.top5_convenio;
 
     Promise.all([
-      apiFetch(`/api/dashboard/kpis?${qs}`).then(r => r.json()),
+      apiFetch(`/api/dashboard/kpis?${apiQs}`).then(r => r.json()),
       hasTop5Slot
         ? Promise.resolve(null)
-        : apiFetch(`/api/dashboard/top-convenio?${qs}`).then(r => r.json()),
+        : apiFetch(`/api/dashboard/top-convenio?${apiQs}`).then(r => r.json()),
     ])
       .then(([kpisData, topData]) => {
         if (cancelado) return;
@@ -404,7 +512,13 @@ export default function Dashboard({ empresas, period, onNavigate }) {
       .finally(() => { if (!cancelado) setLoading(false); });
 
     return () => { cancelado = true; };
-  }, [empresasKey, selectedPeriod, slotMap]);
+  }, [apiQs, slotMap]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function handleAtualizar() {
+    if (draftCanApply(draft)) setApplied({ ...draft });
+  }
+
+  const canApply  = draftCanApply(draft);
 
   return (
     <main className="dashboard">
@@ -413,10 +527,17 @@ export default function Dashboard({ empresas, period, onNavigate }) {
           <div className="section-title">Visão geral</div>
           <div className="section-sub">Resumo de vendas do período selecionado</div>
         </div>
-        <div className="period-picker">
-          <select value={selectedPeriod} onChange={e => setSelectedPeriod(e.target.value)}>
-            {months.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
-          </select>
+        <div className="dash-filters">
+          <PeriodPicker draft={draft} onChange={setDraft} />
+          <button
+            className="btn-primary btn-sm btn-refresh"
+            onClick={handleAtualizar}
+            disabled={!canApply || !empresasKey}
+            title={!empresasKey ? 'Selecione uma empresa primeiro' : 'Atualizar os dados do período'}
+          >
+            <RefreshCw size={13} />
+            Atualizar
+          </button>
         </div>
       </div>
 
