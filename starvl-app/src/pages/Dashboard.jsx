@@ -44,7 +44,7 @@ const RANK_GRAD = [
   'linear-gradient(135deg,#f472b6,#be185d)',
 ];
 
-function TopProdutosBanner({ dados }) {
+function TopProdutosBanner({ dados, loading }) {
   const [featured, setFeatured] = useState(0);
 
   useEffect(() => {
@@ -53,7 +53,19 @@ function TopProdutosBanner({ dados }) {
     return () => clearInterval(id);
   }, [dados]);
 
-  if (!dados || dados.length === 0) return null;
+  if (loading) return null;
+
+  if (!dados || dados.length === 0) return (
+    <div className="tpb-root tpb-root--empty">
+      <div className="tpb-eyebrow">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" style={{ color: '#ff8c00' }}>
+          <path d="M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11H5zm14 3a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-1h14v1z"/>
+        </svg>
+        Top 5 Mais Vendidos · Conveniência
+      </div>
+      <p className="tpb-empty-msg">Sem dados de conveniência para o período selecionado.</p>
+    </div>
+  );
 
   const n = dados.length;
   const half = Math.min(2, Math.floor((n - 1) / 2));
@@ -181,7 +193,7 @@ export default function Dashboard({ empresas, period, onNavigate }) {
 
       {empresasKey && !erro && (
         <>
-          <TopProdutosBanner dados={topProdutos} />
+          <TopProdutosBanner dados={topProdutos} loading={loading} />
 
           <div className="kpi-grid">
             <KpiCard icon={ShoppingCart} label="Vendas totais" value={loading ? '—' : currency.format(kpis?.vendas.valor || 0)} sub={loading ? '' : `${number.format(kpis?.vendas.total || 0)} vendas`} />

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Target, TrendingUp, Zap, Flag } from 'lucide-react';
 import MetaFormModal  from '../components/metas/MetaFormModal';
 import MetaDetailModal from '../components/metas/MetaDetailModal';
 import {
@@ -88,19 +89,19 @@ function BarraPercentual({ pct }) {
 }
 
 /* ── KPI Card ──────────────────────────────────────────────────────────────── */
-function KpiMeta({ icon, iconBg, iconColor, label, value, sub, progress }) {
+function KpiMeta({ icon: Icon, label, value, sub, progress }) {
   return (
     <div className="mgt-kpi-card">
-      <div className="mgt-kpi-icon" style={{ background: iconBg }}>
-        <span style={{ color: iconColor, fontSize: 18 }}>{icon}</span>
+      <div className="kpi-card-icon">
+        {Icon && <Icon size={18} strokeWidth={2} />}
       </div>
       <div className="mgt-kpi-content">
         <div className="mgt-kpi-label">{label}</div>
         <div className="mgt-kpi-value">{value}</div>
         {progress != null && (
           <div style={{ marginTop: 6 }}>
-            <div style={{ height: 4, background: 'rgba(255,255,255,.08)', borderRadius: 4, overflow: 'hidden' }}>
-              <div style={{ width: `${Math.min(progress, 100)}%`, height: '100%', background: '#F59E0B', borderRadius: 4 }} />
+            <div style={{ height: 4, background: 'var(--color-border)', borderRadius: 4, overflow: 'hidden' }}>
+              <div style={{ width: `${Math.min(progress, 100)}%`, height: '100%', background: 'var(--color-primary)', borderRadius: 4, transition: 'width .4s' }} />
             </div>
           </div>
         )}
@@ -314,30 +315,26 @@ export default function Metas({ empresa, empresaNome, user, onNavigate }) {
           {/* ── KPI Cards ──────────────────────────────────────────────── */}
           <div className="mgt-kpi-grid">
             <KpiMeta
-              icon="🎯"
-              iconBg="rgba(239,68,68,.15)" iconColor="#EF4444"
+              icon={Target}
               label="META TOTAL"
               value={kpis ? fmtBRL.format(kpis.valorTotalMetas || 0) : '—'}
               sub="Total das metas no período"
             />
             <KpiMeta
-              icon="📈"
-              iconBg="rgba(34,197,94,.12)" iconColor="#22C55E"
+              icon={TrendingUp}
               label="REALIZADO"
               value={kpis ? fmtBRL.format(kpis.valorTotalAtual || 0) : '—'}
               sub="Total realizado no período"
             />
             <KpiMeta
-              icon="⚡"
-              iconBg="rgba(245,158,11,.12)" iconColor="#F59E0B"
+              icon={Zap}
               label="ATINGIMENTO"
               value={kpis ? `${(kpis.mediaCumprimento || 0).toFixed(1)}%` : '—'}
               progress={kpis?.mediaCumprimento}
               sub="Percentual de atingimento"
             />
             <KpiMeta
-              icon="🚩"
-              iconBg="rgba(99,102,241,.12)" iconColor="#818CF8"
+              icon={Flag}
               label="METAS ATIVAS"
               value={metasAtivas != null ? String(metasAtivas) : '—'}
               sub="Total de metas ativas"

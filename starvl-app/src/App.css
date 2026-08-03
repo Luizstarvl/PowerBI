@@ -182,7 +182,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   display: flex; align-items: flex-start;
   padding-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,.10); margin-bottom: 2px;
 }
-.login-hero-logo { height: 48px; }
+.login-hero-logo { height: 80px; }
 .login-hero-title   { font-size: 44px; font-weight: 800; line-height: 1.14; color: #fff; letter-spacing: -.5px; text-wrap: balance; }
 .login-hero-title span { color: #FF6A00; }
 .login-hero-desc    { font-size: 15px; color: #A1A1AA; max-width: 460px; line-height: 1.6; margin-top: 4px; }
@@ -275,7 +275,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 }
 @keyframes neonChase { to { --neon-angle: 360deg; } }
 .login-card-logo  { display: flex; justify-content: center; margin-bottom: 26px; }
-.login-card-logo img { height: 40px; }
+.login-card-logo img { height: 64px; }
 .login-card-title { font-size: 24px; font-weight: 800; color: #fff; text-align: center; }
 .login-card-desc  { font-size: 13.5px; color: #A1A1AA; text-align: center; margin-top: 6px; margin-bottom: 28px; }
 
@@ -478,7 +478,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 }
 .topbar-brand { display: flex; align-items: center; gap: 12px; flex-shrink: 0; width: calc(var(--sidebar-w) - 24px); }
 .topbar-center { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
-.topbar-brand-logo { height: 42px; width: auto; }
+.topbar-brand-logo { height: 56px; width: auto; }
 .topbar-logo  { font-size: 17px; font-weight: 800; color: var(--color-primary); letter-spacing: 0.3px; }
 .topbar-divider { width: 1px; height: 20px; background: var(--color-border); }
 .topbar-sub   { font-size: 11px; font-weight: 500; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.8px; }
@@ -2143,6 +2143,8 @@ select.themed-select option {
   transition: background .2s, width .25s, border-radius .25s;
 }
 .tpb-dot.on { background: #ff6b00; width: 20px; border-radius: 3px; }
+.tpb-root--empty { padding: 18px 16px; }
+.tpb-empty-msg { text-align: center; font-size: 13px; color: rgba(255,255,255,.3); margin-top: 8px; padding-bottom: 4px; }
 
 /* ── EmpresaPicker ─────────────────────────────────────────────────────────── */
 .ep-root { position: relative; flex-shrink: 0; }
