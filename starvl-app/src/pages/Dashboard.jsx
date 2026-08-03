@@ -325,7 +325,8 @@ function TopProdutosBanner({ dados, loading }) {
 
   return (
     <div className="tpb-root">
-      <ConfettiCanvas />
+      {/* Confetes apenas quando o 1° lugar está em destaque */}
+      {featured === 0 && <ConfettiCanvas />}
       <div className="tpb-eyebrow">{EYEBROW_ICON} Top 5 Mais Vendidos · Conveniência</div>
 
       {/* Setas de navegação */}
@@ -350,7 +351,7 @@ function TopProdutosBanner({ dados, loading }) {
           return (
             <div
               key={rank}
-              className={`tpb-card${isCenter ? ' tpb-featured' : ''}${isFirst ? ' tpb-rank1' : ''}`}
+              className={`tpb-card${isCenter ? ' tpb-featured' : ' tpb-side'}${isFirst ? ' tpb-rank1' : ''}`}
               style={{
                 width:     sz.w,
                 padding:   sz.pad,
@@ -360,8 +361,9 @@ function TopProdutosBanner({ dados, loading }) {
                 transition: skipTrans
                   ? 'opacity .4s ease, box-shadow .4s'
                   : 'transform .5s cubic-bezier(.25,.46,.45,.94), opacity .4s ease, box-shadow .4s',
-                cursor: 'default',
+                cursor: isCenter ? 'default' : 'pointer',
               }}
+              onClick={() => { if (!isCenter) { setFeatured(idx); startTimer(); } }}
             >
               {isFirst && (
                 <div className="tpb-stars" aria-hidden="true">
