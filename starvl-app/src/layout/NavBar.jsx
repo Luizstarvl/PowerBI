@@ -1,6 +1,7 @@
 import React from 'react';
 import { useT } from '../i18n';
 import { NAV_ITEMS } from '../constants/nav';
+import { version } from '../../package.json';
 
 function canAccessPage(user, key) {
   if (!user) return false;
@@ -40,7 +41,7 @@ export default function NavBar({ page, onPageChange, user, badges }) {
       </nav>
 
       <div className="sidebar-footer">
-        <span className="sidebar-version">v2.2</span>
+        <span className="sidebar-version">v{version}</span>
       </div>
     </aside>
   );
