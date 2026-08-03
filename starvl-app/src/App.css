@@ -1204,6 +1204,12 @@ select.themed-select option {
   outline: none; cursor: pointer; transition: border-color .15s;
 }
 .ppv3-select:focus { border-color: var(--color-primary); }
+.ppv3-select option {
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+[data-theme="dark"] .ppv3-select { color-scheme: dark; }
+@media (prefers-color-scheme: dark) { .ppv3-select { color-scheme: dark; } }
 
 /* Date input estilizado */
 .ppv3-date {
