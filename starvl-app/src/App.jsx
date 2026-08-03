@@ -29,7 +29,7 @@ function initUserFromStorage() {
 export default function App() {
   const [user, setUser] = useState(initUserFromStorage);
   const [clients, setClients] = useState([]);
-  const [selectedClient, setSelectedClient] = useState(null);
+  const [selectedIds, setSelectedIds] = useState([]);
   const [period] = useState(getCurrentPeriod);
   const [page, setPage] = useState('dashboard');
   const [visited, setVisited] = useState(() => new Set(['dashboard']));
@@ -71,7 +71,7 @@ export default function App() {
       .then(data => {
         if (Array.isArray(data) && data.length) {
           setClients(data);
-          setSelectedClient(data[0]);
+          setSelectedIds([data[0].codigoEmpresa]);
         }
       })
       .catch(() => {});
@@ -127,8 +127,8 @@ export default function App() {
       <TopBar
         user={user}
         clients={clients}
-        selectedClient={selectedClient}
-        onClientChange={setSelectedClient}
+        selectedIds={selectedIds}
+        onSelectionChange={setSelectedIds}
         onLogout={handleLogout}
         themeMode={themeMode}
         onThemeToggle={handleThemeToggle}
@@ -138,12 +138,12 @@ export default function App() {
         <div className="app-content">
           {visited.has('dashboard') && (
             <div className={`page-slot${page === 'dashboard' ? ' page-active' : ''}`}>
-              <Dashboard empresa={selectedClient?.codigoEmpresa} period={period} onNavigate={handlePageChange} />
+              <Dashboard empresas={selectedIds} period={period} onNavigate={handlePageChange} />
             </div>
           )}
           {visited.has('metas') && (
             <div className={`page-slot${page === 'metas' ? ' page-active' : ''}`}>
-              <Metas empresa={selectedClient?.id} empresaNome={selectedClient?.nome} user={user} onNavigate={handlePageChange} />
+              <Metas empresa={clients.find(c => c.codigoEmpresa === selectedIds[0])?.id} empresaNome={clients.find(c => c.codigoEmpresa === selectedIds[0])?.nome} user={user} onNavigate={handlePageChange} />
             </div>
           )}
           {visited.has('usuarios') && (

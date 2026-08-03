@@ -35,7 +35,7 @@ const tooltipStyle = {
   color: 'var(--color-text)',
 };
 
-export default function Dashboard({ empresa, period, onNavigate }) {
+export default function Dashboard({ empresas, period, onNavigate }) {
   const months = useMemo(() => lastMonths(6), []);
   const [selectedPeriod, setSelectedPeriod] = useState(period || months[0].value);
   const [kpis, setKpis] = useState(null);
@@ -44,14 +44,16 @@ export default function Dashboard({ empresa, period, onNavigate }) {
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState('');
 
+  const empresasKey = (empresas || []).join(',');
+
   useEffect(() => {
-    if (!empresa) return;
+    if (!empresasKey) return;
     let cancelado = false;
     setLoading(true);
     setErro('');
 
     const periodo = toPeriodoParam(selectedPeriod);
-    const qs = `empresa=${empresa}&periodo=${periodo}`;
+    const qs = `empresas=${empresasKey}&periodo=${periodo}`;
 
     Promise.all([
       apiFetch(`/api/dashboard/kpis?${qs}`).then(r => r.json()),
@@ -69,7 +71,7 @@ export default function Dashboard({ empresa, period, onNavigate }) {
       .finally(() => { if (!cancelado) setLoading(false); });
 
     return () => { cancelado = true; };
-  }, [empresa, selectedPeriod]);
+  }, [empresasKey, selectedPeriod]);
 
   const diariasFmt = vendasDiarias.map(d => ({
     ...d,
@@ -90,10 +92,10 @@ export default function Dashboard({ empresa, period, onNavigate }) {
         </div>
       </div>
 
-      {!empresa && <p className="chart-empty">Selecione uma empresa para ver o dashboard.</p>}
+      {!empresasKey && <p className="chart-empty">Selecione uma empresa para ver o dashboard.</p>}
       {erro && <p className="form-erro">{erro}</p>}
 
-      {empresa && !erro && (
+      {empresasKey && !erro && (
         <>
           <div className="kpi-grid">
             <KpiCard icon={ShoppingCart} label="Vendas totais" value={loading ? '—' : currency.format(kpis?.vendas.valor || 0)} sub={loading ? '' : `${number.format(kpis?.vendas.total || 0)} vendas`} />

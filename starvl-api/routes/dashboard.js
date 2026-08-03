@@ -38,15 +38,30 @@ function withCache(handler) {
   };
 }
 
-// GET /api/dashboard/kpis?empresa=7432&periodo=042026
+// Executa uma query em todos os pools das empresas e retorna todas as linhas
+async function queryAll(empresaList, sql, paramsFn) {
+  const settled = await Promise.allSettled(
+    empresaList.map(emp => queryFor(emp)(sql, paramsFn(emp)))
+  );
+  return settled.flatMap(r => r.status === 'fulfilled' ? r.value.rows : []);
+}
+
+// Parseia o parâmetro empresas (aceita "empresa" legado ou "empresas" novo)
+function parseEmpresas(query) {
+  const raw = query.empresas || query.empresa || '';
+  return raw.toString().split(',').map(Number).filter(Boolean);
+}
+
+// GET /api/dashboard/kpis?empresas=7432,7433&periodo=042026
 router.get('/kpis', withCache(async (req, res) => {
-  const empresa = parseInt(req.query.empresa);
-  const query = queryFor(empresa);
+  const empresaList = parseEmpresas(req.query);
   const periodo = req.query.periodo; // MMYYYY
 
-  if (!empresa || !periodo || periodo.length !== 6) {
+  if (!empresaList.length || !periodo || periodo.length !== 6) {
     return res.status(400).json({ error: 'empresa and periodo (MMYYYY) required' });
   }
+  // Mantém compat com queryFor (usa primeira empresa para contexto de conexão)
+  const empresa = empresaList[0];
 
   const mes = parseInt(periodo.substring(0, 2));
   const ano = parseInt(periodo.substring(2, 6));
@@ -54,142 +69,75 @@ router.get('/kpis', withCache(async (req, res) => {
   const dataInicio = `${ano}-${String(mes).padStart(2, '0')}-01`;
   const dataFim = `${ano}-${String(mes).padStart(2, '0')}-${diasNoMes}`;
 
+  const p = (emp) => [emp, dataInicio, dataFim];
+
   try {
-    // Total vendas (count + valor via vdit, pois vda não tem campo de total)
-    const vendasResult = await query(
-      `SELECT
-         COUNT(DISTINCT vda.vdacodigo) AS total_vendas,
-         COALESCE(SUM(vdit.vdittotal), 0) AS valor_total_vendas
-       FROM vda
-       JOIN vdit ON vdit.vditcodigovda = vda.vdacodigo AND vdit.vditempresa = vda.vdaempresa
-       WHERE vda.vdaempresa = $1
-         AND vda.vdamovimento >= $2
-         AND vda.vdamovimento <= $3
-         AND (vda.vdastatus IS NULL OR vda.vdastatus = 0)`,
-      [empresa, dataInicio, dataFim]
-    );
+    const [vendas, comb, conv, comprasComb, comprasConv, afer] = await Promise.all([
+      queryAll(empresaList,
+        `SELECT COUNT(DISTINCT vda.vdacodigo) AS total_vendas,
+                COALESCE(SUM(vdit.vdittotal), 0) AS valor_total_vendas
+         FROM vda JOIN vdit ON vdit.vditcodigovda=vda.vdacodigo AND vdit.vditempresa=vda.vdaempresa
+         WHERE vda.vdaempresa=$1 AND vda.vdamovimento>=$2 AND vda.vdamovimento<=$3
+           AND (vda.vdastatus IS NULL OR vda.vdastatus=0)`, p),
 
-    // Combustível vendido (litros + valor + qtd de vendas com combustível)
-    const combustivelResult = await query(
-      `SELECT
-         COUNT(DISTINCT vda.vdacodigo)    AS total_vendas_comb,
-         COALESCE(SUM(vdit.vditqtd), 0)  AS litros_vendidos,
-         COALESCE(SUM(vdit.vdittotal), 0) AS valor_combustivel
-       FROM vdit
-       JOIN vda ON vda.vdacodigo = vdit.vditcodigovda AND vda.vdaempresa = vdit.vditempresa
-       JOIN prod ON prod.prodcodigo = vdit.vditproduto
-       WHERE vdit.vditempresa = $1
-         AND vda.vdamovimento >= $2
-         AND vda.vdamovimento <= $3
-         AND (vda.vdastatus IS NULL OR vda.vdastatus = 0)
-         AND prod.prodtipo = 1`,
-      [empresa, dataInicio, dataFim]
-    );
+      queryAll(empresaList,
+        `SELECT COUNT(DISTINCT vda.vdacodigo) AS total_vendas_comb,
+                COALESCE(SUM(vdit.vditqtd),0) AS litros_vendidos,
+                COALESCE(SUM(vdit.vdittotal),0) AS valor_combustivel
+         FROM vdit JOIN vda ON vda.vdacodigo=vdit.vditcodigovda AND vda.vdaempresa=vdit.vditempresa
+         JOIN prod ON prod.prodcodigo=vdit.vditproduto
+         WHERE vdit.vditempresa=$1 AND vda.vdamovimento>=$2 AND vda.vdamovimento<=$3
+           AND (vda.vdastatus IS NULL OR vda.vdastatus=0) AND prod.prodtipo=1`, p),
 
-    // Conveniência / Produtos (prodtipo != 1)
-    const convenienciaResult = await query(
-      `SELECT
-         COUNT(DISTINCT vda.vdacodigo)    AS total_vendas_conv,
-         COALESCE(SUM(vdit.vdittotal), 0) AS valor_conv,
-         COALESCE(SUM(vdit.vditqtd), 0)  AS qtd_itens_conv
-       FROM vdit
-       JOIN vda ON vda.vdacodigo = vdit.vditcodigovda AND vda.vdaempresa = vdit.vditempresa
-       JOIN prod ON prod.prodcodigo = vdit.vditproduto
-       WHERE vdit.vditempresa = $1
-         AND vda.vdamovimento >= $2
-         AND vda.vdamovimento <= $3
-         AND (vda.vdastatus IS NULL OR vda.vdastatus = 0)
-         AND prod.prodtipo != 1`,
-      [empresa, dataInicio, dataFim]
-    );
+      queryAll(empresaList,
+        `SELECT COUNT(DISTINCT vda.vdacodigo) AS total_vendas_conv,
+                COALESCE(SUM(vdit.vdittotal),0) AS valor_conv,
+                COALESCE(SUM(vdit.vditqtd),0) AS qtd_itens_conv
+         FROM vdit JOIN vda ON vda.vdacodigo=vdit.vditcodigovda AND vda.vdaempresa=vdit.vditempresa
+         JOIN prod ON prod.prodcodigo=vdit.vditproduto
+         WHERE vdit.vditempresa=$1 AND vda.vdamovimento>=$2 AND vda.vdamovimento<=$3
+           AND (vda.vdastatus IS NULL OR vda.vdastatus=0) AND prod.prodtipo!=1`, p),
 
-    // Compras de Combustível (prodtipo = 1): entcpa + pedidos (pede/pedi)
-    const comprasCombResult = await query(
-      `WITH c_entcpa AS (
-         SELECT COALESCE(SUM(ei.entcpitotal), 0) AS valor,
-                COUNT(DISTINCT ec.entcpacodigo)   AS total
-         FROM entcpa ec
-         JOIN entcpi ei ON ei.entcpicompra   = ec.entcpacodigo
-         JOIN prod   p  ON p.prodcodigo      = ei.entcpiproduto
-         WHERE ec.entcpaempresa = $1
-           AND DATE(ec.entcpachegada) >= $2
-           AND DATE(ec.entcpachegada) <= $3
-           AND p.prodtipo = 1
-       ),
-       c_pedi AS (
-         SELECT COALESCE(SUM(pi.peditotal), 0) AS valor,
-                COUNT(DISTINCT pd.pedecodigo)   AS total
-         FROM pede pd
-         JOIN pedi pi ON pi.pedicodigopede = pd.pedecodigo
-                     AND pi.pediempresa    = pd.pedeempresa
-         JOIN prod  p  ON p.prodcodigo     = pi.pediproduto
-         WHERE pd.pedeempresa = $1
-           AND pd.pededatarecebimento IS NOT NULL
-           AND DATE(pd.pededatarecebimento) >= $2
-           AND DATE(pd.pededatarecebimento) <= $3
-           AND p.prodtipo = 1
-       )
-       SELECT
-         (SELECT valor FROM c_entcpa) + (SELECT valor FROM c_pedi) AS valor_compras_comb,
-         (SELECT total FROM c_entcpa) + (SELECT total FROM c_pedi) AS total_compras_comb`,
-      [empresa, dataInicio, dataFim]
-    );
+      queryAll(empresaList,
+        `WITH c_entcpa AS (
+           SELECT COALESCE(SUM(ei.entcpitotal),0) AS valor, COUNT(DISTINCT ec.entcpacodigo) AS total
+           FROM entcpa ec JOIN entcpi ei ON ei.entcpicompra=ec.entcpacodigo
+           JOIN prod p ON p.prodcodigo=ei.entcpiproduto
+           WHERE ec.entcpaempresa=$1 AND DATE(ec.entcpachegada)>=$2 AND DATE(ec.entcpachegada)<=$3 AND p.prodtipo=1
+         ), c_pedi AS (
+           SELECT COALESCE(SUM(pi.peditotal),0) AS valor, COUNT(DISTINCT pd.pedecodigo) AS total
+           FROM pede pd JOIN pedi pi ON pi.pedicodigopede=pd.pedecodigo AND pi.pediempresa=pd.pedeempresa
+           JOIN prod p ON p.prodcodigo=pi.pediproduto
+           WHERE pd.pedeempresa=$1 AND pd.pededatarecebimento IS NOT NULL
+             AND DATE(pd.pededatarecebimento)>=$2 AND DATE(pd.pededatarecebimento)<=$3 AND p.prodtipo=1
+         )
+         SELECT (SELECT valor FROM c_entcpa)+(SELECT valor FROM c_pedi) AS valor_compras_comb,
+                (SELECT total FROM c_entcpa)+(SELECT total FROM c_pedi) AS total_compras_comb`, p),
 
-    // Compras de Conveniência (prodtipo = 2): apenas entcpa
-    const comprasConvResult = await query(
-      `SELECT
-         COALESCE(SUM(ei.entcpitotal), 0)  AS valor_compras_conv,
-         COUNT(DISTINCT ec.entcpacodigo)    AS total_compras_conv
-       FROM entcpa ec
-       JOIN entcpi ei ON ei.entcpicompra = ec.entcpacodigo
-       JOIN prod   p  ON p.prodcodigo    = ei.entcpiproduto
-       WHERE ec.entcpaempresa = $1
-         AND DATE(ec.entcpachegada) >= $2
-         AND DATE(ec.entcpachegada) <= $3
-         AND p.prodtipo = 2`,
-      [empresa, dataInicio, dataFim]
-    );
+      queryAll(empresaList,
+        `SELECT COALESCE(SUM(ei.entcpitotal),0) AS valor_compras_conv,
+                COUNT(DISTINCT ec.entcpacodigo) AS total_compras_conv
+         FROM entcpa ec JOIN entcpi ei ON ei.entcpicompra=ec.entcpacodigo
+         JOIN prod p ON p.prodcodigo=ei.entcpiproduto
+         WHERE ec.entcpaempresa=$1 AND DATE(ec.entcpachegada)>=$2 AND DATE(ec.entcpachegada)<=$3
+           AND p.prodtipo=2`, p),
 
-    // Aferições do período
-    const afericoesResult = await query(
-      `SELECT
-         COUNT(*) AS total_afericoes,
-         COALESCE(SUM(aferqtd), 0) AS total_qtd_afericao
-       FROM afer
-       WHERE aferempresa = $1
-         AND DATE(aferdata) >= $2
-         AND DATE(aferdata) <= $3`,
-      [empresa, dataInicio, dataFim]
-    );
+      queryAll(empresaList,
+        `SELECT COUNT(*) AS total_afericoes, COALESCE(SUM(aferqtd),0) AS total_qtd_afericao
+         FROM afer WHERE aferempresa=$1 AND DATE(aferdata)>=$2 AND DATE(aferdata)<=$3`, p),
+    ]);
+
+    const sum = (rows, field) => rows.reduce((s, r) => s + parseFloat(r[field] || 0), 0);
+    const cnt = (rows, field) => rows.reduce((s, r) => s + parseInt(r[field]  || 0), 0);
 
     res.json({
       periodo: { mes, ano },
-      vendas: {
-        total: parseInt(vendasResult.rows[0].total_vendas),
-        valor: parseFloat(vendasResult.rows[0].valor_total_vendas),
-      },
-      combustivel: {
-        total: parseInt(combustivelResult.rows[0].total_vendas_comb),
-        litros: parseFloat(combustivelResult.rows[0].litros_vendidos),
-        valor: parseFloat(combustivelResult.rows[0].valor_combustivel),
-      },
-      conveniencia: {
-        total: parseInt(convenienciaResult.rows[0].total_vendas_conv),
-        valor: parseFloat(convenienciaResult.rows[0].valor_conv),
-        qtd:   parseFloat(convenienciaResult.rows[0].qtd_itens_conv),
-      },
-      comprasComb: {
-        total: parseInt(comprasCombResult.rows[0].total_compras_comb),
-        valor: parseFloat(comprasCombResult.rows[0].valor_compras_comb),
-      },
-      comprasConv: {
-        total: parseInt(comprasConvResult.rows[0].total_compras_conv),
-        valor: parseFloat(comprasConvResult.rows[0].valor_compras_conv),
-      },
-      afericoes: {
-        total: parseInt(afericoesResult.rows[0].total_afericoes),
-        qtd: parseFloat(afericoesResult.rows[0].total_qtd_afericao),
-      },
+      vendas:      { total: cnt(vendas,      'total_vendas'),      valor: sum(vendas,      'valor_total_vendas') },
+      combustivel: { total: cnt(comb,        'total_vendas_comb'), litros: sum(comb, 'litros_vendidos'), valor: sum(comb, 'valor_combustivel') },
+      conveniencia:{ total: cnt(conv,        'total_vendas_conv'), valor: sum(conv,  'valor_conv'),      qtd: sum(conv, 'qtd_itens_conv') },
+      comprasComb: { total: cnt(comprasComb, 'total_compras_comb'),valor: sum(comprasComb,'valor_compras_comb') },
+      comprasConv: { total: cnt(comprasConv, 'total_compras_conv'),valor: sum(comprasConv,'valor_compras_conv') },
+      afericoes:   { total: cnt(afer,        'total_afericoes'),   qtd:  sum(afer,  'total_qtd_afericao') },
     });
   } catch (err) {
     console.error('Error in /dashboard/kpis:', err.message);
@@ -197,13 +145,12 @@ router.get('/kpis', withCache(async (req, res) => {
   }
 }));
 
-// GET /api/dashboard/vendas-diarias?empresa=7432&periodo=042026
+// GET /api/dashboard/vendas-diarias?empresas=7432,7433&periodo=042026
 router.get('/vendas-diarias', withCache(async (req, res) => {
-  const empresa = parseInt(req.query.empresa);
-  const query = queryFor(empresa);
+  const empresaList = parseEmpresas(req.query);
   const periodo = req.query.periodo;
 
-  if (!empresa || !periodo || periodo.length !== 6) {
+  if (!empresaList.length || !periodo || periodo.length !== 6) {
     return res.status(400).json({ error: 'empresa and periodo (MMYYYY) required' });
   }
 
@@ -214,28 +161,28 @@ router.get('/vendas-diarias', withCache(async (req, res) => {
   const dataFim = `${ano}-${String(mes).padStart(2, '0')}-${diasNoMes}`;
 
   try {
-    const result = await query(
-      `SELECT
-         vda.vdamovimento AS dia,
-         COUNT(DISTINCT vda.vdacodigo) AS qtd_vendas,
-         COALESCE(SUM(vdit.vdittotal), 0) AS valor_total
-       FROM vda
-       JOIN vdit ON vdit.vditcodigovda = vda.vdacodigo AND vdit.vditempresa = vda.vdaempresa
-       JOIN prod ON prod.prodcodigo = vdit.vditproduto
-       WHERE vda.vdaempresa = $1
-         AND vda.vdamovimento >= $2
-         AND vda.vdamovimento <= $3
-         AND (vda.vdastatus IS NULL OR vda.vdastatus = 0)
-         AND prod.prodtipo = 1
-       GROUP BY vda.vdamovimento
-       ORDER BY dia`,
-      [empresa, dataInicio, dataFim]
+    const rows = await queryAll(empresaList,
+      `SELECT vda.vdamovimento AS dia, COUNT(DISTINCT vda.vdacodigo) AS qtd_vendas,
+              COALESCE(SUM(vdit.vdittotal),0) AS valor_total
+       FROM vda JOIN vdit ON vdit.vditcodigovda=vda.vdacodigo AND vdit.vditempresa=vda.vdaempresa
+       JOIN prod ON prod.prodcodigo=vdit.vditproduto
+       WHERE vda.vdaempresa=$1 AND vda.vdamovimento>=$2 AND vda.vdamovimento<=$3
+         AND (vda.vdastatus IS NULL OR vda.vdastatus=0) AND prod.prodtipo=1
+       GROUP BY vda.vdamovimento ORDER BY dia`,
+      emp => [emp, dataInicio, dataFim]
     );
 
-    res.json(result.rows.map(r => ({
-      dia: r.dia,
-      qtdVendas: parseInt(r.qtd_vendas),
-      valorTotal: parseFloat(r.valor_total),
+    // Agrega por dia
+    const byDia = {};
+    rows.forEach(r => {
+      const k = String(r.dia);
+      if (!byDia[k]) byDia[k] = { qtd: 0, val: 0 };
+      byDia[k].qtd += parseInt(r.qtd_vendas || 0);
+      byDia[k].val += parseFloat(r.valor_total || 0);
+    });
+
+    res.json(Object.entries(byDia).sort(([a],[b]) => a.localeCompare(b)).map(([dia, v]) => ({
+      dia, qtdVendas: v.qtd, valorTotal: v.val,
     })));
   } catch (err) {
     console.error('Error in /dashboard/vendas-diarias:', err.message);
@@ -243,13 +190,12 @@ router.get('/vendas-diarias', withCache(async (req, res) => {
   }
 }));
 
-// GET /api/dashboard/vendas-horarias?empresa=7432&periodo=042026
+// GET /api/dashboard/vendas-horarias?empresas=7432,7433&periodo=042026
 router.get('/vendas-horarias', withCache(async (req, res) => {
-  const empresa = parseInt(req.query.empresa);
-  const query = queryFor(empresa);
+  const empresaList = parseEmpresas(req.query);
   const periodo = req.query.periodo;
 
-  if (!empresa || !periodo || periodo.length !== 6) {
+  if (!empresaList.length || !periodo || periodo.length !== 6) {
     return res.status(400).json({ error: 'empresa and periodo (MMYYYY) required' });
   }
 
@@ -260,37 +206,29 @@ router.get('/vendas-horarias', withCache(async (req, res) => {
   const dataFim = `${ano}-${String(mes).padStart(2, '0')}-${diasNoMes}`;
 
   try {
-    const result = await query(
-      `SELECT
-         EXTRACT(HOUR FROM vda.vdadata)::int AS hora,
-         COUNT(DISTINCT vda.vdacodigo) AS qtd_vendas,
-         COALESCE(SUM(vdit.vdittotal), 0) AS valor_total
-       FROM vda
-       JOIN vdit ON vdit.vditcodigovda = vda.vdacodigo AND vdit.vditempresa = vda.vdaempresa
-       JOIN prod ON prod.prodcodigo = vdit.vditproduto
-       WHERE vda.vdaempresa = $1
-         AND vda.vdamovimento >= $2
-         AND vda.vdamovimento <= $3
-         AND (vda.vdastatus IS NULL OR vda.vdastatus = 0)
-         AND prod.prodtipo = 1
-       GROUP BY EXTRACT(HOUR FROM vda.vdadata)::int
-       ORDER BY hora`,
-      [empresa, dataInicio, dataFim]
+    const rows = await queryAll(empresaList,
+      `SELECT EXTRACT(HOUR FROM vda.vdadata)::int AS hora,
+              COUNT(DISTINCT vda.vdacodigo) AS qtd_vendas,
+              COALESCE(SUM(vdit.vdittotal),0) AS valor_total
+       FROM vda JOIN vdit ON vdit.vditcodigovda=vda.vdacodigo AND vdit.vditempresa=vda.vdaempresa
+       JOIN prod ON prod.prodcodigo=vdit.vditproduto
+       WHERE vda.vdaempresa=$1 AND vda.vdamovimento>=$2 AND vda.vdamovimento<=$3
+         AND (vda.vdastatus IS NULL OR vda.vdastatus=0) AND prod.prodtipo=1
+       GROUP BY EXTRACT(HOUR FROM vda.vdadata)::int ORDER BY hora`,
+      emp => [emp, dataInicio, dataFim]
     );
 
     const byHour = {};
-    result.rows.forEach(r => {
-      byHour[Number(r.hora)] = {
-        qtdVendas: parseInt(r.qtd_vendas),
-        valorTotal: parseFloat(r.valor_total),
-      };
+    rows.forEach(r => {
+      const h = Number(r.hora);
+      if (!byHour[h]) byHour[h] = { qtd: 0, val: 0 };
+      byHour[h].qtd += parseInt(r.qtd_vendas  || 0);
+      byHour[h].val += parseFloat(r.valor_total || 0);
     });
 
     res.json(Array.from({ length: 24 }, (_, hora) => ({
-      hora,
-      label: `${String(hora).padStart(2, '0')}h`,
-      qtdVendas: byHour[hora]?.qtdVendas || 0,
-      valorTotal: byHour[hora]?.valorTotal || 0,
+      hora, label: `${String(hora).padStart(2, '0')}h`,
+      qtdVendas: byHour[hora]?.qtd || 0, valorTotal: byHour[hora]?.val || 0,
     })));
   } catch (err) {
     console.error('Error in /dashboard/vendas-horarias:', err.message);
@@ -298,13 +236,12 @@ router.get('/vendas-horarias', withCache(async (req, res) => {
   }
 }));
 
-// GET /api/dashboard/combustiveis?empresa=7432&periodo=042026
+// GET /api/dashboard/combustiveis?empresas=7432,7433&periodo=042026
 router.get('/combustiveis', withCache(async (req, res) => {
-  const empresa = parseInt(req.query.empresa);
-  const query = queryFor(empresa);
+  const empresaList = parseEmpresas(req.query);
   const periodo = req.query.periodo;
 
-  if (!empresa || !periodo || periodo.length !== 6) {
+  if (!empresaList.length || !periodo || periodo.length !== 6) {
     return res.status(400).json({ error: 'empresa and periodo (MMYYYY) required' });
   }
 
@@ -315,49 +252,43 @@ router.get('/combustiveis', withCache(async (req, res) => {
   const dataFim = `${ano}-${String(mes).padStart(2, '0')}-${diasNoMes}`;
 
   try {
-    const result = await query(
-      `SELECT
-         prod.prodcodigo AS codigo,
-         prod.proddescricao AS nome,
-         COALESCE(SUM(vdit.vditqtd), 0) AS litros,
-         COALESCE(SUM(vdit.vdittotal), 0) AS valor
-       FROM vdit
-       JOIN vda ON vda.vdacodigo = vdit.vditcodigovda AND vda.vdaempresa = vdit.vditempresa
-       JOIN prod ON prod.prodcodigo = vdit.vditproduto
-       WHERE vdit.vditempresa = $1
-         AND vda.vdamovimento >= $2
-         AND vda.vdamovimento <= $3
-         AND (vda.vdastatus IS NULL OR vda.vdastatus = 0)
-         AND vdit.vditcodigovda IS NOT NULL
-         AND prod.prodtipo = 1
-       GROUP BY prod.prodcodigo, prod.proddescricao
-       ORDER BY litros DESC`,
-      [empresa, dataInicio, dataFim]
+    const rows = await queryAll(empresaList,
+      `SELECT prod.prodcodigo AS codigo, prod.proddescricao AS nome,
+              COALESCE(SUM(vdit.vditqtd),0) AS litros, COALESCE(SUM(vdit.vdittotal),0) AS valor
+       FROM vdit JOIN vda ON vda.vdacodigo=vdit.vditcodigovda AND vda.vdaempresa=vdit.vditempresa
+       JOIN prod ON prod.prodcodigo=vdit.vditproduto
+       WHERE vdit.vditempresa=$1 AND vda.vdamovimento>=$2 AND vda.vdamovimento<=$3
+         AND (vda.vdastatus IS NULL OR vda.vdastatus=0) AND vdit.vditcodigovda IS NOT NULL AND prod.prodtipo=1
+       GROUP BY prod.prodcodigo, prod.proddescricao ORDER BY litros DESC`,
+      emp => [emp, dataInicio, dataFim]
     );
 
-    res.json(result.rows.map(r => ({
-      codigo: r.codigo,
-      nome: r.nome,
-      litros: parseFloat(r.litros),
-      valor: parseFloat(r.valor),
-    })));
+    // Agrega por nome do combustível
+    const byNome = {};
+    rows.forEach(r => {
+      const k = r.nome;
+      if (!byNome[k]) byNome[k] = { codigo: r.codigo, nome: k, litros: 0, valor: 0 };
+      byNome[k].litros += parseFloat(r.litros || 0);
+      byNome[k].valor  += parseFloat(r.valor  || 0);
+    });
+
+    res.json(Object.values(byNome).sort((a, b) => b.litros - a.litros));
   } catch (err) {
     console.error('Error in /dashboard/combustiveis:', err.message);
     res.status(500).json({ error: err.message });
   }
 }));
 
-// GET /api/dashboard/vendas-pista?empresa=7432&dataInicio=2026-04-20&dataFim=2026-05-26&prodtipo=1&locz=pista
-// prodtipo: 1 = combustíveis (padrão), 2 = conveniência/loja
-// locz (opcional): filtra por loczdescricao (ex: 'pista')
+// GET /api/dashboard/vendas-pista?empresas=7432&dataInicio=2026-04-20&dataFim=2026-05-26&prodtipo=1&locz=pista
 router.get('/vendas-pista', withCache(async (req, res) => {
-  const empresa  = parseInt(req.query.empresa);
+  const empresaList = parseEmpresas(req.query);
+  const empresa = empresaList[0]; // usa primeira para compat
   const query = queryFor(empresa);
   const prodtipo = parseInt(req.query.prodtipo) || 1;
   const loczFiltro = (req.query.locz || '').trim().toLowerCase();
   const { dataInicio, dataFim } = req.query;
 
-  if (!empresa || !dataInicio || !dataFim) {
+  if (!empresaList.length || !dataInicio || !dataFim) {
     return res.status(400).json({ error: 'empresa, dataInicio e dataFim são obrigatórios' });
   }
 
@@ -413,49 +344,51 @@ router.get('/vendas-pista', withCache(async (req, res) => {
   }
 }));
 
-// GET /api/dashboard/prod-categorias?prodtipo=2&locz=pista
+// GET /api/dashboard/prod-categorias?empresas=7432,7433&prodtipo=2&locz=pista
 // Retorna todas as seções (spro) e grupos (gpro) disponíveis para um prodtipo
 router.get('/prod-categorias', withCache(async (req, res) => {
-  const empresa    = parseInt(req.query.empresa);
-  const query      = queryFor(empresa);
-  const prodtipo   = parseInt(req.query.prodtipo) || 1;
-  const loczFiltro = (req.query.locz || '').trim().toLowerCase();
-  const loczClause = loczFiltro ? `AND LOWER(COALESCE(locz.loczdescricao,'')) = '${loczFiltro.replace(/'/g,"''")}'` : '';
+  const empresaList = parseEmpresas(req.query);
+  const prodtipo    = parseInt(req.query.prodtipo) || 1;
+  const loczFiltro  = (req.query.locz || '').trim().toLowerCase();
+  const loczClause  = loczFiltro ? `AND LOWER(COALESCE(locz.loczdescricao,'')) = '${loczFiltro.replace(/'/g,"''")}'` : '';
 
-  if (!empresa) {
+  if (!empresaList.length) {
     return res.status(400).json({ error: 'empresa é obrigatório' });
   }
 
   try {
-    const sproResult = await query(
-      `SELECT DISTINCT spro.sprocodigo AS codigo, spro.sprodescricao AS nome
-       FROM prod
-       JOIN spro ON spro.sprocodigo = prod.prodsecao
-       LEFT JOIN e_prod eprod ON eprod.e_prodproduto = prod.prodcodigo AND eprod.e_prodempresa = $2
-       LEFT JOIN locz ON locz.loczcodigo = eprod.e_prodlocal
-       WHERE prod.prodtipo = $1
-         AND spro.sprodescricao IS NOT NULL
-         ${loczClause}
-       ORDER BY spro.sprodescricao`,
-      [prodtipo, empresa]
-    );
+    const [sproRows, gproRows] = await Promise.all([
+      queryAll(empresaList,
+        `SELECT DISTINCT spro.sprocodigo AS codigo, spro.sprodescricao AS nome
+         FROM prod
+         JOIN spro ON spro.sprocodigo = prod.prodsecao
+         LEFT JOIN e_prod eprod ON eprod.e_prodproduto = prod.prodcodigo AND eprod.e_prodempresa = $2
+         LEFT JOIN locz ON locz.loczcodigo = eprod.e_prodlocal
+         WHERE prod.prodtipo = $1 AND spro.sprodescricao IS NOT NULL ${loczClause}
+         ORDER BY spro.sprodescricao`,
+        emp => [prodtipo, emp]
+      ),
+      queryAll(empresaList,
+        `SELECT DISTINCT gpro.gprocodigo AS codigo, gpro.gprodescricao AS nome
+         FROM prod
+         JOIN gpro ON gpro.gprocodigo = prod.prodgrupo
+         LEFT JOIN e_prod eprod ON eprod.e_prodproduto = prod.prodcodigo AND eprod.e_prodempresa = $2
+         LEFT JOIN locz ON locz.loczcodigo = eprod.e_prodlocal
+         WHERE prod.prodtipo = $1 AND gpro.gprodescricao IS NOT NULL ${loczClause}
+         ORDER BY gpro.gprodescricao`,
+        emp => [prodtipo, emp]
+      ),
+    ]);
 
-    const gproResult = await query(
-      `SELECT DISTINCT gpro.gprocodigo AS codigo, gpro.gprodescricao AS nome
-       FROM prod
-       JOIN gpro ON gpro.gprocodigo = prod.prodgrupo
-       LEFT JOIN e_prod eprod ON eprod.e_prodproduto = prod.prodcodigo AND eprod.e_prodempresa = $2
-       LEFT JOIN locz ON locz.loczcodigo = eprod.e_prodlocal
-       WHERE prod.prodtipo = $1
-         AND gpro.gprodescricao IS NOT NULL
-         ${loczClause}
-       ORDER BY gpro.gprodescricao`,
-      [prodtipo, empresa]
-    );
+    // Deduplica por nome (union das empresas)
+    const uniqByNome = rows => {
+      const seen = new Set();
+      return rows.filter(r => seen.has(r.nome) ? false : seen.add(r.nome));
+    };
 
     res.json({
-      secoes: sproResult.rows.map(r => ({ codigo: r.codigo, nome: r.nome })),
-      grupos: gproResult.rows.map(r => ({ codigo: r.codigo, nome: r.nome })),
+      secoes: uniqByNome(sproRows).map(r => ({ codigo: r.codigo, nome: r.nome })),
+      grupos: uniqByNome(gproRows).map(r => ({ codigo: r.codigo, nome: r.nome })),
     });
   } catch (err) {
     console.error('Error in /dashboard/prod-categorias:', err.message);
@@ -463,15 +396,14 @@ router.get('/prod-categorias', withCache(async (req, res) => {
   }
 }));
 
-// GET /api/dashboard/top-convenio?empresa=7432&periodo=052026
+// GET /api/dashboard/top-convenio?empresas=7432,7433&periodo=052026
 // Top 5 non-fuel products by qty sold in the period
 router.get('/top-convenio', withCache(async (req, res) => {
-  const empresa = parseInt(req.query.empresa);
-  const query = queryFor(empresa);
-  const periodo = req.query.periodo;
-  const loczFiltro = (req.query.locz || '').trim().toLowerCase();
+  const empresaList = parseEmpresas(req.query);
+  const periodo     = req.query.periodo;
+  const loczFiltro  = (req.query.locz || '').trim().toLowerCase();
 
-  if (!empresa || !periodo || periodo.length !== 6) {
+  if (!empresaList.length || !periodo || periodo.length !== 6) {
     return res.status(400).json({ error: 'empresa and periodo (MMYYYY) required' });
   }
 
@@ -479,16 +411,15 @@ router.get('/top-convenio', withCache(async (req, res) => {
   const ano = parseInt(periodo.substring(2, 6));
   const diasNoMes = new Date(ano, mes, 0).getDate();
   const dataInicio = `${ano}-${String(mes).padStart(2, '0')}-01`;
-  const dataFim = `${ano}-${String(mes).padStart(2, '0')}-${diasNoMes}`;
+  const dataFim    = `${ano}-${String(mes).padStart(2, '0')}-${diasNoMes}`;
 
   const loczClause = loczFiltro === 'pista'
     ? `AND LOWER(COALESCE(l.loczdescricao,'')) LIKE '%pista%'`
     : `AND LOWER(COALESCE(l.loczdescricao,'')) NOT LIKE '%pista%'`;
 
   try {
-    const result = await query(
+    const rows = await queryAll(empresaList,
       `SELECT
-         p.prodcodigo AS id,
          p.proddescricao AS nome,
          COALESCE(SUM(i.vditqtd), 0) AS qtd
        FROM vdit i
@@ -503,31 +434,36 @@ router.get('/top-convenio', withCache(async (req, res) => {
          AND i.vditcodigovda IS NOT NULL
          AND p.prodtipo = 2
          ${loczClause}
-       GROUP BY p.prodcodigo, p.proddescricao
-       ORDER BY qtd DESC
-       LIMIT 5`,
-      [empresa, dataInicio, dataFim]
+       GROUP BY p.proddescricao
+       ORDER BY qtd DESC`,
+      emp => [emp, dataInicio, dataFim]
     );
 
-    res.json(result.rows.map(r => ({
-      id:   r.id,
-      name: r.nome,
-      qty:  parseFloat(r.qtd),
-    })));
+    // Agrega por nome e pega top 5
+    const byNome = {};
+    rows.forEach(r => {
+      const k = r.nome;
+      byNome[k] = (byNome[k] || 0) + parseFloat(r.qtd || 0);
+    });
+
+    const sorted = Object.entries(byNome)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 5);
+
+    res.json(sorted.map(([name, qty]) => ({ name, qty })));
   } catch (err) {
     console.error('Error in /dashboard/top-convenio:', err.message);
     res.status(500).json({ error: err.message });
   }
 }));
 
-// GET /api/dashboard/vendas-diarias-full?empresa=7432&periodo=052026
+// GET /api/dashboard/vendas-diarias-full?empresas=7432,7433&periodo=052026
 // Daily litros + valor combustivel + valor conveniencia
 router.get('/vendas-diarias-full', withCache(async (req, res) => {
-  const empresa = parseInt(req.query.empresa);
-  const query = queryFor(empresa);
-  const periodo = req.query.periodo;
+  const empresaList = parseEmpresas(req.query);
+  const periodo     = req.query.periodo;
 
-  if (!empresa || !periodo || periodo.length !== 6) {
+  if (!empresaList.length || !periodo || periodo.length !== 6) {
     return res.status(400).json({ error: 'empresa and periodo (MMYYYY) required' });
   }
 
@@ -535,15 +471,15 @@ router.get('/vendas-diarias-full', withCache(async (req, res) => {
   const ano = parseInt(periodo.substring(2, 6));
   const diasNoMes = new Date(ano, mes, 0).getDate();
   const dataInicio = `${ano}-${String(mes).padStart(2, '0')}-01`;
-  const dataFim = `${ano}-${String(mes).padStart(2, '0')}-${diasNoMes}`;
+  const dataFim    = `${ano}-${String(mes).padStart(2, '0')}-${diasNoMes}`;
 
   try {
-    const result = await query(
+    const rows = await queryAll(empresaList,
       `SELECT
          v.vdamovimento AS dia,
          COALESCE(SUM(CASE WHEN p.prodtipo = 1  THEN i.vditqtd    ELSE 0 END), 0) AS litros_combustivel,
          COALESCE(SUM(CASE WHEN p.prodtipo = 1  THEN i.vdittotal  ELSE 0 END), 0) AS valor_combustivel,
-         COALESCE(SUM(CASE WHEN p.prodtipo = 2 AND LOWER(COALESCE(l.loczdescricao,'')) NOT LIKE '%pista%' THEN i.vdittotal  ELSE 0 END), 0) AS valor_conveniencia,
+         COALESCE(SUM(CASE WHEN p.prodtipo = 2 AND LOWER(COALESCE(l.loczdescricao,'')) NOT LIKE '%pista%' THEN i.vdittotal ELSE 0 END), 0) AS valor_conveniencia,
          COALESCE(SUM(CASE WHEN p.prodtipo = 2 AND LOWER(COALESCE(l.loczdescricao,'')) LIKE '%pista%' THEN i.vdittotal ELSE 0 END), 0) AS valor_pista
        FROM vda v
        JOIN vdit i  ON i.vditcodigovda = v.vdacodigo AND i.vditempresa = v.vdaempresa
@@ -556,15 +492,26 @@ router.get('/vendas-diarias-full', withCache(async (req, res) => {
          AND (v.vdastatus IS NULL OR v.vdastatus = 0)
        GROUP BY v.vdamovimento
        ORDER BY dia`,
-      [empresa, dataInicio, dataFim]
+      emp => [emp, dataInicio, dataFim]
     );
 
-    res.json(result.rows.map(r => ({
-      dia:               r.dia,
-      litrosCombustivel: parseFloat(r.litros_combustivel),
-      valorCombustivel:  parseFloat(r.valor_combustivel),
-      valorConveniencia: parseFloat(r.valor_conveniencia),
-      valorPista:        parseFloat(r.valor_pista),
+    // Agrega por dia
+    const byDia = {};
+    rows.forEach(r => {
+      const k = String(r.dia);
+      if (!byDia[k]) byDia[k] = { dia: r.dia, lc: 0, vc: 0, vconv: 0, vp: 0 };
+      byDia[k].lc    += parseFloat(r.litros_combustivel || 0);
+      byDia[k].vc    += parseFloat(r.valor_combustivel  || 0);
+      byDia[k].vconv += parseFloat(r.valor_conveniencia || 0);
+      byDia[k].vp    += parseFloat(r.valor_pista        || 0);
+    });
+
+    res.json(Object.values(byDia).sort((a, b) => String(a.dia).localeCompare(String(b.dia))).map(v => ({
+      dia:               v.dia,
+      litrosCombustivel: v.lc,
+      valorCombustivel:  v.vc,
+      valorConveniencia: v.vconv,
+      valorPista:        v.vp,
     })));
   } catch (err) {
     console.error('Error in /dashboard/vendas-diarias-full:', err.message);
@@ -572,16 +519,15 @@ router.get('/vendas-diarias-full', withCache(async (req, res) => {
   }
 }));
 
-// GET /api/dashboard/abc-produtos?empresa=7432&periodo=052026&prodtipo=1
+// GET /api/dashboard/abc-produtos?empresas=7432,7433&periodo=052026&prodtipo=1
 // Products ranked by volume for ABC matrix — prodtipo=1 (combustíveis), prodtipo=2 (pista/convenio)
 router.get('/abc-produtos', withCache(async (req, res) => {
-  const empresa  = parseInt(req.query.empresa);
-  const query = queryFor(empresa);
-  const periodo  = req.query.periodo;
-  const prodtipo = parseInt(req.query.prodtipo) || 1;
-  const loczFiltro = (req.query.locz || '').trim().toLowerCase();
+  const empresaList = parseEmpresas(req.query);
+  const periodo     = req.query.periodo;
+  const prodtipo    = parseInt(req.query.prodtipo) || 1;
+  const loczFiltro  = (req.query.locz || '').trim().toLowerCase();
 
-  if (!empresa || !periodo || periodo.length !== 6) {
+  if (!empresaList.length || !periodo || periodo.length !== 6) {
     return res.status(400).json({ error: 'empresa and periodo (MMYYYY) required' });
   }
 
@@ -589,7 +535,7 @@ router.get('/abc-produtos', withCache(async (req, res) => {
   const ano = parseInt(periodo.substring(2, 6));
   const diasNoMes = new Date(ano, mes, 0).getDate();
   const dataInicio = `${ano}-${String(mes).padStart(2, '0')}-01`;
-  const dataFim = `${ano}-${String(mes).padStart(2, '0')}-${diasNoMes}`;
+  const dataFim    = `${ano}-${String(mes).padStart(2, '0')}-${diasNoMes}`;
 
   const loczClause = prodtipo !== 2 ? '' : (
     loczFiltro === 'pista'
@@ -598,7 +544,7 @@ router.get('/abc-produtos', withCache(async (req, res) => {
   );
 
   try {
-    const result = await query(
+    const rows = await queryAll(empresaList,
       `SELECT
          p.prodresumo                     AS nome,
          COALESCE(SUM(i.vditqtd),   0)    AS qtd,
@@ -617,24 +563,33 @@ router.get('/abc-produtos', withCache(async (req, res) => {
          AND p.prodtipo = $4
          ${loczClause}
        GROUP BY p.prodresumo
-       ORDER BY qtd DESC
-       LIMIT 25`,
-      [empresa, dataInicio, dataFim, prodtipo]
+       ORDER BY qtd DESC`,
+      emp => [emp, dataInicio, dataFim, prodtipo]
     );
 
-    res.json(result.rows.map(r => {
-      const qtd   = parseFloat(r.qtd);
-      const fat   = parseFloat(r.faturamento);
-      const custo = parseFloat(r.custo_medio);
-      const margin = fat > 0 && custo > 0
-        ? Math.max(0, Math.min(99, ((fat - qtd * custo) / fat) * 100))
-        : 0;
-      return {
-        name:   r.nome,
-        volume: qtd,
-        margin: parseFloat(margin.toFixed(1)),
-      };
-    }));
+    // Agrega por nome, pega top 25
+    const byNome = {};
+    rows.forEach(r => {
+      const k = r.nome;
+      if (!byNome[k]) byNome[k] = { nome: k, qtd: 0, fat: 0, custoSum: 0, custoN: 0 };
+      byNome[k].qtd     += parseFloat(r.qtd      || 0);
+      byNome[k].fat     += parseFloat(r.faturamento || 0);
+      byNome[k].custoSum += parseFloat(r.custo_medio || 0);
+      byNome[k].custoN  += 1;
+    });
+
+    res.json(
+      Object.values(byNome)
+        .sort((a, b) => b.qtd - a.qtd)
+        .slice(0, 25)
+        .map(v => {
+          const custo  = v.custoN > 0 ? v.custoSum / v.custoN : 0;
+          const margin = v.fat > 0 && custo > 0
+            ? Math.max(0, Math.min(99, ((v.fat - v.qtd * custo) / v.fat) * 100))
+            : 0;
+          return { name: v.nome, volume: v.qtd, margin: parseFloat(margin.toFixed(1)) };
+        })
+    );
   } catch (err) {
     console.error('Error in /dashboard/abc-produtos:', err.message);
     res.status(500).json({ error: err.message });

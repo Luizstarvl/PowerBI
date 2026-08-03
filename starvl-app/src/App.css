@@ -1977,3 +1977,71 @@ select.themed-select option {
   .mgt-filter-actions { padding-top: 4px; width: 100%; justify-content: flex-end; }
   .mgt-pagination { flex-direction: column; align-items: flex-start; }
 }
+
+/* ── EmpresaPicker ─────────────────────────────────────────────────────────── */
+.ep-root { position: relative; flex-shrink: 0; }
+
+.ep-trigger {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 34px; padding: 0 10px;
+  background: var(--color-surface); border: 1px solid var(--color-border);
+  border-radius: 8px; cursor: pointer;
+  color: var(--color-text); font-size: 13px; font-weight: 500;
+  white-space: nowrap; max-width: 220px;
+  transition: border-color .15s, background .15s;
+}
+.ep-trigger:hover { border-color: var(--color-primary); background: var(--color-surface-hover, rgba(255,255,255,.04)); }
+
+.ep-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 150px; }
+
+.ep-dropdown {
+  position: absolute; top: calc(100% + 6px); left: 0;
+  min-width: 240px; max-width: 300px;
+  background: var(--color-surface); border: 1px solid var(--color-border);
+  border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.18);
+  z-index: 9999; overflow: hidden;
+}
+
+.ep-dropdown-header {
+  padding: 10px 12px 8px;
+  font-size: 11px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase;
+  color: var(--color-text-muted); border-bottom: 1px solid var(--color-border);
+}
+
+.ep-actions {
+  display: flex; gap: 6px; padding: 8px 10px 4px;
+}
+.ep-action-btn {
+  flex: 1; height: 26px; border-radius: 6px; font-size: 12px; font-weight: 600;
+  background: transparent; border: 1px solid var(--color-border);
+  color: var(--color-text-muted); cursor: pointer;
+  transition: background .12s, border-color .12s, color .12s;
+}
+.ep-action-btn:hover { background: var(--color-primary); border-color: var(--color-primary); color: #fff; }
+
+.ep-list {
+  max-height: 240px; overflow-y: auto; padding: 4px 0 6px;
+}
+
+.ep-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 12px; cursor: pointer;
+  transition: background .1s;
+}
+.ep-row:hover { background: var(--color-surface-hover, rgba(255,255,255,.05)); }
+.ep-row.selected { background: rgba(var(--color-primary-rgb, 99,102,241), .08); }
+
+.ep-check {
+  width: 16px; height: 16px; border-radius: 4px; flex-shrink: 0;
+  border: 1.5px solid var(--color-border);
+  display: flex; align-items: center; justify-content: center;
+  background: transparent; transition: background .12s, border-color .12s;
+}
+.ep-check.on {
+  background: var(--color-primary); border-color: var(--color-primary); color: #fff;
+}
+
+.ep-row-nome { flex: 1; font-size: 13px; color: var(--color-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ep-row-cod  { font-size: 11px; color: var(--color-text-muted); flex-shrink: 0; }
+
+.ep-empty { padding: 16px 12px; font-size: 12px; color: var(--color-text-muted); text-align: center; }

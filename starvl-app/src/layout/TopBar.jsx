@@ -10,7 +10,106 @@ function initials(name) {
   return name.slice(0, 2).toUpperCase();
 }
 
-export default function TopBar({ user, clients, selectedClient, onClientChange, onLogout, themeMode, onThemeToggle }) {
+/* ── Seletor de empresa com multi-seleção ──────────────────────────────────── */
+function EmpresaPicker({ clients, selectedIds, onChange }) {
+  const [open,  setOpen]  = useState(false);
+  const [busca, setBusca] = useState('');
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const fn = e => { if (!ref.current?.contains(e.target)) { setOpen(false); setBusca(''); } };
+    document.addEventListener('mousedown', fn);
+    return () => document.removeEventListener('mousedown', fn);
+  }, [open]);
+
+  function toggle(code) {
+    onChange(selectedIds.includes(code)
+      ? selectedIds.filter(x => x !== code)
+      : [...selectedIds, code]
+    );
+  }
+
+  function selectAll()  { onChange(clients.map(c => c.codigoEmpresa)); }
+  function clearAll()   { onChange([]); }
+
+  const filtered = clients.filter(c =>
+    !busca || c.nome.toLowerCase().includes(busca.toLowerCase()) ||
+    String(c.codigoEmpresa).includes(busca)
+  );
+
+  const label = selectedIds.length === 0
+    ? 'Selecionar empresa'
+    : selectedIds.length === 1
+    ? clients.find(c => c.codigoEmpresa === selectedIds[0])?.nome || '1 empresa'
+    : `${selectedIds.length} empresas`;
+
+  if (clients.length === 0) return null;
+
+  return (
+    <div className="ep-root" ref={ref}>
+      <button className="ep-trigger" onClick={() => setOpen(o => !o)}>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, opacity: .7 }}><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        <span className="ep-label">{label}</span>
+        <ChevronDown size={12} strokeWidth={2.5} style={{ flexShrink: 0, transition: 'transform .15s', transform: open ? 'rotate(180deg)' : 'none' }} />
+      </button>
+
+      {open && (
+        <div className="ep-dropdown">
+          <div className="ep-dropdown-header">Selecione a empresa</div>
+
+          {clients.length > 2 && (
+            <div style={{ position: 'relative', padding: '0 8px 6px' }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                style={{ position: 'absolute', left: 18, top: '50%', transform: 'translateY(-60%)', color: 'var(--color-text-muted)', pointerEvents: 'none' }}>
+                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              </svg>
+              <input
+                className="themed-input"
+                type="text"
+                placeholder="Buscar..."
+                value={busca}
+                onChange={e => setBusca(e.target.value)}
+                style={{ width: '100%', paddingLeft: 28, boxSizing: 'border-box', fontSize: 12 }}
+                autoFocus
+              />
+            </div>
+          )}
+
+          {clients.length > 1 && (
+            <div className="ep-actions">
+              <button className="ep-action-btn" onClick={selectAll}>Todas</button>
+              <button className="ep-action-btn" onClick={clearAll}>Limpar</button>
+            </div>
+          )}
+
+          <div className="ep-list">
+            {filtered.length === 0
+              ? <div className="ep-empty">Nenhuma empresa encontrada</div>
+              : filtered.map(c => (
+                <label
+                  key={c.codigoEmpresa}
+                  className={`ep-row${selectedIds.includes(c.codigoEmpresa) ? ' selected' : ''}`}
+                  onClick={() => toggle(c.codigoEmpresa)}
+                >
+                  <div className={`ep-check${selectedIds.includes(c.codigoEmpresa) ? ' on' : ''}`}>
+                    {selectedIds.includes(c.codigoEmpresa) && (
+                      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                    )}
+                  </div>
+                  <span className="ep-row-nome">{c.nome}</span>
+                  <span className="ep-row-cod">#{c.codigoEmpresa}</span>
+                </label>
+              ))
+            }
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function TopBar({ user, clients, selectedIds, onSelectionChange, onLogout, themeMode, onThemeToggle }) {
   const { t } = useT();
   const [profileOpen, setProfileOpen] = useState(false);
   const profileRef = useRef(null);
@@ -34,33 +133,18 @@ export default function TopBar({ user, clients, selectedClient, onClientChange, 
         <Logo className="topbar-brand-logo" />
       </div>
 
-      {/* Center: search + company selector */}
+      {/* Center: search + company picker */}
       <div className="topbar-center">
         <div className="topbar-search">
           <span className="topbar-search-icon"><Search size={13} strokeWidth={2.5} /></span>
-          <input
-            className="topbar-search-input"
-            type="text"
-            placeholder="Buscar…"
-          />
+          <input className="topbar-search-input" type="text" placeholder="Buscar…" />
         </div>
 
-        {clients.length > 1 ? (
-          <select
-            className="topbar-select"
-            value={selectedClient?.codigoEmpresa || ''}
-            onChange={e => {
-              const c = clients.find(c => c.codigoEmpresa === parseInt(e.target.value));
-              if (c) onClientChange(c);
-            }}
-          >
-            {clients.map(c => (
-              <option key={c.codigoEmpresa} value={c.codigoEmpresa}>{c.nome}</option>
-            ))}
-          </select>
-        ) : selectedClient?.nome ? (
-          <span className="topbar-client">{selectedClient.nome}</span>
-        ) : null}
+        <EmpresaPicker
+          clients={clients}
+          selectedIds={selectedIds}
+          onChange={onSelectionChange}
+        />
       </div>
 
       {/* Right: controls */}
