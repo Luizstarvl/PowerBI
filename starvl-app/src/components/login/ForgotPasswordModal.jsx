@@ -13,6 +13,7 @@ export default function ForgotPasswordModal({ onClose }) {
 
   async function handleSubmit(e) {
     e.preventDefault();
+    e.stopPropagation();
     if (!usuario.trim()) { setErro('Informe seu usuário.'); return; }
     setErro(''); setLoading(true);
     try {
