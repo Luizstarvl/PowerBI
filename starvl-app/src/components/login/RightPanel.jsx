@@ -1,6 +1,5 @@
 import React, { useRef } from 'react';
 import { ShieldCheck } from 'lucide-react';
-import { Logo } from '../ui';
 import LoginForm from './LoginForm';
 
 export default function RightPanel({ onSubmit, loading, erro }) {
@@ -30,9 +29,6 @@ export default function RightPanel({ onSubmit, loading, erro }) {
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
       >
-        <div className="login-card-logo">
-          <Logo variant="dark" />
-        </div>
         <h2 className="login-card-title">Bem-vindo!</h2>
         <p className="login-card-desc">Acesse sua conta para continuar.</p>
 
