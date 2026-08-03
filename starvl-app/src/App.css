@@ -2029,8 +2029,8 @@ select.themed-select option {
 /* Stage — perspectiva 3D */
 .tpb-stage {
   position: relative;
-  height: 272px;
-  max-width: 760px;
+  height: 290px;
+  max-width: 860px;
   margin: 0 auto;
   perspective: 1100px;
   perspective-origin: 50% 50%;
@@ -2044,12 +2044,21 @@ select.themed-select option {
   border-radius: 14px;
   background: rgba(255,255,255,.04);
   border: 1px solid rgba(255,255,255,.08);
-  transition: transform .6s cubic-bezier(.25,.46,.45,.94), opacity .55s ease, box-shadow .4s;
-  cursor: pointer;
+  transition: transform .5s cubic-bezier(.25,.46,.45,.94), opacity .4s ease, box-shadow .4s;
+  cursor: default;
   user-select: none;
   text-align: center;
   will-change: transform;
   backface-visibility: hidden;
+}
+
+/* Tema claro: força fundo escuro nos cards para manter legibilidade */
+[data-theme="light"] .tpb-card {
+  background: rgba(20, 8, 0, 0.86);
+  border-color: rgba(255,255,255,.11);
+}
+[data-theme="light"] .tpb-featured {
+  background: rgba(14, 5, 0, 0.93);
 }
 
 .tpb-featured {
@@ -2122,36 +2131,14 @@ select.themed-select option {
   margin-bottom: 6px; line-height: 1;
 }
 
-/* ── 1° Lugar: borda giratória + glow dourado ─────────────────────────────── */
+/* ── 1° Lugar: borda dourada + glow pulsante ─────────────────────────────── */
 .tpb-rank1 {
-  border-color: transparent !important;
-  animation: tpb-rank1-glow 1.8s ease-in-out infinite alternate !important;
-}
-/* Luz que percorre a borda (conic-gradient rotacionando) */
-.tpb-rank1::before {
-  content: '';
-  position: absolute;
-  inset: -2px;
-  border-radius: 16px;
-  z-index: -1;
-  background: conic-gradient(
-    from 0deg,
-    transparent 0deg,
-    #ff4500 40deg,
-    #ffd700 90deg,
-    #fffde0 120deg,
-    #ffd700 150deg,
-    #ff4500 200deg,
-    transparent 240deg
-  );
-  animation: tpb-rank1-spin 1.8s linear infinite;
-}
-@keyframes tpb-rank1-spin {
-  to { transform: rotate(360deg); }
+  border: 1.5px solid #ffd700 !important;
+  animation: tpb-rank1-glow 2.2s ease-in-out infinite alternate !important;
 }
 @keyframes tpb-rank1-glow {
-  from { box-shadow: 0 0 45px rgba(255,107,0,.6),  0 0 90px  rgba(255,107,0,.2); }
-  to   { box-shadow: 0 0 70px rgba(255,215,0,.95), 0 0 140px rgba(255,165,0,.3); }
+  from { box-shadow: 0 0 28px rgba(255,200,0,.55), 0 0 56px  rgba(255,107,0,.18); }
+  to   { box-shadow: 0 0 52px rgba(255,220,0,.90), 0 0 104px rgba(255,165,0,.30); }
 }
 
 /* ── Partículas flutuantes (6 direções) ─────────────────────────────────── */
@@ -2192,40 +2179,16 @@ select.themed-select option {
   100% { opacity: 0; transform: translate(40px,-48px)   scale(1.2); }
 }
 
-/* Setas de navegação */
-.tpb-nav {
+/* Canvas de confetes — cobre todo o banner atrás dos cards */
+.tpb-confetti {
   position: absolute;
-  top: 50%; transform: translateY(-50%);
-  z-index: 30;
-  width: 38px; height: 38px;
-  border-radius: 50%;
-  border: 1px solid rgba(255,255,255,.13);
-  background: rgba(15,7,0,.65);
-  color: rgba(255,255,255,.6);
-  cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  transition: background .22s, border-color .22s, color .22s, transform .22s;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 2;
+  border-radius: 16px;
 }
-.tpb-nav:hover {
-  background: rgba(255,107,0,.22);
-  border-color: rgba(255,107,0,.5);
-  color: #ff9840;
-  transform: translateY(-50%) scale(1.1);
-}
-.tpb-nav--prev { left: 10px; }
-.tpb-nav--next { right: 10px; }
-
-/* Dots */
-.tpb-dots {
-  display: flex; align-items: center; justify-content: center; gap: 6px;
-  margin-top: 14px;
-}
-.tpb-dot {
-  width: 6px; height: 6px; border-radius: 50%;
-  border: none; background: rgba(255,255,255,.18); cursor: pointer; padding: 0;
-  transition: background .2s, width .25s, border-radius .25s;
-}
-.tpb-dot.on { background: #ff6b00; width: 20px; border-radius: 3px; }
 .tpb-root--empty { padding: 18px 16px; }
 .tpb-skeleton .tpb-stage { position: static; height: 220px; perspective: none; }
 .tpb-skel-card {

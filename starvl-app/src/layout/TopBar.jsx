@@ -128,10 +128,8 @@ export default function TopBar({ user, clients, selectedIds, onSelectionChange, 
 
   return (
     <header className="topbar">
-      {/* Left: brand */}
-      <div className="topbar-brand">
-        <span className="topbar-brand-text">HORSE</span>
-      </div>
+      {/* Left: brand placeholder — logo será adicionada futuramente */}
+      <div className="topbar-brand" />
 
       {/* Center: search + company picker */}
       <div className="topbar-center">
