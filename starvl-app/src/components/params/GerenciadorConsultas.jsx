@@ -498,11 +498,11 @@ export default function GerenciadorConsultas({ user }) {
               autoComplete="off"
             />
           </div>
-          <select value={filtCat} onChange={e => setFiltCat(e.target.value)} style={{ minWidth: 140 }}>
+          <select className="themed-select" value={filtCat} onChange={e => setFiltCat(e.target.value)} style={{ minWidth: 140, width: 'auto' }}>
             <option value="">Todas as categorias</option>
             {CATEGORIAS.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
-          <select value={filtAtiva} onChange={e => setFiltAtiva(e.target.value)} style={{ minWidth: 120 }}>
+          <select className="themed-select" value={filtAtiva} onChange={e => setFiltAtiva(e.target.value)} style={{ minWidth: 120, width: 'auto' }}>
             <option value="">Todas</option>
             <option value="true">Ativas</option>
             <option value="false">Inativas</option>

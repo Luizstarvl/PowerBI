@@ -688,6 +688,45 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 }
 .form-field-row { flex-direction: row; align-items: center; justify-content: space-between; }
 
+/* Native select — tema-aware (usado em modais e filtros) */
+.form-field select,
+select.themed-select {
+  background: var(--color-background);
+  border: 1.5px solid var(--color-border);
+  border-radius: 9px;
+  padding: 10px 36px 10px 13px;
+  font-size: 14px;
+  color: var(--color-text);
+  outline: none;
+  width: 100%;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  transition: border-color .15s, box-shadow .15s;
+  cursor: pointer;
+}
+.form-field select:focus,
+select.themed-select:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-light);
+}
+.form-field select option,
+select.themed-select option {
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+.form-field textarea {
+  background: var(--color-background); border: 1.5px solid var(--color-border); border-radius: 9px;
+  padding: 10px 13px; font-size: 14px; color: var(--color-text); outline: none;
+  transition: border-color .15s, box-shadow .15s; width: 100%; box-sizing: border-box;
+}
+.form-field textarea:focus {
+  border-color: var(--color-primary); box-shadow: 0 0 0 3px var(--color-primary-light);
+}
+.form-field textarea::placeholder { color: var(--color-text-muted); }
+
 /* ── Custom Select ───────────────────────────────────────────────────────────── */
 .cselect { position: relative; width: 100%; }
 
