@@ -181,7 +181,7 @@ function ParamInputModal({ params, onConfirm, onCancel }) {
         <h3 className="modal-title">Parâmetros da consulta</h3>
         <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <p style={{ fontSize: 13, color: 'var(--color-text-muted)', margin: 0 }}>
-            Preencha os valores para <strong style={{ color: 'var(--color-text)' }}>{'{{param}}'}</strong> encontrados na SQL.
+            Preencha os parâmetros detectados na SQL. Cada <code style={{ background: 'var(--color-bg)', padding: '1px 4px', borderRadius: 3, fontSize: 12 }}>{'{{nome}}'}</code> diferente gera um campo.
           </p>
           {params.map(p => (
             <div className="form-field" key={p} style={{ margin: 0 }}>
@@ -385,7 +385,10 @@ function ModalQueryForm({ query, conexoes, onSave, onClose }) {
               <label style={{ margin: 0 }}>SQL</label>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                 <span style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>
-                  Apenas SELECT e WITH · use <code style={{ background: 'var(--color-bg)', padding: '1px 4px', borderRadius: 3 }}>{'{{param}}'}</code> para valores dinâmicos
+                  Apenas SELECT e WITH · use <code style={{ background: 'var(--color-bg)', padding: '1px 4px', borderRadius: 3 }}>{'{{empresa}}'}</code>
+                  {', '}
+                  <code style={{ background: 'var(--color-bg)', padding: '1px 4px', borderRadius: 3 }}>{'{{data_inicio}}'}</code>
+                  {' '}(cada parâmetro com nome único)
                 </span>
                 <button
                   type="button"
@@ -466,10 +469,10 @@ function TestResultPanel({ result }) {
 
       {/* Tabela de resultados */}
       {ok && result.rows?.length > 0 && (
-        <div style={{ overflowX: 'auto', maxHeight: 220 }}>
+        <div style={{ overflow: 'auto', maxHeight: 220 }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
             <thead>
-              <tr style={{ background: 'var(--color-bg-secondary)', position: 'sticky', top: 0 }}>
+              <tr style={{ background: 'var(--color-bg-secondary)', position: 'sticky', top: 0, zIndex: 1 }}>
                 {result.columns.map(col => (
                   <th key={col} style={{ padding: '6px 12px', textAlign: 'left', fontWeight: 600, color: 'var(--color-text-secondary)', borderBottom: '1px solid var(--color-border)', whiteSpace: 'nowrap' }}>
                     {col}
