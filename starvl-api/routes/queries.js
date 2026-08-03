@@ -27,6 +27,8 @@ pool.query(`
     sq_atualizado TIMESTAMPTZ   DEFAULT NOW()
   )
 `).then(() => pool.query(`
+  ALTER TABLE starvl_queries ADD COLUMN IF NOT EXISTS sq_slot VARCHAR(50) DEFAULT NULL
+`)).then(() => pool.query(`
   CREATE TABLE IF NOT EXISTS starvl_queries_historico (
     sqh_id        SERIAL       PRIMARY KEY,
     sqh_query_id  INTEGER      NOT NULL REFERENCES starvl_queries(sq_id) ON DELETE CASCADE,
@@ -131,6 +133,7 @@ const toRow = r => ({
   descricao:  r.sq_descricao  || null,
   bancoId:    r.sq_banco_id   || null,
   sql:        r.sq_sql        || '',
+  slot:       r.sq_slot       || null,
   ativa:      r.sq_ativa,
   versao:     r.sq_versao,
   usuario:    r.sq_usuario    || null,
@@ -141,7 +144,7 @@ const toRow = r => ({
 // ── GET / — lista com filtros ─────────────────────────────────────────────────
 router.get('/', requireAuth, async (req, res) => {
   try {
-    const { q, categoria, ativa } = req.query;
+    const { q, categoria, ativa, slot } = req.query;
     const params = [];
     let where = 'WHERE 1=1';
 
@@ -151,9 +154,13 @@ router.get('/', requireAuth, async (req, res) => {
     }
     if (categoria) { params.push(categoria); where += ` AND sq_categoria = $${params.length}`; }
     if (ativa !== undefined && ativa !== '') { params.push(ativa === 'true'); where += ` AND sq_ativa = $${params.length}`; }
+    if (slot !== undefined) {
+      if (slot === '') { where += ` AND sq_slot IS NULL`; }
+      else { params.push(slot); where += ` AND sq_slot = $${params.length}`; }
+    }
 
     const { rows } = await pool.query(
-      `SELECT sq_id,sq_codigo,sq_nome,sq_categoria,sq_banco_id,sq_ativa,sq_versao,sq_usuario,sq_criado,sq_atualizado,'' AS sq_sql
+      `SELECT sq_id,sq_codigo,sq_nome,sq_categoria,sq_banco_id,sq_slot,sq_ativa,sq_versao,sq_usuario,sq_criado,sq_atualizado,'' AS sq_sql
        FROM starvl_queries ${where} ORDER BY sq_categoria, sq_nome`,
       params
     );
@@ -177,7 +184,7 @@ router.get('/:id', requireAuth, async (req, res) => {
 
 // ── POST / — criar ────────────────────────────────────────────────────────────
 router.post('/', requireAuth, requireAdmin, async (req, res) => {
-  const { codigo, nome, categoria, descricao, bancoId, sql, ativa } = req.body;
+  const { codigo, nome, categoria, descricao, bancoId, sql, ativa, slot } = req.body;
   if (!codigo?.trim()) return res.status(400).json({ error: 'Código é obrigatório.' });
   if (!nome?.trim())   return res.status(400).json({ error: 'Nome é obrigatório.' });
   if (!sql?.trim())    return res.status(400).json({ error: 'SQL é obrigatória.' });
@@ -190,12 +197,12 @@ router.post('/', requireAuth, requireAdmin, async (req, res) => {
 
   try {
     const { rows } = await pool.query(
-      `INSERT INTO starvl_queries (sq_codigo,sq_nome,sq_categoria,sq_descricao,sq_banco_id,sq_sql,sq_ativa,sq_usuario)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+      `INSERT INTO starvl_queries (sq_codigo,sq_nome,sq_categoria,sq_descricao,sq_banco_id,sq_sql,sq_ativa,sq_usuario,sq_slot)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
       [
         codigo.trim().toUpperCase(), nome.trim(), categoria || 'Outros',
         descricao?.trim() || null, bancoId || null, sql.trim(),
-        ativa !== false, req.user.usuario,
+        ativa !== false, req.user.usuario, slot?.trim() || null,
       ]
     );
     res.status(201).json(toRow(rows[0]));
@@ -209,7 +216,7 @@ router.post('/', requireAuth, requireAdmin, async (req, res) => {
 // ── PUT /:id — atualizar + salvar versão ──────────────────────────────────────
 router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
   const id = parseInt(req.params.id);
-  const { codigo, nome, categoria, descricao, bancoId, sql, ativa, motivo } = req.body;
+  const { codigo, nome, categoria, descricao, bancoId, sql, ativa, motivo, slot } = req.body;
   if (!codigo?.trim()) return res.status(400).json({ error: 'Código é obrigatório.' });
   if (!nome?.trim())   return res.status(400).json({ error: 'Nome é obrigatório.' });
   if (!sql?.trim())    return res.status(400).json({ error: 'SQL é obrigatória.' });
@@ -239,12 +246,12 @@ router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
     const { rows } = await pool.query(
       `UPDATE starvl_queries
        SET sq_codigo=$1, sq_nome=$2, sq_categoria=$3, sq_descricao=$4, sq_banco_id=$5,
-           sq_sql=$6, sq_ativa=$7, sq_versao=$8, sq_usuario=$9, sq_atualizado=NOW()
-       WHERE sq_id=$10 RETURNING *`,
+           sq_sql=$6, sq_ativa=$7, sq_versao=$8, sq_usuario=$9, sq_slot=$10, sq_atualizado=NOW()
+       WHERE sq_id=$11 RETURNING *`,
       [
         codigo.trim().toUpperCase(), nome.trim(), categoria || 'Outros',
         descricao?.trim() || null, bancoId || null, sql.trim(),
-        ativa !== false, newVersao, req.user.usuario, id,
+        ativa !== false, newVersao, req.user.usuario, slot?.trim() || null, id,
       ]
     );
     res.json(toRow(rows[0]));

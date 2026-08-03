@@ -17,6 +17,38 @@ function toPeriodoParam(period) {
   return `${mm}${yyyy}`;
 }
 
+// Monta query string para /execute/:codigo com todos os params comuns do dashboard
+function buildSlotQs(empresasKey, selectedPeriod) {
+  const empresa = (empresasKey || '').split(',')[0];
+  const [y, m] = selectedPeriod.split('-').map(Number);
+  const last = new Date(y, m, 0).getDate();
+  const pad = n => String(n).padStart(2, '0');
+  return new URLSearchParams({
+    empresa,
+    empresas:    empresasKey,
+    data_inicio: `${y}-${pad(m)}-01`,
+    data_final:  `${y}-${pad(m)}-${last}`,
+    periodo:     `${pad(m)}${y}`,
+  }).toString();
+}
+
+// Mapeia resultado genérico de consulta para { name, qty } esperado pelo banner
+function mapToTopProdutos(result) {
+  if (!result?.ok || !result.rows?.length || !result.columns?.length) return [];
+  const { columns, rows } = result;
+  const numCols = columns.filter(c => rows[0][c] !== null && !isNaN(Number(rows[0][c])));
+  const txtCols = columns.filter(c => !numCols.includes(c));
+  const nameCol = txtCols.find(c => /nome|descri|produto|item/i.test(c))
+               || txtCols[txtCols.length - 1]
+               || txtCols[0];
+  const qtyCol  = numCols.find(c => /qtd|qty|quant/i.test(c)) || numCols[0];
+  if (!nameCol || !qtyCol) return [];
+  return rows.slice(0, 5).map(r => ({
+    name: String(r[nameCol] ?? ''),
+    qty:  Number(r[qtyCol]  ?? 0),
+  }));
+}
+
 function lastMonths(n = 6) {
   const now = new Date();
   return Array.from({ length: n }, (_, i) => {
@@ -148,6 +180,26 @@ export default function Dashboard({ empresas, period, onNavigate }) {
       .catch(() => {});
   }, []);
 
+  // Mapa slot → query para acesso rápido
+  const slotMap = useMemo(
+    () => Object.fromEntries(dashQueries.filter(q => q.slot).map(q => [q.slot, q])),
+    [dashQueries]
+  );
+
+  // Effect separado para dados de widgets vinculados a slots
+  useEffect(() => {
+    if (!empresasKey || !selectedPeriod) return;
+    const top5Q = slotMap.top5_convenio;
+    if (!top5Q) return;
+    let cancelado = false;
+    const qs = buildSlotQs(empresasKey, selectedPeriod);
+    apiFetch(`/api/queries/execute/${top5Q.codigo}?${qs}`)
+      .then(r => r.json())
+      .then(d => { if (!cancelado) setTopProdutos(mapToTopProdutos(d)); })
+      .catch(() => { if (!cancelado) setTopProdutos([]); });
+    return () => { cancelado = true; };
+  }, [slotMap, empresasKey, selectedPeriod]);
+
   const empresasKey = (empresas || []).join(',');
 
   useEffect(() => {
@@ -159,11 +211,15 @@ export default function Dashboard({ empresas, period, onNavigate }) {
     const periodo = toPeriodoParam(selectedPeriod);
     const qs = `empresas=${empresasKey}&periodo=${periodo}`;
 
+    // top-convenio: usa slot se configurado (o slot effect cuida dos dados),
+    // caso contrário usa a rota hardcoded
+    const hasTop5Slot = !!slotMap.top5_convenio;
+
     Promise.all([
       apiFetch(`/api/dashboard/kpis?${qs}`).then(r => r.json()),
       apiFetch(`/api/dashboard/vendas-diarias-full?${qs}`).then(r => r.json()),
       apiFetch(`/api/dashboard/vendas-horarias?${qs}`).then(r => r.json()),
-      apiFetch(`/api/dashboard/top-convenio?${qs}`).then(r => r.json()),
+      hasTop5Slot ? Promise.resolve([]) : apiFetch(`/api/dashboard/top-convenio?${qs}`).then(r => r.json()),
     ])
       .then(([kpisData, diariasData, horariasData, topData]) => {
         if (cancelado) return;
@@ -171,13 +227,13 @@ export default function Dashboard({ empresas, period, onNavigate }) {
         setKpis(kpisData);
         setVendasDiarias(Array.isArray(diariasData) ? diariasData : []);
         setVendasHorarias(Array.isArray(horariasData) ? horariasData : []);
-        setTopProdutos(Array.isArray(topData) ? topData : []);
+        if (!hasTop5Slot) setTopProdutos(Array.isArray(topData) ? topData : []);
       })
       .catch(() => { if (!cancelado) setErro('Não foi possível carregar os dados do período.'); })
       .finally(() => { if (!cancelado) setLoading(false); });
 
     return () => { cancelado = true; };
-  }, [empresasKey, selectedPeriod]);
+  }, [empresasKey, selectedPeriod, slotMap]);
 
   const diariasFmt = vendasDiarias.map(d => ({
     ...d,
@@ -259,8 +315,8 @@ export default function Dashboard({ empresas, period, onNavigate }) {
             </div>
           </div>
 
-          {/* Consultas personalizadas: qualquer query ativa com categoria "Dashboard" */}
-          {dashQueries.length > 0 && (
+          {/* Consultas personalizadas: queries com categoria Dashboard mas sem slot vinculado */}
+          {dashQueries.filter(q => !q.slot).length > 0 && (
             <div style={{ marginTop: 24 }}>
               <div style={{
                 display: 'flex', alignItems: 'center', gap: 10,
@@ -276,8 +332,9 @@ export default function Dashboard({ empresas, period, onNavigate }) {
                   Consultas Personalizadas
                 </span>
               </div>
-              <div className="chart-grid" style={{ gridTemplateColumns: dashQueries.length === 1 ? '1fr' : undefined }}>
-                {dashQueries.map(q => (
+              {(() => { const extras = dashQueries.filter(q => !q.slot); return (
+              <div className="chart-grid" style={{ gridTemplateColumns: extras.length === 1 ? '1fr' : undefined }}>
+                {extras.map(q => (
                   <QueryWidget
                     key={q.codigo}
                     codigo={q.codigo}
@@ -287,6 +344,7 @@ export default function Dashboard({ empresas, period, onNavigate }) {
                   />
                 ))}
               </div>
+              ); })()}
             </div>
           )}
         </>

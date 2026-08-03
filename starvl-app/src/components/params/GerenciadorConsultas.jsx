@@ -11,6 +11,13 @@ import Portal from '../../Portal';
 // ── Constantes ─────────────────────────────────────────────────────────────────
 const CATEGORIAS = ['Dashboard', 'Indicadores', 'Relatórios', 'Cards', 'Gráficos', 'Listagens', 'Outros'];
 
+const DASHBOARD_SLOTS = [
+  { value: '',                label: '— Nenhum (card extra ao final) —' },
+  { value: 'top5_convenio',   label: 'Banner Top 5 Conveniência' },
+  { value: 'vendas_diarias',  label: 'Gráfico Vendas Diárias' },
+  { value: 'vendas_horarias', label: 'Gráfico Vendas por Hora' },
+];
+
 const CAT_COLORS = {
   Dashboard:    { bg: '#dbeafe', color: '#1d4ed8' },
   Indicadores:  { bg: '#d1fae5', color: '#065f46' },
@@ -234,6 +241,7 @@ function ModalQueryForm({ query, conexoes, onSave, onClose }) {
     descricao: query?.descricao || '',
     bancoId:   query?.bancoId   || (conexoes[0]?.id || ''),
     sql:       query?.sql       || 'SELECT\n  *\nFROM\n  ',
+    slot:      query?.slot      || '',
     ativa:     query?.ativa     !== false,
     motivo:    '',
   });
@@ -382,6 +390,24 @@ function ModalQueryForm({ query, conexoes, onSave, onClose }) {
               </label>
             </div>
           </div>
+
+          {/* Vincular ao widget do dashboard (só aparece quando categoria = Dashboard) */}
+          {form.categoria === 'Dashboard' && (
+            <div className="form-field">
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+                </svg>
+                Vincular ao widget do dashboard
+              </label>
+              <select value={form.slot} onChange={e => set('slot', e.target.value)} style={{ width: '100%' }}>
+                {DASHBOARD_SLOTS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+              </select>
+              <span style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4, display: 'block' }}>
+                Quando vinculado, os dados desta consulta substituem os dados hardcoded daquele widget.
+              </span>
+            </div>
+          )}
 
           {/* Descrição */}
           <div className="form-field">
