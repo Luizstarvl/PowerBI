@@ -2004,6 +2004,12 @@ select.themed-select option {
   margin-bottom: 24px;
   overflow: hidden;
 }
+[data-theme="light"] .tpb-root {
+  background: linear-gradient(160deg, #fff8f3 0%, #ffffff 55%, #fafafa 100%);
+  border: 1px solid rgba(255,107,0,.22);
+}
+[data-theme="light"] .tpb-root::before { background: linear-gradient(90deg, transparent, rgba(255,107,0,.15), transparent); }
+[data-theme="light"] .tpb-empty-msg { color: rgba(0,0,0,.4); }
 .tpb-root::before {
   content: '';
   position: absolute;
