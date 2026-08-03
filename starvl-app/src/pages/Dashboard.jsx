@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ShoppingCart, Fuel, Package, Truck, Boxes, Gauge, RefreshCw, Calendar, CalendarDays, CalendarRange, ChevronDown } from 'lucide-react';
+import { ShoppingCart, Fuel, Package, Truck, Boxes, Gauge, RefreshCw, CalendarDays, ChevronDown } from 'lucide-react';
 import { KpiCard } from '../components/ui';
 import { apiFetch } from '../api';
 
@@ -7,29 +7,11 @@ const currency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: '
 const number   = new Intl.NumberFormat('pt-BR');
 
 const MONTH_NAMES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
-const PERIOD_MODES = [
-  { id: 'dia',           label: 'Dia',           Icon: Calendar },
-  { id: 'semana',        label: 'Semana',        Icon: CalendarRange },
-  { id: 'mes',           label: 'Mês',           Icon: CalendarDays },
-  { id: 'ano',           label: 'Ano',           Icon: Calendar },
-  { id: 'personalizado', label: 'Personalizado', Icon: CalendarRange },
-];
-
 function initDraft() {
-  const now  = new Date();
-  const y    = now.getFullYear();
-  const m    = String(now.getMonth() + 1).padStart(2, '0');
-  const today = now.toISOString().slice(0, 10);
-  return { mode: 'mes', mes: `${y}-${m}`, ano: String(y), dia: today, semana: today, inicio: `${y}-${m}-01`, fim: today };
-}
-
-function computeWeekBounds(dateStr) {
-  const d   = new Date(`${dateStr}T12:00:00`);
-  const dow = d.getDay();
-  const s   = new Date(d); s.setDate(d.getDate() + (dow === 0 ? -6 : 1 - dow));
-  const e   = new Date(s); e.setDate(s.getDate() + 6);
-  const fmt = dt => dt.toISOString().slice(0, 10);
-  return { inicio: fmt(s), fim: fmt(e) };
+  const now = new Date();
+  const y   = now.getFullYear();
+  const m   = String(now.getMonth() + 1).padStart(2, '0');
+  return { mode: 'mes', mes: `${y}-${m}` };
 }
 
 function draftToRange(draft) {
@@ -57,12 +39,7 @@ function buildApiQs(empresasKey, applied) {
 }
 
 function draftCanApply(d) {
-  if (d.mode === 'personalizado') return !!d.inicio && !!d.fim && d.inicio <= d.fim;
-  if (d.mode === 'mes')  return !!d.mes;
-  if (d.mode === 'ano')  return !!d.ano;
-  if (d.mode === 'dia')  return !!d.dia;
-  if (d.mode === 'semana') return !!d.semana;
-  return false;
+  return !!d.mes;
 }
 
 /* ── Sub-componentes do seletor ─────────────────────────────────────────────── */
@@ -79,117 +56,34 @@ function PPSelect({ label, value, onChange, children }) {
   );
 }
 
-function PPDate({ label, value, onChange, min, max }) {
-  return (
-    <div className="ppv3-field">
-      <span className="ppv3-label">{label}</span>
-      <div className="ppv3-input-wrap">
-        <Calendar size={16} className="ppv3-input-icon" />
-        <input className="ppv3-date" type="date" value={value} onChange={onChange} min={min} max={max} />
-      </div>
-    </div>
-  );
-}
-
 /* ── Card seletor de período ────────────────────────────────────────────────── */
 function PeriodPicker({ draft, onChange, onApply, canApply, empresasKey }) {
   const currentYear = new Date().getFullYear();
-  const years       = Array.from({ length: 7 }, (_, i) => currentYear - i);
-  const today       = new Date().toISOString().slice(0, 10);
-
-  const set     = (key, val) => onChange({ ...draft, [key]: val });
-  const setMode = mode      => onChange({ ...draft, mode });
-
+  const years = Array.from({ length: 7 }, (_, i) => currentYear - i);
   const [mesY, mesM] = (draft.mes || `${currentYear}-01`).split('-');
-  const weekBounds   = draft.mode === 'semana' ? computeWeekBounds(draft.semana || today) : null;
 
   return (
     <div className="ppv3-card">
-
-      {/* Cabeçalho */}
-      <div className="ppv3-header">
-        <div className="ppv3-title-group">
-          <Calendar size={20} className="ppv3-title-icon" />
-          <div>
-            <div className="ppv3-title">Período</div>
-            <div className="ppv3-subtitle">Selecione o período para análise dos dados</div>
-          </div>
-        </div>
+      <div className="ppv3-row">
+        <PPSelect label="Mês" value={mesM}
+          onChange={e => onChange({ ...draft, mes: `${mesY}-${e.target.value}` })}>
+          {MONTH_NAMES.map((name, i) => (
+            <option key={i} value={String(i + 1).padStart(2, '0')}>{name}</option>
+          ))}
+        </PPSelect>
+        <PPSelect label="Ano" value={mesY}
+          onChange={e => onChange({ ...draft, mes: `${e.target.value}-${mesM}` })}>
+          {years.map(y => <option key={y} value={String(y)}>{y}</option>)}
+        </PPSelect>
         <button
           className="btn-primary ppv3-apply-btn"
           onClick={onApply}
           disabled={!canApply || !empresasKey}
           title={!empresasKey ? 'Selecione uma empresa primeiro' : 'Atualizar os dados'}
         >
-          <RefreshCw size={15} />
-          Atualizar Consulta
+          <RefreshCw size={14} />
+          Atualizar
         </button>
-      </div>
-
-      {/* Abas de modo */}
-      <div className="ppv3-modes">
-        {PERIOD_MODES.map(({ id, label, Icon }) => (
-          <button key={id} type="button"
-            className={`ppv3-mode${draft.mode === id ? ' active' : ''}`}
-            onClick={() => setMode(id)}
-          >
-            <Icon size={16} />
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {/* Inputs de valor */}
-      <div className="ppv3-values">
-        {draft.mode === 'mes' && (
-          <>
-            <PPSelect label="Mês" value={mesM} onChange={e => set('mes', `${mesY}-${e.target.value}`)}>
-              {MONTH_NAMES.map((name, i) => (
-                <option key={i} value={String(i + 1).padStart(2, '0')}>{name}</option>
-              ))}
-            </PPSelect>
-            <PPSelect label="Ano" value={mesY} onChange={e => set('mes', `${e.target.value}-${mesM}`)}>
-              {years.map(y => <option key={y} value={String(y)}>{y}</option>)}
-            </PPSelect>
-          </>
-        )}
-
-        {draft.mode === 'ano' && (
-          <PPSelect label="Ano" value={draft.ano} onChange={e => set('ano', e.target.value)}>
-            {years.map(y => <option key={y} value={String(y)}>{y}</option>)}
-          </PPSelect>
-        )}
-
-        {draft.mode === 'dia' && (
-          <PPDate label="Data" value={draft.dia} max={today} onChange={e => set('dia', e.target.value)} />
-        )}
-
-        {draft.mode === 'semana' && (
-          <>
-            <PPDate label="Selecione uma data da semana" value={draft.semana} max={today}
-              onChange={e => set('semana', e.target.value)} />
-            {weekBounds && (
-              <div className="ppv3-field">
-                <span className="ppv3-label">Semana selecionada</span>
-                <div className="ppv3-week-display">
-                  <Calendar size={16} className="ppv3-input-icon" style={{ position: 'static', color: 'var(--color-primary)' }} />
-                  {weekBounds.inicio.split('-').reverse().join('/')}
-                  {' – '}
-                  {weekBounds.fim.split('-').reverse().join('/')}
-                </div>
-              </div>
-            )}
-          </>
-        )}
-
-        {draft.mode === 'personalizado' && (
-          <>
-            <PPDate label="Data inicial" value={draft.inicio} max={today}
-              onChange={e => set('inicio', e.target.value)} />
-            <PPDate label="Data final" value={draft.fim} max={today} min={draft.inicio}
-              onChange={e => set('fim', e.target.value)} />
-          </>
-        )}
       </div>
     </div>
   );
