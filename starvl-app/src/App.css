@@ -90,7 +90,12 @@ body {
   -moz-osx-font-smoothing: grayscale;
   font-size: 14px;
   line-height: 1.5;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  user-select: none;
 }
+/* Permite seleção onde faz sentido */
+input, textarea, [contenteditable], code, pre { user-select: text; -webkit-user-select: text; }
 button { font-family: inherit; cursor: pointer; }
 input, select, textarea { font-family: inherit; }
 button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focus-visible {
