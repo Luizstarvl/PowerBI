@@ -336,9 +336,16 @@ export default function GerenciadorRelatorios({ user }) {
             <div style={{ overflow: 'auto', maxHeight: 440 }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                 <thead>
-                  <tr style={{ background: 'var(--color-bg-secondary)', position: 'sticky', top: 0, zIndex: 1 }}>
+                  <tr>
                     {result.columns.map(col => (
-                      <th key={col} style={{ padding: '7px 14px', textAlign: 'left', fontWeight: 600, color: 'var(--color-text-secondary)', borderBottom: '1px solid var(--color-border)', whiteSpace: 'nowrap' }}>
+                      <th key={col} style={{
+                        position: 'sticky', top: 0, zIndex: 1,
+                        background: 'var(--color-bg-secondary)',
+                        padding: '7px 14px', textAlign: 'left', fontWeight: 700,
+                        color: 'var(--color-text-secondary)',
+                        borderBottom: '2px solid var(--color-primary)',
+                        whiteSpace: 'nowrap',
+                      }}>
                         {col}
                       </th>
                     ))}

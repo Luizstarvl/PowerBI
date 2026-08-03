@@ -1290,12 +1290,11 @@ export default function Parametros({ themeMode, onThemeModeChange, user }) {
   if (user?.perfil !== 'admin' && !user?.permissoes?.configuracoes) return <AccessDenied />;
 
   const SUB_PAGES = [
-    { key: 'empresas',   tk: 'param_empresas_menu'  },
-    { key: 'regional',   tk: 'param_regional_menu'  },
-    { key: 'sistema',    tk: 'param_sistema_menu'   },
-    { key: 'conexao',    tk: 'param_conexao_menu'   },
-    { key: 'consultas',  tk: 'param_consultas_menu'  },
-    { key: 'relatorios', tk: 'param_relatorios_menu' },
+    { key: 'empresas',  tk: 'param_empresas_menu' },
+    { key: 'regional',  tk: 'param_regional_menu' },
+    { key: 'sistema',   tk: 'param_sistema_menu'  },
+    { key: 'conexao',   tk: 'param_conexao_menu'  },
+    { key: 'consultas', tk: 'param_consultas_menu' },
   ];
 
   return (
@@ -1317,8 +1316,17 @@ export default function Parametros({ themeMode, onThemeModeChange, user }) {
         {sub === 'regional' && <SecaoRegionalizacao />}
         {sub === 'sistema'  && <SecaoSistema themeMode={themeMode} onThemeModeChange={onThemeModeChange} />}
         {sub === 'conexao'  && <SecaoConexao />}
-        {sub === 'consultas'  && <GerenciadorConsultas  user={user} />}
-        {sub === 'relatorios' && <GerenciadorRelatorios user={user} />}
+        {sub === 'consultas' && (
+          <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start', minWidth: 0 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <GerenciadorConsultas user={user} />
+            </div>
+            <div style={{ width: 1, alignSelf: 'stretch', background: 'var(--color-border)', flexShrink: 0 }} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <GerenciadorRelatorios user={user} />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
