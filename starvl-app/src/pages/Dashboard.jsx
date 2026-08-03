@@ -50,7 +50,7 @@ function PPSelect({ label, value, onChange, children }) {
 }
 
 /* ── Card seletor de período ────────────────────────────────────────────────── */
-function PeriodPicker({ draft, onChange, onApply, canApply, empresasKey }) {
+function PeriodPicker({ draft, onChange, onApply, canApply, empresasKey, loading }) {
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 7 }, (_, i) => currentYear - i);
   const [mesY, mesM] = (draft.mes || `${currentYear}-01`).split('-');
@@ -71,11 +71,11 @@ function PeriodPicker({ draft, onChange, onApply, canApply, empresasKey }) {
         <button
           className="btn-primary ppv3-apply-btn"
           onClick={onApply}
-          disabled={!canApply || !empresasKey}
+          disabled={!canApply || !empresasKey || loading}
           title={!empresasKey ? 'Selecione uma empresa primeiro' : 'Atualizar os dados'}
         >
-          <RefreshCw size={14} />
-          Atualizar
+          <RefreshCw size={14} className={loading ? 'pp-spin' : ''} />
+          {loading ? 'Atualizando…' : 'Atualizar'}
         </button>
       </div>
     </div>
@@ -480,7 +480,11 @@ export default function Dashboard({ empresas, period, onNavigate }) {
   }, [apiQs, slotMap]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleAtualizar() {
-    if (draftCanApply(draft)) setApplied({ ...draft });
+    if (!draftCanApply(draft)) return;
+    setLoading(true);
+    setSlotLoading(true);
+    setSlotKpiData({});
+    setApplied({ ...draft });
   }
 
   const canApply  = draftCanApply(draft);
@@ -500,6 +504,7 @@ export default function Dashboard({ empresas, period, onNavigate }) {
         onApply={handleAtualizar}
         canApply={canApply}
         empresasKey={empresasKey}
+        loading={loading || slotLoading}
       />
 
       {!empresasKey && <p className="chart-empty">Selecione uma empresa para ver o dashboard.</p>}
