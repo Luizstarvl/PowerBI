@@ -88,7 +88,7 @@ function CtxProduto({ x, y, onEditar, onClose }) {
   return (
     <div ref={ref} className="pp-ctx" style={{ position: 'fixed', left: x, top: y, zIndex: 9999 }}>
       <button className="pp-ctx-item" onClick={onEditar}>
-        <Edit2 size={13} /> Alterar Cadastro
+        <Edit2 size={15} /> Alterar
       </button>
     </div>
   );
