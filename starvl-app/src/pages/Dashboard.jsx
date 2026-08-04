@@ -451,7 +451,10 @@ export default function Dashboard({ empresas, period, onNavigate }) {
         .then(d => [k, mapKpiRow(d)])
         .catch(() => [k, null])
     )).then(entries => {
-      if (!cancelado) setSlotKpiData(Object.fromEntries(entries.filter(([, v]) => v)));
+      if (!cancelado) {
+        setSlotKpiData(Object.fromEntries(entries.filter(([, v]) => v)));
+        setLoading(false);
+      }
     }).finally(() => { if (!cancelado) setKpiSlotLoading(false); });
     return () => { cancelado = true; };
   }, [slotMap, apiQs]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -474,6 +477,8 @@ export default function Dashboard({ empresas, period, onNavigate }) {
   // KPIs principais (endpoint legado)
   useEffect(() => {
     if (!empresasKey) return;
+    const KPI_SLOTS = ['kpi_vendas','kpi_combustivel','kpi_conveniencia','kpi_compras_comb','kpi_compras_conv','kpi_afericoes'];
+    if (KPI_SLOTS.every(k => slotMap[k]) && slotMap.top5_convenio) return;
     let cancelado = false;
     setLoading(true);
     setErro('');
@@ -505,9 +510,7 @@ export default function Dashboard({ empresas, period, onNavigate }) {
 
   function handleAtualizar() {
     if (!draftCanApply(draft)) return;
-    setLoading(true);
     setSlotLoading(true);
-    setSlotKpiData({});
     setApplied({ ...draft });
   }
 
