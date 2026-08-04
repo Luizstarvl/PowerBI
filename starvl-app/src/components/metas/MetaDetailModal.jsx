@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
-import { X, Edit2, Trash2 } from 'lucide-react';
+import { X, Edit2, Trash2, RefreshCw } from 'lucide-react';
 import Portal from '../../Portal';
 import { Badge, Button, ProgressBar } from '../ui';
 import { CHART_COLORS } from '../../theme/tokens';
@@ -24,14 +24,23 @@ const tooltipStyle = {
   color: 'var(--color-text)',
 };
 
-export default function MetaDetailModal({ meta, isAdmin, currentUser, onClose, onEdit, onDelete, onLancarResultado, onComentar }) {
+export default function MetaDetailModal({ meta, isAdmin, currentUser, onClose, onEdit, onDelete, onLancarResultado, onComentar, onSincronizar }) {
   const [tab, setTab] = useState('Evolução');
   const [novoResultado, setNovoResultado] = useState({ data: new Date().toISOString().slice(0, 10), valor: '', observacao: '' });
   const [novoComentario, setNovoComentario] = useState('');
   const [busy, setBusy] = useState(false);
   const [erro, setErro] = useState('');
+  const [syncBusy, setSyncBusy] = useState(false);
 
   const chartData = (meta.resultados || []).map(r => ({ data: formatDateBR(r.data), valor: r.valor }));
+
+  async function handleSincronizar() {
+    setSyncBusy(true);
+    setErro('');
+    try { await onSincronizar(); }
+    catch (err) { setErro(err.message || 'Erro ao sincronizar.'); }
+    finally { setSyncBusy(false); }
+  }
 
   async function handleLancar() {
     setErro('');
@@ -71,6 +80,11 @@ export default function MetaDetailModal({ meta, isAdmin, currentUser, onClose, o
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
               <Badge variant={STATUS_BADGE[meta.status] || 'neutral'}>{meta.status}</Badge>
+              {meta.sincronizavel && (
+                <button className="icon-btn" title="Sincronizar com as vendas do sistema" onClick={handleSincronizar} disabled={syncBusy}>
+                  <RefreshCw size={14} className={syncBusy ? 'spin' : ''} />
+                </button>
+              )}
               {isAdmin && (
                 <>
                   <button className="icon-btn" title="Editar" onClick={() => onEdit(meta)}><Edit2 size={14} /></button>

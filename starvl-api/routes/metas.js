@@ -8,6 +8,7 @@
 const express = require('express');
 const router  = express.Router();
 const pool    = require('../db/pool');
+const { queryFor } = require('../db/poolManager');
 const { requireAuth, requireAdmin, requirePerm } = require('../middleware/auth');
 
 const TIPOS = [
@@ -59,8 +60,9 @@ pool.query(`
     smr_data          DATE          NOT NULL,
     smr_valor         NUMERIC(14,2) NOT NULL,
     smr_observacao    TEXT          DEFAULT '',
+    smr_origem        VARCHAR(10)   NOT NULL DEFAULT 'manual' CHECK (smr_origem IN ('manual','auto')),
     smr_criado        TIMESTAMPTZ   DEFAULT NOW()
-  )`),
+  )`).then(() => pool.query(`ALTER TABLE starvl_meta_resultados ADD COLUMN IF NOT EXISTS smr_origem VARCHAR(10) NOT NULL DEFAULT 'manual'`)),
   pool.query(`CREATE TABLE IF NOT EXISTS starvl_meta_historico (
     smh_id            SERIAL        PRIMARY KEY,
     smh_meta_id        INTEGER       NOT NULL,
@@ -166,6 +168,7 @@ const toRow = r => {
     responsavel:    r.sm_responsavel || '',
     observacoes:    r.sm_observacoes || '',
     status,
+    sincronizavel:  !!SYNC_INDICADORES[r.sm_indicador],
     criado:         r.sm_criado,
     atualizado:     r.sm_atualizado,
   };
@@ -177,6 +180,62 @@ const SELECT_COM_VALOR = `
   LEFT JOIN starvl_meta_resultados r
     ON r.smr_meta_id = m.sm_id AND r.smr_data BETWEEN m.sm_data_inicial AND m.sm_data_final
 `;
+
+// ── Sincronização automática com vendas do SGA ──────────────────────────────
+// Só indicadores com uma query equivalente no banco do posto (SGA) entram
+// aqui. Cada função recebe (query, dataInicio, dataFim) — query já vinculada
+// ao pool da empresa certa via queryFor(codigoEmpresa) — e devolve o valor
+// apurado no período. Mesma query-base usada no KPI "Vendas" do Dashboard
+// (routes/dashboard.js), pra garantir que os dois números batem.
+const SYNC_INDICADORES = {
+  Faturamento: async (query, codigoEmpresa, dataInicio, dataFim) => {
+    const { rows } = await query(
+      `SELECT COALESCE(SUM(vdit.vdittotal), 0) AS valor_total_vendas
+       FROM vda JOIN vdit ON vdit.vditcodigovda=vda.vdacodigo AND vdit.vditempresa=vda.vdaempresa
+       WHERE vda.vdaempresa=$1 AND vda.vdamovimento>=$2 AND vda.vdamovimento<=$3
+         AND (vda.vdastatus IS NULL OR vda.vdastatus=0)`,
+      [codigoEmpresa, dataInicio, dataFim]
+    );
+    return parseFloat(rows[0].valor_total_vendas) || 0;
+  },
+};
+
+// Busca o valor no SGA e grava/atualiza o resultado "auto" da meta (substitui
+// só o resultado automático anterior — resultados lançados manualmente pelo
+// usuário não são tocados). Lança em ISO string; quem chama decide quando.
+async function sincronizarMeta(id, usuario) {
+  const { rows } = await pool.query(
+    `SELECT m.sm_id, m.sm_indicador, m.sm_data_inicial, m.sm_data_final, c.sc_codigo
+     FROM starvl_metas m JOIN starvl_clients c ON c.sc_id = m.sm_empresa_id
+     WHERE m.sm_id = $1`, [id]
+  );
+  if (!rows.length) return { ok: false, error: 'Meta não encontrada.' };
+  const meta = rows[0];
+  const sincronizador = SYNC_INDICADORES[meta.sm_indicador];
+  if (!sincronizador) return { ok: false, skipped: true };
+
+  const hojeISO = new Date().toISOString().slice(0, 10);
+  const dataInicio = new Date(meta.sm_data_inicial).toISOString().slice(0, 10);
+  // Não faz sentido consultar vendas no futuro — apura só até hoje (ou até
+  // o fim da meta, se ela já tiver terminado).
+  const dataFimMeta = new Date(meta.sm_data_final).toISOString().slice(0, 10);
+  const dataFim = dataFimMeta < hojeISO ? dataFimMeta : hojeISO;
+
+  const query = queryFor(meta.sc_codigo);
+  const valor = await sincronizador(query, meta.sc_codigo, dataInicio, dataFim);
+
+  await pool.query(`DELETE FROM starvl_meta_resultados WHERE smr_meta_id=$1 AND smr_origem='auto'`, [id]);
+  await pool.query(
+    `INSERT INTO starvl_meta_resultados (smr_meta_id, smr_data, smr_valor, smr_observacao, smr_origem)
+     VALUES ($1,$2,$3,'Sincronizado automaticamente das vendas do sistema.','auto')`,
+    [id, hojeISO, valor]
+  );
+  await pool.query(
+    `INSERT INTO starvl_meta_historico (smh_meta_id, smh_campo, smh_valor_novo, smh_usuario) VALUES ($1,'sincronização',$2,$3)`,
+    [id, String(valor), usuario || 'Sistema']
+  );
+  return { ok: true, valor };
+}
 
 // Autenticação obrigatória em todas as rotas de metas
 router.use(requireAuth);
@@ -569,7 +628,7 @@ router.get('/:id', async (req, res) => {
     if (!rows.length) return res.status(404).json({ error: 'Meta não encontrada.' });
 
     const [resultados, historico, comentarios] = await Promise.all([
-      pool.query(`SELECT smr_id AS id, smr_data AS data, smr_valor AS valor, smr_observacao AS observacao FROM starvl_meta_resultados WHERE smr_meta_id=$1 ORDER BY smr_data`, [id]),
+      pool.query(`SELECT smr_id AS id, smr_data AS data, smr_valor AS valor, smr_observacao AS observacao, smr_origem AS origem FROM starvl_meta_resultados WHERE smr_meta_id=$1 ORDER BY smr_data`, [id]),
       pool.query(`SELECT smh_id AS id, smh_campo AS campo, smh_valor_antigo AS "valorAntigo", smh_valor_novo AS "valorNovo", smh_usuario AS usuario, smh_criado AS criado FROM starvl_meta_historico WHERE smh_meta_id=$1 ORDER BY smh_criado DESC`, [id]),
       pool.query(`SELECT smc_id AS id, smc_usuario AS usuario, smc_texto AS texto, smc_criado AS criado FROM starvl_meta_comentarios WHERE smc_meta_id=$1 ORDER BY smc_criado DESC`, [id]),
     ]);
@@ -621,11 +680,41 @@ router.post('/', async (req, res) => {
       `INSERT INTO starvl_meta_historico (smh_meta_id, smh_campo, smh_valor_novo, smh_usuario) VALUES ($1,'criação',$2,$3)`,
       [id, nome.trim(), usuario || 'Sistema']
     );
+
+    // Se o indicador tem sincronização automática (ex.: Faturamento), já
+    // popula o realizado com o que existir no período assim que a meta é
+    // criada — sem isso a meta nasce zerada até alguém sincronizar/lançar.
+    if (SYNC_INDICADORES[indicador]) {
+      try { await sincronizarMeta(id, usuario); }
+      catch (syncErr) { console.error('[metas] sync automático na criação falhou:', syncErr.message); }
+    }
+
     const { rows: full } = await pool.query(`${SELECT_COM_VALOR} WHERE m.sm_id = $1 GROUP BY m.sm_id`, [id]);
     res.status(201).json(toRow(full[0]));
   } catch (err) {
     console.error('POST /metas:', err.message);
     res.status(500).json({ error: 'Erro ao criar meta.' });
+  }
+});
+
+// ── POST /api/metas/:id/sincronizar — busca o valor no SGA e atualiza ──────
+router.post('/:id/sincronizar', async (req, res) => {
+  const id = parseInt(req.params.id);
+  const { usuario } = req.body;
+  try {
+    const result = await sincronizarMeta(id, usuario);
+    if (!result.ok) {
+      return res.status(result.skipped ? 400 : 404).json({
+        error: result.skipped
+          ? 'Este indicador não tem sincronização automática — lance o resultado manualmente.'
+          : (result.error || 'Meta não encontrada.'),
+      });
+    }
+    const { rows: full } = await pool.query(`${SELECT_COM_VALOR} WHERE m.sm_id = $1 GROUP BY m.sm_id`, [id]);
+    res.json(toRow(full[0]));
+  } catch (err) {
+    console.error('POST /metas/:id/sincronizar:', err.message);
+    res.status(500).json({ error: 'Erro ao sincronizar com as vendas.' });
   }
 });
 

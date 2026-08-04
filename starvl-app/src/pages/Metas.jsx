@@ -172,6 +172,17 @@ export default function Metas({ empresa, empresaNome, user, onNavigate }) {
     carregar({ silent: true });
   }
 
+  async function handleSincronizar() {
+    const res  = await apiFetch(`/api/metas/${detailMeta.id}/sincronizar`, {
+      method: 'POST',
+      body: JSON.stringify({ usuario: currentUser }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Erro ao sincronizar.');
+    await abrirDetalhe(detailMeta);
+    carregar({ silent: true });
+  }
+
   async function handleComentar(texto) {
     await apiFetch(`/api/metas/${detailMeta.id}/comentarios`, {
       method: 'POST',
@@ -468,6 +479,7 @@ export default function Metas({ empresa, empresaNome, user, onNavigate }) {
           onDelete={handleExcluir}
           onLancarResultado={handleLancarResultado}
           onComentar={handleComentar}
+          onSincronizar={handleSincronizar}
         />
       )}
     </main>
