@@ -9,17 +9,21 @@ const fmtPct      = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 1, m
 const PAGE_OPTS = [15, 30, 50, 'Todos'];
 
 function detectCols(columns) {
-  const find = pat => columns.find(c => new RegExp(pat, 'i').test(c)) || null;
+  // Match exato (^ $) tem prioridade; fallback para parcial
+  const exact = pat => columns.find(c => new RegExp(`^(${pat})$`, 'i').test(c)) || null;
+  const find  = pat => columns.find(c => new RegExp(pat, 'i').test(c)) || null;
   return {
-    nome:     find('descricao|nome|produto'),
-    codigo:   find('cod_produto|codigo|prodcodigo'),
-    barra:    find('cod_barra|barra|ean'),
+    // "descricao" exato antes de tentar qualquer coisa com "produto"
+    nome:     exact('descricao|nome|proddescricao|descricao_produto')
+              || find('descricao(?!_)'),
+    codigo:   exact('cod_produto|codigo|prodcodigo|cod|code'),
+    barra:    exact('cod_barra|barra|ean|gtin'),
     secao:    find('descricao_secao|secao'),
     grupo:    find('descricao_grupo|grupo'),
     estoque:  find('estoque|kardex'),
-    preco:    find('preco_venda1|preco_venda|preco(?!_venda2)'),
-    custo:    find('custo'),
-    situacao: find('situacao|status'),
+    preco:    exact('preco_venda1|preco_venda|preco') || find('preco(?!_venda2)'),
+    custo:    exact('custo|custo_medio|e_prodcusto') || find('custo'),
+    situacao: exact('situacao|status|ativo|inativo') || find('situacao|status'),
   };
 }
 
