@@ -207,24 +207,6 @@ function gerarJanelaPrint({ titulo, colunas, linhas, empresa, det, filtros }) {
 body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 10.5px; color: #1a1a1a; background: #f3f4f6; }
 .preview-wrap { max-width: 1100px; margin: 0 auto; background: #fff; padding: 28px 32px; min-height: 100vh; }
 
-/* ── Barra de ações ── */
-.print-toolbar {
-  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
-  background: #1a1a1a; display: flex; align-items: center; justify-content: space-between;
-  padding: 10px 24px; gap: 12px; box-shadow: 0 2px 10px rgba(0,0,0,.4);
-}
-.print-toolbar-info { color: #aaa; font-size: 12px; }
-.print-toolbar-info strong { color: #fff; }
-.print-toolbar-actions { display: flex; gap: 8px; }
-.btn-toolbar {
-  padding: 7px 18px; border-radius: 7px; font-size: 13px; font-weight: 600; cursor: pointer; border: none;
-}
-.btn-toolbar-cancel { background: #333; color: #ccc; }
-.btn-toolbar-cancel:hover { background: #444; }
-.btn-toolbar-print { background: #f97316; color: #fff; }
-.btn-toolbar-print:hover { background: #ea6c0a; }
-body { padding-top: 52px; }
-
 /* ── Cabeçalho ── */
 .report-header { display: flex; align-items: flex-end; justify-content: space-between; padding-bottom: 12px; margin-bottom: 4px; border-bottom: 3px solid #f97316; }
 .report-brand { display: flex; flex-direction: column; gap: 2px; }
@@ -267,20 +249,10 @@ tr:last-child td { border-bottom: none; }
 .report-footer-right { font-size: 9px; color: #bbb; }
 
 @media print {
-  body { background: #fff; padding-top: 0; }
-  .print-toolbar { display: none; }
+  body { background: #fff; }
   .preview-wrap { padding: 0; box-shadow: none; }
 }
 </style></head><body>
-
-<div class="print-toolbar">
-  <span class="print-toolbar-info"><strong>${titulo}</strong> · ${linhas.length} produto${linhas.length !== 1 ? 's' : ''} · ${empresa}</span>
-  <div class="print-toolbar-actions">
-    <button class="btn-toolbar btn-toolbar-cancel" onclick="window.close()">Fechar</button>
-    <button class="btn-toolbar btn-toolbar-print" onclick="window.print()">🖨 Imprimir</button>
-  </div>
-</div>
-
 <div class="preview-wrap">
 <div class="report-header">
   <div class="report-brand">
@@ -312,14 +284,56 @@ ${filtroTags ? `<div class="filters-row"><span class="filters-label">Filtros apl
 
 </body></html>`;
 
-  const w = window.open('', '_blank', 'width=1200,height=820');
-  if (!w) return;
-  w.document.write(html);
-  w.document.close();
-  w.focus();
+  return html;
 }
 
-function PrintModal({ secoes, grupos, tabelaCols, sortedFiltradas, det, empresa, onClose }) {
+function PrintPreview({ html, titulo, total, empresa, onClose }) {
+  const iframeRef = useRef(null);
+
+  function handlePrint() {
+    iframeRef.current?.contentWindow?.print();
+  }
+
+  useEffect(() => {
+    function onKey(e) { if (e.key === 'Escape') onClose(); }
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  return ReactDOM.createPortal(
+    <div className="prv-overlay">
+      {/* ── Topbar do preview ── */}
+      <div className="prv-bar">
+        <div className="prv-bar-left">
+          <button className="prv-btn-close" onClick={onClose}>
+            <X size={14} /> Fechar
+          </button>
+          <div className="prv-bar-divider" />
+          <div className="prv-bar-info">
+            <span className="prv-bar-title">{titulo}</span>
+            <span className="prv-bar-meta">{total} produto{total !== 1 ? 's' : ''} · {empresa}</span>
+          </div>
+        </div>
+        <button className="prv-btn-print" onClick={handlePrint}>
+          <Printer size={14} /> Imprimir
+        </button>
+      </div>
+
+      {/* ── Área do relatório ── */}
+      <div className="prv-content">
+        <iframe
+          ref={iframeRef}
+          className="prv-iframe"
+          srcDoc={html}
+          title="Preview do Relatório"
+        />
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+function PrintModal({ secoes, grupos, tabelaCols, sortedFiltradas, det, empresa, onClose, onPreview }) {
   const [titulo,      setTitulo]      = useState('Cadastro de Produtos');
   const [pSituacao,   setPSituacao]   = useState('Ativos');
   const [pSecao,      setPSecao]      = useState('Todas');
@@ -360,7 +374,8 @@ function PrintModal({ secoes, grupos, tabelaCols, sortedFiltradas, det, empresa,
       grupo:    pGrupo  !== 'Todos'  ? `Grupo: ${pGrupo}`       : '',
       semEst:   pSemEst               ? 'Sem estoque'            : '',
     };
-    gerarJanelaPrint({ titulo, colunas: colunasSel, linhas, empresa, det, filtros });
+    const html = gerarJanelaPrint({ titulo, colunas: colunasSel, linhas, empresa, det, filtros });
+    onPreview({ html, titulo, total: linhas.length, empresa });
     onClose();
   }
 
@@ -480,7 +495,8 @@ export default function PainelProdutos({ empresasKey, onVoltar }) {
   const [detalhe,    setDetalhe]    = useState(null);
   const [ctxMenu,    setCtxMenu]    = useState(null); // {x,y,row}
   const [fotosMap,   setFotosMap]   = useState({});
-  const [printOpen,  setPrintOpen]  = useState(false);
+  const [printOpen,   setPrintOpen]   = useState(false);
+  const [previewData, setPreviewData] = useState(null);
 
   const empresa = (empresasKey || '').split(',')[0];
   const det = useMemo(() => detectCols(cols), [cols]);
@@ -962,6 +978,18 @@ export default function PainelProdutos({ empresasKey, onVoltar }) {
           det={det}
           empresa={empresa}
           onClose={() => setPrintOpen(false)}
+          onPreview={data => setPreviewData(data)}
+        />
+      )}
+
+      {/* ── Preview fullscreen ── */}
+      {previewData && (
+        <PrintPreview
+          html={previewData.html}
+          titulo={previewData.titulo}
+          total={previewData.total}
+          empresa={previewData.empresa}
+          onClose={() => setPreviewData(null)}
         />
       )}
     </div>
