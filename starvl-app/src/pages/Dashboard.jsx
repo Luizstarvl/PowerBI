@@ -259,7 +259,7 @@ function TopProdutosBanner({ dados, fotos, loading }) {
   if (loading && n === 0) {
     return (
       <div className="tpb-root tpb-skeleton">
-        <div className="tpb-eyebrow">{EYEBROW_ICON} Top 5 Mais Vendidos · Conveniência</div>
+        <div className="tpb-eyebrow">{EYEBROW_ICON} Top 5 Mais Vendidos</div>
         <div className="tpb-stage" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14 }}>
           {[94, 124, 160, 124, 94].map((w, i) => (
             <div key={i} className="tpb-skel-card" style={{ width: w, opacity: i === 2 ? 1 : i === 1 || i === 3 ? 0.6 : 0.35 }} />
@@ -272,7 +272,7 @@ function TopProdutosBanner({ dados, fotos, loading }) {
   if (!loading && n === 0) {
     return (
       <div className="tpb-root tpb-root--empty">
-        <div className="tpb-eyebrow">{EYEBROW_ICON} Top 5 Mais Vendidos · Conveniência</div>
+        <div className="tpb-eyebrow">{EYEBROW_ICON} Top 5 Mais Vendidos</div>
         <p className="tpb-empty-msg">Sem dados de conveniência para o período selecionado.</p>
       </div>
     );
@@ -284,7 +284,7 @@ function TopProdutosBanner({ dados, fotos, loading }) {
     <div className="tpb-root">
       {/* Confetes apenas quando o 1° lugar está em destaque */}
       {featured === 0 && <ConfettiCanvas />}
-      <div className="tpb-eyebrow">{EYEBROW_ICON} Top 5 Mais Vendidos · Conveniência</div>
+      <div className="tpb-eyebrow">{EYEBROW_ICON} Top 5 Mais Vendidos</div>
 
       {/* Setas de navegação */}
       {n >= 2 && (
