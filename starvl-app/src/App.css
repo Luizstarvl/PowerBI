@@ -2961,8 +2961,13 @@ select.themed-select option {
   position: sticky; top: 0; z-index: 1;
   background: var(--color-surface);
 }
-.pp-th--r     { text-align: right; }
-.pp-th--first { padding-left: 20px; }
+.pp-th--r       { text-align: right; }
+.pp-th--first   { padding-left: 20px; }
+.pp-th--sortable { cursor: pointer; user-select: none; }
+.pp-th--sortable:hover { color: var(--color-text); background: rgba(128,128,128,.06); }
+.pp-th--active  { color: var(--color-primary); }
+.pp-sort-icon   { font-size: 9px; opacity: .5; margin-left: 3px; }
+.pp-th--active .pp-sort-icon { opacity: 1; }
 
 .pp-tr { transition: background .1s; border-bottom: 1px solid var(--color-border); }
 .pp-tr:last-child { border-bottom: none; }

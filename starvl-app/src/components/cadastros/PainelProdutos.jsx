@@ -110,6 +110,8 @@ export default function PainelProdutos({ empresasKey, onVoltar }) {
   const [busca,      setBusca]      = useState('');
   const [secao,      setSecao]      = useState('Todas');
   const [grupo,      setGrupo]      = useState('Todos');
+  const [sortCol,    setSortCol]    = useState(null);
+  const [sortDir,    setSortDir]    = useState('asc');
   const [situacao,   setSituacao]   = useState('Ativos');
   const [semEstoque, setSemEstoque] = useState(false);
   const [pagina,     setPagina]     = useState(1);
@@ -298,11 +300,33 @@ export default function PainelProdutos({ empresasKey, onVoltar }) {
     return r;
   }, [rows, busca, secao, grupo, situacao, semEstoque, det]);
 
-  const total     = filtradas.length;
+  const sortedFiltradas = useMemo(() => {
+    if (!sortCol) return filtradas;
+    const col = tabelaCols.find(c => c.key === sortCol);
+    if (!col) return filtradas;
+    return [...filtradas].sort((a, b) => {
+      const va = col.calc ? col.calc(a) : a[sortCol];
+      const vb = col.calc ? col.calc(b) : b[sortCol];
+      if (col.currency || col.estoque) {
+        const diff = (Number(va) || 0) - (Number(vb) || 0);
+        return sortDir === 'asc' ? diff : -diff;
+      }
+      const cmp = String(va ?? '').localeCompare(String(vb ?? ''), 'pt-BR', { sensitivity: 'base' });
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
+  }, [filtradas, sortCol, sortDir, tabelaCols]);
+
+  function handleSort(key) {
+    if (sortCol === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortCol(key); setSortDir('asc'); }
+    setPagina(1);
+  }
+
+  const total     = sortedFiltradas.length;
   const ps        = pageSize === 'Todos' ? total : pageSize;
   const totalPags = Math.max(1, Math.ceil(total / (ps || 1)));
   const pag       = Math.min(pagina, totalPags);
-  const pagRows   = pageSize === 'Todos' ? filtradas : filtradas.slice((pag - 1) * ps, pag * ps);
+  const pagRows   = pageSize === 'Todos' ? sortedFiltradas : sortedFiltradas.slice((pag - 1) * ps, pag * ps);
 
   function limpar() {
     setBusca(''); setSecao('Todas'); setGrupo('Todos');
@@ -446,11 +470,26 @@ export default function PainelProdutos({ empresasKey, onVoltar }) {
             <table className="pp-table">
               <thead>
                 <tr className="pp-thead-row">
-                  {tabelaCols.map((c, i) => (
-                    <th key={c.key} className={`pp-th${c.currency || c.estoque ? ' pp-th--r' : ''}${i === 0 ? ' pp-th--first' : ''}`}>
-                      {c.label}
-                    </th>
-                  ))}
+                  {tabelaCols.map((c, i) => {
+                    const isActive = sortCol === c.key;
+                    return (
+                      <th
+                        key={c.key}
+                        className={[
+                          'pp-th pp-th--sortable',
+                          c.currency || c.estoque ? 'pp-th--r' : '',
+                          i === 0 ? 'pp-th--first' : '',
+                          isActive ? 'pp-th--active' : '',
+                        ].filter(Boolean).join(' ')}
+                        onClick={() => handleSort(c.key)}
+                      >
+                        {c.label}
+                        <span className="pp-sort-icon">
+                          {isActive ? (sortDir === 'asc' ? ' ▲' : ' ▼') : ' ⇅'}
+                        </span>
+                      </th>
+                    );
+                  })}
                 </tr>
               </thead>
               <tbody>
