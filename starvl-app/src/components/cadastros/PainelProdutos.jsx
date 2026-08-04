@@ -263,7 +263,7 @@ export default function PainelProdutos({ empresasKey, onVoltar }) {
   const kpis = useMemo(() => {
     const ativos   = rows.filter(r => matchSituacao(r[det.situacao], 'Ativos'));
     const inativos = rows.filter(r => matchSituacao(r[det.situacao], 'Inativos'));
-    const semEst   = rows.filter(r => Number(r[det.estoque] || 0) <= 0);
+    const semEst   = (det.situacao ? ativos : rows).filter(r => Number(r[det.estoque] || 0) <= 0);
 
     const valorTotal = rows.reduce((acc, r) =>
       acc + (Number(r[det.estoque] || 0) * Number(r[det.preco] || 0)), 0);
