@@ -38,7 +38,7 @@ export default function Cadastros() {
     <main className="dashboard">
       <div className="gu-header">
         <div>
-          <h2 className="gu-title">📁 Cadastros</h2>
+          <h2 className="gu-title">📋 Cadastros</h2>
           <p className="gu-subtitle">Acesso rápido aos cadastros do sistema.</p>
         </div>
       </div>
