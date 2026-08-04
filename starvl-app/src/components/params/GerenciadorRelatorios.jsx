@@ -340,10 +340,10 @@ export default function GerenciadorRelatorios({ user }) {
                     {result.columns.map(col => (
                       <th key={col} style={{
                         position: 'sticky', top: 0, zIndex: 1,
-                        background: 'var(--color-bg-secondary)',
-                        padding: '7px 14px', textAlign: 'left', fontWeight: 700,
-                        color: 'var(--color-text-secondary)',
-                        boxShadow: '0 2px 0 var(--color-primary)',
+                        background: 'var(--color-primary)',
+                        padding: '8px 14px', textAlign: 'left', fontWeight: 700,
+                        fontSize: 11, textTransform: 'uppercase', letterSpacing: '.05em',
+                        color: '#fff',
                         whiteSpace: 'nowrap',
                       }}>
                         {col}
