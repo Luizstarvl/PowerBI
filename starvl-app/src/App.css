@@ -2168,10 +2168,11 @@ select.themed-select option {
   overflow: hidden;
 }
 [data-theme="light"] .tpb-root {
-  background: linear-gradient(160deg, #fff8f3 0%, #ffffff 55%, #fafafa 100%);
-  border: 1px solid rgba(255,107,0,.22);
+  background: linear-gradient(145deg, #ffe8cc 0%, #fff3e6 40%, #ffeedd 100%);
+  border: 1px solid rgba(255,107,0,.35);
+  box-shadow: 0 6px 32px rgba(255,107,0,.13), 0 2px 8px rgba(0,0,0,.06);
 }
-[data-theme="light"] .tpb-root::before { background: linear-gradient(90deg, transparent, rgba(255,107,0,.15), transparent); }
+[data-theme="light"] .tpb-root::before { background: linear-gradient(90deg, transparent, rgba(255,107,0,.2), transparent); }
 [data-theme="light"] .tpb-empty-msg { color: rgba(0,0,0,.4); }
 .tpb-root::before {
   content: '';
