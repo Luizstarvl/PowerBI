@@ -1,8 +1,9 @@
 const express = require('express');
 const router  = require('express').Router();
 const { queryFor } = require('../db/poolManager');
+const pool          = require('../db/pool'); // banco de gestão (nosso), não o SGA do cliente
 
-// ── Cache em memória (5 min) ──────────────────────────────────────────────────
+// ── Cache em memória (5 min, cobre qualquer período — primeira linha de defesa) ─
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutos
 const cache = new Map();
 
@@ -15,22 +16,91 @@ function cacheGet(key) {
 function cacheSet(key, data) {
   cache.set(key, { data, ts: Date.now() });
 }
-// Middleware que injeta cache nas rotas GET do dashboard
+
+// ── Cache persistente no Postgres (só para períodos fechados) ──────────────────
+// Meses já fechados praticamente não mudam mais, então guardamos o resultado no
+// nosso próprio banco em vez de bater no banco do cliente toda vez — sobrevive a
+// restart/deploy, ao contrário do cache em memória acima. TTL de 24h (em vez de
+// permanente) porque o usuário confirmou que lançamentos retroativos em período
+// fechado acontecem às vezes; isso limita o quão desatualizado o cache pode ficar
+// sem precisar de invalidação ativa (que exigiria mexer no schema do SGA, fora
+// de cogitação). `?force=1` (já existente) também bypassa essa camada e força
+// recálculo imediato após uma correção retroativa conhecida.
+const DB_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24h
+
+pool.query(`
+  CREATE TABLE IF NOT EXISTS starvl_dashboard_cache (
+    dc_id      SERIAL       PRIMARY KEY,
+    dc_chave   TEXT         NOT NULL UNIQUE,
+    dc_payload JSONB        NOT NULL,
+    dc_criado  TIMESTAMPTZ  DEFAULT NOW()
+  )
+`).catch(err => console.error('[dashboard_cache] ensureTable:', err.message));
+
+// periodo = 'MMYYYY'. Fechado = estritamente anterior ao mês/ano atual.
+function isPeriodoFechado(periodo) {
+  if (!periodo || periodo.length !== 6) return false;
+  const mes = parseInt(periodo.substring(0, 2));
+  const ano = parseInt(periodo.substring(2, 6));
+  if (!mes || !ano) return false;
+  const agora = new Date();
+  const anoAtual = agora.getFullYear(), mesAtual = agora.getMonth() + 1;
+  return ano < anoAtual || (ano === anoAtual && mes < mesAtual);
+}
+
+async function dbCacheGet(key) {
+  try {
+    const { rows } = await pool.query(
+      `SELECT dc_payload, dc_criado FROM starvl_dashboard_cache WHERE dc_chave=$1`, [key]
+    );
+    if (!rows.length) return null;
+    if (Date.now() - new Date(rows[0].dc_criado).getTime() > DB_CACHE_TTL_MS) return null;
+    return rows[0].dc_payload;
+  } catch (err) {
+    console.error('[dashboard_cache] get:', err.message);
+    return null;
+  }
+}
+function dbCacheSet(key, data) {
+  // Fire-and-forget — não atrasa a resposta ao usuário por causa do cache.
+  pool.query(
+    `INSERT INTO starvl_dashboard_cache (dc_chave, dc_payload, dc_criado)
+     VALUES ($1, $2, NOW())
+     ON CONFLICT (dc_chave) DO UPDATE SET dc_payload=$2, dc_criado=NOW()`,
+    [key, data]
+  ).catch(err => console.error('[dashboard_cache] set:', err.message));
+}
+
+// Middleware que injeta cache (memória + Postgres) nas rotas GET do dashboard
 function withCache(handler) {
   return async (req, res) => {
     const key = req.originalUrl;
-    // Bypass cache se force=1 for passado na query
-    if (req.query.force !== '1') {
-      const cached = cacheGet(key);
-      if (cached) {
-        res.setHeader('X-Cache', 'HIT');
-        return res.json(cached);
+    const periodoFechado = isPeriodoFechado(req.query.periodo);
+    const force = req.query.force === '1';
+
+    if (!force) {
+      const memHit = cacheGet(key);
+      if (memHit) {
+        res.setHeader('X-Cache', 'HIT-MEM');
+        return res.json(memHit);
+      }
+      if (periodoFechado) {
+        const dbHit = await dbCacheGet(key);
+        if (dbHit) {
+          cacheSet(key, dbHit); // esquenta o cache em memória também
+          res.setHeader('X-Cache', 'HIT-DB');
+          return res.json(dbHit);
+        }
       }
     }
-    // Intercepta res.json para armazenar no cache
+
+    // Intercepta res.json para armazenar no(s) cache(s)
     const originalJson = res.json.bind(res);
     res.json = (body) => {
-      if (res.statusCode >= 200 && res.statusCode < 300) cacheSet(key, body);
+      if (res.statusCode >= 200 && res.statusCode < 300) {
+        cacheSet(key, body);
+        if (periodoFechado) dbCacheSet(key, body);
+      }
       res.setHeader('X-Cache', 'MISS');
       return originalJson(body);
     };
