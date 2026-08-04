@@ -10,6 +10,7 @@ function canAccessPage(user, key) {
   switch (key) {
     case 'dashboard':  return true;
     case 'metas':      return true;
+    case 'atalhos':    return true;
     case 'usuarios':   return false;
     case 'parametros': return !!user.permissoes?.configuracoes;
     default:           return false;

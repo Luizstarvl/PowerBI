@@ -6,6 +6,7 @@ const T = {
     nav_dashboard: 'Dashboard',
     nav_usuarios: 'Usuários',
     nav_metas: 'Metas',
+    nav_atalhos: 'Atalhos',
     nav_parametros: 'Parâmetros',
     // TopBar
     topbar_sub: 'Gestão de Postos',
@@ -181,6 +182,7 @@ const T = {
     nav_dashboard: 'Dashboard',
     nav_usuarios: 'Users',
     nav_metas: 'Goals',
+    nav_atalhos: 'Shortcuts',
     nav_parametros: 'Settings',
     topbar_sub: 'Gas Station Management',
     topbar_logout: 'Sign out',
@@ -341,6 +343,7 @@ const T = {
     nav_dashboard: 'Panel',
     nav_usuarios: 'Usuarios',
     nav_metas: 'Metas',
+    nav_atalhos: 'Atajos',
     nav_parametros: 'Parámetros',
     topbar_sub: 'Gestión de Estaciones',
     topbar_logout: 'Salir',
