@@ -15,6 +15,7 @@ const DASHBOARD_SLOTS = [
   { value: '',                  label: '— Nenhum —' },
   { value: 'top5_convenio',    label: '🏆 Banner Top 5 Conveniência' },
   { value: 'top5_pista',       label: '⛽ Banner Top 5 Pista' },
+  { value: 'top5_combustiveis', label: '🔥 Banner Top Combustíveis' },
   { value: 'kpi_vendas',       label: '📊 KPI — Vendas Totais' },
   { value: 'kpi_combustivel',  label: '⛽ KPI — Combustível' },
   { value: 'kpi_conveniencia', label: '🛒 KPI — Conveniência' },

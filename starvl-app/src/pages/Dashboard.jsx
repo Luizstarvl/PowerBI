@@ -432,6 +432,89 @@ function TopProdutosBanner({ dadosConvenio, dadosPista, fotosConvenio, fotosPist
   );
 }
 
+/* ── Mapeamento para combustíveis ───────────────────────────────────────────── */
+function mapToTopCombust(result) {
+  if (!result?.ok || !result.rows?.length || !result.columns?.length) return [];
+  const { columns, rows } = result;
+  const numCols = columns.filter(c => rows[0][c] !== null && !isNaN(Number(rows[0][c])));
+  const txtCols = columns.filter(c => !numCols.includes(c));
+  const nameCol = txtCols.find(c => /nome|descri|produto|item|combusti/i.test(c))
+               || txtCols[txtCols.length - 1] || txtCols[0];
+  const qtyCol  = numCols.find(c => /litros?|volume|lts?|qtd|qty|quant|total/i.test(c)) || numCols[0];
+  if (!nameCol || !qtyCol) return [];
+  return rows.slice(0, 5).map(r => ({
+    name: String(r[nameCol] ?? ''),
+    qty:  Number(r[qtyCol]  ?? 0),
+  }));
+}
+
+/* ── Banner Top Combustíveis ────────────────────────────────────────────────── */
+const FUEL_COLORS = ['#ff6b00', '#60a5fa', '#4ade80', '#c084fc', '#f472b6'];
+const FUEL_UNIT_RE = /litros?|volume|lts?/i;
+
+function TopCombustiveisBanner({ dados, loading, unitLabel }) {
+  const n      = dados?.length ?? 0;
+  const maxQty = n > 0 ? Math.max(...dados.map(d => d.qty)) : 1;
+  const unit   = unitLabel || 'L';
+
+  const eyebrow = (
+    <div className="tcb-eyebrow">
+      <Fuel size={13} style={{ color: '#60a5fa', flexShrink: 0 }} />
+      Combustíveis Mais Vendidos
+    </div>
+  );
+
+  if (loading && n === 0) {
+    return (
+      <div className="tcb-root tcb-skeleton">
+        {eyebrow}
+        <div className="tcb-list">
+          {[1, 2, 3, 4, 5].map((_, i) => (
+            <div key={i} className="tcb-skel-row" style={{ opacity: 1 - i * 0.16 }} />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (!loading && n === 0) {
+    return (
+      <div className="tcb-root tcb-root--empty">
+        {eyebrow}
+        <p className="tcb-empty-msg">Sem dados para o período selecionado.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="tcb-root">
+      {eyebrow}
+      <div className="tcb-list">
+        {dados.map((item, i) => {
+          const pct   = maxQty > 0 ? (item.qty / maxQty) * 100 : 0;
+          const color = FUEL_COLORS[i % FUEL_COLORS.length];
+          return (
+            <div key={i} className="tcb-item">
+              <div className="tcb-rank" style={{ color }}>{i + 1}°</div>
+              <div className="tcb-body">
+                <div className="tcb-name">{item.name}</div>
+                <div className="tcb-bar-row">
+                  <div className="tcb-bar-track">
+                    <div className="tcb-bar-fill" style={{ width: `${pct}%`, background: color }} />
+                  </div>
+                  <div className="tcb-qty">
+                    {number.format(Math.round(item.qty))} <small>{unit}</small>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function Dashboard({ empresas, period, onNavigate }) {
   const [draft,   setDraft]   = useState(initDraft);
   const [applied, setApplied] = useState(initDraft); // only changes on button click
@@ -443,6 +526,8 @@ export default function Dashboard({ empresas, period, onNavigate }) {
   const [loading, setLoading]           = useState(true);
   const [slotLoading, setSlotLoading]   = useState(false);
   const [slotPistaLoading, setSlotPistaLoading] = useState(false);
+  const [topCombust,  setTopCombust]  = useState([]);
+  const [slotCombustLoading, setSlotCombustLoading] = useState(false);
   const [kpiSlotLoading, setKpiSlotLoading] = useState(false);
   const [slotKpiData, setSlotKpiData] = useState({});
   const [erro, setErro]               = useState('');
@@ -539,6 +624,21 @@ export default function Dashboard({ empresas, period, onNavigate }) {
       .then(d => { if (d.ok) setFotosTopPista(d.data); })
       .catch(() => {});
   }, [topPista, empresasKey]);
+
+  // Top Combustíveis via slot
+  useEffect(() => {
+    if (!empresasKey) return;
+    const q = slotMap.top5_combustiveis;
+    if (!q) return;
+    let cancelado = false;
+    setSlotCombustLoading(true);
+    apiFetch(`/api/queries/execute/${q.codigo}?${apiQs}`)
+      .then(r => r.json())
+      .then(d => { if (!cancelado) setTopCombust(mapToTopCombust(d)); })
+      .catch(() => { if (!cancelado) setTopCombust([]); })
+      .finally(() => { if (!cancelado) setSlotCombustLoading(false); });
+    return () => { cancelado = true; };
+  }, [slotMap, apiQs]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // KPIs principais (endpoint legado)
   useEffect(() => {
@@ -637,15 +737,23 @@ export default function Dashboard({ empresas, period, onNavigate }) {
             })()}
           </div>
 
-          <TopProdutosBanner
-            dadosConvenio={topProdutos}
-            dadosPista={topPista}
-            fotosConvenio={fotosTop}
-            fotosPista={fotosTopPista}
-            temConvenio={!!slotMap.top5_convenio}
-            temPista={!!slotMap.top5_pista}
-            loading={loading || slotLoading || slotPistaLoading}
-          />
+          <div className="dash-banners">
+            <TopProdutosBanner
+              dadosConvenio={topProdutos}
+              dadosPista={topPista}
+              fotosConvenio={fotosTop}
+              fotosPista={fotosTopPista}
+              temConvenio={!!slotMap.top5_convenio}
+              temPista={!!slotMap.top5_pista}
+              loading={loading || slotLoading || slotPistaLoading}
+            />
+            {slotMap.top5_combustiveis && (
+              <TopCombustiveisBanner
+                dados={topCombust}
+                loading={loading || slotCombustLoading}
+              />
+            )}
+          </div>
         </>
       )}
     </main>
