@@ -96,62 +96,157 @@ function CtxProduto({ x, y, onEditar, onClose }) {
   );
 }
 
-function gerarJanelaPrint({ titulo, colunas, linhas, empresa }) {
+function gerarJanelaPrint({ titulo, colunas, linhas, empresa, det, filtros }) {
   const fmtC = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
   const fmtN = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 3 });
+  const fmtP = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
   const now  = new Date().toLocaleString('pt-BR');
 
-  const thead = colunas.map(c => `<th>${c.label}</th>`).join('');
-  const tbody = linhas.map(row => {
+  // KPIs calculados das linhas filtradas
+  const matchAtivo = v => { const s = String(v||'').trim().toLowerCase(); return s==='ativo'||s==='a'; };
+  const ativos   = linhas.filter(r => matchAtivo(r[det.situacao])).length;
+  const inativos = linhas.length - ativos;
+  const semEst   = det.estoque ? linhas.filter(r => Number(r[det.estoque]||0) <= 0).length : 0;
+  const valorEst = (det.estoque && det.preco)
+    ? linhas.reduce((acc, r) => acc + Number(r[det.estoque]||0) * Number(r[det.preco]||0), 0)
+    : null;
+  const margens  = (det.preco && det.custo)
+    ? linhas.map(r => { const p=Number(r[det.preco]||0),c=Number(r[det.custo]||0); return p>0?((p-c)/p)*100:null; }).filter(m=>m!==null)
+    : [];
+  const margem   = margens.length ? margens.reduce((a,b)=>a+b,0)/margens.length : null;
+
+  const kpiCards = [
+    { label: 'Total de Produtos', value: fmtN.format(linhas.length), sub: `${ativos} ativos · ${inativos} inativos` },
+    valorEst !== null && { label: 'Valor em Estoque', value: fmtC.format(valorEst), sub: 'preço × estoque' },
+    det.estoque && { label: 'Sem Estoque', value: fmtN.format(semEst), sub: 'saldo zerado' },
+    margem !== null && { label: 'Margem Média', value: `${fmtP.format(margem)}%`, sub: '(venda − custo) / venda' },
+  ].filter(Boolean);
+
+  const kpiHtml = kpiCards.map(k => `
+    <div class="kpi-card">
+      <div class="kpi-label">${k.label}</div>
+      <div class="kpi-value">${k.value}</div>
+      <div class="kpi-sub">${k.sub}</div>
+    </div>`).join('');
+
+  // Tags de filtros ativos
+  const filtroTags = Object.entries(filtros)
+    .filter(([, v]) => v)
+    .map(([, v]) => `<span class="ftag">${v}</span>`).join('');
+
+  // Tabela
+  const thead = colunas.map(c =>
+    `<th${c.currency||c.estoque?' class="r"':''}>${c.label}</th>`).join('');
+
+  const tbody = linhas.map((row, i) => {
     const cells = colunas.map(c => {
       const raw = c.calc ? c.calc(row) : row[c.key];
       let val;
       if (c.badge) {
-        const v = String(raw || '').trim().toLowerCase();
-        val = (v === 'ativo' || v === 'a') ? 'Ativo' : 'Inativo';
+        const v = String(raw||'').trim().toLowerCase();
+        val = `<span class="badge ${matchAtivo(raw)?'badge-ok':'badge-off'}">${matchAtivo(raw)?'Ativo':'Inativo'}</span>`;
       } else if (c.currency) {
-        val = fmtC.format(Number(raw) || 0);
+        val = fmtC.format(Number(raw)||0);
       } else if (c.estoque) {
-        val = fmtN.format(Number(raw) || 0);
+        val = `<span class="${Number(raw)<=0?'est-zero':''}">${fmtN.format(Number(raw)||0)}</span>`;
       } else {
-        val = raw ?? '—';
+        val = String(raw??'—');
       }
-      return `<td${c.currency || c.estoque ? ' class="r"' : ''}>${val}</td>`;
+      return `<td${c.currency||c.estoque?' class="r"':''}>${val}</td>`;
     }).join('');
-    return `<tr>${cells}</tr>`;
+    return `<tr class="${i%2===0?'even':'odd'}">${cells}</tr>`;
   }).join('');
 
-  const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8">
+  const html = `<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="utf-8">
 <title>${titulo}</title>
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: Arial, sans-serif; font-size: 11px; color: #111; padding: 20px; }
-  header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #e65c00; padding-bottom: 8px; margin-bottom: 14px; }
-  header h1 { font-size: 15px; font-weight: 700; color: #e65c00; }
-  header small { font-size: 10px; color: #666; }
-  table { width: 100%; border-collapse: collapse; }
-  thead tr { background: #f97316; color: #fff; }
-  th { padding: 6px 8px; text-align: left; font-weight: 600; font-size: 10px; text-transform: uppercase; letter-spacing: .04em; }
-  td { padding: 5px 8px; border-bottom: 1px solid #eee; }
-  tr:nth-child(even) td { background: #fafafa; }
-  .r { text-align: right; }
-  footer { margin-top: 12px; font-size: 10px; color: #999; text-align: right; }
-  @media print { body { padding: 0; } }
+@page { size: A4 landscape; margin: 18mm 14mm; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 10.5px; color: #1a1a1a; background: #fff; }
+
+/* ── Cabeçalho ── */
+.report-header { display: flex; align-items: flex-end; justify-content: space-between; padding-bottom: 12px; margin-bottom: 4px; border-bottom: 3px solid #f97316; }
+.report-brand { display: flex; flex-direction: column; gap: 2px; }
+.report-brand-name { font-size: 10px; font-weight: 700; color: #f97316; letter-spacing: .1em; text-transform: uppercase; }
+.report-title { font-size: 20px; font-weight: 700; color: #111; line-height: 1.15; }
+.report-meta { text-align: right; font-size: 9.5px; color: #777; line-height: 1.7; }
+.report-meta strong { color: #333; }
+
+/* ── Filtros ativos ── */
+.filters-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 10px 0 14px; }
+.filters-label { font-size: 9px; text-transform: uppercase; letter-spacing: .08em; color: #999; font-weight: 700; }
+.ftag { background: #fff3e8; color: #c2410c; border: 1px solid #fed7aa; border-radius: 12px; padding: 2px 9px; font-size: 9px; font-weight: 600; }
+
+/* ── KPI cards ── */
+.kpi-row { display: grid; grid-template-columns: repeat(${kpiCards.length}, 1fr); gap: 10px; margin-bottom: 16px; }
+.kpi-card { border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px 14px; border-left: 4px solid #f97316; }
+.kpi-label { font-size: 9px; text-transform: uppercase; letter-spacing: .06em; color: #888; font-weight: 700; margin-bottom: 3px; }
+.kpi-value { font-size: 17px; font-weight: 700; color: #111; line-height: 1.1; }
+.kpi-sub { font-size: 9px; color: #aaa; margin-top: 2px; }
+
+/* ── Tabela ── */
+.section-title { font-size: 9px; text-transform: uppercase; letter-spacing: .08em; color: #999; font-weight: 700; margin-bottom: 6px; }
+table { width: 100%; border-collapse: collapse; }
+thead tr { background: #f97316; }
+th { padding: 7px 9px; text-align: left; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: #fff; white-space: nowrap; }
+th.r { text-align: right; }
+td { padding: 5.5px 9px; font-size: 10px; border-bottom: 1px solid #f0f0f0; color: #222; vertical-align: middle; }
+td.r { text-align: right; font-variant-numeric: tabular-nums; }
+tr.odd td { background: #fafafa; }
+tr.even td { background: #fff; }
+tr:last-child td { border-bottom: none; }
+.badge { display: inline-block; padding: 1px 7px; border-radius: 10px; font-size: 9px; font-weight: 700; }
+.badge-ok  { background: #dcfce7; color: #15803d; }
+.badge-off { background: #f3f4f6; color: #6b7280; }
+.est-zero  { color: #dc2626; font-weight: 600; }
+
+/* ── Rodapé ── */
+.report-footer { margin-top: 16px; padding-top: 8px; border-top: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center; }
+.report-footer-left { font-size: 9px; color: #bbb; }
+.report-footer-right { font-size: 9px; color: #bbb; }
+
+@media print {
+  .report-footer { position: running(footer); }
+  @page { @bottom-center { content: element(footer); } }
+}
 </style></head><body>
-<header>
-  <h1>${titulo}</h1>
-  <small>${empresa} · Impresso em ${now} · ${linhas.length} produtos</small>
-</header>
-<table><thead><tr>${thead}</tr></thead><tbody>${tbody}</tbody></table>
-<footer>Horse - Sistema de Gestão de Postos</footer>
+
+<div class="report-header">
+  <div class="report-brand">
+    <span class="report-brand-name">Horse · Sistema de Gestão de Postos</span>
+    <span class="report-title">${titulo}</span>
+  </div>
+  <div class="report-meta">
+    <strong>Empresa:</strong> ${empresa}<br>
+    <strong>Gerado em:</strong> ${now}<br>
+    <strong>Total de registros:</strong> ${linhas.length}
+  </div>
+</div>
+
+${filtroTags ? `<div class="filters-row"><span class="filters-label">Filtros aplicados</span>${filtroTags}</div>` : ''}
+
+<div class="kpi-row">${kpiHtml}</div>
+
+<div class="section-title">Listagem de Produtos</div>
+<table>
+  <thead><tr>${thead}</tr></thead>
+  <tbody>${tbody}</tbody>
+</table>
+
+<div class="report-footer">
+  <span class="report-footer-left">Horse - Sistema de Gestão de Postos · ${empresa}</span>
+  <span class="report-footer-right">Gerado em ${now}</span>
+</div>
+
 </body></html>`;
 
-  const w = window.open('', '_blank', 'width=900,height=700');
+  const w = window.open('', '_blank', 'width=1100,height=780');
   if (!w) return;
   w.document.write(html);
   w.document.close();
   w.focus();
-  setTimeout(() => { w.print(); }, 400);
+  setTimeout(() => { w.print(); }, 500);
 }
 
 function PrintModal({ secoes, grupos, tabelaCols, sortedFiltradas, det, empresa, onClose }) {
@@ -189,7 +284,13 @@ function PrintModal({ secoes, grupos, tabelaCols, sortedFiltradas, det, empresa,
 
   function handlePrint() {
     if (!colunasSel.length) return;
-    gerarJanelaPrint({ titulo, colunas: colunasSel, linhas, empresa });
+    const filtros = {
+      situacao: pSituacao !== 'Todos' ? `Situação: ${pSituacao}` : '',
+      secao:    pSecao  !== 'Todas'  ? `Seção: ${pSecao}`       : '',
+      grupo:    pGrupo  !== 'Todos'  ? `Grupo: ${pGrupo}`       : '',
+      semEst:   pSemEst               ? 'Sem estoque'            : '',
+    };
+    gerarJanelaPrint({ titulo, colunas: colunasSel, linhas, empresa, det, filtros });
     onClose();
   }
 
