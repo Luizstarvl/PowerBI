@@ -1102,6 +1102,8 @@ select.themed-select option {
 .dashboard-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
 .section-title { font-size: 19px; font-weight: 700; color: var(--color-text); }
 .section-sub    { font-size: 12px; color: var(--color-text-muted); margin-top: 2px; }
+.dash-periodo-toggle { display: flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 7px; border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text-muted); font-size: 12px; cursor: pointer; transition: background .15s, color .15s; }
+.dash-periodo-toggle:hover { background: var(--color-hover); color: var(--color-text); }
 
 .period-picker { display: flex; align-items: center; gap: 8px; }
 .period-picker select {

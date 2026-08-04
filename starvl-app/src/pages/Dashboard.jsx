@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ShoppingCart, Fuel, Flame, Droplet, Package, Truck, Boxes, Gauge, RefreshCw, CalendarDays, ChevronDown } from 'lucide-react';
+import { ShoppingCart, Fuel, Flame, Droplet, Package, Truck, Boxes, Gauge, RefreshCw, CalendarDays, ChevronDown, Eye, EyeOff } from 'lucide-react';
 import { KpiCard } from '../components/ui';
 import { apiFetch } from '../api';
 
@@ -551,6 +551,7 @@ export default function Dashboard({ empresas, period, onNavigate }) {
   const [slotKpiData, setSlotKpiData] = useState({});
   const [erro, setErro]               = useState('');
   const [dashQueries, setDashQueries] = useState([]);
+  const [periodoVisivel, setPeriodoVisivel] = useState(true);
 
   useEffect(() => {
     apiFetch('/api/queries?ativa=true&categoria=Dashboard')
@@ -719,16 +720,26 @@ export default function Dashboard({ empresas, period, onNavigate }) {
           <div className="section-title">Visão geral</div>
           <div className="section-sub">Resumo de vendas do período selecionado</div>
         </div>
+        <button
+          className="dash-periodo-toggle"
+          onClick={() => setPeriodoVisivel(v => !v)}
+          title={periodoVisivel ? 'Ocultar seletor de período' : 'Exibir seletor de período'}
+        >
+          {periodoVisivel ? <EyeOff size={14} strokeWidth={2} /> : <Eye size={14} strokeWidth={2} />}
+          {periodoVisivel ? 'Ocultar período' : 'Exibir período'}
+        </button>
       </div>
 
-      <PeriodPicker
-        draft={draft}
-        onChange={handlePeriodoChange}
-        onApply={handleAtualizar}
-        canApply={canApply}
-        empresasKey={empresasKey}
-        loading={loading || slotLoading}
-      />
+      {periodoVisivel && (
+        <PeriodPicker
+          draft={draft}
+          onChange={handlePeriodoChange}
+          onApply={handleAtualizar}
+          canApply={canApply}
+          empresasKey={empresasKey}
+          loading={loading || slotLoading}
+        />
+      )}
 
       {!empresasKey && <p className="chart-empty">Selecione uma empresa para ver o dashboard.</p>}
       {erro && <p className="form-erro">{erro}</p>}
