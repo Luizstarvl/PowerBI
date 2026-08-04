@@ -204,8 +204,44 @@ function gerarJanelaPrint({ titulo, colunas, linhas, empresa, det, filtros }) {
 <style>
 @page { size: A4 landscape; margin: 18mm 14mm; }
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 10.5px; color: #1a1a1a; background: #f3f4f6; }
-.preview-wrap { max-width: 1100px; margin: 0 auto; background: #fff; padding: 28px 32px; min-height: 100vh; }
+
+/* ── Modo Tela: simula impressão em páginas A4 ── */
+@media screen {
+  html { background: #4a4a4a; }
+  body {
+    font-family: 'Segoe UI', Arial, sans-serif; font-size: 10.5px; color: #1a1a1a;
+    background: #4a4a4a; padding: 28px 20px;
+  }
+  .preview-wrap {
+    width: 1060px; margin: 0 auto;
+    background: #fff; padding: 28px 32px;
+    box-shadow: 0 4px 28px rgba(0,0,0,.5);
+    position: relative;
+  }
+  /* Separador de página */
+  .pg-sep {
+    height: 32px; margin: 0 -32px;
+    background: #4a4a4a;
+    display: flex; align-items: center; justify-content: center;
+    gap: 12px; color: #888; font-size: 9px; letter-spacing: .06em;
+    border-top: 1px dashed #888; border-bottom: 1px dashed #888;
+  }
+  .pg-sep::before, .pg-sep::after {
+    content: ''; flex: 1; height: 1px; background: #666;
+  }
+}
+
+/* ── Modo Impressão ── */
+@media print {
+  html, body { background: #fff; padding: 0; }
+  .pg-sep { display: none !important; }
+  .preview-wrap { padding: 0; box-shadow: none; width: auto; }
+  tr { break-inside: avoid; }
+  thead { display: table-header-group; }
+}
+
+body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 10.5px; color: #1a1a1a; }
+.preview-wrap { background: #fff; padding: 28px 32px; }
 
 /* ── Cabeçalho ── */
 .report-header { display: flex; align-items: flex-end; justify-content: space-between; padding-bottom: 12px; margin-bottom: 4px; border-bottom: 3px solid #f97316; }
@@ -281,6 +317,43 @@ ${filtroTags ? `<div class="filters-row"><span class="filters-label">Filtros apl
   <span class="report-footer-right">Gerado em ${now}</span>
 </div>
 </div>
+
+<script>
+(function() {
+  // A4 landscape: 210mm x 297mm. A 96 DPI: ~793px altura total.
+  // Margem 18mm top+bottom = ~136px → conteúdo útil ≈ 657px por página.
+  // Padding do preview-wrap: 28px top+bottom = 56px → área da tabela ≈ 601px
+  var PAGE_H = 660;
+
+  window.addEventListener('load', function() {
+    var wrap = document.querySelector('.preview-wrap');
+    var tbody = document.querySelector('tbody');
+    if (!wrap || !tbody) return;
+
+    var wrapRect = wrap.getBoundingClientRect();
+    var wrapTop  = wrapRect.top + window.scrollY;
+    var rows     = Array.from(tbody.querySelectorAll('tr'));
+    var pageNum  = 1;
+    var totalPgs = Math.max(1, Math.ceil((wrap.scrollHeight) / PAGE_H));
+
+    for (var i = 0; i < rows.length; i++) {
+      var rowRect   = rows[i].getBoundingClientRect();
+      var rowBottom = rowRect.bottom + window.scrollY - wrapTop;
+
+      if (rowBottom > pageNum * PAGE_H) {
+        var sep = document.createElement('tr');
+        sep.innerHTML = '<td colspan="999"><div class="pg-sep">Página ' + pageNum + ' de ' + totalPgs + '</div></td>';
+        sep.style.cssText = 'break-before: page; background: transparent;';
+        tbody.insertBefore(sep, rows[i]);
+        pageNum++;
+        // reindexar: sep foi inserido antes de rows[i], pular ele
+        rows.splice(i, 0, sep);
+        i++;
+      }
+    }
+  });
+})();
+</script>
 
 </body></html>`;
 
