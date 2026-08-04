@@ -226,59 +226,68 @@ export default function PainelProdutos({ empresasKey, onVoltar }) {
 
       {/* ── Barra de filtros ── */}
       <div className="pp-bar">
-        <div className="pp-bar-search">
-          <Search size={14} />
-          <input
-            className="pp-bar-input"
-            placeholder="Buscar por nome ou código…"
-            value={busca}
-            onChange={e => { setBusca(e.target.value); setPagina(1); }}
-          />
-          {busca && <button className="pp-bar-clear" onClick={() => { setBusca(''); setPagina(1); }}><X size={12} /></button>}
+        {/* Linha 1 — busca */}
+        <div className="pp-bar-top">
+          <div className="pp-bar-search">
+            <Search size={14} />
+            <input
+              className="pp-bar-input"
+              placeholder="Buscar por nome ou código…"
+              value={busca}
+              onChange={e => { setBusca(e.target.value); setPagina(1); }}
+            />
+            {busca && <button className="pp-bar-clear" onClick={() => { setBusca(''); setPagina(1); }}><X size={12} /></button>}
+          </div>
+          <button className="pp-btn-ghost pp-btn-ghost--sm" onClick={limpar}>
+            <X size={12} /> Limpar
+          </button>
         </div>
 
-        <div className="pp-bar-divider" />
+        {/* Linha 2 — filtros */}
+        <div className="pp-bar-filters">
+          {secoes.length > 1 && (
+            <div className="pp-bar-field">
+              <label>Seção</label>
+              <select value={secao} onChange={e => { setSecao(e.target.value); setGrupo('Todos'); setPagina(1); }}>
+                {secoes.map(s => <option key={s}>{s}</option>)}
+              </select>
+            </div>
+          )}
 
-        {secoes.length > 1 && (
+          {secoes.length > 1 && grupos.length > 1 && <div className="pp-bar-divider" />}
+
+          {grupos.length > 1 && (
+            <div className="pp-bar-field">
+              <label>Grupo</label>
+              <select value={grupo} onChange={e => { setGrupo(e.target.value); setPagina(1); }}>
+                {grupos.map(g => <option key={g}>{g}</option>)}
+              </select>
+            </div>
+          )}
+
+          <div className="pp-bar-divider" />
+
           <div className="pp-bar-field">
-            <label>Seção</label>
-            <select value={secao} onChange={e => { setSecao(e.target.value); setGrupo('Todos'); setPagina(1); }}>
-              {secoes.map(s => <option key={s}>{s}</option>)}
-            </select>
+            <label>Situação</label>
+            <div className="pp-tabs">
+              {['Ativos', 'Inativos', 'Todos'].map(s => (
+                <button key={s}
+                  className={`pp-tab${situacao === s ? ' pp-tab--on' : ''}`}
+                  onClick={() => { setSituacao(s); setPagina(1); }}>
+                  {s}
+                </button>
+              ))}
+            </div>
           </div>
-        )}
 
-        {grupos.length > 1 && (
-          <div className="pp-bar-field">
-            <label>Grupo</label>
-            <select value={grupo} onChange={e => { setGrupo(e.target.value); setPagina(1); }}>
-              {grupos.map(g => <option key={g}>{g}</option>)}
-            </select>
-          </div>
-        )}
+          <div className="pp-bar-divider" />
 
-        <div className="pp-bar-field">
-          <label>Situação</label>
-          <div className="pp-tabs">
-            {['Ativos', 'Inativos', 'Todos'].map(s => (
-              <button key={s}
-                className={`pp-tab${situacao === s ? ' pp-tab--on' : ''}`}
-                onClick={() => { setSituacao(s); setPagina(1); }}>
-                {s}
-              </button>
-            ))}
-          </div>
+          <button
+            className={`pp-chip${semEstoque ? ' pp-chip--on' : ''}`}
+            onClick={() => { setSemEstoque(v => !v); setPagina(1); }}>
+            Sem estoque
+          </button>
         </div>
-
-        <button
-          className={`pp-chip${semEstoque ? ' pp-chip--on' : ''}`}
-          onClick={() => { setSemEstoque(v => !v); setPagina(1); }}>
-          Sem estoque
-        </button>
-
-        <button className="pp-btn-ghost pp-btn-ghost--sm" onClick={limpar}>
-          <X size={12} /> Limpar
-        </button>
       </div>
 
       {/* ── Tabela ── */}

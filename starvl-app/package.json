@@ -1,6 +1,6 @@
 {
   "name": "starvl-app",
-  "version": "2.21.4",
+  "version": "2.21.5",
   "description": "Horse - Sistema de Gestão de Postos",
   "private": true,
   "dependencies": {
