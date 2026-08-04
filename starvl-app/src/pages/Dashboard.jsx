@@ -211,7 +211,15 @@ const EYEBROW_ICON = (
   </svg>
 );
 
-function TopProdutosBanner({ dados, fotos, loading }) {
+function TopProdutosBanner({ dadosConvenio, dadosPista, fotosConvenio, fotosPista, temConvenio, temPista, loading }) {
+  const hasBoth  = temConvenio && temPista;
+  const [tab, setTab] = useState('convenio');
+
+  const activeTab = hasBoth ? tab : (temPista ? 'pista' : 'convenio');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const dados = useMemo(() => activeTab === 'pista' ? (dadosPista || []) : (dadosConvenio || []), [activeTab, dadosPista, dadosConvenio]);
+  const fotos = activeTab === 'pista' ? (fotosPista || {}) : (fotosConvenio || {});
+
   const n = dados?.length ?? 0;
   const [featured, setFeatured] = useState(0);
   const [noTransRank, setNoTransRank] = useState(null);
@@ -256,10 +264,18 @@ function TopProdutosBanner({ dados, fotos, loading }) {
     startTimer();
   }
 
+  const TabSwitcher = hasBoth ? (
+    <div className="tpb-tabs">
+      <button className={`tpb-tab${activeTab === 'convenio' ? ' active' : ''}`} onClick={() => setTab('convenio')}>Conveniência</button>
+      <button className={`tpb-tab${activeTab === 'pista' ? ' active' : ''}`} onClick={() => setTab('pista')}>Pista</button>
+    </div>
+  ) : null;
+
   if (loading && n === 0) {
     return (
       <div className="tpb-root tpb-skeleton">
         <div className="tpb-eyebrow">{EYEBROW_ICON} Top 5 Mais Vendidos</div>
+        {TabSwitcher}
         <div className="tpb-stage" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14 }}>
           {[94, 124, 160, 124, 94].map((w, i) => (
             <div key={i} className="tpb-skel-card" style={{ width: w, opacity: i === 2 ? 1 : i === 1 || i === 3 ? 0.6 : 0.35 }} />
@@ -273,7 +289,8 @@ function TopProdutosBanner({ dados, fotos, loading }) {
     return (
       <div className="tpb-root tpb-root--empty">
         <div className="tpb-eyebrow">{EYEBROW_ICON} Top 5 Mais Vendidos</div>
-        <p className="tpb-empty-msg">Sem dados de conveniência para o período selecionado.</p>
+        {TabSwitcher}
+        <p className="tpb-empty-msg">Sem dados para o período selecionado.</p>
       </div>
     );
   }
@@ -285,6 +302,7 @@ function TopProdutosBanner({ dados, fotos, loading }) {
       {/* Confetes apenas quando o 1° lugar está em destaque */}
       {featured === 0 && <ConfettiCanvas />}
       <div className="tpb-eyebrow">{EYEBROW_ICON} Top 5 Mais Vendidos</div>
+      {TabSwitcher}
 
       {/* Setas de navegação */}
       {n >= 2 && (
@@ -418,10 +436,13 @@ export default function Dashboard({ empresas, period, onNavigate }) {
   const [draft,   setDraft]   = useState(initDraft);
   const [applied, setApplied] = useState(initDraft); // only changes on button click
   const [kpis, setKpis]              = useState(null);
-  const [topProdutos, setTopProdutos] = useState([]);
-  const [fotosTop,    setFotosTop]    = useState({});
-  const [loading, setLoading]         = useState(true);
-  const [slotLoading, setSlotLoading] = useState(false);
+  const [topProdutos,  setTopProdutos]  = useState([]);
+  const [fotosTop,     setFotosTop]     = useState({});
+  const [topPista,     setTopPista]     = useState([]);
+  const [fotosTopPista, setFotosTopPista] = useState({});
+  const [loading, setLoading]           = useState(true);
+  const [slotLoading, setSlotLoading]   = useState(false);
+  const [slotPistaLoading, setSlotPistaLoading] = useState(false);
   const [kpiSlotLoading, setKpiSlotLoading] = useState(false);
   const [slotKpiData, setSlotKpiData] = useState({});
   const [erro, setErro]               = useState('');
@@ -480,7 +501,7 @@ export default function Dashboard({ empresas, period, onNavigate }) {
     return () => { cancelado = true; };
   }, [slotMap, apiQs]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Fotos dos top 5 (busca em lote após topProdutos ser carregado)
+  // Fotos dos top 5 conveniência
   useEffect(() => {
     if (!topProdutos.length || !empresasKey) return;
     const empresa = empresasKey.split(',')[0];
@@ -491,6 +512,33 @@ export default function Dashboard({ empresas, period, onNavigate }) {
       .then(d => { if (d.ok) setFotosTop(d.data); })
       .catch(() => {});
   }, [topProdutos, empresasKey]);
+
+  // Top 5 pista via slot
+  useEffect(() => {
+    if (!empresasKey) return;
+    const top5Q = slotMap.top5_pista;
+    if (!top5Q) return;
+    let cancelado = false;
+    setSlotPistaLoading(true);
+    apiFetch(`/api/queries/execute/${top5Q.codigo}?${apiQs}`)
+      .then(r => r.json())
+      .then(d => { if (!cancelado) setTopPista(mapToTopProdutos(d)); })
+      .catch(() => { if (!cancelado) setTopPista([]); })
+      .finally(() => { if (!cancelado) setSlotPistaLoading(false); });
+    return () => { cancelado = true; };
+  }, [slotMap, apiQs]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Fotos dos top 5 pista
+  useEffect(() => {
+    if (!topPista.length || !empresasKey) return;
+    const empresa = empresasKey.split(',')[0];
+    const codes = topPista.map(p => p.cod).filter(Boolean);
+    if (!codes.length) return;
+    apiFetch(`/api/produto-extra/batch/${encodeURIComponent(empresa)}?codes=${codes.map(encodeURIComponent).join(',')}`)
+      .then(r => r.json())
+      .then(d => { if (d.ok) setFotosTopPista(d.data); })
+      .catch(() => {});
+  }, [topPista, empresasKey]);
 
   // KPIs principais (endpoint legado)
   useEffect(() => {
@@ -589,7 +637,15 @@ export default function Dashboard({ empresas, period, onNavigate }) {
             })()}
           </div>
 
-          <TopProdutosBanner dados={topProdutos} fotos={fotosTop} loading={loading || slotLoading} />
+          <TopProdutosBanner
+            dadosConvenio={topProdutos}
+            dadosPista={topPista}
+            fotosConvenio={fotosTop}
+            fotosPista={fotosTopPista}
+            temConvenio={!!slotMap.top5_convenio}
+            temPista={!!slotMap.top5_pista}
+            loading={loading || slotLoading || slotPistaLoading}
+          />
         </>
       )}
     </main>

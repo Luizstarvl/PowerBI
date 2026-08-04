@@ -14,6 +14,7 @@ const CATEGORIAS = ['Dashboard', 'Cadastros', 'Indicadores', 'Relatórios', 'Car
 const DASHBOARD_SLOTS = [
   { value: '',                  label: '— Nenhum —' },
   { value: 'top5_convenio',    label: '🏆 Banner Top 5 Conveniência' },
+  { value: 'top5_pista',       label: '⛽ Banner Top 5 Pista' },
   { value: 'kpi_vendas',       label: '📊 KPI — Vendas Totais' },
   { value: 'kpi_combustivel',  label: '⛽ KPI — Combustível' },
   { value: 'kpi_conveniencia', label: '🛒 KPI — Conveniência' },

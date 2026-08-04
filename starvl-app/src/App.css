@@ -2186,8 +2186,32 @@ select.themed-select option {
   display: flex; align-items: center; justify-content: center; gap: 6px;
   font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
   color: rgba(255,150,50,.75);
-  margin-bottom: 18px;
+  margin-bottom: 10px;
 }
+.tpb-tabs {
+  display: flex; justify-content: center; gap: 6px;
+  margin-bottom: 14px;
+}
+.tpb-tab {
+  padding: 4px 18px;
+  border-radius: 20px;
+  border: 1px solid rgba(255,107,0,.2);
+  background: transparent;
+  color: rgba(255,150,50,.5);
+  font-size: 12px; font-weight: 600;
+  cursor: pointer;
+  transition: background .18s, color .18s, border-color .18s;
+  letter-spacing: .02em;
+}
+.tpb-tab:hover { background: rgba(255,107,0,.1); color: rgba(255,150,50,.85); }
+.tpb-tab.active {
+  background: rgba(255,107,0,.18);
+  border-color: rgba(255,107,0,.5);
+  color: #ff9840;
+}
+[data-theme="light"] .tpb-tab { border-color: rgba(200,80,0,.2); color: rgba(140,50,0,.5); }
+[data-theme="light"] .tpb-tab:hover { background: rgba(255,107,0,.08); color: rgba(140,50,0,.85); }
+[data-theme="light"] .tpb-tab.active { background: rgba(255,107,0,.14); border-color: rgba(255,107,0,.45); color: #b84000; }
 
 /* Stage — perspectiva 3D */
 .tpb-stage {
