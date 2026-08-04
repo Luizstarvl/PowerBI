@@ -2265,14 +2265,29 @@ select.themed-select option {
   backface-visibility: hidden;
 }
 
-/* Tema claro: força fundo escuro nos cards para manter legibilidade */
+/* Tema claro: cards brancos com sombra suave */
 [data-theme="light"] .tpb-card {
-  background: rgba(20, 8, 0, 0.86);
-  border-color: rgba(255,255,255,.11);
+  background: #fff;
+  border-color: rgba(0,0,0,.08);
+  box-shadow: 0 4px 18px rgba(0,0,0,.09);
 }
 [data-theme="light"] .tpb-featured {
-  background: rgba(14, 5, 0, 0.93);
+  background: #fff;
+  border-color: #f97316;
+  box-shadow: 0 0 32px rgba(249,115,22,.18), 0 4px 20px rgba(0,0,0,.1);
 }
+[data-theme="light"] .tpb-card-name  { color: #111; }
+[data-theme="light"] .tpb-card-qty   { color: #111; }
+[data-theme="light"] .tpb-card-qty small { color: rgba(0,0,0,.4); }
+[data-theme="light"] .tpb-side-rank  { color: rgba(0,0,0,.3); }
+[data-theme="light"] .tpb-center-rank { color: rgba(0,0,0,.4); }
+[data-theme="light"] .tpb-badge      { background: rgba(0,0,0,.05); color: rgba(0,0,0,.45); }
+[data-theme="light"] .tpb-badge--1   { background: rgba(249,115,22,.12); color: #c2410c; }
+[data-theme="light"] .tpb-badge--2   { background: rgba(59,130,246,.12); color: #1d4ed8; }
+[data-theme="light"] .tpb-badge--3   { background: rgba(34,197,94,.13);  color: #15803d; }
+[data-theme="light"] .tpb-badge--4   { background: rgba(168,85,247,.12); color: #7c3aed; }
+[data-theme="light"] .tpb-badge--5   { background: rgba(236,72,153,.12); color: #be185d; }
+[data-theme="light"] .tpb-side:hover { border-color: rgba(249,115,22,.35) !important; box-shadow: 0 0 16px rgba(249,115,22,.15) !important; }
 
 /* Cards laterais clicáveis */
 .tpb-side:hover {
