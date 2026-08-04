@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import ReactDOM from 'react-dom';
-import { RefreshCw, Search, X, Package, DollarSign, AlertTriangle, TrendingUp, Printer, ChevronLeft, ChevronRight, ArrowLeft, Edit2, Check } from 'lucide-react';
+import { RefreshCw, Search, X, Package, DollarSign, AlertTriangle, TrendingUp, Printer, ChevronLeft, ChevronRight, ArrowLeft, Edit2, Check, ChevronDown } from 'lucide-react';
 import { apiFetch } from '../../api';
 import ProdutoDetalhe from './ProdutoDetalhe';
 
@@ -93,6 +93,47 @@ function CtxProduto({ x, y, onEditar, onClose }) {
       </button>
     </div>,
     document.body
+  );
+}
+
+function CustomSelect({ value, onChange, options }) {
+  const [open, setOpen] = useState(false);
+  const [pos,  setPos]  = useState({ top: 0, left: 0, width: 0 });
+  const triggerRef = useRef(null);
+
+  function handleOpen() {
+    const rect = triggerRef.current.getBoundingClientRect();
+    setPos({ top: rect.bottom + 4, left: rect.left, width: rect.width });
+    setOpen(o => !o);
+  }
+
+  useEffect(() => {
+    if (!open) return;
+    const close = e => { if (!triggerRef.current?.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [open]);
+
+  return (
+    <>
+      <button ref={triggerRef} className="pm-select-trigger" onClick={handleOpen}>
+        <span>{value}</span>
+        <ChevronDown size={12} style={{ flexShrink: 0, transition: 'transform .15s', transform: open ? 'rotate(180deg)' : 'none' }} />
+      </button>
+      {open && ReactDOM.createPortal(
+        <div className="pm-select-drop" style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width, zIndex: 9999 }}>
+          {options.map(opt => (
+            <div key={opt}
+              className={`pm-select-opt${opt === value ? ' pm-select-opt--on' : ''}`}
+              onMouseDown={() => { onChange(opt); setOpen(false); }}>
+              {opt === value && <Check size={11} />}
+              {opt}
+            </div>
+          ))}
+        </div>,
+        document.body
+      )}
+    </>
   );
 }
 
@@ -332,18 +373,14 @@ function PrintModal({ secoes, grupos, tabelaCols, sortedFiltradas, det, empresa,
               {secoes.length > 1 && (
                 <div className="pm-field">
                   <label>Seção</label>
-                  <select className="pm-select" value={pSecao} onChange={e => { setPSecao(e.target.value); setPGrupo('Todos'); }}>
-                    {secoes.map(s => <option key={s}>{s}</option>)}
-                  </select>
+                  <CustomSelect value={pSecao} options={secoes} onChange={v => { setPSecao(v); setPGrupo('Todos'); }} />
                 </div>
               )}
 
               {grupos.length > 1 && (
                 <div className="pm-field">
                   <label>Grupo</label>
-                  <select className="pm-select" value={pGrupo} onChange={e => setPGrupo(e.target.value)}>
-                    {grupos.map(g => <option key={g}>{g}</option>)}
-                  </select>
+                  <CustomSelect value={pGrupo} options={grupos} onChange={setPGrupo} />
                 </div>
               )}
 
