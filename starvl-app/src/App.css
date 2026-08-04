@@ -2965,20 +2965,26 @@ select.themed-select option {
 @keyframes pd-pop-in { from { opacity: 0; transform: scale(.96) translateY(12px); } to { opacity: 1; transform: none; } }
 
 /* Menu de contexto nas linhas */
+@keyframes pp-ctx-in {
+  from { opacity: 0; transform: scale(.93) translateY(-6px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
 .pp-ctx {
   background: var(--color-surface); border: 1px solid var(--color-border);
   border-radius: 10px; padding: 4px;
-  box-shadow: 0 8px 32px rgba(0,0,0,.25);
+  box-shadow: 0 8px 32px rgba(0,0,0,.28), 0 2px 8px rgba(0,0,0,.12);
   min-width: 170px;
+  animation: pp-ctx-in .15s cubic-bezier(.25,.46,.45,.94);
+  transform-origin: top left;
 }
 .pp-ctx-item {
   display: flex; align-items: center; gap: 9px;
   width: 100%; padding: 8px 12px; border-radius: 7px;
   background: none; border: none; cursor: pointer;
   font-size: 13px; font-weight: 500; color: var(--color-text);
-  text-align: left; transition: background .1s;
+  text-align: left; transition: background .1s, color .1s;
 }
-.pp-ctx-item:hover { background: color-mix(in srgb, var(--color-primary) 10%, transparent); color: var(--color-primary); }
+.pp-ctx-item:hover { background: color-mix(in srgb, var(--color-primary) 12%, transparent); color: var(--color-primary); }
 
 /* Cabeçalho */
 .pd-head {
