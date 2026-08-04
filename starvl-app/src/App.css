@@ -2649,7 +2649,16 @@ select.themed-select option {
 .tc-pg-info { font-size: 12px; color: var(--color-text-muted); }
 
 /* ── PainelProdutos ─────────────────────────────────────────────────────────── */
-.pp-wrap { display: flex; flex-direction: column; gap: 16px; }
+.pp-wrap { display: flex; flex-direction: column; gap: 20px; }
+
+.pp-back {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: none; border: none; cursor: pointer;
+  font-size: 12.5px; font-weight: 600; color: var(--color-text-muted);
+  padding: 0; transition: color .15s;
+  width: fit-content;
+}
+.pp-back:hover { color: var(--color-primary); }
 
 /* Cabeçalho */
 .pp-header { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
@@ -2778,30 +2787,33 @@ select.themed-select option {
   color: #f59e0b;
 }
 
-/* Tabela */
-.pp-table-scroll {
-  overflow-x: auto; border-radius: 12px;
+/* Tabela — card integrado ao dashboard */
+.pp-table-wrap {
+  background: var(--color-surface);
   border: 1px solid var(--color-border);
-  box-shadow: 0 2px 12px rgba(0,0,0,.06);
+  border-radius: 14px;
+  overflow: hidden;
 }
+.pp-table-scroll { overflow-x: auto; }
 .pp-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 
-.pp-thead-row { background: rgba(0,0,0,.18); }
-[data-theme="light"] .pp-thead-row { background: rgba(0,0,0,.04); }
+.pp-thead-row {
+  background: var(--color-surface);
+  border-bottom: 2px solid var(--color-border);
+}
 
 .pp-th {
   padding: 10px 14px; text-align: left; white-space: nowrap;
   color: var(--color-text-muted);
   font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em;
-  border-bottom: 1px solid var(--color-border);
   position: sticky; top: 0; z-index: 1;
-  background: inherit;
+  background: var(--color-surface);
 }
 .pp-th--r     { text-align: right; }
-.pp-th--first { padding-left: 16px; }
+.pp-th--first { padding-left: 20px; }
 
-.pp-tr { transition: background .1s; }
-.pp-tr:nth-child(even) { background: rgba(128,128,128,.025); }
+.pp-tr { transition: background .1s; border-bottom: 1px solid var(--color-border); }
+.pp-tr:last-child { border-bottom: none; }
 .pp-tr:hover { background: color-mix(in srgb, var(--color-primary) 6%, transparent); }
 
 .pp-td {
@@ -2811,7 +2823,7 @@ select.themed-select option {
   overflow: hidden; text-overflow: ellipsis;
 }
 .pp-td--r    { text-align: right; font-variant-numeric: tabular-nums; }
-.pp-td--name { font-weight: 600; padding-left: 16px; }
+.pp-td--name { font-weight: 600; padding-left: 20px; }
 
 /* Estoque */
 .pp-estoque      { font-variant-numeric: tabular-nums; }
@@ -2842,11 +2854,12 @@ select.themed-select option {
   font-size: 13px; color: var(--color-text-muted);
 }
 
-/* Rodapé */
+/* Rodapé — dentro do card da tabela */
 .pp-foot {
   display: flex; align-items: center; justify-content: space-between;
   flex-wrap: wrap; gap: 10px;
-  padding-top: 4px; border-top: 1px solid var(--color-border);
+  padding: 12px 16px;
+  border-top: 1px solid var(--color-border);
 }
 .pp-foot-count { font-size: 12px; color: var(--color-text-muted); }
 

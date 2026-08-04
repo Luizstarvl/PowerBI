@@ -14,6 +14,15 @@ export default function Cadastros({ empresas }) {
 
   if (view !== 'home') {
     const item = CADASTROS.find(c => c.key === view);
+
+    if (item.key === 'produtos') {
+      return (
+        <main className="dashboard">
+          <PainelProdutos empresasKey={empresasKey} onVoltar={() => setView('home')} />
+        </main>
+      );
+    }
+
     return (
       <main className="dashboard">
         <div className="gu-header">
@@ -28,10 +37,7 @@ export default function Cadastros({ empresas }) {
           </div>
         </div>
         <div className="param-group">
-          {item.key === 'produtos'
-            ? <PainelProdutos empresasKey={empresasKey} />
-            : <TabelaConsulta slot={item.slot} empresasKey={empresasKey} titulo={item.label} />
-          }
+          <TabelaConsulta slot={item.slot} empresasKey={empresasKey} titulo={item.label} />
         </div>
       </main>
     );

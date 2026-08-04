@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { RefreshCw, Search, X, Package, DollarSign, AlertTriangle, TrendingUp, Printer, ChevronLeft, ChevronRight } from 'lucide-react';
+import { RefreshCw, Search, X, Package, DollarSign, AlertTriangle, TrendingUp, Printer, ChevronLeft, ChevronRight, ArrowLeft } from 'lucide-react';
 import { apiFetch } from '../../api';
 
 const fmtCurrency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -61,7 +61,7 @@ function EstoqueCell({ value }) {
   );
 }
 
-export default function PainelProdutos({ empresasKey }) {
+export default function PainelProdutos({ empresasKey, onVoltar }) {
   const [slotQuery,  setSlotQuery]  = useState(undefined);
   const [rows,       setRows]       = useState([]);
   const [cols,       setCols]       = useState([]);
@@ -190,10 +190,17 @@ export default function PainelProdutos({ empresasKey }) {
   return (
     <div className="pp-wrap">
 
+      {/* ── Breadcrumb ── */}
+      {onVoltar && (
+        <button className="pp-back" onClick={onVoltar}>
+          <ArrowLeft size={14} /> Cadastros
+        </button>
+      )}
+
       {/* ── Cabeçalho ── */}
       <div className="pp-header">
         <div className="pp-header-left">
-          <h2 className="pp-title">Gerenciamento de Produtos</h2>
+          <h2 className="pp-title">Cadastro de Produtos</h2>
           <p className="pp-subtitle">Conveniência · {empresa || '—'}</p>
         </div>
         <div className="pp-header-actions">
@@ -275,83 +282,85 @@ export default function PainelProdutos({ empresasKey }) {
       </div>
 
       {/* ── Tabela ── */}
-      <div className="pp-table-scroll">
+      <div className="pp-table-wrap">
         {loading && !rows.length ? (
           <div className="pp-loading">
             <RefreshCw size={18} className="pp-spin" />
             <span>Carregando produtos…</span>
           </div>
         ) : (
-          <table className="pp-table">
-            <thead>
-              <tr className="pp-thead-row">
-                {tabelaCols.map((c, i) => (
-                  <th key={c.key} className={`pp-th${c.currency || c.estoque ? ' pp-th--r' : ''}${i === 0 ? ' pp-th--first' : ''}`}>
-                    {c.label}
-                  </th>
+          <div className="pp-table-scroll">
+            <table className="pp-table">
+              <thead>
+                <tr className="pp-thead-row">
+                  {tabelaCols.map((c, i) => (
+                    <th key={c.key} className={`pp-th${c.currency || c.estoque ? ' pp-th--r' : ''}${i === 0 ? ' pp-th--first' : ''}`}>
+                      {c.label}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {pagRows.length === 0 ? (
+                  <tr>
+                    <td colSpan={tabelaCols.length} className="pp-empty-cell">
+                      Nenhum produto encontrado{busca ? ` para "${busca}"` : ''}.
+                    </td>
+                  </tr>
+                ) : pagRows.map((row, i) => (
+                  <tr key={i} className="pp-tr">
+                    {tabelaCols.map((c, ci) => {
+                      const raw = c.calc ? c.calc(row) : row[c.key];
+                      return (
+                        <td key={c.key} className={[
+                          'pp-td',
+                          c.currency || c.estoque ? 'pp-td--r' : '',
+                          ci === 0 ? 'pp-td--name' : '',
+                        ].filter(Boolean).join(' ')}>
+                          {c.badge    ? <SituacaoBadge value={raw} />
+                           : c.estoque  ? <EstoqueCell value={raw} />
+                           : c.currency ? fmtCurrency.format(Number(raw) || 0)
+                           : (raw ?? '—')}
+                        </td>
+                      );
+                    })}
+                  </tr>
                 ))}
-              </tr>
-            </thead>
-            <tbody>
-              {pagRows.length === 0 ? (
-                <tr>
-                  <td colSpan={tabelaCols.length} className="pp-empty-cell">
-                    Nenhum produto encontrado{busca ? ` para "${busca}"` : ''}.
-                  </td>
-                </tr>
-              ) : pagRows.map((row, i) => (
-                <tr key={i} className="pp-tr">
-                  {tabelaCols.map((c, ci) => {
-                    const raw = c.calc ? c.calc(row) : row[c.key];
-                    return (
-                      <td key={c.key} className={[
-                        'pp-td',
-                        c.currency || c.estoque ? 'pp-td--r' : '',
-                        ci === 0 ? 'pp-td--name' : '',
-                      ].filter(Boolean).join(' ')}>
-                        {c.badge    ? <SituacaoBadge value={raw} />
-                         : c.estoque  ? <EstoqueCell value={raw} />
-                         : c.currency ? fmtCurrency.format(Number(raw) || 0)
-                         : (raw ?? '—')}
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+              </tbody>
+            </table>
+          </div>
         )}
-      </div>
 
-      {/* ── Rodapé ── */}
-      <div className="pp-foot">
-        <span className="pp-foot-count">
-          {total === 0
-            ? 'Nenhum produto'
-            : `${(pag - 1) * ps + 1}–${Math.min(pag * ps, total)} de ${total} produtos`}
-        </span>
+        {/* ── Rodapé dentro do card ── */}
+        <div className="pp-foot">
+          <span className="pp-foot-count">
+            {total === 0
+              ? 'Nenhum produto'
+              : `${(pag - 1) * ps + 1}–${Math.min(pag * ps, total)} de ${total} produtos`}
+          </span>
 
-        <div className="pp-pag">
-          <button className="pp-pag-btn" onClick={() => setPagina(p => Math.max(1, p - 1))} disabled={pag <= 1 || pageSize === 'Todos'}>
-            <ChevronLeft size={14} />
-          </button>
-          {totalPags <= 6
-            ? Array.from({ length: totalPags }, (_, i) => i + 1).map(n => (
-                <button key={n} className={`pp-pag-btn${pag === n ? ' pp-pag-btn--on' : ''}`} onClick={() => setPagina(n)}>{n}</button>
-              ))
-            : <span className="pp-pag-info">{pag} / {totalPags}</span>
-          }
-          <button className="pp-pag-btn" onClick={() => setPagina(p => Math.min(totalPags, p + 1))} disabled={pag >= totalPags || pageSize === 'Todos'}>
-            <ChevronRight size={14} />
-          </button>
-        </div>
+          <div className="pp-pag">
+            <button className="pp-pag-btn" onClick={() => setPagina(p => Math.max(1, p - 1))} disabled={pag <= 1 || pageSize === 'Todos'}>
+              <ChevronLeft size={14} />
+            </button>
+            {totalPags <= 6
+              ? Array.from({ length: totalPags }, (_, i) => i + 1).map(n => (
+                  <button key={n} className={`pp-pag-btn${pag === n ? ' pp-pag-btn--on' : ''}`} onClick={() => setPagina(n)}>{n}</button>
+                ))
+              : <span className="pp-pag-info">{pag} / {totalPags}</span>
+            }
+            <button className="pp-pag-btn" onClick={() => setPagina(p => Math.min(totalPags, p + 1))} disabled={pag >= totalPags || pageSize === 'Todos'}>
+              <ChevronRight size={14} />
+            </button>
+          </div>
 
-        <div className="pp-pag-size">
-          <span>Por página</span>
-          {PAGE_OPTS.map(o => (
-            <button key={o} className={`pp-pag-btn${pageSize === o ? ' pp-pag-btn--on' : ''}`}
-              onClick={() => { setPageSize(o); setPagina(1); }}>{o}</button>
-          ))}
+          <div className="pp-pag-size">
+            <span>Por página</span>
+            {PAGE_OPTS.map(o => (
+              <button key={o} className={`pp-pag-btn${pageSize === o ? ' pp-pag-btn--on' : ''}`}
+                onClick={() => { setPageSize(o); setPagina(1); }}>{o}</button>
+            ))}
+          </div>
         </div>
       </div>
     </div>
