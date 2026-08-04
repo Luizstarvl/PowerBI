@@ -44,7 +44,8 @@ function KpiCard({ icon: Icon, label, value, sub, accent }) {
 }
 
 function SituacaoBadge({ value }) {
-  const ativo = /ativo/i.test(String(value));
+  const v = String(value || '').trim().toLowerCase();
+  const ativo = v === 'ativo' || v === 'a';
   return (
     <span className={`pp-badge ${ativo ? 'pp-badge--ok' : 'pp-badge--off'}`}>
       <span className="pp-badge-dot" />
@@ -202,18 +203,20 @@ export default function PainelProdutos({ empresasKey, onVoltar }) {
 
   // Grupos: usa GPRO se configurado (com filtro por seção), senão deriva das linhas
   const grupos = useMemo(() => {
+    const norm = s => String(s || '').trim().toLowerCase();
     if (gruposExt.length) {
-      // Filtra grupos pela seção selecionada via cod_secao
       let lista = gruposExt;
-      if (secao !== 'Todas' && gruposExt[0]?.cod_secao !== null) {
-        // Acha o código da seção selecionada
-        const secaoObj = secoesExt.find(s => s.desc === secao);
+      const temRelacao = gruposExt.some(g => g.cod_secao !== null);
+      if (secao !== 'Todas' && temRelacao) {
+        const secaoObj = secoesExt.find(s => norm(s.desc) === norm(secao));
         if (secaoObj) lista = gruposExt.filter(g => g.cod_secao === secaoObj.cod);
       }
       return ['Todos', ...lista.map(g => g.desc).filter(Boolean)];
     }
     if (!det.grupo) return [];
-    const base = secao === 'Todas' ? rows : rows.filter(r => r[det.secao] === secao);
+    const base = secao === 'Todas'
+      ? rows
+      : rows.filter(r => norm(r[det.secao]) === norm(secao));
     return ['Todos', ...new Set(base.map(r => r[det.grupo]).filter(Boolean))];
   }, [gruposExt, secoesExt, rows, det.secao, det.grupo, secao]);
 
@@ -499,6 +502,7 @@ export default function PainelProdutos({ empresasKey, onVoltar }) {
         <ProdutoDetalhe
           row={detalhe}
           cols={cols}
+          det={det}
           empresa={empresa}
           onClose={() => setDetalhe(null)}
         />

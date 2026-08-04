@@ -41,7 +41,43 @@ const FIELD_LABELS = {
 const CURRENCY_COLS = /preco|custo|valor/i;
 const NUM_COLS      = /estoque|qtd/i;
 
-export default function ProdutoDetalhe({ row, cols, empresa, onClose }) {
+function buildOrderedFields(row, cols, det) {
+  const fmtC = v => fmtCurrency.format(Number(v) || 0);
+  const fmtN = v => fmtNum.format(Number(v) || 0);
+
+  // Ordem fixa pedida pelo usuário
+  const ordered = [
+    det.codigo  && { col: det.codigo,  label: 'Código',      fmt: v => String(v) },
+    det.nome    && { col: det.nome,    label: 'Descrição',   fmt: v => String(v) },
+    det.secao   && { col: det.secao,   label: 'Seção',       fmt: v => String(v) },
+    det.grupo   && { col: det.grupo,   label: 'Grupo',       fmt: v => String(v) },
+    det.estoque && { col: det.estoque, label: 'Estoque',     fmt: fmtN },
+    det.preco   && { col: det.preco,   label: 'Preço Venda', fmt: fmtC },
+    det.custo   && { col: det.custo,   label: 'Custo',       fmt: fmtC },
+    (det.estoque && det.preco) && {
+      col: '__ve', label: 'Vl. Estoque', fmt: () => fmtC(Number(row[det.estoque]||0) * Number(row[det.preco]||0)),
+    },
+    det.situacao && { col: det.situacao, label: 'Situação',  fmt: v => String(v) },
+  ].filter(Boolean);
+
+  // Colunas extras não cobertas por det
+  const knownCols = new Set([...Object.values(det).filter(Boolean), 'empresa']);
+  const extras = cols.filter(c => !knownCols.has(c)).map(col => ({
+    col,
+    label: col,
+    fmt: v => CURRENCY_COLS.test(col) ? fmtCurrency.format(Number(v) || 0)
+            : NUM_COLS.test(col)      ? fmtNum.format(Number(v) || 0)
+            : String(v),
+  }));
+
+  return [...ordered, ...extras].map(f => {
+    const raw = f.col === '__ve' ? 1 : (row[f.col] ?? null); // __ve always renders via fmt
+    if (f.col !== '__ve' && (raw === null || raw === undefined || raw === '')) return null;
+    return { key: f.col, label: f.label, value: f.fmt(raw) };
+  }).filter(Boolean);
+}
+
+export default function ProdutoDetalhe({ row, cols, det, empresa, onClose }) {
   const [foto,        setFoto]        = useState(null);   // base64 ou null
   const [observacoes, setObservacoes] = useState('');
   const [tags,        setTags]        = useState([]);
@@ -51,7 +87,7 @@ export default function ProdutoDetalhe({ row, cols, empresa, onClose }) {
   const [msg,         setMsg]         = useState('');
   const fileRef = useRef();
 
-  const cod = row?.cod_produto ?? row?.[cols?.[1]] ?? '';
+  const cod = row?.cod_produto ?? (det?.codigo ? row?.[det.codigo] : null) ?? row?.[cols?.[1]] ?? '';
 
   // Busca extras ao abrir
   useEffect(() => {
@@ -103,7 +139,14 @@ export default function ProdutoDetalhe({ row, cols, empresa, onClose }) {
 
   if (!row) return null;
 
-  const visibleCols = cols.filter(c => c !== 'empresa');
+  const fields = det ? buildOrderedFields(row, cols, det) : cols.filter(c => c !== 'empresa').map(col => {
+    const val = row[col];
+    if (val === undefined || val === null || val === '') return null;
+    const fmt = CURRENCY_COLS.test(col) ? fmtCurrency.format(Number(val) || 0)
+              : NUM_COLS.test(col)      ? fmtNum.format(Number(val) || 0)
+              : String(val);
+    return { key: col, label: col, value: fmt };
+  }).filter(Boolean);
 
   return (
     <div className="pd-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
@@ -144,22 +187,12 @@ export default function ProdutoDetalhe({ row, cols, empresa, onClose }) {
             <div className="pd-fields-col">
               <div className="pd-section-title">Dados do produto</div>
               <div className="pd-fields">
-                {visibleCols.map(col => {
-                  const val = row[col];
-                  if (val === undefined || val === null || val === '') return null;
-                  const label = FIELD_LABELS[col] || col;
-                  const fmt = CURRENCY_COLS.test(col)
-                    ? fmtCurrency.format(Number(val) || 0)
-                    : NUM_COLS.test(col)
-                      ? fmtNum.format(Number(val) || 0)
-                      : String(val);
-                  return (
-                    <div key={col} className="pd-field">
-                      <span className="pd-field-label">{label}</span>
-                      <span className="pd-field-value">{fmt}</span>
-                    </div>
-                  );
-                })}
+                {fields.map(f => (
+                  <div key={f.key} className="pd-field">
+                    <span className="pd-field-label">{f.label}</span>
+                    <span className="pd-field-value">{f.value}</span>
+                  </div>
+                ))}
               </div>
             </div>
 
