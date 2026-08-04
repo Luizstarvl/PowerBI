@@ -4,7 +4,6 @@ import TopBar from './layout/TopBar';
 import NavBar from './layout/NavBar';
 import Dashboard from './pages/Dashboard';
 import Usuarios from './pages/Usuarios';
-import Metas from './pages/Metas';
 import Cadastros from './pages/Cadastros';
 import Parametros from './pages/Parametros';
 import { LangProvider } from './i18n';
@@ -140,11 +139,6 @@ export default function App() {
           {visited.has('dashboard') && (
             <div className={`page-slot${page === 'dashboard' ? ' page-active' : ''}`}>
               <Dashboard empresas={selectedIds} period={period} onNavigate={handlePageChange} />
-            </div>
-          )}
-          {visited.has('metas') && (
-            <div className={`page-slot${page === 'metas' ? ' page-active' : ''}`}>
-              <Metas empresa={clients.find(c => c.codigoEmpresa === selectedIds[0])?.id} empresaNome={clients.find(c => c.codigoEmpresa === selectedIds[0])?.nome} user={user} onNavigate={handlePageChange} />
             </div>
           )}
           {visited.has('cadastros') && (
