@@ -230,6 +230,16 @@ function gerarJanelaPrint({ titulo, colunas, linhas, empresa, det, filtros }) {
   .pg-sep::before, .pg-sep::after {
     content: ''; flex: 1; height: 1px; background: #666;
   }
+  /* Cabeçalho de coluna repetido a cada quebra (só tela) */
+  .pg-repeat-header th {
+    background: #f97316 !important;
+    color: #fff !important;
+    padding: 7px 9px;
+    font-size: 9px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .05em;
+    white-space: nowrap;
+  }
+  .pg-repeat-header th.r { text-align: right; }
 }
 
 /* ── Modo Impressão ── */
@@ -240,10 +250,12 @@ function gerarJanelaPrint({ titulo, colunas, linhas, empresa, det, filtros }) {
     padding: 12mm 14mm !important;
     margin: 0 !important;
   }
+  .pg-sep-row,
   .pg-sep { display: none !important; }
+  .pg-repeat-header { display: none !important; }
   .preview-wrap { padding: 0 !important; box-shadow: none !important; width: 100% !important; margin: 0 !important; }
   tr { break-inside: avoid; }
-  /* Repete o cabeçalho da tabela em cada página impressa */
+  /* thead nativo repete o cabeçalho real em cada página impressa */
   thead { display: table-header-group; }
 }
 
@@ -327,35 +339,54 @@ ${filtroTags ? `<div class="filters-row"><span class="filters-label">Filtros apl
 
 <script>
 (function() {
-  // A4 landscape: 210mm x 297mm. A 96 DPI: ~793px altura total.
-  // Margem 18mm top+bottom = ~136px → conteúdo útil ≈ 657px por página.
-  // Padding do preview-wrap: 28px top+bottom = 56px → área da tabela ≈ 601px
-  var PAGE_H = 660;
+  // 1. Bloqueia Ctrl+P / Cmd+P — impressão só pelo botão da barra
+  document.addEventListener('keydown', function(e) {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  });
+
+  // 2. Insere separadores de página + repete cabeçalho visualmente no preview
+  var PAGE_H = 660; // altura útil de conteúdo por página A4 landscape (~96 DPI)
 
   window.addEventListener('load', function() {
-    var wrap = document.querySelector('.preview-wrap');
+    var wrap  = document.querySelector('.preview-wrap');
+    var table = document.querySelector('table');
+    var thead = document.querySelector('thead');
     var tbody = document.querySelector('tbody');
-    if (!wrap || !tbody) return;
+    if (!wrap || !tbody || !thead) return;
 
-    var wrapRect = wrap.getBoundingClientRect();
-    var wrapTop  = wrapRect.top + window.scrollY;
+    // Snapshot das linhas de cabeçalho para clonar depois
+    var theadHTML = thead.innerHTML;
+    var colCount  = thead.querySelector('tr') ? thead.querySelector('tr').children.length : 1;
+
+    var wrapTop  = wrap.getBoundingClientRect().top + window.scrollY;
     var rows     = Array.from(tbody.querySelectorAll('tr'));
     var pageNum  = 1;
-    var totalPgs = Math.max(1, Math.ceil((wrap.scrollHeight) / PAGE_H));
+    var totalPgs = Math.max(1, Math.ceil(wrap.scrollHeight / PAGE_H));
 
     for (var i = 0; i < rows.length; i++) {
-      var rowRect   = rows[i].getBoundingClientRect();
-      var rowBottom = rowRect.bottom + window.scrollY - wrapTop;
+      var rowBottom = rows[i].getBoundingClientRect().bottom + window.scrollY - wrapTop;
 
       if (rowBottom > pageNum * PAGE_H) {
+        // — Separador de página —
         var sep = document.createElement('tr');
-        sep.innerHTML = '<td colspan="999"><div class="pg-sep">Página ' + pageNum + ' de ' + totalPgs + '</div></td>';
-        sep.style.cssText = 'break-before: page; background: transparent;';
+        sep.className = 'pg-sep-row';
+        sep.innerHTML = '<td colspan="' + colCount + '"><div class="pg-sep">Página ' + pageNum + ' de ' + totalPgs + '</div></td>';
         tbody.insertBefore(sep, rows[i]);
-        pageNum++;
-        // reindexar: sep foi inserido antes de rows[i], pular ele
         rows.splice(i, 0, sep);
         i++;
+
+        // — Cabeçalho repetido (visível só na tela) —
+        var hdrRow = document.createElement('tr');
+        hdrRow.className = 'pg-repeat-header';
+        hdrRow.innerHTML = theadHTML.replace(/<tr[^>]*>/i, '').replace(/<\/tr>/i, '');
+        tbody.insertBefore(hdrRow, rows[i]);
+        rows.splice(i, 0, hdrRow);
+        i++;
+
+        pageNum++;
       }
     }
   });
