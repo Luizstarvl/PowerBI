@@ -1125,77 +1125,6 @@ function SecaoRegionalizacao() {
   );
 }
 
-/* ── Atualização dos Dados ───────────────────────────────────────────────────── */
-const INTERVALOS = [
-  { value: 5  * 60 * 1000,      label: '5 min'   },
-  { value: 10 * 60 * 1000,      label: '10 min'  },
-  { value: 30 * 60 * 1000,      label: '30 min'  },
-  { value: 60 * 60 * 1000,      label: '1 hora'  },
-  { value: 6  * 60 * 60 * 1000, label: '6 horas' },
-  { value: 24 * 60 * 60 * 1000, label: 'Diário'  },
-];
-
-function AutoRefreshConfig({ enabled, intervalMs, onEnabledChange, onIntervalChange }) {
-  const { t } = useT();
-  const [lastUpdate, setLastUpdate] = useState(() => {
-    const s = localStorage.getItem('pbi_last_update');
-    return s ? new Date(parseInt(s)) : null;
-  });
-
-  function doRefresh() {
-    const now = new Date();
-    setLastUpdate(now);
-    localStorage.setItem('pbi_last_update', String(now.getTime()));
-    window.dispatchEvent(new CustomEvent('pbi-refresh'));
-  }
-  function handleToggle() { const next = !enabled; localStorage.setItem('pbi_auto_refresh', String(next)); onEnabledChange(next); }
-  function handleInterval(v) { localStorage.setItem('pbi_refresh_interval', String(v)); onIntervalChange(v); }
-
-  useEffect(() => {
-    if (!enabled) return;
-    const id = setInterval(() => {
-      const now = new Date();
-      setLastUpdate(now);
-      localStorage.setItem('pbi_last_update', String(now.getTime()));
-      window.dispatchEvent(new CustomEvent('pbi-refresh'));
-    }, intervalMs);
-    return () => clearInterval(id);
-  }, [enabled, intervalMs]);
-
-  function fmtDateTime(date) {
-    if (!date) return t('atu_nunca');
-    const today = new Date();
-    const opts  = { hour: '2-digit', minute: '2-digit' };
-    if (date.toDateString() === today.toDateString()) return `Hoje às ${date.toLocaleTimeString('pt-BR', opts)}`;
-    return date.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
-  }
-
-  const nextUpdate = enabled && lastUpdate ? new Date(lastUpdate.getTime() + intervalMs) : null;
-
-  return (
-    <div className="atu-config">
-      <div className="atu-row">
-        <div className="atu-row-info"><span className="atu-row-label">{t('atu_auto')}</span><span className="atu-row-desc">{t('atu_auto_desc')}</span></div>
-        <div className={`toggle-track${enabled ? ' on' : ''}`} onClick={handleToggle}><div className="toggle-thumb" /></div>
-      </div>
-      {enabled && (
-        <div className="atu-row">
-          <div className="atu-row-info"><span className="atu-row-label">{t('atu_intervalo')}</span></div>
-          <div className="atu-intervals">
-            {INTERVALOS.map(opt => (
-              <button key={opt.value} className={`atu-interval-btn${intervalMs === opt.value ? ' active' : ''}`} onClick={() => handleInterval(opt.value)}>{opt.label}</button>
-            ))}
-          </div>
-        </div>
-      )}
-      <div className="atu-info-row">
-        <div className="atu-info-item"><span className="atu-info-label">{t('atu_ultima')}</span><span className="atu-info-value">{fmtDateTime(lastUpdate)}</span></div>
-        {nextUpdate && <div className="atu-info-item"><span className="atu-info-label">{t('atu_proxima')}</span><span className="atu-info-value">{fmtDateTime(nextUpdate)}</span></div>}
-        <button className="btn-outline-sm atu-btn-now" onClick={doRefresh}>↻ {t('atu_agora')}</button>
-      </div>
-    </div>
-  );
-}
 
 /* ── Seção Sistema ───────────────────────────────────────────────────────────── */
 const IconSun = () => (
@@ -1228,11 +1157,7 @@ const TEMAS = [
 
 function SecaoSistema({ themeMode, onThemeModeChange }) {
   const { t } = useT();
-  const [atuEnabled,  setAtuEnabled]  = useState(() => localStorage.getItem('pbi_auto_refresh') === 'true');
-  const [atuInterval, setAtuInterval] = useState(() => parseInt(localStorage.getItem('pbi_refresh_interval') || String(5 * 60 * 1000)));
-
   const temaAtual = TEMAS.find(m => m.key === themeMode);
-  const atuBadge  = atuEnabled ? INTERVALOS.find(o => o.value === atuInterval)?.label : undefined;
 
   return (
     <div className="fade-up">
@@ -1257,11 +1182,6 @@ function SecaoSistema({ themeMode, onThemeModeChange }) {
             );
           })}
         </div>
-      </Accordion>
-
-      {/* Atualização */}
-      <Accordion title={t('atu_titulo')} desc={t('atu_desc')} badge={atuBadge}>
-        <AutoRefreshConfig enabled={atuEnabled} intervalMs={atuInterval} onEnabledChange={setAtuEnabled} onIntervalChange={setAtuInterval} />
       </Accordion>
     </div>
   );
