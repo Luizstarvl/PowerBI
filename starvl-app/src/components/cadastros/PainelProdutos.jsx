@@ -300,6 +300,23 @@ export default function PainelProdutos({ empresasKey, onVoltar }) {
     return r;
   }, [rows, busca, secao, grupo, situacao, semEstoque, det]);
 
+  function limpar() {
+    setBusca(''); setSecao('Todas'); setGrupo('Todos');
+    setSituacao('Ativos'); setSemEstoque(false); setPagina(1);
+  }
+
+  const tabelaCols = useMemo(() => [
+    det.nome     && { key: det.nome,     label: 'Produto',        name: true },
+    det.codigo   && { key: det.codigo,   label: 'Código' },
+    det.secao    && { key: det.secao,    label: 'Seção' },
+    det.grupo    && { key: det.grupo,    label: 'Grupo' },
+    det.estoque  && { key: det.estoque,  label: 'Estoque',        estoque: true },
+    det.preco    && { key: det.preco,    label: 'Preço Venda',    currency: true },
+    det.custo    && { key: det.custo,    label: 'Custo',          currency: true },
+    det.estoque && det.preco && { key: '__ve', label: 'Vl. Estoque', currency: true, calc: r => Number(r[det.estoque]||0)*Number(r[det.preco]||0) },
+    det.situacao && { key: det.situacao, label: 'Situação',       badge: true },
+  ].filter(Boolean), [det]);
+
   const sortedFiltradas = useMemo(() => {
     if (!sortCol) return filtradas;
     const col = tabelaCols.find(c => c.key === sortCol);
@@ -327,23 +344,6 @@ export default function PainelProdutos({ empresasKey, onVoltar }) {
   const totalPags = Math.max(1, Math.ceil(total / (ps || 1)));
   const pag       = Math.min(pagina, totalPags);
   const pagRows   = pageSize === 'Todos' ? sortedFiltradas : sortedFiltradas.slice((pag - 1) * ps, pag * ps);
-
-  function limpar() {
-    setBusca(''); setSecao('Todas'); setGrupo('Todos');
-    setSituacao('Ativos'); setSemEstoque(false); setPagina(1);
-  }
-
-  const tabelaCols = useMemo(() => [
-    det.nome     && { key: det.nome,     label: 'Produto',        name: true },
-    det.codigo   && { key: det.codigo,   label: 'Código' },
-    det.secao    && { key: det.secao,    label: 'Seção' },
-    det.grupo    && { key: det.grupo,    label: 'Grupo' },
-    det.estoque  && { key: det.estoque,  label: 'Estoque',        estoque: true },
-    det.preco    && { key: det.preco,    label: 'Preço Venda',    currency: true },
-    det.custo    && { key: det.custo,    label: 'Custo',          currency: true },
-    det.estoque && det.preco && { key: '__ve', label: 'Vl. Estoque', currency: true, calc: r => Number(r[det.estoque]||0)*Number(r[det.preco]||0) },
-    det.situacao && { key: det.situacao, label: 'Situação',       badge: true },
-  ].filter(Boolean), [det]);
 
   if (slotQuery === null) {
     return (
