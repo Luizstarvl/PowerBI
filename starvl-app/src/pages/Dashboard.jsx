@@ -551,7 +551,7 @@ export default function Dashboard({ empresas, period, onNavigate }) {
   const [slotKpiData, setSlotKpiData] = useState({});
   const [erro, setErro]               = useState('');
   const [dashQueries, setDashQueries] = useState([]);
-  const [periodoVisivel, setPeriodoVisivel] = useState(true);
+  const [periodoVisivel, setPeriodoVisivel] = useState(false);
 
   useEffect(() => {
     apiFetch('/api/queries?ativa=true&categoria=Dashboard')
