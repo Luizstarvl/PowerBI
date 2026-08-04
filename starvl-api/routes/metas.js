@@ -8,7 +8,7 @@
 const express = require('express');
 const router  = express.Router();
 const pool    = require('../db/pool');
-const { queryFor } = require('../db/poolManager');
+const { queryFor, isEmpresaRegistered } = require('../db/poolManager');
 const { requireAuth, requireAdmin, requirePerm } = require('../middleware/auth');
 
 const TIPOS = [
@@ -220,6 +220,13 @@ async function sincronizarMeta(id, usuario) {
   // o fim da meta, se ela já tiver terminado).
   const dataFimMeta = new Date(meta.sm_data_final).toISOString().slice(0, 10);
   const dataFim = dataFimMeta < hojeISO ? dataFimMeta : hojeISO;
+
+  if (!isEmpresaRegistered(meta.sc_codigo)) {
+    throw new Error(
+      `Empresa código ${meta.sc_codigo} não tem conexão com o banco de vendas configurada ` +
+      `(Parâmetros → Conexão). Sem isso não há como consultar as vendas dela.`
+    );
+  }
 
   const query = queryFor(meta.sc_codigo);
   const valor = await sincronizador(query, meta.sc_codigo, dataInicio, dataFim);

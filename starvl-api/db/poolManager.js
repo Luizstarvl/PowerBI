@@ -94,6 +94,16 @@ function getPoolByEmpresa(codigoEmpresa) {
 }
 
 /**
+ * true se a empresa tem conexão de banco (SGA) configurada e registrada.
+ * Sem isso, getPoolByEmpresa cai silenciosamente no mainPool (banco de
+ * gestão), que não tem as tabelas do SGA (vda, vdit, etc.) — útil pra dar
+ * um erro claro em vez de "relation ... does not exist".
+ */
+function isEmpresaRegistered(codigoEmpresa) {
+  return empresaMap.has(String(codigoEmpresa));
+}
+
+/**
  * Retorna uma função query (safeQuery) ligada ao pool correto para a empresa.
  * Uso nos handlers de rota:
  *   const query = queryFor(empresa);
@@ -159,6 +169,7 @@ module.exports = {
   registerClient,
   unregisterClient,
   getPoolByEmpresa,
+  isEmpresaRegistered,
   queryFor,
   mainPool,
 };
