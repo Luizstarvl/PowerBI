@@ -511,6 +511,17 @@ export default function Dashboard({ empresas, period, onNavigate }) {
     setApplied({ ...draft });
   }
 
+  // Troca de mês/ano no seletor já aplica na hora — não precisa clicar em
+  // Atualizar (esse botão fica só como "recarregar de novo o mesmo período").
+  function handlePeriodoChange(novoDraft) {
+    setDraft(novoDraft);
+    if (!draftCanApply(novoDraft)) return;
+    setLoading(true);
+    setSlotLoading(true);
+    setSlotKpiData({});
+    setApplied({ ...novoDraft });
+  }
+
   const canApply  = draftCanApply(draft);
 
   return (
@@ -524,7 +535,7 @@ export default function Dashboard({ empresas, period, onNavigate }) {
 
       <PeriodPicker
         draft={draft}
-        onChange={setDraft}
+        onChange={handlePeriodoChange}
         onApply={handleAtualizar}
         canApply={canApply}
         empresasKey={empresasKey}
