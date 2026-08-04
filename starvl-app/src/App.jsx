@@ -5,7 +5,7 @@ import NavBar from './layout/NavBar';
 import Dashboard from './pages/Dashboard';
 import Usuarios from './pages/Usuarios';
 import Metas from './pages/Metas';
-import Atalhos from './pages/Atalhos';
+import Cadastros from './pages/Cadastros';
 import Parametros from './pages/Parametros';
 import { LangProvider } from './i18n';
 import { apiFetch, setApiToken, clearApiToken } from './api';
@@ -147,9 +147,9 @@ export default function App() {
               <Metas empresa={clients.find(c => c.codigoEmpresa === selectedIds[0])?.id} empresaNome={clients.find(c => c.codigoEmpresa === selectedIds[0])?.nome} user={user} onNavigate={handlePageChange} />
             </div>
           )}
-          {visited.has('atalhos') && (
-            <div className={`page-slot${page === 'atalhos' ? ' page-active' : ''}`}>
-              <Atalhos />
+          {visited.has('cadastros') && (
+            <div className={`page-slot${page === 'cadastros' ? ' page-active' : ''}`}>
+              <Cadastros />
             </div>
           )}
           {visited.has('usuarios') && (
