@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Package, Users, ChevronLeft, ChevronRight, ClipboardList } from 'lucide-react';
 import TabelaConsulta from '../components/cadastros/TabelaConsulta';
+import PainelProdutos from '../components/cadastros/PainelProdutos';
 
 const CADASTROS = [
   { key: 'produtos', label: 'Cadastro de Produtos', desc: 'Consulte os produtos cadastrados no sistema.', Icon: Package, slot: 'cadastro_produtos' },
@@ -27,11 +28,10 @@ export default function Cadastros({ empresas }) {
           </div>
         </div>
         <div className="param-group">
-          <TabelaConsulta
-            slot={item.slot}
-            empresasKey={empresasKey}
-            titulo={item.label}
-          />
+          {item.key === 'produtos'
+            ? <PainelProdutos empresasKey={empresasKey} />
+            : <TabelaConsulta slot={item.slot} empresasKey={empresasKey} titulo={item.label} />
+          }
         </div>
       </main>
     );
