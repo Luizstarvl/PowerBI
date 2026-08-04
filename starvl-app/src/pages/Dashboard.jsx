@@ -108,10 +108,12 @@ function mapToTopProdutos(result) {
                || txtCols[txtCols.length - 1]
                || txtCols[0];
   const qtyCol  = numCols.find(c => /qtd|qty|quant/i.test(c)) || numCols[0];
+  const codCol  = txtCols.find(c => /^(cod_produto|codigo|prodcodigo|cod|code|sku|ref)$/i.test(c)) || null;
   if (!nameCol || !qtyCol) return [];
   return rows.slice(0, 5).map(r => ({
     name: String(r[nameCol] ?? ''),
     qty:  Number(r[qtyCol]  ?? 0),
+    cod:  codCol ? String(r[codCol] ?? '') : '',
   }));
 }
 
@@ -209,7 +211,7 @@ const EYEBROW_ICON = (
   </svg>
 );
 
-function TopProdutosBanner({ dados, loading }) {
+function TopProdutosBanner({ dados, fotos, loading }) {
   const n = dados?.length ?? 0;
   const [featured, setFeatured] = useState(0);
   const [noTransRank, setNoTransRank] = useState(null);
@@ -324,13 +326,16 @@ function TopProdutosBanner({ dados, loading }) {
                 className="tpb-avatar"
                 style={{
                   width: sz.avatar, height: sz.avatar, fontSize: sz.avatarFs,
-                  background: RANK_GRAD[(rank - 1) % RANK_GRAD.length],
+                  background: fotos?.[item.cod] ? 'transparent' : RANK_GRAD[(rank - 1) % RANK_GRAD.length],
                   boxShadow: isFirst
                     ? '0 0 28px rgba(255,180,0,.6)'
                     : isCenter ? '0 0 22px rgba(255,140,0,.45)' : 'none',
                 }}
               >
-                {item.name.charAt(0).toUpperCase()}
+                {fotos?.[item.cod]
+                  ? <img src={fotos[item.cod]} alt={item.name} className="tpb-avatar-foto" />
+                  : item.name.charAt(0).toUpperCase()
+                }
               </div>
               <div className="tpb-card-name" style={{ fontSize: sz.nameFs, marginTop: sz.nameMt }}>
                 {item.name}
@@ -414,6 +419,7 @@ export default function Dashboard({ empresas, period, onNavigate }) {
   const [applied, setApplied] = useState(initDraft); // only changes on button click
   const [kpis, setKpis]              = useState(null);
   const [topProdutos, setTopProdutos] = useState([]);
+  const [fotosTop,    setFotosTop]    = useState({});
   const [loading, setLoading]         = useState(true);
   const [slotLoading, setSlotLoading] = useState(false);
   const [kpiSlotLoading, setKpiSlotLoading] = useState(false);
@@ -473,6 +479,18 @@ export default function Dashboard({ empresas, period, onNavigate }) {
       .finally(() => { if (!cancelado) setSlotLoading(false); });
     return () => { cancelado = true; };
   }, [slotMap, apiQs]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Fotos dos top 5 (busca em lote após topProdutos ser carregado)
+  useEffect(() => {
+    if (!topProdutos.length || !empresasKey) return;
+    const empresa = empresasKey.split(',')[0];
+    const codes = topProdutos.map(p => p.cod).filter(Boolean);
+    if (!codes.length) return;
+    apiFetch(`/api/produto-extra/batch/${encodeURIComponent(empresa)}?codes=${codes.map(encodeURIComponent).join(',')}`)
+      .then(r => r.json())
+      .then(d => { if (d.ok) setFotosTop(d.data); })
+      .catch(() => {});
+  }, [topProdutos, empresasKey]);
 
   // KPIs principais (endpoint legado)
   useEffect(() => {
@@ -571,7 +589,7 @@ export default function Dashboard({ empresas, period, onNavigate }) {
             })()}
           </div>
 
-          <TopProdutosBanner dados={topProdutos} loading={loading || slotLoading} />
+          <TopProdutosBanner dados={topProdutos} fotos={fotosTop} loading={loading || slotLoading} />
         </>
       )}
     </main>

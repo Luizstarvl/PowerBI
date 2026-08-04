@@ -106,6 +106,7 @@ export default function PainelProdutos({ empresasKey, onVoltar }) {
   const [pageSize,   setPageSize]   = useState(15);
   const [detalhe,    setDetalhe]    = useState(null);
   const [ctxMenu,    setCtxMenu]    = useState(null); // {x,y,row}
+  const [fotosMap,   setFotosMap]   = useState({});
 
   const empresa = (empresasKey || '').split(',')[0];
   const det = useMemo(() => detectCols(cols), [cols]);
@@ -178,6 +179,17 @@ export default function PainelProdutos({ empresasKey, onVoltar }) {
   }, [slotQuery, empresa]);
 
   useEffect(() => { fetchDados(); }, [fetchDados]);
+
+  // Busca fotos salvas para mostrar thumbnail na listagem
+  useEffect(() => {
+    if (!rows.length || !empresa || !det.codigo) return;
+    const codes = [...new Set(rows.map(r => r[det.codigo]).filter(Boolean))].slice(0, 500);
+    if (!codes.length) return;
+    apiFetch(`/api/produto-extra/batch/${encodeURIComponent(empresa)}?codes=${codes.map(encodeURIComponent).join(',')}`)
+      .then(r => r.json())
+      .then(d => { if (d.ok) setFotosMap(d.data); })
+      .catch(() => {});
+  }, [rows, empresa, det.codigo]);
 
   // Seções: usa SPRO se configurado, senão deriva das linhas
   const secoes = useMemo(() => {
@@ -293,11 +305,13 @@ export default function PainelProdutos({ empresasKey, onVoltar }) {
         <div className="pp-header-left">
           {onVoltar && (
             <button className="pp-back" onClick={onVoltar}>
-              <ArrowLeft size={14} /> Cadastros
+              <ArrowLeft size={14} /> Voltar
             </button>
           )}
-          <h2 className="pp-title">Cadastro de Produtos</h2>
-          <p className="pp-subtitle">Conveniência · {empresa || '—'}</p>
+          <div className="pp-header-title-group">
+            <h2 className="pp-title">Cadastro de Produtos</h2>
+            <p className="pp-subtitle">Conveniência · {empresa || '—'}</p>
+          </div>
         </div>
         <div className="pp-header-actions">
           <button className="pp-btn-ghost" onClick={() => window.print()}>
@@ -428,6 +442,14 @@ export default function PainelProdutos({ empresasKey, onVoltar }) {
                           {c.badge    ? <SituacaoBadge value={raw} />
                            : c.estoque  ? <EstoqueCell value={raw} />
                            : c.currency ? fmtCurrency.format(Number(raw) || 0)
+                           : c.name     ? (
+                               <span className="pp-td-name-cell">
+                                 {fotosMap[row[det.codigo]] && (
+                                   <img src={fotosMap[row[det.codigo]]} alt="" className="pp-td-thumb" />
+                                 )}
+                                 {raw ?? '—'}
+                               </span>
+                             )
                            : (raw ?? '—')}
                         </td>
                       );

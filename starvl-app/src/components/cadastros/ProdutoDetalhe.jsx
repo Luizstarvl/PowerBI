@@ -120,49 +120,56 @@ export default function ProdutoDetalhe({ row, cols, empresa, onClose }) {
 
         <div className="pd-body">
 
-          {/* ── Foto ── */}
-          <div className="pd-foto-area">
-            <div className="pd-foto-frame" onClick={() => fileRef.current?.click()}>
-              {foto
-                ? <img src={foto} alt="Produto" className="pd-foto-img" />
-                : <div className="pd-foto-empty"><Camera size={28} /><span>Adicionar foto</span></div>
-              }
-              <div className="pd-foto-overlay"><Camera size={16} /> Alterar</div>
+          {/* ── Linha superior: foto + dados ── */}
+          <div className="pd-top-section">
+
+            {/* Foto */}
+            <div className="pd-foto-area">
+              <div className="pd-foto-frame" onClick={() => fileRef.current?.click()}>
+                {foto
+                  ? <img src={foto} alt="Produto" className="pd-foto-img" />
+                  : <div className="pd-foto-empty"><Camera size={28} /><span>Adicionar foto</span></div>
+                }
+                <div className="pd-foto-overlay"><Camera size={16} /> Alterar</div>
+              </div>
+              {foto && (
+                <button className="pd-foto-remove" onClick={() => setFoto(null)}>
+                  <Trash2 size={13} /> Remover foto
+                </button>
+              )}
+              <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFoto} />
             </div>
-            {foto && (
-              <button className="pd-foto-remove" onClick={() => setFoto(null)}>
-                <Trash2 size={13} /> Remover foto
-              </button>
-            )}
-            <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFoto} />
+
+            {/* Dados do produto */}
+            <div className="pd-fields-col">
+              <div className="pd-section-title">Dados do produto</div>
+              <div className="pd-fields">
+                {visibleCols.map(col => {
+                  const val = row[col];
+                  if (val === undefined || val === null || val === '') return null;
+                  const label = FIELD_LABELS[col] || col;
+                  const fmt = CURRENCY_COLS.test(col)
+                    ? fmtCurrency.format(Number(val) || 0)
+                    : NUM_COLS.test(col)
+                      ? fmtNum.format(Number(val) || 0)
+                      : String(val);
+                  return (
+                    <div key={col} className="pd-field">
+                      <span className="pd-field-label">{label}</span>
+                      <span className="pd-field-value">{fmt}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
           </div>
 
-          {/* ── Dados do produto (vêm da consulta) ── */}
-          <div className="pd-section-title">Dados do produto</div>
-          <div className="pd-fields">
-            {visibleCols.map(col => {
-              const val = row[col];
-              if (val === undefined || val === null || val === '') return null;
-              const label = FIELD_LABELS[col] || col;
-              const fmt = CURRENCY_COLS.test(col)
-                ? fmtCurrency.format(Number(val) || 0)
-                : NUM_COLS.test(col)
-                  ? fmtNum.format(Number(val) || 0)
-                  : String(val);
-              return (
-                <div key={col} className="pd-field">
-                  <span className="pd-field-label">{label}</span>
-                  <span className="pd-field-value">{fmt}</span>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* ── Extras (salvos no nosso banco) ── */}
+          {/* ── Extras abaixo ── */}
           {loading ? (
             <div className="pd-loading"><Loader size={16} className="pp-spin" /> Carregando extras…</div>
           ) : (
-            <>
+            <div className="pd-extras-section">
               <div className="pd-section-title">Informações extras</div>
 
               <div className="pd-extra-field">
@@ -194,7 +201,7 @@ export default function ProdutoDetalhe({ row, cols, empresa, onClose }) {
                   />
                 </div>
               </div>
-            </>
+            </div>
           )}
         </div>
 
