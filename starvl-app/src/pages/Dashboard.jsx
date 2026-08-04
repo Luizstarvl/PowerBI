@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ShoppingCart, Fuel, Package, Truck, Boxes, Gauge, RefreshCw, CalendarDays, ChevronDown } from 'lucide-react';
+import { ShoppingCart, Fuel, Flame, Droplet, Package, Truck, Boxes, Gauge, RefreshCw, CalendarDays, ChevronDown } from 'lucide-react';
 import { KpiCard } from '../components/ui';
 import { apiFetch } from '../api';
 
@@ -438,24 +438,32 @@ function mapToTopCombust(result) {
   const { columns, rows } = result;
   const numCols = columns.filter(c => rows[0][c] !== null && !isNaN(Number(rows[0][c])));
   const txtCols = columns.filter(c => !numCols.includes(c));
-  const nameCol = txtCols.find(c => /nome|descri|produto|item|combusti/i.test(c))
+  const nameCol = txtCols.find(c => /^(nome|descri|produto|item|combusti)/i.test(c))
                || txtCols[txtCols.length - 1] || txtCols[0];
-  const qtyCol  = numCols.find(c => /litros?|volume|lts?|qtd|qty|quant|total/i.test(c)) || numCols[0];
+  const qtyCol  = numCols.find(c => /litros?|volume|lts?|qtd|qty|quant/i.test(c)) || numCols[0];
+  const subCol  = txtCols.find(c => c !== nameCol && /complemento|subtitulo|tipo|descri|obs/i.test(c));
   if (!nameCol || !qtyCol) return [];
   return rows.slice(0, 5).map(r => ({
     name: String(r[nameCol] ?? ''),
     qty:  Number(r[qtyCol]  ?? 0),
+    sub:  subCol ? String(r[subCol] ?? '') : '',
   }));
 }
 
 /* ── Banner Top Combustíveis ────────────────────────────────────────────────── */
-const FUEL_COLORS = ['#ff6b00', '#60a5fa', '#4ade80', '#c084fc', '#f472b6'];
-const FUEL_UNIT_RE = /litros?|volume|lts?/i;
+const FUEL_COLORS = ['#ff6b00', '#0ea5e9', '#10b981', '#8b5cf6', '#f472b6'];
 
-function TopCombustiveisBanner({ dados, loading, unitLabel }) {
+function FuelTypeIcon({ name }) {
+  const n = String(name).toLowerCase();
+  if (/gnv|gas\s*natural|natural\s*veicular/i.test(n)) return <Flame size={18} />;
+  if (/diesel|s10|s500|arla/i.test(n))                 return <Droplet size={18} />;
+  return <Fuel size={18} />;
+}
+
+function TopCombustiveisBanner({ dados, loading }) {
   const n      = dados?.length ?? 0;
   const maxQty = n > 0 ? Math.max(...dados.map(d => d.qty)) : 1;
-  const unit   = unitLabel || 'L';
+  const totQty = n > 0 ? dados.reduce((s, d) => s + d.qty, 0) : 1;
 
   const eyebrow = (
     <div className="tcb-eyebrow">
@@ -491,20 +499,34 @@ function TopCombustiveisBanner({ dados, loading, unitLabel }) {
       {eyebrow}
       <div className="tcb-list">
         {dados.map((item, i) => {
-          const pct   = maxQty > 0 ? (item.qty / maxQty) * 100 : 0;
           const color = FUEL_COLORS[i % FUEL_COLORS.length];
+          const pct   = maxQty > 0 ? (item.qty / maxQty) * 100 : 0;
+          const share = totQty > 0 ? (item.qty / totQty) * 100 : 0;
           return (
-            <div key={i} className="tcb-item">
-              <div className="tcb-rank" style={{ color }}>{i + 1}°</div>
-              <div className="tcb-body">
-                <div className="tcb-name">{item.name}</div>
-                <div className="tcb-bar-row">
-                  <div className="tcb-bar-track">
-                    <div className="tcb-bar-fill" style={{ width: `${pct}%`, background: color }} />
+            <div key={i} className="tcb-card">
+              <div className="tcb-card-left" style={{ background: `linear-gradient(135deg, ${color}44 0%, ${color}11 100%)` }}>
+                <span className="tcb-card-rank" style={{ color }}>{i + 1}°</span>
+                <div className="tcb-card-icon" style={{ borderColor: `${color}80`, background: `${color}22`, color }}>
+                  <FuelTypeIcon name={item.name} />
+                </div>
+              </div>
+              <div className="tcb-card-right">
+                <div className="tcb-card-top">
+                  <div className="tcb-card-info">
+                    <div className="tcb-card-name">{item.name}</div>
+                    {item.sub && <div className="tcb-card-sub">{item.sub}</div>}
                   </div>
-                  <div className="tcb-qty">
-                    {number.format(Math.round(item.qty))} <small>{unit}</small>
+                  <div className="tcb-card-vol">
+                    {number.format(Math.round(item.qty))} <small>L</small>
                   </div>
+                </div>
+                <div className="tcb-card-bar-row">
+                  <div className="tcb-card-track">
+                    <div className="tcb-card-fill" style={{ width: `${pct}%`, background: color }} />
+                  </div>
+                  <span className="tcb-card-pct" style={{ color, borderColor: `${color}55`, background: `${color}18` }}>
+                    {share.toFixed(1)}%
+                  </span>
                 </div>
               </div>
             </div>
