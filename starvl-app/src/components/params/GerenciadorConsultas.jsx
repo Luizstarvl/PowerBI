@@ -9,7 +9,7 @@ import { apiFetch } from '../../api';
 import Portal from '../../Portal';
 
 // ── Constantes ─────────────────────────────────────────────────────────────────
-const CATEGORIAS = ['Dashboard', 'Indicadores', 'Relatórios', 'Cards', 'Gráficos', 'Listagens', 'Outros'];
+const CATEGORIAS = ['Dashboard', 'Cadastros', 'Indicadores', 'Relatórios', 'Cards', 'Gráficos', 'Listagens', 'Outros'];
 
 const DASHBOARD_SLOTS = [
   { value: '',                  label: '— Nenhum —' },
@@ -325,6 +325,26 @@ function ModalQueryForm({ query, conexoes, onSave, onClose }) {
                 </select>
                 <span style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4, display: 'block' }}>
                   Os dados desta consulta substituem os dados padrão do widget selecionado.
+                </span>
+              </div>
+            )}
+
+            {/* Painel de cadastro */}
+            {form.categoria === 'Cadastros' && (
+              <div className="form-field" style={{ margin: 0 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/>
+                  </svg>
+                  Vincular ao painel de cadastro
+                </label>
+                <select value={form.slot} onChange={e => set('slot', e.target.value)} style={{ width: '100%' }}>
+                  <option value="">— Nenhum —</option>
+                  <option value="cadastro_produtos">📦 Tabela — Cadastro de Produtos</option>
+                  <option value="cadastro_clientes">👥 Tabela — Cadastro de Clientes</option>
+                </select>
+                <span style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4, display: 'block' }}>
+                  Os resultados desta consulta serão exibidos como tabela no cadastro selecionado.
                 </span>
               </div>
             )}

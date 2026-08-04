@@ -149,7 +149,7 @@ export default function App() {
           )}
           {visited.has('cadastros') && (
             <div className={`page-slot${page === 'cadastros' ? ' page-active' : ''}`}>
-              <Cadastros />
+              <Cadastros empresas={selectedIds} />
             </div>
           )}
           {visited.has('usuarios') && (
