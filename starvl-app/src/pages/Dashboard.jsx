@@ -53,21 +53,36 @@ function PPSelect({ label, value, onChange, children }) {
 
 /* ── Card seletor de período ────────────────────────────────────────────────── */
 function PeriodPicker({ draft, onChange, onApply, canApply, empresasKey, loading }) {
-  const currentYear = new Date().getFullYear();
+  const now = new Date();
+  const currentYear  = now.getFullYear();
+  const currentMonth = now.getMonth() + 1; // 1-12
   const years = Array.from({ length: 7 }, (_, i) => currentYear - i);
-  const [mesY, mesM] = (draft.mes || `${currentYear}-01`).split('-');
+  const [mesY, mesM] = (draft.mes || `${currentYear}-${String(currentMonth).padStart(2, '0')}`).split('-');
+
+  // No ano atual só faz sentido escolher até o mês corrente (meses futuros
+  // ainda não têm dado nenhum); anos anteriores já estão inteiramente no
+  // passado, então liberam os 12 meses.
+  const isAnoAtual = parseInt(mesY, 10) === currentYear;
+  const maxMes = isAnoAtual ? currentMonth : 12;
+  const mesesDisponiveis = MONTH_NAMES.slice(0, maxMes);
+
+  function handleAnoChange(novoAno) {
+    const anoNum = parseInt(novoAno, 10);
+    const mesClampado = anoNum === currentYear ? Math.min(parseInt(mesM, 10), currentMonth) : parseInt(mesM, 10);
+    onChange({ ...draft, mes: `${novoAno}-${String(mesClampado).padStart(2, '0')}` });
+  }
 
   return (
     <div className="ppv3-card">
       <div className="ppv3-row">
         <PPSelect label="Mês" value={mesM}
           onChange={e => onChange({ ...draft, mes: `${mesY}-${e.target.value}` })}>
-          {MONTH_NAMES.map((name, i) => (
+          {mesesDisponiveis.map((name, i) => (
             <option key={i} value={String(i + 1).padStart(2, '0')}>{name}</option>
           ))}
         </PPSelect>
         <PPSelect label="Ano" value={mesY}
-          onChange={e => onChange({ ...draft, mes: `${e.target.value}-${mesM}` })}>
+          onChange={e => handleAnoChange(e.target.value)}>
           {years.map(y => <option key={y} value={String(y)}>{y}</option>)}
         </PPSelect>
         <button
