@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { RefreshCw, Search, X, Package, DollarSign, AlertTriangle, TrendingUp, Printer, ChevronLeft, ChevronRight, ArrowLeft } from 'lucide-react';
+import { RefreshCw, Search, X, Package, DollarSign, AlertTriangle, TrendingUp, Printer, ChevronLeft, ChevronRight, ArrowLeft, Edit2 } from 'lucide-react';
 import { apiFetch } from '../../api';
 import ProdutoDetalhe from './ProdutoDetalhe';
 
@@ -62,6 +62,30 @@ function EstoqueCell({ value }) {
   );
 }
 
+function CtxProduto({ x, y, onEditar, onClose }) {
+  const ref = React.useRef(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    if (rect.right  > window.innerWidth)  el.style.left = `${x - rect.width}px`;
+    if (rect.bottom > window.innerHeight) el.style.top  = `${y - rect.height}px`;
+  }, [x, y]);
+  useEffect(() => {
+    const close = e => { if (!ref.current?.contains(e.target)) onClose(); };
+    document.addEventListener('mousedown', close);
+    document.addEventListener('contextmenu', close);
+    return () => { document.removeEventListener('mousedown', close); document.removeEventListener('contextmenu', close); };
+  }, [onClose]);
+  return (
+    <div ref={ref} className="pp-ctx" style={{ position: 'fixed', left: x, top: y, zIndex: 9999 }}>
+      <button className="pp-ctx-item" onClick={onEditar}>
+        <Edit2 size={13} /> Alterar Cadastro
+      </button>
+    </div>
+  );
+}
+
 export default function PainelProdutos({ empresasKey, onVoltar }) {
   const [slotQuery,   setSlotQuery]   = useState(undefined);
   const [slotSecoes,  setSlotSecoes]  = useState(null); // query dedicada para SPRO
@@ -81,6 +105,7 @@ export default function PainelProdutos({ empresasKey, onVoltar }) {
   const [pagina,     setPagina]     = useState(1);
   const [pageSize,   setPageSize]   = useState(15);
   const [detalhe,    setDetalhe]    = useState(null);
+  const [ctxMenu,    setCtxMenu]    = useState(null); // {x,y,row}
 
   const empresa = (empresasKey || '').split(',')[0];
   const det = useMemo(() => detectCols(cols), [cols]);
@@ -216,8 +241,9 @@ export default function PainelProdutos({ empresasKey, onVoltar }) {
         String(row[det.barra]  || '').toLowerCase().includes(q)
       );
     }
-    if (secao !== 'Todas' && det.secao)      r = r.filter(row => row[det.secao] === secao);
-    if (grupo !== 'Todos' && det.grupo)      r = r.filter(row => row[det.grupo] === grupo);
+    const norm = s => String(s || '').trim().toLowerCase();
+    if (secao !== 'Todas' && det.secao) r = r.filter(row => norm(row[det.secao]) === norm(secao));
+    if (grupo !== 'Todos' && det.grupo) r = r.filter(row => norm(row[det.grupo]) === norm(grupo));
     if (situacao !== 'Todos' && det.situacao) r = r.filter(row => matchSituacao(row[det.situacao], situacao));
     if (semEstoque && det.estoque) r = r.filter(row => Number(row[det.estoque] || 0) <= 0);
     return r;
@@ -262,16 +288,14 @@ export default function PainelProdutos({ empresasKey, onVoltar }) {
   return (
     <div className="pp-wrap">
 
-      {/* ── Breadcrumb ── */}
-      {onVoltar && (
-        <button className="pp-back" onClick={onVoltar}>
-          <ArrowLeft size={14} /> Cadastros
-        </button>
-      )}
-
       {/* ── Cabeçalho ── */}
       <div className="pp-header">
         <div className="pp-header-left">
+          {onVoltar && (
+            <button className="pp-back" onClick={onVoltar}>
+              <ArrowLeft size={14} /> Cadastros
+            </button>
+          )}
           <h2 className="pp-title">Cadastro de Produtos</h2>
           <p className="pp-subtitle">Conveniência · {empresa || '—'}</p>
         </div>
@@ -389,7 +413,10 @@ export default function PainelProdutos({ empresasKey, onVoltar }) {
                     </td>
                   </tr>
                 ) : pagRows.map((row, i) => (
-                  <tr key={i} className="pp-tr pp-tr--click" onClick={() => setDetalhe(row)}>
+                  <tr key={i} className="pp-tr pp-tr--click"
+                    onClick={() => setDetalhe(row)}
+                    onContextMenu={e => { e.preventDefault(); setCtxMenu({ x: e.clientX, y: e.clientY, row }); }}
+                  >
                     {tabelaCols.map((c, ci) => {
                       const raw = c.calc ? c.calc(row) : row[c.key];
                       return (
@@ -445,12 +472,22 @@ export default function PainelProdutos({ empresasKey, onVoltar }) {
         </div>
       </div>
 
+      {/* ── Modal detalhe ── */}
       {detalhe && (
         <ProdutoDetalhe
           row={detalhe}
           cols={cols}
           empresa={empresa}
           onClose={() => setDetalhe(null)}
+        />
+      )}
+
+      {/* ── Menu de contexto ── */}
+      {ctxMenu && (
+        <CtxProduto
+          x={ctxMenu.x} y={ctxMenu.y}
+          onEditar={() => { setDetalhe(ctxMenu.row); setCtxMenu(null); }}
+          onClose={() => setCtxMenu(null)}
         />
       )}
     </div>

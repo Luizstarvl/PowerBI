@@ -107,7 +107,7 @@ export default function ProdutoDetalhe({ row, cols, empresa, onClose }) {
 
   return (
     <div className="pd-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="pd-drawer">
+      <div className="pd-modal">
 
         {/* ── Cabeçalho ── */}
         <div className="pd-head">

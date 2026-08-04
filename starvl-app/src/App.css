@@ -2915,24 +2915,44 @@ select.themed-select option {
 .spin { animation: spin 0.9s linear infinite; }
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
-/* ── ProdutoDetalhe — Drawer lateral ─────────────────────────────────────── */
+/* ── ProdutoDetalhe — Modal centrado ─────────────────────────────────────── */
 .pd-overlay {
   position: fixed; inset: 0; z-index: 1000;
-  background: rgba(0,0,0,.55);
-  display: flex; justify-content: flex-end;
+  background: rgba(0,0,0,.6);
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
   animation: pd-fade-in .18s ease;
 }
 @keyframes pd-fade-in { from { opacity: 0; } to { opacity: 1; } }
 
-.pd-drawer {
-  width: 420px; max-width: 95vw; height: 100%;
+.pd-modal {
+  width: 100%; max-width: 680px;
+  max-height: min(88vh, 820px);
   background: var(--color-surface);
-  border-left: 1px solid var(--color-border);
+  border: 1px solid var(--color-border);
+  border-radius: 18px;
   display: flex; flex-direction: column;
-  animation: pd-slide-in .22s ease;
+  animation: pd-pop-in .2s ease;
   overflow: hidden;
+  box-shadow: 0 24px 80px rgba(0,0,0,.35);
 }
-@keyframes pd-slide-in { from { transform: translateX(100%); } to { transform: translateX(0); } }
+@keyframes pd-pop-in { from { opacity: 0; transform: scale(.96) translateY(12px); } to { opacity: 1; transform: none; } }
+
+/* Menu de contexto nas linhas */
+.pp-ctx {
+  background: var(--color-surface); border: 1px solid var(--color-border);
+  border-radius: 10px; padding: 4px;
+  box-shadow: 0 8px 32px rgba(0,0,0,.25);
+  min-width: 170px;
+}
+.pp-ctx-item {
+  display: flex; align-items: center; gap: 9px;
+  width: 100%; padding: 8px 12px; border-radius: 7px;
+  background: none; border: none; cursor: pointer;
+  font-size: 13px; font-weight: 500; color: var(--color-text);
+  text-align: left; transition: background .1s;
+}
+.pp-ctx-item:hover { background: color-mix(in srgb, var(--color-primary) 10%, transparent); color: var(--color-primary); }
 
 /* Cabeçalho */
 .pd-head {
@@ -2950,11 +2970,19 @@ select.themed-select option {
 }
 .pd-close:hover { background: rgba(128,128,128,.12); color: var(--color-text); }
 
-/* Corpo rolável */
+/* Corpo rolável — duas colunas no modal */
 .pd-body {
-  flex: 1; overflow-y: auto; padding: 20px;
-  display: flex; flex-direction: column; gap: 16px;
+  flex: 1; overflow-y: auto; padding: 20px 24px;
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  gap: 16px 24px;
+  align-content: start;
 }
+/* Itens que ocupam toda a largura */
+.pd-section-title,
+.pd-extra-field,
+.pd-loading { grid-column: 1 / -1; }
+.pd-fields { grid-column: 2; }
 
 /* Foto */
 .pd-foto-area { display: flex; flex-direction: column; align-items: center; gap: 8px; }
