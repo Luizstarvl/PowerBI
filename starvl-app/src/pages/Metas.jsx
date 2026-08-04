@@ -1,7 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Target, TrendingUp, Zap, Flag } from 'lucide-react';
+import { Printer } from 'lucide-react';
 import MetaFormModal  from '../components/metas/MetaFormModal';
+import MetaForm        from '../components/metas/MetaForm';
 import MetaDetailModal from '../components/metas/MetaDetailModal';
+import VisaoGeral       from '../components/metas/VisaoGeral';
+import { fmtBRL, fmtPeriodo, StatusBadge, BarraPercentual } from '../components/metas/MetasShared';
 import {
   TIPOS_META, STATUS_META, CATEGORIAS_META,
   INDICADORES_POR_CATEGORIA, indicadorLabel,
@@ -9,18 +12,11 @@ import {
 
 import { apiFetch } from '../api';
 
-/* ── Formatadores ──────────────────────────────────────────────────────────── */
-const fmtBRL = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2 });
-
-function fmtPeriodo(dateStr) {
-  if (!dateStr) return '—';
-  try {
-    const d = new Date(dateStr);
-    const mes  = d.toLocaleDateString('pt-BR', { month: 'short', timeZone: 'UTC' });
-    const ano  = d.getUTCFullYear();
-    return `${mes.charAt(0).toUpperCase() + mes.slice(1).replace('.', '')}/${ano}`;
-  } catch { return '—'; }
-}
+const TABS = [
+  { key: 'visao-geral', label: 'Visão Geral' },
+  { key: 'todas-metas', label: 'Todas as Metas' },
+  { key: 'criar-meta',  label: 'Criar Meta' },
+];
 
 /* ── Opções de filtro ──────────────────────────────────────────────────────── */
 const TIPO_OPTS = [
@@ -48,68 +44,6 @@ const MES_OPTS = mesOpts();
 const PER_PAGE_OPTS = [10, 25, 50, 100];
 
 const FILTRO_VAZIO = { tipo: '', indicador: '', categoria: '', ano: '', mes: '', status: '', responsavel: '' };
-
-/* ── StatusBadge ───────────────────────────────────────────────────────────── */
-const STATUS_CFG = {
-  'Concluída':    { dot: '#22C55E', bg: 'rgba(34,197,94,.10)',   text: '#16A34A', label: 'Atingida'       },
-  'Em andamento': { dot: '#F59E0B', bg: 'rgba(245,158,11,.10)',  text: '#B45309', label: 'Em andamento'   },
-  'Não iniciada': { dot: '#94A3B8', bg: 'rgba(148,163,184,.10)', text: '#64748B', label: 'Não iniciada'   },
-  'Atrasada':     { dot: '#EF4444', bg: 'rgba(239,68,68,.10)',   text: '#DC2626', label: 'Abaixo da meta' },
-  'Cancelada':    { dot: '#6B7280', bg: 'rgba(107,114,128,.10)', text: '#4B5563', label: 'Cancelada'      },
-};
-
-function StatusBadge({ status }) {
-  const cfg = STATUS_CFG[status] || STATUS_CFG['Não iniciada'];
-  return (
-    <span style={{
-      display: 'inline-flex', alignItems: 'center', gap: 5,
-      background: cfg.bg, color: cfg.text,
-      padding: '3px 9px', borderRadius: 20, fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap',
-    }}>
-      <span style={{ width: 6, height: 6, borderRadius: '50%', background: cfg.dot, flexShrink: 0 }} />
-      {cfg.label}
-    </span>
-  );
-}
-
-/* ── BarraPercentual ───────────────────────────────────────────────────────── */
-function BarraPercentual({ pct }) {
-  const clamped = Math.min(pct, 100);
-  const cor = pct >= 100 ? '#22C55E' : pct >= 75 ? '#F59E0B' : '#EF4444';
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 100 }}>
-      <div style={{ flex: 1, height: 5, background: 'var(--border, rgba(255,255,255,.1))', borderRadius: 4, overflow: 'hidden' }}>
-        <div style={{ width: `${clamped}%`, height: '100%', background: cor, borderRadius: 4, transition: 'width .3s' }} />
-      </div>
-      <span style={{ fontSize: 12, fontWeight: 700, color: cor, minWidth: 38, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-        {pct.toFixed(1)}%
-      </span>
-    </div>
-  );
-}
-
-/* ── KPI Card ──────────────────────────────────────────────────────────────── */
-function KpiMeta({ icon: Icon, label, value, sub, progress }) {
-  return (
-    <div className="mgt-kpi-card">
-      <div className="kpi-card-icon">
-        {Icon && <Icon size={18} strokeWidth={2} />}
-      </div>
-      <div className="mgt-kpi-content">
-        <div className="mgt-kpi-label">{label}</div>
-        <div className="mgt-kpi-value">{value}</div>
-        {progress != null && (
-          <div style={{ marginTop: 6 }}>
-            <div style={{ height: 4, background: 'var(--color-border)', borderRadius: 4, overflow: 'hidden' }}>
-              <div style={{ width: `${Math.min(progress, 100)}%`, height: '100%', background: 'var(--color-primary)', borderRadius: 4, transition: 'width .4s' }} />
-            </div>
-          </div>
-        )}
-        <div className="mgt-kpi-sub">{sub}</div>
-      </div>
-    </div>
-  );
-}
 
 /* ── Context Menu Ações ────────────────────────────────────────────────────── */
 function AcoesMenu({ meta, onVer, onEditar, onExcluir, onClose }) {
@@ -145,6 +79,8 @@ export default function Metas({ empresa, empresaNome, user, onNavigate }) {
   const isAdmin    = user?.perfil === 'admin';
   const canEdit    = isAdmin || user?.permissoes?.modo === 'completo';
   const currentUser = user?.nome || user?.usuario || '';
+
+  const [tab, setTab] = useState('visao-geral');
 
   /* estado de filtros — pending (editando) vs aplicado (busca ativa) */
   const [pending,  setPending]  = useState({ ...FILTRO_VAZIO });
@@ -244,6 +180,16 @@ export default function Metas({ empresa, empresaNome, user, onNavigate }) {
     await abrirDetalhe(detailMeta);
   }
 
+  /* aba "Criar Meta" — sempre cria (não edita), volta pra "Todas as Metas" ao salvar */
+  async function handleSalvarNovaMeta(form) {
+    const payload = { ...form, empresaId: empresa, usuario: currentUser };
+    const res  = await apiFetch('/api/metas', { method: 'POST', body: JSON.stringify(payload) });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Erro ao salvar.');
+    carregar();
+    setTab('todas-metas');
+  }
+
   function handleExportar() {
     const cabecalho = ['Empresa','Posto','Indicador','Meta','Realizado','%','Responsável','Status','Período'];
     const linhas = lista.data.map(m => [
@@ -279,25 +225,16 @@ export default function Metas({ empresa, empresaNome, user, onNavigate }) {
     return start + i;
   }).filter(p => p >= 1 && p <= lista.totalPages);
 
-  /* ── metas ativas = total excluindo canceladas e concluídas */
-  const metasAtivas = kpis
-    ? (kpis.total || 0) - (kpis.canceladas || 0) - (kpis.concluidas || 0)
-    : null;
-
   return (
     <main className="dashboard">
 
       {/* ── Header ─────────────────────────────────────────────────────── */}
       <div className="mgt-header">
         <div>
-          <h2 className="mgt-title">Gerenciamento de Metas</h2>
-          <p className="mgt-subtitle">Acompanhe o desempenho das metas e alcance melhores resultados.</p>
+          <h2 className="mgt-title">🎯 Gestão de Metas</h2>
+          <p className="mgt-subtitle">Crie, acompanhe e gerencie as metas financeiras da sua empresa.</p>
         </div>
         <div className="mgt-header-btns">
-          <button className="mgt-btn-export" onClick={handleExportar}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            Exportar
-          </button>
           {canEdit && (
             <button className="btn-primary" onClick={() => { setEditingMeta(null); setFormOpen(true); }}>
               + Nova Meta
@@ -306,191 +243,197 @@ export default function Metas({ empresa, empresaNome, user, onNavigate }) {
         </div>
       </div>
 
+      {/* ── Abas ───────────────────────────────────────────────────────── */}
+      <div className="usr-tabnav mgt-tabnav">
+        {TABS.map(t => (
+          <button key={t.key} className={`usr-tab${tab === t.key ? ' active' : ''}`} onClick={() => setTab(t.key)}>
+            {t.label}
+          </button>
+        ))}
+        <div className="mgt-tabnav-spacer" />
+        <button className="mgt-btn-export mgt-btn-imprimir" onClick={() => window.print()}>
+          <Printer size={14} /> Imprimir
+        </button>
+      </div>
+
       {!empresa ? (
         <div className="metas-empty-state">
           <p>Selecione uma empresa para visualizar as metas.</p>
         </div>
       ) : (
         <>
-          {/* ── KPI Cards ──────────────────────────────────────────────── */}
-          <div className="mgt-kpi-grid">
-            <KpiMeta
-              icon={Target}
-              label="META TOTAL"
-              value={kpis ? fmtBRL.format(kpis.valorTotalMetas || 0) : '—'}
-              sub="Total das metas no período"
-            />
-            <KpiMeta
-              icon={TrendingUp}
-              label="REALIZADO"
-              value={kpis ? fmtBRL.format(kpis.valorTotalAtual || 0) : '—'}
-              sub="Total realizado no período"
-            />
-            <KpiMeta
-              icon={Zap}
-              label="ATINGIMENTO"
-              value={kpis ? `${(kpis.mediaCumprimento || 0).toFixed(1)}%` : '—'}
-              progress={kpis?.mediaCumprimento}
-              sub="Percentual de atingimento"
-            />
-            <KpiMeta
-              icon={Flag}
-              label="METAS ATIVAS"
-              value={metasAtivas != null ? String(metasAtivas) : '—'}
-              sub="Total de metas ativas"
-            />
-          </div>
+          {tab === 'visao-geral' && (
+            <VisaoGeral empresa={empresa} empresaNome={empresaNome} kpis={kpis} onOpenDetalhe={abrirDetalhe} />
+          )}
 
-          {/* ── Filtros ────────────────────────────────────────────────── */}
-          <div className="mgt-filter-card">
-            <div className="mgt-filter-row">
-
-              <div className="mgt-filter-group">
-                <label>Empresa</label>
-                <select value="" disabled>
-                  <option>{empresaNome || 'Empresa'}</option>
-                </select>
+          {tab === 'todas-metas' && (
+            <>
+              <div className="mgt-header mgt-header--sub">
+                <button className="mgt-btn-export" onClick={handleExportar}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                  Exportar
+                </button>
               </div>
 
-              <div className="mgt-filter-group">
-                <label>Posto / Tipo</label>
-                <select value={pending.tipo} onChange={e => setPending(p => ({ ...p, tipo: e.target.value }))}>
-                  {TIPO_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                </select>
-              </div>
+              {/* ── Filtros ────────────────────────────────────────────── */}
+              <div className="mgt-filter-card">
+                <div className="mgt-filter-row">
 
-              <div className="mgt-filter-group">
-                <label>Categoria</label>
-                <select value={pending.categoria} onChange={e => setPending(p => ({ ...p, categoria: e.target.value, indicador: '' }))}>
-                  {CATEGORIA_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                </select>
-              </div>
+                  <div className="mgt-filter-group">
+                    <label>Empresa</label>
+                    <select value="" disabled>
+                      <option>{empresaNome || 'Empresa'}</option>
+                    </select>
+                  </div>
 
-              <div className="mgt-filter-group">
-                <label>Indicador</label>
-                <select value={pending.indicador} onChange={e => setPending(p => ({ ...p, indicador: e.target.value }))} disabled={!pending.categoria}>
-                  {indicOpts.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                </select>
-              </div>
+                  <div className="mgt-filter-group">
+                    <label>Posto / Tipo</label>
+                    <select value={pending.tipo} onChange={e => setPending(p => ({ ...p, tipo: e.target.value }))}>
+                      {TIPO_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>
+                  </div>
 
-              <div className="mgt-filter-group mgt-filter-group--sm">
-                <label>Ano</label>
-                <select value={pending.ano} onChange={e => setPending(p => ({ ...p, ano: e.target.value }))}>
-                  {ANO_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                </select>
-              </div>
+                  <div className="mgt-filter-group">
+                    <label>Categoria</label>
+                    <select value={pending.categoria} onChange={e => setPending(p => ({ ...p, categoria: e.target.value, indicador: '' }))}>
+                      {CATEGORIA_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>
+                  </div>
 
-              <div className="mgt-filter-group mgt-filter-group--sm">
-                <label>Mês</label>
-                <select value={pending.mes} onChange={e => setPending(p => ({ ...p, mes: e.target.value }))}>
-                  {MES_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                </select>
-              </div>
+                  <div className="mgt-filter-group">
+                    <label>Indicador</label>
+                    <select value={pending.indicador} onChange={e => setPending(p => ({ ...p, indicador: e.target.value }))} disabled={!pending.categoria}>
+                      {indicOpts.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>
+                  </div>
 
-              <div className="mgt-filter-group">
-                <label>Status</label>
-                <select value={pending.status} onChange={e => setPending(p => ({ ...p, status: e.target.value }))}>
-                  {STATUS_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                </select>
-              </div>
+                  <div className="mgt-filter-group mgt-filter-group--sm">
+                    <label>Ano</label>
+                    <select value={pending.ano} onChange={e => setPending(p => ({ ...p, ano: e.target.value }))}>
+                      {ANO_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>
+                  </div>
 
-              <div className="mgt-filter-group">
-                <label>Responsável</label>
-                <input
-                  type="text"
-                  placeholder="Todos"
-                  value={pending.responsavel}
-                  onChange={e => setPending(p => ({ ...p, responsavel: e.target.value }))}
-                />
-              </div>
+                  <div className="mgt-filter-group mgt-filter-group--sm">
+                    <label>Mês</label>
+                    <select value={pending.mes} onChange={e => setPending(p => ({ ...p, mes: e.target.value }))}>
+                      {MES_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>
+                  </div>
 
-            </div>
-            <div className="mgt-filter-actions">
-              <button className="mgt-btn-limpar" onClick={limparFiltros}>
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.73"/></svg>
-                Limpar
-              </button>
-              <button className="mgt-btn-aplicar" onClick={aplicarFiltros}>
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="6" x2="2" y2="6"/><line x1="17" y1="12" x2="7" y2="12"/><line x1="12" y1="18" x2="12" y2="18" strokeWidth="3" strokeLinecap="round"/></svg>
-                Aplicar filtros
-              </button>
-            </div>
-          </div>
+                  <div className="mgt-filter-group">
+                    <label>Status</label>
+                    <select value={pending.status} onChange={e => setPending(p => ({ ...p, status: e.target.value }))}>
+                      {STATUS_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>
+                  </div>
 
-          {/* ── Tabela ─────────────────────────────────────────────────── */}
-          <div className="mgt-table-card">
-            <div className="mgt-table-wrap">
-              {loading ? (
-                <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--text-muted, #6B7280)', fontSize: 14 }}>Carregando…</div>
-              ) : (
-                <table className="mgt-table">
-                  <thead>
-                    <tr>
-                      <th>EMPRESA</th>
-                      <th>POSTO</th>
-                      <th>INDICADOR</th>
-                      <th style={{ textAlign: 'right' }}>META (R$)</th>
-                      <th style={{ textAlign: 'right' }}>REALIZADO (R$)</th>
-                      <th style={{ minWidth: 140 }}>%</th>
-                      <th>RESPONSÁVEL</th>
-                      <th>STATUS</th>
-                      <th>PERÍODO</th>
-                      <th style={{ textAlign: 'center', width: 52 }}>AÇÕES</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {lista.data.length === 0 ? (
-                      <tr>
-                        <td colSpan={10} style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted, #6B7280)', fontSize: 14 }}>
-                          Nenhuma meta encontrada
-                        </td>
-                      </tr>
-                    ) : lista.data.map(m => (
-                      <tr key={m.id} className="mgt-tr" onDoubleClick={() => abrirDetalhe(m)}>
-                        <td className="mgt-td-empresa">{empresaNome || '—'}</td>
-                        <td className="mgt-td-ref">{m.referencia || m.tipo || '—'}</td>
-                        <td className="mgt-td-indicador">{indicadorLabel(m.categoria, m.indicador)}</td>
-                        <td className="mgt-td-num">{fmtBRL.format(m.valorMeta)}</td>
-                        <td className="mgt-td-num">{fmtBRL.format(m.valorAtual)}</td>
-                        <td><BarraPercentual pct={m.percentual} /></td>
-                        <td className="mgt-td-resp">{m.responsavel || '—'}</td>
-                        <td><StatusBadge status={m.status} /></td>
-                        <td className="mgt-td-periodo">{fmtPeriodo(m.dataFinal)}</td>
-                        <td style={{ textAlign: 'center' }}>
-                          <button className="mgt-acoes-btn" onClick={e => openAcoes(e, m)} title="Ações">
-                            <span>⋮</span>
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
+                  <div className="mgt-filter-group">
+                    <label>Responsável</label>
+                    <input
+                      type="text"
+                      placeholder="Todos"
+                      value={pending.responsavel}
+                      onChange={e => setPending(p => ({ ...p, responsavel: e.target.value }))}
+                    />
+                  </div>
 
-            {/* ── Paginação ────────────────────────────────────────────── */}
-            {lista.total > 0 && (
-              <div className="mgt-pagination">
-                <span className="mgt-pag-info">
-                  Mostrando {from} a {to} de {lista.total} registros
-                </span>
-                <div className="mgt-pag-btns">
-                  <button className="mgt-pag-btn" onClick={() => setPage(1)}  disabled={page <= 1}>«</button>
-                  <button className="mgt-pag-btn" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page <= 1}>‹</button>
-                  {pages.map(p => (
-                    <button key={p} className={`mgt-pag-btn${p === page ? ' active' : ''}`} onClick={() => setPage(p)}>{p}</button>
-                  ))}
-                  <button className="mgt-pag-btn" onClick={() => setPage(p => Math.min(lista.totalPages, p + 1))} disabled={page >= lista.totalPages}>›</button>
-                  <button className="mgt-pag-btn" onClick={() => setPage(lista.totalPages)} disabled={page >= lista.totalPages}>»</button>
                 </div>
-                <div className="mgt-pag-perpage">
-                  <select value={perPage} onChange={e => { setPerPage(Number(e.target.value)); setPage(1); }}>
-                    {PER_PAGE_OPTS.map(n => <option key={n} value={n}>{n} por página</option>)}
-                  </select>
+                <div className="mgt-filter-actions">
+                  <button className="mgt-btn-limpar" onClick={limparFiltros}>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.73"/></svg>
+                    Limpar
+                  </button>
+                  <button className="mgt-btn-aplicar" onClick={aplicarFiltros}>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="6" x2="2" y2="6"/><line x1="17" y1="12" x2="7" y2="12"/><line x1="12" y1="18" x2="12" y2="18" strokeWidth="3" strokeLinecap="round"/></svg>
+                    Aplicar filtros
+                  </button>
                 </div>
               </div>
-            )}
-          </div>
+
+              {/* ── Tabela ─────────────────────────────────────────────── */}
+              <div className="mgt-table-card">
+                <div className="mgt-table-wrap">
+                  {loading ? (
+                    <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--text-muted, #6B7280)', fontSize: 14 }}>Carregando…</div>
+                  ) : (
+                    <table className="mgt-table">
+                      <thead>
+                        <tr>
+                          <th>EMPRESA</th>
+                          <th>POSTO</th>
+                          <th>INDICADOR</th>
+                          <th style={{ textAlign: 'right' }}>META (R$)</th>
+                          <th style={{ textAlign: 'right' }}>REALIZADO (R$)</th>
+                          <th style={{ minWidth: 140 }}>%</th>
+                          <th>RESPONSÁVEL</th>
+                          <th>STATUS</th>
+                          <th>PERÍODO</th>
+                          <th style={{ textAlign: 'center', width: 52 }}>AÇÕES</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {lista.data.length === 0 ? (
+                          <tr>
+                            <td colSpan={10} style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted, #6B7280)', fontSize: 14 }}>
+                              Nenhuma meta encontrada
+                            </td>
+                          </tr>
+                        ) : lista.data.map(m => (
+                          <tr key={m.id} className="mgt-tr" onDoubleClick={() => abrirDetalhe(m)}>
+                            <td className="mgt-td-empresa">{empresaNome || '—'}</td>
+                            <td className="mgt-td-ref">{m.referencia || m.tipo || '—'}</td>
+                            <td className="mgt-td-indicador">{indicadorLabel(m.categoria, m.indicador)}</td>
+                            <td className="mgt-td-num">{fmtBRL.format(m.valorMeta)}</td>
+                            <td className="mgt-td-num">{fmtBRL.format(m.valorAtual)}</td>
+                            <td><BarraPercentual pct={m.percentual} /></td>
+                            <td className="mgt-td-resp">{m.responsavel || '—'}</td>
+                            <td><StatusBadge status={m.status} /></td>
+                            <td className="mgt-td-periodo">{fmtPeriodo(m.dataFinal)}</td>
+                            <td style={{ textAlign: 'center' }}>
+                              <button className="mgt-acoes-btn" onClick={e => openAcoes(e, m)} title="Ações">
+                                <span>⋮</span>
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+
+                {/* ── Paginação ──────────────────────────────────────────── */}
+                {lista.total > 0 && (
+                  <div className="mgt-pagination">
+                    <span className="mgt-pag-info">
+                      Mostrando {from} a {to} de {lista.total} registros
+                    </span>
+                    <div className="mgt-pag-btns">
+                      <button className="mgt-pag-btn" onClick={() => setPage(1)}  disabled={page <= 1}>«</button>
+                      <button className="mgt-pag-btn" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page <= 1}>‹</button>
+                      {pages.map(p => (
+                        <button key={p} className={`mgt-pag-btn${p === page ? ' active' : ''}`} onClick={() => setPage(p)}>{p}</button>
+                      ))}
+                      <button className="mgt-pag-btn" onClick={() => setPage(p => Math.min(lista.totalPages, p + 1))} disabled={page >= lista.totalPages}>›</button>
+                      <button className="mgt-pag-btn" onClick={() => setPage(lista.totalPages)} disabled={page >= lista.totalPages}>»</button>
+                    </div>
+                    <div className="mgt-pag-perpage">
+                      <select value={perPage} onChange={e => { setPerPage(Number(e.target.value)); setPage(1); }}>
+                        {PER_PAGE_OPTS.map(n => <option key={n} value={n}>{n} por página</option>)}
+                      </select>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+
+          {tab === 'criar-meta' && (
+            <div className="mgt-filter-card mgt-criar-meta-card">
+              <h3 className="mgt-table-card-title">Nova meta</h3>
+              <MetaForm onSave={handleSalvarNovaMeta} submitLabel="Criar meta" />
+            </div>
+          )}
         </>
       )}
 

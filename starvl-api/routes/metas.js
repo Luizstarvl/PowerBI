@@ -245,8 +245,18 @@ router.get('/resumo', async (req, res) => {
     const concluidas = computed.filter(m => m.status === 'Concluída').length;
     const andamento  = computed.filter(m => m.status === 'Em andamento').length;
     const atrasadas  = computed.filter(m => m.status === 'Atrasada').length;
+    const canceladas = computed.filter(m => m.status === 'Cancelada').length;
+    const ativas     = total - canceladas - concluidas;
     const media      = total ? Math.round((computed.reduce((s, m) => s + m.percentual, 0) / total) * 10) / 10 : 0;
     const ordenadas  = [...computed].sort((a, b) => b.percentual - a.percentual);
+
+    // "Vence hoje": prazo é hoje e a meta ainda não terminou (nem concluída
+    // nem cancelada) — mesma comparação em dia UTC usada no resto do arquivo.
+    const hojeUTCDia = toDiaUTC(new Date());
+    const venceHoje = rows.filter((r, i) => {
+      const st = computed[i].status;
+      return st !== 'Concluída' && st !== 'Cancelada' && toDiaUTC(r.sm_data_final) === hojeUTCDia;
+    }).length;
 
     const valorTotalMetas = rows.reduce((s, r) => s + (parseFloat(r.sm_valor_meta) || 0), 0);
     const valorTotalAtual = rows.reduce((s, r) => s + parseFloat(r.valor_atual || 0), 0);
@@ -279,7 +289,7 @@ router.get('/resumo', async (req, res) => {
     };
 
     res.json({
-      total, concluidas, emAndamento: andamento, atrasadas,
+      total, concluidas, emAndamento: andamento, atrasadas, canceladas, ativas, venceHoje,
       mediaCumprimento: media,
       valorTotalMetas, valorTotalAtual,
       melhorDesempenho: ordenadas[0] || null,
@@ -289,6 +299,67 @@ router.get('/resumo', async (req, res) => {
   } catch (err) {
     console.error('GET /metas/resumo:', err.message);
     res.status(500).json({ error: 'Erro ao calcular resumo.' });
+  }
+});
+
+// ── GET /api/metas/categorias — distribuição por categoria (valor + %) ─────
+router.get('/categorias', async (req, res) => {
+  const empresa = parseInt(req.query.empresa);
+  if (!empresa) return res.status(400).json({ error: 'empresa é obrigatório.' });
+  try {
+    const { rows } = await pool.query(
+      `${SELECT_COM_VALOR} WHERE m.sm_empresa_id = $1 GROUP BY m.sm_id`, [empresa]
+    );
+    const grupos = {};
+    rows.forEach(r => {
+      const cat = r.sm_categoria;
+      if (!grupos[cat]) grupos[cat] = { categoria: cat, valorAtual: 0, totalMetas: 0 };
+      grupos[cat].valorAtual += parseFloat(r.valor_atual || 0);
+      grupos[cat].totalMetas += 1;
+    });
+    const lista = Object.values(grupos);
+    const somaTotal = lista.reduce((s, g) => s + g.valorAtual, 0);
+    res.json(lista
+      .map(g => ({ ...g, percentual: somaTotal > 0 ? Math.round((g.valorAtual / somaTotal) * 1000) / 10 : 0 }))
+      .sort((a, b) => b.valorAtual - a.valorAtual));
+  } catch (err) {
+    console.error('GET /metas/categorias:', err.message);
+    res.status(500).json({ error: 'Erro ao calcular categorias.' });
+  }
+});
+
+// ── GET /api/metas/progresso-mensal — meta/alcançado/previsto por mês ──────
+// "Previsto" é uma projeção de ritmo linear (valor total das metas do ano
+// dividido igualmente pelos 12 meses) — não é um valor cadastrado por
+// ninguém, é só uma referência visual de "ritmo esperado se o progresso
+// fosse constante ao longo do ano".
+router.get('/progresso-mensal', async (req, res) => {
+  const empresa = parseInt(req.query.empresa);
+  const ano = parseInt(req.query.ano) || new Date().getFullYear();
+  if (!empresa) return res.status(400).json({ error: 'empresa é obrigatório.' });
+  try {
+    const { rows } = await pool.query(
+      `${SELECT_COM_VALOR} WHERE m.sm_empresa_id = $1 AND EXTRACT(YEAR FROM m.sm_data_final) = $2 GROUP BY m.sm_id`,
+      [empresa, ano]
+    );
+    const porMes = Array.from({ length: 12 }, () => ({ meta: 0, alcancado: 0 }));
+    rows.forEach(r => {
+      const mesIdx = new Date(r.sm_data_final).getUTCMonth(); // 0-11, coluna DATE vem ancorada em UTC
+      porMes[mesIdx].meta      += parseFloat(r.sm_valor_meta || 0);
+      porMes[mesIdx].alcancado += parseFloat(r.valor_atual   || 0);
+    });
+    const valorTotalAno = porMes.reduce((s, m) => s + m.meta, 0);
+    const NOMES_MES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+    res.json(porMes.map((m, i) => ({
+      mes: i + 1,
+      mesLabel: NOMES_MES[i],
+      meta:      Math.round(m.meta * 100) / 100,
+      alcancado: Math.round(m.alcancado * 100) / 100,
+      previsto:  Math.round(valorTotalAno * ((i + 1) / 12) * 100) / 100,
+    })));
+  } catch (err) {
+    console.error('GET /metas/progresso-mensal:', err.message);
+    res.status(500).json({ error: 'Erro ao calcular progresso mensal.' });
   }
 });
 

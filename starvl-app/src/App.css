@@ -1946,6 +1946,12 @@ select.themed-select option {
 .mgt-title   { font-size: 20px; font-weight: 800; color: var(--color-text, var(--text)); letter-spacing: -.01em; }
 .mgt-subtitle { font-size: 13px; color: var(--color-text-muted, var(--text-muted)); margin-top: 2px; }
 .mgt-header-btns { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.mgt-header--sub { justify-content: flex-end; margin-bottom: 14px; }
+
+/* Abas (Visão Geral / Todas as Metas / Criar Meta) + Imprimir */
+.mgt-tabnav { align-items: center; margin-bottom: 20px; }
+.mgt-tabnav-spacer { flex: 1; }
+.mgt-btn-imprimir { align-self: center; }
 
 /* Botão exportar */
 .mgt-btn-export {
@@ -1964,6 +1970,11 @@ select.themed-select option {
 }
 @media (max-width: 900px) { .mgt-kpi-grid { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 540px) { .mgt-kpi-grid { grid-template-columns: 1fr; } }
+
+.mgt-kpi-grid--6 { grid-template-columns: repeat(6, 1fr); }
+@media (max-width: 1180px) { .mgt-kpi-grid--6 { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 640px)  { .mgt-kpi-grid--6 { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 420px)  { .mgt-kpi-grid--6 { grid-template-columns: 1fr; } }
 
 .mgt-kpi-card {
   display: flex; align-items: flex-start; gap: 14px;
@@ -2123,6 +2134,26 @@ select.themed-select option {
   .mgt-filter-actions { padding-top: 4px; width: 100%; justify-content: flex-end; }
   .mgt-pagination { flex-direction: column; align-items: flex-start; }
 }
+
+/* ── Visão Geral: gráficos lado a lado + donut ───────────────────────────────── */
+.mgt-charts-row { display: grid; grid-template-columns: 1.5fr 1fr; gap: 20px; margin-bottom: 20px; }
+@media (max-width: 1000px) { .mgt-charts-row { grid-template-columns: 1fr; } }
+
+.mgt-donut-wrap { position: relative; }
+.mgt-donut-center {
+  position: absolute; top: 96px; left: 50%; transform: translate(-50%, -50%);
+  display: flex; flex-direction: column; align-items: center; pointer-events: none;
+}
+.mgt-donut-center-value { font-size: 26px; font-weight: 800; color: var(--color-text); line-height: 1; }
+.mgt-donut-center-label { font-size: 11px; color: var(--color-text-muted); margin-top: 3px; }
+.mgt-donut-legend { display: flex; flex-direction: column; gap: 9px; margin-top: 14px; }
+.mgt-donut-legend-item { display: flex; align-items: center; gap: 8px; font-size: 12.5px; }
+.mgt-donut-legend-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.mgt-donut-legend-nome { color: var(--color-text); font-weight: 600; flex: 1; }
+.mgt-donut-legend-valor { color: var(--color-text-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+.mgt-table-card-title { font-size: 15px; font-weight: 700; color: var(--color-text); padding: 18px 20px 4px; }
+.mgt-criar-meta-card { max-width: 900px; }
 
 /* ── Top Produtos Banner ─────────────────────────────────────────────────────── */
 .tpb-root {
