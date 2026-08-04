@@ -12,7 +12,7 @@ export default function FooterStatus() {
           </span>
         ))}
       </div>
-      <span className="login-footer-copy">© {new Date().getFullYear()} Horse Technology</span>
+      <span className="login-footer-copy">© {new Date().getFullYear()} Eclipse Technology</span>
     </div>
   );
 }

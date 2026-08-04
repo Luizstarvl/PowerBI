@@ -256,7 +256,7 @@ tr:last-child td { border-bottom: none; }
 <div class="preview-wrap">
 <div class="report-header">
   <div class="report-brand">
-    <span class="report-brand-name">Horse · Sistema de Gestão de Postos</span>
+    <span class="report-brand-name">Eclipse · Sistema de Gestão de Postos</span>
     <span class="report-title">${titulo}</span>
   </div>
   <div class="report-meta">
@@ -277,7 +277,7 @@ ${filtroTags ? `<div class="filters-row"><span class="filters-label">Filtros apl
 </table>
 
 <div class="report-footer">
-  <span class="report-footer-left">Horse - Sistema de Gestão de Postos · ${empresa}</span>
+  <span class="report-footer-left">Eclipse · Sistema de Gestão de Postos · ${empresa}</span>
   <span class="report-footer-right">Gerado em ${now}</span>
 </div>
 </div>
