@@ -79,7 +79,7 @@ function ModalHistorico({ queryId, queryNome, onClose }) {
 
   return (
     <div className="modal-overlay" onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="modal modal-lg" style={{ maxWidth: 860, maxHeight: '90vh', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
+      <div className="modal modal-lg" style={{ maxWidth: 860, height: '85vh', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
         <h3 className="modal-title">Histórico de Versões — {queryNome}</h3>
         <div className="modal-body" style={{ display: 'flex', gap: 16, flex: 1, overflow: 'hidden', padding: 0 }}>
           {/* Lista */}
