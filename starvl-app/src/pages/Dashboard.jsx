@@ -453,10 +453,7 @@ function mapToTopCombust(result) {
 /* ── Banner Top Combustíveis ────────────────────────────────────────────────── */
 const FUEL_COLORS = ['#ff6b00', '#0ea5e9', '#10b981', '#8b5cf6', '#f472b6'];
 
-function FuelTypeIcon({ name }) {
-  const n = String(name).toLowerCase();
-  if (/gnv|gas\s*natural|natural\s*veicular/i.test(n)) return <Flame size={18} />;
-  if (/diesel|s10|s500|arla/i.test(n))                 return <Droplet size={18} />;
+function FuelTypeIcon() {
   return <Fuel size={18} />;
 }
 
