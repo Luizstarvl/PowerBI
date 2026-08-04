@@ -4,6 +4,22 @@ import { apiFetch } from '../../api';
 
 const PAGE_SIZE = 50;
 
+const fmtCurrency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+const fmtNumber   = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 3 });
+
+const COL_CURRENCY = /preco|custo|valor|venda|desconto|margem/i;
+const COL_NUMBER   = /estoque|qtd|quantidade|total|count/i;
+
+function formatCell(col, value) {
+  if (value === null || value === undefined) return '—';
+  const num = Number(value);
+  if (!isNaN(num) && value !== '' && value !== true && value !== false) {
+    if (COL_CURRENCY.test(col)) return fmtCurrency.format(num);
+    if (COL_NUMBER.test(col))   return fmtNumber.format(num);
+  }
+  return String(value);
+}
+
 function SortIcon({ col, ordenacao }) {
   if (ordenacao.col !== col) return <ChevronsUpDown size={12} className="tc-sort-icon tc-sort-icon--idle" />;
   return ordenacao.dir === 'asc'
@@ -175,7 +191,9 @@ export default function TabelaConsulta({ slot, empresasKey, titulo }) {
                   linhasPagina.map((row, i) => (
                     <tr key={i} className="tc-tr">
                       {cols.map(col => (
-                        <td key={col} className="tc-td">{row[col] ?? '—'}</td>
+                        <td key={col} className={`tc-td${COL_CURRENCY.test(col) || COL_NUMBER.test(col) ? ' tc-td--num' : ''}`}>
+                          {formatCell(col, row[col])}
+                        </td>
                       ))}
                     </tr>
                   ))

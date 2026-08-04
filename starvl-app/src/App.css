@@ -2608,6 +2608,7 @@ select.themed-select option {
   white-space: nowrap; max-width: 320px;
   overflow: hidden; text-overflow: ellipsis;
 }
+.tc-td--num   { text-align: right; font-variant-numeric: tabular-nums; }
 .tc-td--empty {
   text-align: center; color: var(--color-text-muted);
   padding: 28px; font-size: 13px;
