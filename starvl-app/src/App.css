@@ -502,7 +502,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 }
 .topbar-brand { display: flex; align-items: center; gap: 12px; flex-shrink: 0; width: calc(var(--sidebar-w) - 24px); }
 .topbar-center { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
-.topbar-brand-logo { height: 50px; width: auto; max-width: 180px; }
+.topbar-brand-logo { height: 32px; width: auto; max-width: 140px; }
 .topbar-brand-text { font-size: 18px; font-weight: 800; letter-spacing: .08em; color: var(--color-primary); }
 .topbar-logo  { font-size: 17px; font-weight: 800; color: var(--color-primary); letter-spacing: 0.3px; }
 .topbar-divider { width: 1px; height: 20px; background: var(--color-border); }

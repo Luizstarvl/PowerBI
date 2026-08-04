@@ -202,7 +202,8 @@ function gerarJanelaPrint({ titulo, colunas, linhas, empresa, det, filtros }) {
 <html lang="pt-BR"><head><meta charset="utf-8">
 <title>${titulo}</title>
 <style>
-@page { size: A4 landscape; margin: 18mm 14mm; }
+/* margin:0 elimina a área onde o browser insere URL, data e nº de página */
+@page { size: A4 landscape; margin: 0; }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 /* ── Modo Tela: simula impressão em páginas A4 ── */
@@ -233,10 +234,16 @@ function gerarJanelaPrint({ titulo, colunas, linhas, empresa, det, filtros }) {
 
 /* ── Modo Impressão ── */
 @media print {
-  html, body { background: #fff; padding: 0; }
+  html, body {
+    background: #fff !important;
+    /* padding substitui as margens do @page (que estão em 0) */
+    padding: 12mm 14mm !important;
+    margin: 0 !important;
+  }
   .pg-sep { display: none !important; }
-  .preview-wrap { padding: 0; box-shadow: none; width: auto; }
+  .preview-wrap { padding: 0 !important; box-shadow: none !important; width: 100% !important; margin: 0 !important; }
   tr { break-inside: avoid; }
+  /* Repete o cabeçalho da tabela em cada página impressa */
   thead { display: table-header-group; }
 }
 
