@@ -6,6 +6,7 @@ import Dashboard from './pages/Dashboard';
 import Usuarios from './pages/Usuarios';
 import Cadastros from './pages/Cadastros';
 import Parametros from './pages/Parametros';
+import AnimatedBackground from './components/login/AnimatedBackground';
 import { LangProvider } from './i18n';
 import { apiFetch, setApiToken, clearApiToken } from './api';
 import './App.css';
@@ -124,6 +125,7 @@ export default function App() {
   return (
     <LangProvider>
     <div className="app-root" data-theme={appliedTheme} onContextMenu={e => e.preventDefault()}>
+      <div className="app-anim-bg" aria-hidden="true"><AnimatedBackground /></div>
       <TopBar
         user={user}
         clients={clients}

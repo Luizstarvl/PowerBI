@@ -133,7 +133,19 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   min-height: 100vh;
   background: var(--color-background);
   transition: background .2s var(--ease), color .2s var(--ease);
+  position: relative;
 }
+
+/* ── Fundo animado (partículas laranja) — visível apenas no tema escuro ── */
+.app-anim-bg {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  display: none;
+}
+.app-anim-bg .login-bg-layer { position: absolute; inset: 0; }
+[data-theme="dark"] .app-anim-bg { display: block; }
+
+/* No tema escuro: fundo do app totalmente transparente (a camada animada ocupa o lugar) */
+[data-theme="dark"] .app-root { background: #0a0a0a; }
 
 /* ── Brand Logo (troca de imagem por tema) ──────────────────────────────────── */
 .brand-logo { display: block; width: auto; }
@@ -423,6 +435,12 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   flex-direction: column;
   padding: 20px 12px;
 }
+[data-theme="dark"] .sidebar {
+  background: rgba(10,10,10,0.72);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border-right-color: rgba(255,255,255,0.07);
+}
 .sidebar-section-label {
   font-size: 10px; font-weight: 700; color: var(--color-text-muted);
   text-transform: uppercase; letter-spacing: 1px;
@@ -469,12 +487,18 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 
 /* ── TopBar ──────────────────────────────────────────────────────────────────── */
 .topbar {
-  position: sticky; top: 0; z-index: 100;
+  position: sticky; top: 0; z-index: 101;
   display: flex; align-items: center; justify-content: space-between; gap: 16px;
   background: var(--color-background);
   border-bottom: 1px solid var(--color-border);
   padding: 0 24px;
   height: var(--header-h);
+}
+[data-theme="dark"] .topbar {
+  background: rgba(10,10,10,0.75);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border-bottom-color: rgba(255,255,255,0.07);
 }
 .topbar-brand { display: flex; align-items: center; gap: 12px; flex-shrink: 0; width: calc(var(--sidebar-w) - 24px); }
 .topbar-center { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
@@ -594,7 +618,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .topbar-logout:hover { border-color: var(--color-error); color: var(--color-error); }
 
 /* ── Layout Body ─────────────────────────────────────────────────────────────── */
-.app-body    { display: flex; min-height: calc(100vh - var(--header-h)); }
+.app-body    { display: flex; min-height: calc(100vh - var(--header-h)); position: relative; z-index: 1; }
 .app-content {
   flex: 1; min-width: 0; position: relative;
   overflow: hidden; height: calc(100vh - var(--header-h));
