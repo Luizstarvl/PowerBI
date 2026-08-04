@@ -2673,10 +2673,8 @@ select.themed-select option {
 .pp-title {
   font-size: 16px; font-weight: 800; color: var(--color-text);
   text-transform: uppercase; letter-spacing: .06em;
-  padding-left: 10px;
-  border-left: 3px solid var(--color-primary);
 }
-.pp-subtitle { font-size: 11px; color: var(--color-text-muted); padding-left: 13px; }
+.pp-subtitle { font-size: 11px; color: var(--color-text-muted); }
 .pp-header-actions { display: flex; gap: 8px; align-items: center; }
 
 .pp-btn-primary {

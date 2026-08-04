@@ -108,7 +108,7 @@ function mapToTopProdutos(result) {
                || txtCols[txtCols.length - 1]
                || txtCols[0];
   const qtyCol  = numCols.find(c => /qtd|qty|quant/i.test(c)) || numCols[0];
-  const codCol  = txtCols.find(c => /^(cod_produto|codigo|prodcodigo|cod|code|sku|ref)$/i.test(c)) || null;
+  const codCol  = columns.find(c => /^(cod_produto|codigo|prodcodigo|cod|code|sku|ref)$/i.test(c)) || null;
   if (!nameCol || !qtyCol) return [];
   return rows.slice(0, 5).map(r => ({
     name: String(r[nameCol] ?? ''),

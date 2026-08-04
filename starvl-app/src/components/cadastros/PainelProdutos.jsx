@@ -7,7 +7,7 @@ const fmtCurrency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency
 const fmtNum      = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 3 });
 const fmtPct      = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
-const PAGE_OPTS = [15, 30, 50, 'Todos'];
+const PAGE_OPTS = [10, 30, 50, 'Todos'];
 
 function detectCols(columns) {
   // Match exato (^ $) tem prioridade; fallback para parcial
@@ -104,7 +104,7 @@ export default function PainelProdutos({ empresasKey, onVoltar }) {
   const [situacao,   setSituacao]   = useState('Ativos');
   const [semEstoque, setSemEstoque] = useState(false);
   const [pagina,     setPagina]     = useState(1);
-  const [pageSize,   setPageSize]   = useState(15);
+  const [pageSize,   setPageSize]   = useState(10);
   const [detalhe,    setDetalhe]    = useState(null);
   const [ctxMenu,    setCtxMenu]    = useState(null); // {x,y,row}
   const [fotosMap,   setFotosMap]   = useState({});
