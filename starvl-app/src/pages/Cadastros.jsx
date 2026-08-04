@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Package, Users, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Package, Users, ChevronLeft, ChevronRight, ClipboardList } from 'lucide-react';
 
 const CADASTROS = [
   { key: 'produtos', label: 'Cadastro de Produtos', desc: 'Gerencie os produtos cadastrados no sistema.', Icon: Package },
@@ -38,7 +38,7 @@ export default function Cadastros() {
     <main className="dashboard">
       <div className="gu-header">
         <div>
-          <h2 className="gu-title">📋 Cadastros</h2>
+          <h2 className="gu-title"><ClipboardList size={20} strokeWidth={2} /> Cadastros</h2>
           <p className="gu-subtitle">Acesso rápido aos cadastros do sistema.</p>
         </div>
       </div>

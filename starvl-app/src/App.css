@@ -947,7 +947,8 @@ select.themed-select option {
 
 /* ── User Management ─────────────────────────────────────────────────────────── */
 .gu-header       { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
-.gu-title        { font-size: 18px; font-weight: 800; color: var(--color-text); }
+.gu-title        { display: flex; align-items: center; gap: 8px; font-size: 18px; font-weight: 800; color: var(--color-text); }
+.gu-title svg    { color: var(--color-primary); flex-shrink: 0; }
 .gu-header-right { display: flex; align-items: center; gap: 10px; }
 .gu-search {
   display: flex; align-items: center; gap: 8px;
@@ -1943,7 +1944,8 @@ select.themed-select option {
   display: flex; align-items: center; justify-content: space-between;
   gap: 16px; flex-wrap: wrap; margin-bottom: 20px;
 }
-.mgt-title   { font-size: 20px; font-weight: 800; color: var(--color-text, var(--text)); letter-spacing: -.01em; }
+.mgt-title   { display: flex; align-items: center; gap: 8px; font-size: 20px; font-weight: 800; color: var(--color-text, var(--text)); letter-spacing: -.01em; }
+.mgt-title svg { color: var(--color-primary); flex-shrink: 0; }
 .mgt-subtitle { font-size: 13px; color: var(--color-text-muted, var(--text-muted)); margin-top: 2px; }
 .mgt-header-btns { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
 .mgt-header--sub { justify-content: flex-end; margin-bottom: 14px; }

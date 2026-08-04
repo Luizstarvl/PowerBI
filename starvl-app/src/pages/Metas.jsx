@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Printer } from 'lucide-react';
+import { Printer, Target } from 'lucide-react';
 import MetaFormModal  from '../components/metas/MetaFormModal';
 import MetaForm        from '../components/metas/MetaForm';
 import MetaDetailModal from '../components/metas/MetaDetailModal';
@@ -231,7 +231,7 @@ export default function Metas({ empresa, empresaNome, user, onNavigate }) {
       {/* ── Header ─────────────────────────────────────────────────────── */}
       <div className="mgt-header">
         <div>
-          <h2 className="mgt-title">🎯 Gestão de Metas</h2>
+          <h2 className="mgt-title"><Target size={20} strokeWidth={2} /> Gestão de Metas</h2>
           <p className="mgt-subtitle">Crie, acompanhe e gerencie as metas financeiras da sua empresa.</p>
         </div>
         <div className="mgt-header-btns">
