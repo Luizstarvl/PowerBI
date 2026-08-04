@@ -74,9 +74,16 @@ function CtxProduto({ x, y, onEditar, onClose }) {
   }, [x, y]);
   useEffect(() => {
     const close = e => { if (!ref.current?.contains(e.target)) onClose(); };
-    document.addEventListener('mousedown', close);
-    document.addEventListener('contextmenu', close);
-    return () => { document.removeEventListener('mousedown', close); document.removeEventListener('contextmenu', close); };
+    // setTimeout garante que o mesmo contextmenu que abriu o menu não o feche na hora
+    const t = setTimeout(() => {
+      document.addEventListener('mousedown', close);
+      document.addEventListener('contextmenu', close);
+    }, 0);
+    return () => {
+      clearTimeout(t);
+      document.removeEventListener('mousedown', close);
+      document.removeEventListener('contextmenu', close);
+    };
   }, [onClose]);
   return (
     <div ref={ref} className="pp-ctx" style={{ position: 'fixed', left: x, top: y, zIndex: 9999 }}>

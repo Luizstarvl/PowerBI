@@ -60,17 +60,7 @@ function buildOrderedFields(row, cols, det) {
     det.situacao && { col: det.situacao, label: 'Situação',  fmt: v => String(v) },
   ].filter(Boolean);
 
-  // Colunas extras não cobertas por det
-  const knownCols = new Set([...Object.values(det).filter(Boolean), 'empresa']);
-  const extras = cols.filter(c => !knownCols.has(c)).map(col => ({
-    col,
-    label: col,
-    fmt: v => CURRENCY_COLS.test(col) ? fmtCurrency.format(Number(v) || 0)
-            : NUM_COLS.test(col)      ? fmtNum.format(Number(v) || 0)
-            : String(v),
-  }));
-
-  return [...ordered, ...extras].map(f => {
+  return ordered.map(f => {
     const raw = f.col === '__ve' ? 1 : (row[f.col] ?? null); // __ve always renders via fmt
     if (f.col !== '__ve' && (raw === null || raw === undefined || raw === '')) return null;
     return { key: f.col, label: f.label, value: f.fmt(raw) };
