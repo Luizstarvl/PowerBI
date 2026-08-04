@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import ReactDOM from 'react-dom';
-import { RefreshCw, Search, X, Package, DollarSign, AlertTriangle, TrendingUp, Printer, ChevronLeft, ChevronRight, ArrowLeft, Edit2 } from 'lucide-react';
+import { RefreshCw, Search, X, Package, DollarSign, AlertTriangle, TrendingUp, Printer, ChevronLeft, ChevronRight, ArrowLeft, Edit2, Check } from 'lucide-react';
 import { apiFetch } from '../../api';
 import ProdutoDetalhe from './ProdutoDetalhe';
 
@@ -96,6 +96,200 @@ function CtxProduto({ x, y, onEditar, onClose }) {
   );
 }
 
+function gerarJanelaPrint({ titulo, colunas, linhas, empresa }) {
+  const fmtC = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+  const fmtN = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 3 });
+  const now  = new Date().toLocaleString('pt-BR');
+
+  const thead = colunas.map(c => `<th>${c.label}</th>`).join('');
+  const tbody = linhas.map(row => {
+    const cells = colunas.map(c => {
+      const raw = c.calc ? c.calc(row) : row[c.key];
+      let val;
+      if (c.badge) {
+        const v = String(raw || '').trim().toLowerCase();
+        val = (v === 'ativo' || v === 'a') ? 'Ativo' : 'Inativo';
+      } else if (c.currency) {
+        val = fmtC.format(Number(raw) || 0);
+      } else if (c.estoque) {
+        val = fmtN.format(Number(raw) || 0);
+      } else {
+        val = raw ?? '—';
+      }
+      return `<td${c.currency || c.estoque ? ' class="r"' : ''}>${val}</td>`;
+    }).join('');
+    return `<tr>${cells}</tr>`;
+  }).join('');
+
+  const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8">
+<title>${titulo}</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, sans-serif; font-size: 11px; color: #111; padding: 20px; }
+  header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #e65c00; padding-bottom: 8px; margin-bottom: 14px; }
+  header h1 { font-size: 15px; font-weight: 700; color: #e65c00; }
+  header small { font-size: 10px; color: #666; }
+  table { width: 100%; border-collapse: collapse; }
+  thead tr { background: #f97316; color: #fff; }
+  th { padding: 6px 8px; text-align: left; font-weight: 600; font-size: 10px; text-transform: uppercase; letter-spacing: .04em; }
+  td { padding: 5px 8px; border-bottom: 1px solid #eee; }
+  tr:nth-child(even) td { background: #fafafa; }
+  .r { text-align: right; }
+  footer { margin-top: 12px; font-size: 10px; color: #999; text-align: right; }
+  @media print { body { padding: 0; } }
+</style></head><body>
+<header>
+  <h1>${titulo}</h1>
+  <small>${empresa} · Impresso em ${now} · ${linhas.length} produtos</small>
+</header>
+<table><thead><tr>${thead}</tr></thead><tbody>${tbody}</tbody></table>
+<footer>Horse - Sistema de Gestão de Postos</footer>
+</body></html>`;
+
+  const w = window.open('', '_blank', 'width=900,height=700');
+  if (!w) return;
+  w.document.write(html);
+  w.document.close();
+  w.focus();
+  setTimeout(() => { w.print(); }, 400);
+}
+
+function PrintModal({ secoes, grupos, tabelaCols, sortedFiltradas, det, empresa, onClose }) {
+  const [titulo,      setTitulo]      = useState('Cadastro de Produtos');
+  const [pSituacao,   setPSituacao]   = useState('Ativos');
+  const [pSecao,      setPSecao]      = useState('Todas');
+  const [pGrupo,      setPGrupo]      = useState('Todos');
+  const [pSemEst,     setPSemEst]     = useState(false);
+  const [pColKeys,    setPColKeys]    = useState(() => tabelaCols.map(c => c.key));
+
+  const matchSituacao = (val, tipo) => {
+    const v = String(val || '').trim().toLowerCase();
+    if (tipo === 'Ativos')   return v === 'ativo'   || v === 'a';
+    if (tipo === 'Inativos') return v === 'inativo' || v === 'i';
+    return true;
+  };
+
+  const norm = s => String(s || '').trim().toLowerCase();
+
+  const linhas = useMemo(() => {
+    let r = sortedFiltradas;
+    if (pSituacao !== 'Todos' && det.situacao) r = r.filter(row => matchSituacao(row[det.situacao], pSituacao));
+    if (pSecao !== 'Todas'  && det.secao)  r = r.filter(row => norm(row[det.secao])  === norm(pSecao));
+    if (pGrupo !== 'Todos'  && det.grupo)  r = r.filter(row => norm(row[det.grupo])  === norm(pGrupo));
+    if (pSemEst && det.estoque) r = r.filter(row => Number(row[det.estoque] || 0) <= 0);
+    return r;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sortedFiltradas, pSituacao, pSecao, pGrupo, pSemEst, det]);
+
+  const colunasSel = tabelaCols.filter(c => pColKeys.includes(c.key));
+
+  function toggleCol(key) {
+    setPColKeys(prev => prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]);
+  }
+
+  function handlePrint() {
+    if (!colunasSel.length) return;
+    gerarJanelaPrint({ titulo, colunas: colunasSel, linhas, empresa });
+    onClose();
+  }
+
+  return ReactDOM.createPortal(
+    <div className="pm-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="pm-modal">
+        <div className="pm-header">
+          <Printer size={16} />
+          <span>Configurar Impressão</span>
+          <button className="pm-close" onClick={onClose}><X size={15} /></button>
+        </div>
+
+        <div className="pm-body">
+          {/* Título */}
+          <div className="pm-section">
+            <div className="pm-section-title">Título do relatório</div>
+            <input
+              className="pm-input"
+              value={titulo}
+              onChange={e => setTitulo(e.target.value)}
+              placeholder="Título da impressão"
+            />
+          </div>
+
+          {/* Filtros */}
+          <div className="pm-section">
+            <div className="pm-section-title">Filtros de dados</div>
+            <div className="pm-grid2">
+              <div className="pm-field">
+                <label>Situação</label>
+                <div className="pm-tabs">
+                  {['Ativos', 'Inativos', 'Todos'].map(s => (
+                    <button key={s} className={`pm-tab${pSituacao === s ? ' pm-tab--on' : ''}`}
+                      onClick={() => setPSituacao(s)}>{s}</button>
+                  ))}
+                </div>
+              </div>
+
+              {secoes.length > 1 && (
+                <div className="pm-field">
+                  <label>Seção</label>
+                  <select className="pm-select" value={pSecao} onChange={e => { setPSecao(e.target.value); setPGrupo('Todos'); }}>
+                    {secoes.map(s => <option key={s}>{s}</option>)}
+                  </select>
+                </div>
+              )}
+
+              {grupos.length > 1 && (
+                <div className="pm-field">
+                  <label>Grupo</label>
+                  <select className="pm-select" value={pGrupo} onChange={e => setPGrupo(e.target.value)}>
+                    {grupos.map(g => <option key={g}>{g}</option>)}
+                  </select>
+                </div>
+              )}
+
+              {det.estoque && (
+                <div className="pm-field pm-field--inline">
+                  <button className={`pm-chip${pSemEst ? ' pm-chip--on' : ''}`} onClick={() => setPSemEst(v => !v)}>
+                    {pSemEst && <Check size={11} />} Somente sem estoque
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Colunas */}
+          <div className="pm-section">
+            <div className="pm-section-title">Colunas a exibir</div>
+            <div className="pm-cols-grid">
+              {tabelaCols.map(c => (
+                <button
+                  key={c.key}
+                  className={`pm-col-chip${pColKeys.includes(c.key) ? ' pm-col-chip--on' : ''}`}
+                  onClick={() => toggleCol(c.key)}
+                >
+                  {pColKeys.includes(c.key) && <Check size={11} />}
+                  {c.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="pm-preview-count">
+            {linhas.length} produto{linhas.length !== 1 ? 's' : ''} · {colunasSel.length} coluna{colunasSel.length !== 1 ? 's' : ''}
+          </div>
+        </div>
+
+        <div className="pm-footer">
+          <button className="pm-btn-cancel" onClick={onClose}>Cancelar</button>
+          <button className="pm-btn-print" onClick={handlePrint} disabled={!colunasSel.length}>
+            <Printer size={14} /> Imprimir
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 export default function PainelProdutos({ empresasKey, onVoltar }) {
   const [slotQuery,   setSlotQuery]   = useState(undefined);
   const [slotSecoes,  setSlotSecoes]  = useState(null); // query dedicada para SPRO
@@ -119,6 +313,7 @@ export default function PainelProdutos({ empresasKey, onVoltar }) {
   const [detalhe,    setDetalhe]    = useState(null);
   const [ctxMenu,    setCtxMenu]    = useState(null); // {x,y,row}
   const [fotosMap,   setFotosMap]   = useState({});
+  const [printOpen,  setPrintOpen]  = useState(false);
 
   const empresa = (empresasKey || '').split(',')[0];
   const det = useMemo(() => detectCols(cols), [cols]);
@@ -375,7 +570,7 @@ export default function PainelProdutos({ empresasKey, onVoltar }) {
           </div>
         </div>
         <div className="pp-header-actions">
-          <button className="pp-btn-ghost" onClick={() => window.print()}>
+          <button className="pp-btn-ghost" onClick={() => setPrintOpen(true)}>
             <Printer size={14} /> Imprimir
           </button>
           <button className="pp-btn-primary" onClick={fetchDados} disabled={loading}>
@@ -587,6 +782,19 @@ export default function PainelProdutos({ empresasKey, onVoltar }) {
           x={ctxMenu.x} y={ctxMenu.y}
           onEditar={() => { setDetalhe(ctxMenu.row); setCtxMenu(null); }}
           onClose={() => setCtxMenu(null)}
+        />
+      )}
+
+      {/* ── Modal de impressão ── */}
+      {printOpen && (
+        <PrintModal
+          secoes={secoes}
+          grupos={grupos}
+          tabelaCols={tabelaCols}
+          sortedFiltradas={sortedFiltradas}
+          det={det}
+          empresa={empresa}
+          onClose={() => setPrintOpen(false)}
         />
       )}
     </div>
