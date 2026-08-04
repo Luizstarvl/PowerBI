@@ -6,6 +6,8 @@ import { apiFetch } from '../api';
 const currency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 const number   = new Intl.NumberFormat('pt-BR');
 
+const KPI_KEYS = ['kpi_vendas', 'kpi_combustivel', 'kpi_conveniencia', 'kpi_compras_comb', 'kpi_compras_conv', 'kpi_afericoes'];
+
 const MONTH_NAMES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 function initDraft() {
   const now = new Date();
@@ -399,6 +401,7 @@ export default function Dashboard({ empresas, period, onNavigate }) {
   const [topProdutos, setTopProdutos] = useState([]);
   const [loading, setLoading]         = useState(true);
   const [slotLoading, setSlotLoading] = useState(false);
+  const [kpiSlotLoading, setKpiSlotLoading] = useState(false);
   const [slotKpiData, setSlotKpiData] = useState({});
   const [erro, setErro]               = useState('');
   const [dashQueries, setDashQueries] = useState([]);
@@ -423,10 +426,10 @@ export default function Dashboard({ empresas, period, onNavigate }) {
   // KPIs via slot
   useEffect(() => {
     if (!empresasKey) return;
-    const KPI_KEYS = ['kpi_vendas','kpi_combustivel','kpi_conveniencia','kpi_compras_comb','kpi_compras_conv','kpi_afericoes'];
     const active = KPI_KEYS.filter(k => slotMap[k]);
     if (!active.length) return;
     let cancelado = false;
+    setKpiSlotLoading(true);
     Promise.all(active.map(k =>
       apiFetch(`/api/queries/execute/${slotMap[k].codigo}?${apiQs}`)
         .then(r => r.json())
@@ -434,7 +437,7 @@ export default function Dashboard({ empresas, period, onNavigate }) {
         .catch(() => [k, null])
     )).then(entries => {
       if (!cancelado) setSlotKpiData(Object.fromEntries(entries.filter(([, v]) => v)));
-    });
+    }).finally(() => { if (!cancelado) setKpiSlotLoading(false); });
     return () => { cancelado = true; };
   }, [slotMap, apiQs]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -460,9 +463,15 @@ export default function Dashboard({ empresas, period, onNavigate }) {
     setLoading(true);
     setErro('');
     const hasTop5Slot = !!slotMap.top5_convenio;
+    // Se todos os 6 KPIs já têm consulta customizada vinculada, o endpoint
+    // legado (que faz 6 sub-queries pesadas por empresa) não serve pra nada
+    // — os cards vão usar só slotKpiData mesmo. Pula a chamada.
+    const allKpiSlotsConfigured = KPI_KEYS.every(k => slotMap[k]);
 
     Promise.all([
-      apiFetch(`/api/dashboard/kpis?${apiQs}`).then(r => r.json()),
+      allKpiSlotsConfigured
+        ? Promise.resolve(null)
+        : apiFetch(`/api/dashboard/kpis?${apiQs}`).then(r => r.json()),
       hasTop5Slot
         ? Promise.resolve(null)
         : apiFetch(`/api/dashboard/top-convenio?${apiQs}`).then(r => r.json()),
@@ -470,7 +479,7 @@ export default function Dashboard({ empresas, period, onNavigate }) {
       .then(([kpisData, topData]) => {
         if (cancelado) return;
         if (kpisData?.error) throw new Error(kpisData.error);
-        setKpis(kpisData);
+        if (kpisData) setKpis(kpisData);
         if (!hasTop5Slot && topData) setTopProdutos(Array.isArray(topData) ? topData : []);
       })
       .catch(() => { if (!cancelado) setErro('Não foi possível carregar os dados do período.'); })
@@ -521,13 +530,14 @@ export default function Dashboard({ empresas, period, onNavigate }) {
               const compComb = kpi('kpi_compras_comb', kpis?.comprasComb);
               const compConv = kpi('kpi_compras_conv', kpis?.comprasConv);
               const afer     = kpi('kpi_afericoes',    kpis?.afericoes);
+              const kpisLoading = loading || kpiSlotLoading;
               return (<>
-                <KpiCard icon={ShoppingCart} label="Vendas totais"       value={loading ? '—' : currency.format(vendas.valor   || 0)} sub={loading ? '' : `${number.format(vendas.total || 0)} vendas`} />
-                <KpiCard icon={Fuel}         label="Combustível"          value={loading ? '—' : currency.format(comb.valor    || 0)} sub={loading ? '' : `${number.format(comb.litros || comb.total || 0)} L`} />
-                <KpiCard icon={Package}      label="Conveniência"         value={loading ? '—' : currency.format(conv.valor    || 0)} sub={loading ? '' : `${number.format(conv.total  || 0)} vendas`} />
-                <KpiCard icon={Truck}        label="Compras combustível"  value={loading ? '—' : currency.format(compComb.valor || 0)} />
-                <KpiCard icon={Boxes}        label="Compras conveniência" value={loading ? '—' : currency.format(compConv.valor || 0)} />
-                <KpiCard icon={Gauge}        label="Aferições"            value={loading ? '—' : number.format(afer.total      || 0)} sub={loading ? '' : `${number.format(afer.qtd || 0)} un.`} />
+                <KpiCard icon={ShoppingCart} label="Vendas totais"       value={kpisLoading ? '—' : currency.format(vendas.valor   || 0)} sub={kpisLoading ? '' : `${number.format(vendas.total || 0)} vendas`} />
+                <KpiCard icon={Fuel}         label="Combustível"          value={kpisLoading ? '—' : currency.format(comb.valor    || 0)} sub={kpisLoading ? '' : `${number.format(comb.litros || comb.total || 0)} L`} />
+                <KpiCard icon={Package}      label="Conveniência"         value={kpisLoading ? '—' : currency.format(conv.valor    || 0)} sub={kpisLoading ? '' : `${number.format(conv.total  || 0)} vendas`} />
+                <KpiCard icon={Truck}        label="Compras combustível"  value={kpisLoading ? '—' : currency.format(compComb.valor || 0)} />
+                <KpiCard icon={Boxes}        label="Compras conveniência" value={kpisLoading ? '—' : currency.format(compConv.valor || 0)} />
+                <KpiCard icon={Gauge}        label="Aferições"            value={kpisLoading ? '—' : number.format(afer.total      || 0)} sub={kpisLoading ? '' : `${number.format(afer.qtd || 0)} un.`} />
               </>);
             })()}
           </div>

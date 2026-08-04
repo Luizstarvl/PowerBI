@@ -68,8 +68,14 @@ router.get('/kpis', withCache(async (req, res) => {
   const diasNoMes = new Date(ano, mes, 0).getDate();
   const dataInicio = `${ano}-${String(mes).padStart(2, '0')}-01`;
   const dataFim = `${ano}-${String(mes).padStart(2, '0')}-${diasNoMes}`;
+  // Limite exclusivo (1º dia do mês seguinte) — usado nas comparações contra
+  // colunas TIMESTAMP (entcpachegada/pededatarecebimento/aferdata) em vez de
+  // DATE(coluna)>=/<=, que envolve a coluna numa função e impede o uso de
+  // índice. `col >= inicio AND col < fimExclusivo` é sargable e equivalente.
+  const proximoMes = new Date(ano, mes, 1);
+  const dataFimExclusiva = `${proximoMes.getFullYear()}-${String(proximoMes.getMonth() + 1).padStart(2, '0')}-01`;
 
-  const p = (emp) => [emp, dataInicio, dataFim];
+  const p = (emp) => [emp, dataInicio, dataFim, dataFimExclusiva];
 
   try {
     const [vendas, comb, conv, comprasComb, comprasConv, afer] = await Promise.all([
@@ -103,13 +109,13 @@ router.get('/kpis', withCache(async (req, res) => {
            SELECT COALESCE(SUM(ei.entcpitotal),0) AS valor, COUNT(DISTINCT ec.entcpacodigo) AS total
            FROM entcpa ec JOIN entcpi ei ON ei.entcpicompra=ec.entcpacodigo
            JOIN prod p ON p.prodcodigo=ei.entcpiproduto
-           WHERE ec.entcpaempresa=$1 AND DATE(ec.entcpachegada)>=$2 AND DATE(ec.entcpachegada)<=$3 AND p.prodtipo=1
+           WHERE ec.entcpaempresa=$1 AND ec.entcpachegada>=$2 AND ec.entcpachegada<$4 AND p.prodtipo=1
          ), c_pedi AS (
            SELECT COALESCE(SUM(pi.peditotal),0) AS valor, COUNT(DISTINCT pd.pedecodigo) AS total
            FROM pede pd JOIN pedi pi ON pi.pedicodigopede=pd.pedecodigo AND pi.pediempresa=pd.pedeempresa
            JOIN prod p ON p.prodcodigo=pi.pediproduto
            WHERE pd.pedeempresa=$1 AND pd.pededatarecebimento IS NOT NULL
-             AND DATE(pd.pededatarecebimento)>=$2 AND DATE(pd.pededatarecebimento)<=$3 AND p.prodtipo=1
+             AND pd.pededatarecebimento>=$2 AND pd.pededatarecebimento<$4 AND p.prodtipo=1
          )
          SELECT (SELECT valor FROM c_entcpa)+(SELECT valor FROM c_pedi) AS valor_compras_comb,
                 (SELECT total FROM c_entcpa)+(SELECT total FROM c_pedi) AS total_compras_comb`, p),
@@ -119,12 +125,12 @@ router.get('/kpis', withCache(async (req, res) => {
                 COUNT(DISTINCT ec.entcpacodigo) AS total_compras_conv
          FROM entcpa ec JOIN entcpi ei ON ei.entcpicompra=ec.entcpacodigo
          JOIN prod p ON p.prodcodigo=ei.entcpiproduto
-         WHERE ec.entcpaempresa=$1 AND DATE(ec.entcpachegada)>=$2 AND DATE(ec.entcpachegada)<=$3
+         WHERE ec.entcpaempresa=$1 AND ec.entcpachegada>=$2 AND ec.entcpachegada<$4
            AND p.prodtipo=2`, p),
 
       queryAll(empresaList,
         `SELECT COUNT(*) AS total_afericoes, COALESCE(SUM(aferqtd),0) AS total_qtd_afericao
-         FROM afer WHERE aferempresa=$1 AND DATE(aferdata)>=$2 AND DATE(aferdata)<=$3`, p),
+         FROM afer WHERE aferempresa=$1 AND aferdata>=$2 AND aferdata<$4`, p),
     ]);
 
     const sum = (rows, field) => rows.reduce((s, r) => s + parseFloat(r[field] || 0), 0);

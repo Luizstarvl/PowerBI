@@ -30,7 +30,7 @@ function buildConfig(dbName, host, port, dbUser, dbPass) {
       return {
         connectionString: url.toString(),
         ssl: { rejectUnauthorized: false },
-        max: 5,
+        max: 12, // o Dashboard dispara várias sub-queries concorrentes por empresa; 5 virava gargalo de fila
         idleTimeoutMillis: 30000,
         connectionTimeoutMillis: 5000,
       };
@@ -45,7 +45,7 @@ function buildConfig(dbName, host, port, dbUser, dbPass) {
     user:     dbUser   || process.env.DB_USER,
     password: dbPass   || process.env.DB_PASSWORD,
     ssl:      process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
-    max: 5,
+    max: 12, // o Dashboard dispara várias sub-queries concorrentes por empresa; 5 virava gargalo de fila
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 5000,
   };
