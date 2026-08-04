@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import ReactDOM from 'react-dom';
 import { RefreshCw, Search, X, Package, DollarSign, AlertTriangle, TrendingUp, Printer, ChevronLeft, ChevronRight, ArrowLeft, Edit2 } from 'lucide-react';
 import { apiFetch } from '../../api';
 import ProdutoDetalhe from './ProdutoDetalhe';
@@ -85,12 +86,13 @@ function CtxProduto({ x, y, onEditar, onClose }) {
       document.removeEventListener('contextmenu', close);
     };
   }, [onClose]);
-  return (
+  return ReactDOM.createPortal(
     <div ref={ref} className="pp-ctx" style={{ position: 'fixed', left: x, top: y, zIndex: 9999 }}>
       <button className="pp-ctx-item" onClick={onEditar}>
         <Edit2 size={15} /> Alterar
       </button>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -369,70 +371,67 @@ export default function PainelProdutos({ empresasKey, onVoltar }) {
         <KpiCard icon={TrendingUp}    label="Margem Média"           value={`${fmtPct.format(kpis.margemMedia)}%`} sub="(venda − custo) / venda"                            accent="#a78bfa" />
       </div>
 
-      {/* ── Barra de filtros ── */}
+      {/* ── Barra de filtros (linha única) ── */}
       <div className="pp-bar">
-        {/* Linha 1 — busca */}
-        <div className="pp-bar-top">
-          <div className="pp-bar-search">
-            <Search size={14} />
-            <input
-              className="pp-bar-input"
-              placeholder="Buscar por nome ou código…"
-              value={busca}
-              onChange={e => { setBusca(e.target.value); setPagina(1); }}
-            />
-            {busca && <button className="pp-bar-clear" onClick={() => { setBusca(''); setPagina(1); }}><X size={12} /></button>}
-          </div>
-          <button className="pp-btn-ghost pp-btn-ghost--sm" onClick={limpar}>
-            <X size={12} /> Limpar
-          </button>
+        <div className="pp-bar-search">
+          <Search size={14} />
+          <input
+            className="pp-bar-input"
+            placeholder="Buscar por nome ou código…"
+            value={busca}
+            onChange={e => { setBusca(e.target.value); setPagina(1); }}
+          />
+          {busca && <button className="pp-bar-clear" onClick={() => { setBusca(''); setPagina(1); }}><X size={12} /></button>}
         </div>
 
-        {/* Linha 2 — filtros */}
-        <div className="pp-bar-filters">
-          {secoes.length > 1 && (
-            <div className="pp-bar-field">
-              <label>Seção</label>
-              <select value={secao} onChange={e => { setSecao(e.target.value); setGrupo('Todos'); setPagina(1); }}>
-                {secoes.map(s => <option key={s}>{s}</option>)}
-              </select>
-            </div>
-          )}
+        <div className="pp-bar-divider" />
 
-          {secoes.length > 1 && grupos.length > 1 && <div className="pp-bar-divider" />}
-
-          {grupos.length > 1 && (
-            <div className="pp-bar-field">
-              <label>Grupo</label>
-              <select value={grupo} onChange={e => { setGrupo(e.target.value); setPagina(1); }}>
-                {grupos.map(g => <option key={g}>{g}</option>)}
-              </select>
-            </div>
-          )}
-
-          <div className="pp-bar-divider" />
-
+        {secoes.length > 1 && (
           <div className="pp-bar-field">
-            <label>Situação</label>
-            <div className="pp-tabs">
-              {['Ativos', 'Inativos', 'Todos'].map(s => (
-                <button key={s}
-                  className={`pp-tab${situacao === s ? ' pp-tab--on' : ''}`}
-                  onClick={() => { setSituacao(s); setPagina(1); }}>
-                  {s}
-                </button>
-              ))}
-            </div>
+            <label>Seção</label>
+            <select value={secao} onChange={e => { setSecao(e.target.value); setGrupo('Todos'); setPagina(1); }}>
+              {secoes.map(s => <option key={s}>{s}</option>)}
+            </select>
           </div>
+        )}
 
-          <div className="pp-bar-divider" />
+        {secoes.length > 1 && grupos.length > 1 && <div className="pp-bar-divider" />}
 
-          <button
-            className={`pp-chip${semEstoque ? ' pp-chip--on' : ''}`}
-            onClick={() => { setSemEstoque(v => !v); setPagina(1); }}>
-            Sem estoque
-          </button>
+        {grupos.length > 1 && (
+          <div className="pp-bar-field">
+            <label>Grupo</label>
+            <select value={grupo} onChange={e => { setGrupo(e.target.value); setPagina(1); }}>
+              {grupos.map(g => <option key={g}>{g}</option>)}
+            </select>
+          </div>
+        )}
+
+        <div className="pp-bar-divider" />
+
+        <div className="pp-bar-field">
+          <label>Situação</label>
+          <div className="pp-tabs">
+            {['Ativos', 'Inativos', 'Todos'].map(s => (
+              <button key={s}
+                className={`pp-tab${situacao === s ? ' pp-tab--on' : ''}`}
+                onClick={() => { setSituacao(s); setPagina(1); }}>
+                {s}
+              </button>
+            ))}
+          </div>
         </div>
+
+        <div className="pp-bar-divider" />
+
+        <button
+          className={`pp-chip${semEstoque ? ' pp-chip--on' : ''}`}
+          onClick={() => { setSemEstoque(v => !v); setPagina(1); }}>
+          Sem estoque
+        </button>
+
+        <button className="pp-btn-ghost pp-btn-ghost--sm pp-bar-limpar" onClick={limpar}>
+          <X size={12} /> Limpar
+        </button>
       </div>
 
       {/* ── Tabela ── */}
