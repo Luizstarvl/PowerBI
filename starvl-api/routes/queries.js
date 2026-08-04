@@ -9,6 +9,7 @@ const router  = express.Router();
 const pool    = require('../db/pool');
 const { Client } = require('pg');
 const { requireAuth, requireAdmin } = require('../middleware/auth');
+const cache   = require('../db/cache');
 
 // ── Tabelas ────────────────────────────────────────────────────────────────────
 pool.query(`
@@ -356,21 +357,47 @@ router.post('/test-sql', requireAuth, requireAdmin, async (req, res) => {
 router.get('/execute/:codigo', requireAuth, async (req, res) => {
   try {
     const { rows } = await pool.query(
-      'SELECT sq_sql, sq_banco_id, sq_ativa FROM starvl_queries WHERE UPPER(sq_codigo) = UPPER($1)',
+      'SELECT sq_sql, sq_banco_id, sq_ativa, sq_versao FROM starvl_queries WHERE UPPER(sq_codigo) = UPPER($1)',
       [req.params.codigo]
     );
     if (!rows.length) return res.status(404).json({ error: `Consulta '${req.params.codigo}' não encontrada.` });
 
-    const q = rows[0];
-    if (!q.sq_ativa) return res.status(403).json({ error: `Consulta '${req.params.codigo}' está inativa.` });
+    const q      = rows[0];
+    const codigo = req.params.codigo.toUpperCase();
+    if (!q.sq_ativa)   return res.status(403).json({ error: `Consulta '${codigo}' está inativa.` });
     if (!q.sq_banco_id) return res.status(400).json({ error: 'Consulta sem conexão de banco configurada.' });
 
-    // Aplica parâmetros da query string como {{CHAVE}}
+    const forceRefresh = req.query.force === '1';
+    const isAtual      = cache.isPeriodoAtual(req.query);
+    const cacheKey     = cache.buildCacheKey(codigo, req.query);
+
+    // Períodos passados: tenta servir do cache
+    if (!forceRefresh && !isAtual) {
+      const hit = await cache.get(cacheKey, q.sq_versao);
+      if (hit) {
+        return res.json({
+          ok: true, codigo, ...hit.resultado,
+          fromCache: true, cachedAt: hit.atualizado_em,
+        });
+      }
+    }
+
+    // Executa no banco do cliente
     const { sql: finalSql, values } = applyParams(q.sq_sql, req.query);
     validateSQL(finalSql);
-
     const result = await executeOnConnection(finalSql, q.sq_banco_id, 30000, values);
-    res.json({ ok: true, codigo: req.params.codigo, ...result });
+
+    // Salva no cache em background (não bloqueia a resposta)
+    cache.set(cacheKey, {
+      codigo, bancoId: q.sq_banco_id,
+      empresa: req.query.empresa || '',
+      params:  req.query,
+      resultado: result,
+      sqVersao: q.sq_versao,
+      isAtual,
+    }).catch(e => console.error('[cache] save error:', e.message));
+
+    res.json({ ok: true, codigo, ...result });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
   }

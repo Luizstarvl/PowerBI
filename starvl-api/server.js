@@ -24,6 +24,8 @@ const licensesRoutes      = require('./routes/licenses');
 const metasRoutes         = require('./routes/metas');
 const passwordResetsRoutes = require('./routes/passwordResets');
 const queriesRoutes        = require('./routes/queries');
+const cacheRoutes          = require('./routes/cache');
+const { scheduleNightlyJob } = require('./jobs/cacheVerification');
 
 const app = express();
 const PORT = process.env.PORT || process.env.API_PORT || 3001;
@@ -151,6 +153,7 @@ app.use('/api/licenses',       licensesRoutes);
 app.use('/api/metas',          metasRoutes);
 app.use('/api/password-resets', passwordResetsRoutes);
 app.use('/api/queries',        queriesRoutes);
+app.use('/api/cache',          cacheRoutes);
 
 if (fs.existsSync(clientBuildPath)) {
   app.use(express.static(clientBuildPath, {
@@ -187,6 +190,7 @@ poolManager.initialize().then(() => {
   const server = app.listen(PORT, '0.0.0.0', () => {
     console.log(`STARVL API running on http://0.0.0.0:${PORT}`);
     console.log(`DB: ${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}`);
+    scheduleNightlyJob();
 
     // Render recomenda estes valores para evitar 502 por timeout
     server.keepAliveTimeout = 120000;
