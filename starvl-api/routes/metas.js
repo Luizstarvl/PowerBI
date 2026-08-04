@@ -714,7 +714,9 @@ router.post('/:id/sincronizar', async (req, res) => {
     res.json(toRow(full[0]));
   } catch (err) {
     console.error('POST /metas/:id/sincronizar:', err.message);
-    res.status(500).json({ error: 'Erro ao sincronizar com as vendas.' });
+    // Detalhe do erro exposto de propósito (ferramenta interna/admin) — ajuda
+    // a diagnosticar se é falha de conexão com o SGA do posto, schema, etc.
+    res.status(500).json({ error: `Erro ao sincronizar com as vendas: ${err.message}` });
   }
 });
 
