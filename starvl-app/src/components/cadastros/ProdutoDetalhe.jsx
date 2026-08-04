@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import ReactDOM from 'react-dom';
 import { X, Camera, Save, Tag, Loader, Trash2 } from 'lucide-react';
 import { apiFetch } from '../../api';
 
@@ -138,7 +139,7 @@ export default function ProdutoDetalhe({ row, cols, det, empresa, onClose }) {
     return { key: col, label: col, value: fmt };
   }).filter(Boolean);
 
-  return (
+  return ReactDOM.createPortal(
     <div className="pd-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="pd-modal">
 
@@ -237,6 +238,7 @@ export default function ProdutoDetalhe({ row, cols, det, empresa, onClose }) {
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
