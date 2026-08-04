@@ -2696,35 +2696,43 @@ select.themed-select option {
 /* KPI cards */
 .pp-kpi-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+}
+@media (max-width: 900px) {
+  .pp-kpi-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 520px) {
+  .pp-kpi-grid { grid-template-columns: 1fr; }
 }
 .pp-kpi {
-  display: flex; align-items: center; gap: 14px;
+  display: flex; align-items: flex-start; gap: 14px;
   background: var(--color-surface); border: 1px solid var(--color-border);
-  border-radius: 14px; padding: 16px 18px;
+  border-radius: 14px; padding: 20px 20px;
   border-top: 3px solid var(--pp-accent, var(--color-primary));
   transition: box-shadow .2s, transform .2s;
 }
 .pp-kpi:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,.12); }
 
 .pp-kpi-icon-wrap {
-  width: 40px; height: 40px; border-radius: 11px; flex-shrink: 0;
+  width: 42px; height: 42px; border-radius: 11px; flex-shrink: 0;
+  margin-top: 2px;
   display: flex; align-items: center; justify-content: center;
   background: color-mix(in srgb, var(--pp-accent, var(--color-primary)) 15%, transparent);
   color: var(--pp-accent, var(--color-primary));
 }
-.pp-kpi-body { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.pp-kpi-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
 .pp-kpi-label {
   font-size: 10px; font-weight: 700; text-transform: uppercase;
   letter-spacing: .06em; color: var(--color-text-muted);
+  white-space: nowrap;
 }
 .pp-kpi-value {
-  font-size: 20px; font-weight: 800; color: var(--color-text);
+  font-size: 22px; font-weight: 800; color: var(--color-text);
   font-variant-numeric: tabular-nums; line-height: 1.2;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  word-break: break-word;
 }
-.pp-kpi-sub { font-size: 10.5px; color: var(--color-text-muted); }
+.pp-kpi-sub { font-size: 11px; color: var(--color-text-muted); line-height: 1.4; }
 
 /* Barra de filtros */
 .pp-bar {
