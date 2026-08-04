@@ -181,12 +181,16 @@ export default function PainelProdutos({ empresasKey, onVoltar }) {
 
   useEffect(() => { fetchDados(); }, [fetchDados]);
 
-  // Busca fotos salvas para mostrar thumbnail na listagem
+  // Busca fotos (POST para não ter limite de URL com muitos produtos)
   useEffect(() => {
     if (!rows.length || !empresa || !det.codigo) return;
-    const codes = [...new Set(rows.map(r => r[det.codigo]).filter(Boolean))].slice(0, 500);
+    const codes = [...new Set(rows.map(r => String(r[det.codigo] ?? '')).filter(Boolean))];
     if (!codes.length) return;
-    apiFetch(`/api/produto-extra/batch/${encodeURIComponent(empresa)}?codes=${codes.map(encodeURIComponent).join(',')}`)
+    apiFetch(`/api/produto-extra/batch/${encodeURIComponent(empresa)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ codes }),
+    })
       .then(r => r.json())
       .then(d => { if (d.ok) setFotosMap(d.data); })
       .catch(() => {});
@@ -468,9 +472,12 @@ export default function PainelProdutos({ empresasKey, onVoltar }) {
                            : c.currency ? fmtCurrency.format(Number(raw) || 0)
                            : c.name     ? (
                                <span className="pp-td-name-cell">
-                                 {fotosMap[row[det.codigo]] && (
-                                   <img src={fotosMap[row[det.codigo]]} alt="" className="pp-td-thumb" />
-                                 )}
+                                 <span className="pp-td-avatar">
+                                   {fotosMap[String(row[det.codigo] ?? '')]
+                                     ? <img src={fotosMap[String(row[det.codigo] ?? '')]} alt="" className="pp-td-thumb" />
+                                     : String(raw ?? '').charAt(0).toUpperCase()
+                                   }
+                                 </span>
                                  {raw ?? '—'}
                                </span>
                              )

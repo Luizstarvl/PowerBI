@@ -16,11 +16,31 @@ pool.query(`
   )
 `).catch(err => console.error('[produto-extra] init:', err.message));
 
-// GET /api/produto-extra/batch/:empresa?codes=c1,c2,...
+// GET /api/produto-extra/batch/:empresa?codes=c1,c2,... (top5, poucos itens)
 router.get('/batch/:empresa', async (req, res) => {
   try {
     const { empresa } = req.params;
     const codes = (req.query.codes || '').split(',').map(s => s.trim()).filter(Boolean).slice(0, 200);
+    if (!codes.length) return res.json({ ok: true, data: {} });
+    const { rows } = await pool.query(
+      `SELECT cod_produto, foto_base64
+         FROM starvl_produto_extra
+        WHERE empresa = $1 AND cod_produto = ANY($2::text[])`,
+      [empresa, codes]
+    );
+    const data = {};
+    rows.forEach(r => { if (r.foto_base64) data[r.cod_produto] = r.foto_base64; });
+    res.json({ ok: true, data });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// POST /api/produto-extra/batch/:empresa  { codes: [...] }  (listagem, sem limite de URL)
+router.post('/batch/:empresa', async (req, res) => {
+  try {
+    const { empresa } = req.params;
+    const codes = (req.body.codes || []).map(String).slice(0, 2000);
     if (!codes.length) return res.json({ ok: true, data: {} });
     const { rows } = await pool.query(
       `SELECT cod_produto, foto_base64
