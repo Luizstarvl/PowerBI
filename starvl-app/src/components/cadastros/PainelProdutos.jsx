@@ -204,15 +204,36 @@ export default function PainelProdutos({ empresasKey, onVoltar }) {
   // Grupos: usa GPRO se configurado (com filtro por seção), senão deriva das linhas
   const grupos = useMemo(() => {
     const norm = s => String(s || '').trim().toLowerCase();
+
+    // Helper: quais descrições de grupo aparecem nos produtos da seção selecionada
+    const gruposNaSecao = () => {
+      if (!det.grupo) return null;
+      const base = secao === 'Todas'
+        ? rows
+        : rows.filter(r => norm(r[det.secao]) === norm(secao));
+      return new Set(base.map(r => norm(r[det.grupo])).filter(Boolean));
+    };
+
     if (gruposExt.length) {
       let lista = gruposExt;
-      const temRelacao = gruposExt.some(g => g.cod_secao !== null);
-      if (secao !== 'Todas' && temRelacao) {
-        const secaoObj = secoesExt.find(s => norm(s.desc) === norm(secao));
-        if (secaoObj) lista = gruposExt.filter(g => g.cod_secao === secaoObj.cod);
+      if (secao !== 'Todas') {
+        const temRelacao = gruposExt.some(g => g.cod_secao !== null);
+        if (temRelacao) {
+          // GPRO tem coluna de vínculo: filtra por cod_secao
+          const secaoObj = secoesExt.find(s => norm(s.desc) === norm(secao));
+          if (secaoObj) lista = gruposExt.filter(g => g.cod_secao === secaoObj.cod);
+        } else {
+          // GPRO sem vínculo: usa os produtos para descobrir quais grupos pertencem à seção
+          const permitidos = gruposNaSecao();
+          if (permitidos && permitidos.size > 0) {
+            lista = gruposExt.filter(g => permitidos.has(norm(g.desc)));
+          }
+        }
       }
       return ['Todos', ...lista.map(g => g.desc).filter(Boolean)];
     }
+
+    // Sem GPRO: deriva direto das linhas
     if (!det.grupo) return [];
     const base = secao === 'Todas'
       ? rows
