@@ -342,6 +342,8 @@ function ModalQueryForm({ query, conexoes, onSave, onClose }) {
                   <option value="">— Nenhum —</option>
                   <option value="cadastro_produtos">📦 Tabela — Cadastro de Produtos</option>
                   <option value="cadastro_clientes">👥 Tabela — Cadastro de Clientes</option>
+                  <option value="cadastro_secoes">🗂️ Filtro — Seções (SPRO)</option>
+                  <option value="cadastro_grupos">📂 Filtro — Grupos (GPRO)</option>
                 </select>
                 <span style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4, display: 'block' }}>
                   Os resultados desta consulta serão exibidos como tabela no cadastro selecionado.

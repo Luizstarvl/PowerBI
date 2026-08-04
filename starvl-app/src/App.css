@@ -2781,12 +2781,20 @@ select.themed-select option {
 }
 .pp-bar-field select {
   height: 32px; padding: 0 8px; border-radius: 8px; font-size: 12.5px;
-  background: rgba(128,128,128,.08); border: 1px solid var(--color-border);
+  background: var(--color-surface); border: 1px solid var(--color-border);
   color: var(--color-text); outline: none; cursor: pointer;
   color-scheme: dark; transition: border-color .15s;
 }
 .pp-bar-field select:focus { border-color: var(--color-primary); }
+.pp-bar-field select option {
+  background: var(--pp-opt-bg, #1a1a1a);
+  color: var(--pp-opt-color, #f0f0f0);
+}
 [data-theme="light"] .pp-bar-field select { color-scheme: light; }
+[data-theme="light"] .pp-bar-field select option {
+  --pp-opt-bg: #ffffff;
+  --pp-opt-color: #111111;
+}
 
 .pp-tabs { display: flex; border-radius: 8px; border: 1px solid var(--color-border); overflow: hidden; height: 32px; }
 .pp-tab {

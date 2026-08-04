@@ -63,11 +63,15 @@ function EstoqueCell({ value }) {
 }
 
 export default function PainelProdutos({ empresasKey, onVoltar }) {
-  const [slotQuery,  setSlotQuery]  = useState(undefined);
-  const [rows,       setRows]       = useState([]);
-  const [cols,       setCols]       = useState([]);
-  const [loading,    setLoading]    = useState(false);
-  const [erro,       setErro]       = useState('');
+  const [slotQuery,   setSlotQuery]   = useState(undefined);
+  const [slotSecoes,  setSlotSecoes]  = useState(null); // query dedicada para SPRO
+  const [slotGrupos,  setSlotGrupos]  = useState(null); // query dedicada para GPRO
+  const [rows,        setRows]        = useState([]);
+  const [cols,        setCols]        = useState([]);
+  const [secoesExt,   setSecoesExt]   = useState([]); // [{cod, desc}] de SPRO
+  const [gruposExt,   setGruposExt]   = useState([]); // [{cod, desc, cod_secao}] de GPRO
+  const [loading,     setLoading]     = useState(false);
+  const [erro,        setErro]        = useState('');
 
   const [busca,      setBusca]      = useState('');
   const [secao,      setSecao]      = useState('Todas');
@@ -76,17 +80,61 @@ export default function PainelProdutos({ empresasKey, onVoltar }) {
   const [semEstoque, setSemEstoque] = useState(false);
   const [pagina,     setPagina]     = useState(1);
   const [pageSize,   setPageSize]   = useState(15);
-  const [detalhe,    setDetalhe]    = useState(null); // row selecionada
+  const [detalhe,    setDetalhe]    = useState(null);
 
   const empresa = (empresasKey || '').split(',')[0];
   const det = useMemo(() => detectCols(cols), [cols]);
 
+  // Busca os 3 slots: produtos, seções (SPRO), grupos (GPRO)
   useEffect(() => {
-    apiFetch('/api/queries?ativa=true&slot=cadastro_produtos')
-      .then(r => r.json())
-      .then(d => setSlotQuery(Array.isArray(d) && d.length ? d[0] : null))
-      .catch(() => setSlotQuery(null));
+    const fetchSlot = slot =>
+      apiFetch(`/api/queries?ativa=true&slot=${slot}`)
+        .then(r => r.json())
+        .then(d => (Array.isArray(d) && d.length ? d[0] : null))
+        .catch(() => null);
+
+    Promise.all([
+      fetchSlot('cadastro_produtos'),
+      fetchSlot('cadastro_secoes'),
+      fetchSlot('cadastro_grupos'),
+    ]).then(([q, qs, qg]) => {
+      setSlotQuery(q);
+      setSlotSecoes(qs);
+      setSlotGrupos(qg);
+    });
   }, []);
+
+  // Executa SPRO e GPRO quando os slots estiverem prontos
+  useEffect(() => {
+    if (!empresa) return;
+    if (slotSecoes) {
+      apiFetch(`/api/queries/execute/${slotSecoes.codigo}?empresa=${empresa}`)
+        .then(r => r.json())
+        .then(d => {
+          if (!d.ok || !d.rows?.length) return;
+          // Detecta colunas: primeiro é código, segundo é descrição
+          const [codCol, descCol] = d.columns;
+          // Detecta coluna de seção pai (para GPRO) — pode ser null aqui
+          setSecoesExt(d.rows.map(r => ({ cod: String(r[codCol] ?? ''), desc: String(r[descCol] ?? '') })));
+        })
+        .catch(() => {});
+    }
+    if (slotGrupos) {
+      apiFetch(`/api/queries/execute/${slotGrupos.codigo}?empresa=${empresa}`)
+        .then(r => r.json())
+        .then(d => {
+          if (!d.ok || !d.rows?.length) return;
+          // Espera colunas: cod_grupo, descricao, cod_secao (terceira coluna opcional)
+          const [codCol, descCol, codSecaoCol] = d.columns;
+          setGruposExt(d.rows.map(r => ({
+            cod:      String(r[codCol]      ?? ''),
+            desc:     String(r[descCol]     ?? ''),
+            cod_secao: codSecaoCol ? String(r[codSecaoCol] ?? '') : null,
+          })));
+        })
+        .catch(() => {});
+    }
+  }, [slotSecoes, slotGrupos, empresa]);
 
   const fetchDados = useCallback(() => {
     if (!slotQuery || !empresa) return;
@@ -106,20 +154,43 @@ export default function PainelProdutos({ empresasKey, onVoltar }) {
 
   useEffect(() => { fetchDados(); }, [fetchDados]);
 
+  // Seções: usa SPRO se configurado, senão deriva das linhas
   const secoes = useMemo(() => {
+    if (secoesExt.length) {
+      return ['Todas', ...secoesExt.map(s => s.desc).filter(Boolean)];
+    }
     if (!det.secao) return [];
     return ['Todas', ...new Set(rows.map(r => r[det.secao]).filter(Boolean))];
-  }, [rows, det.secao]);
+  }, [secoesExt, rows, det.secao]);
 
+  // Grupos: usa GPRO se configurado (com filtro por seção), senão deriva das linhas
   const grupos = useMemo(() => {
+    if (gruposExt.length) {
+      // Filtra grupos pela seção selecionada via cod_secao
+      let lista = gruposExt;
+      if (secao !== 'Todas' && gruposExt[0]?.cod_secao !== null) {
+        // Acha o código da seção selecionada
+        const secaoObj = secoesExt.find(s => s.desc === secao);
+        if (secaoObj) lista = gruposExt.filter(g => g.cod_secao === secaoObj.cod);
+      }
+      return ['Todos', ...lista.map(g => g.desc).filter(Boolean)];
+    }
     if (!det.grupo) return [];
     const base = secao === 'Todas' ? rows : rows.filter(r => r[det.secao] === secao);
     return ['Todos', ...new Set(base.map(r => r[det.grupo]).filter(Boolean))];
-  }, [rows, det.secao, det.grupo, secao]);
+  }, [gruposExt, secoesExt, rows, det.secao, det.grupo, secao]);
+
+  // Helper para comparar situação sem falso positivo (ativo dentro de inativo)
+  const matchSituacao = (val, tipo) => {
+    const v = String(val || '').trim().toLowerCase();
+    if (tipo === 'Ativos')   return v === 'ativo'   || v === 'a';
+    if (tipo === 'Inativos') return v === 'inativo' || v === 'i';
+    return true;
+  };
 
   const kpis = useMemo(() => {
-    const ativos   = rows.filter(r => /ativo/i.test(String(r[det.situacao] || '')));
-    const inativos = rows.filter(r => /inativo/i.test(String(r[det.situacao] || '')));
+    const ativos   = rows.filter(r => matchSituacao(r[det.situacao], 'Ativos'));
+    const inativos = rows.filter(r => matchSituacao(r[det.situacao], 'Inativos'));
     const semEst   = rows.filter(r => Number(r[det.estoque] || 0) <= 0);
 
     const valorTotal = rows.reduce((acc, r) =>
@@ -147,8 +218,7 @@ export default function PainelProdutos({ empresasKey, onVoltar }) {
     }
     if (secao !== 'Todas' && det.secao)      r = r.filter(row => row[det.secao] === secao);
     if (grupo !== 'Todos' && det.grupo)      r = r.filter(row => row[det.grupo] === grupo);
-    if (situacao === 'Ativos'   && det.situacao) r = r.filter(row =>  /ativo/i.test(String(row[det.situacao] || '')));
-    if (situacao === 'Inativos' && det.situacao) r = r.filter(row => /inativo/i.test(String(row[det.situacao] || '')));
+    if (situacao !== 'Todos' && det.situacao) r = r.filter(row => matchSituacao(row[det.situacao], situacao));
     if (semEstoque && det.estoque) r = r.filter(row => Number(row[det.estoque] || 0) <= 0);
     return r;
   }, [rows, busca, secao, grupo, situacao, semEstoque, det]);
