@@ -2836,6 +2836,7 @@ select.themed-select option {
 .pp-tr { transition: background .1s; border-bottom: 1px solid var(--color-border); }
 .pp-tr:last-child { border-bottom: none; }
 .pp-tr:hover { background: color-mix(in srgb, var(--color-primary) 6%, transparent); }
+.pp-tr--click { cursor: pointer; }
 
 .pp-td {
   padding: 9px 14px; color: var(--color-text);
@@ -2905,3 +2906,157 @@ select.themed-select option {
 
 .spin { animation: spin 0.9s linear infinite; }
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+/* ── ProdutoDetalhe — Drawer lateral ─────────────────────────────────────── */
+.pd-overlay {
+  position: fixed; inset: 0; z-index: 1000;
+  background: rgba(0,0,0,.55);
+  display: flex; justify-content: flex-end;
+  animation: pd-fade-in .18s ease;
+}
+@keyframes pd-fade-in { from { opacity: 0; } to { opacity: 1; } }
+
+.pd-drawer {
+  width: 420px; max-width: 95vw; height: 100%;
+  background: var(--color-surface);
+  border-left: 1px solid var(--color-border);
+  display: flex; flex-direction: column;
+  animation: pd-slide-in .22s ease;
+  overflow: hidden;
+}
+@keyframes pd-slide-in { from { transform: translateX(100%); } to { transform: translateX(0); } }
+
+/* Cabeçalho */
+.pd-head {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  padding: 20px 20px 16px;
+  border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+.pd-head-label { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--color-text-muted); margin-bottom: 4px; }
+.pd-head-title { font-size: 15px; font-weight: 800; color: var(--color-text); line-height: 1.3; }
+.pd-close {
+  background: none; border: none; cursor: pointer; padding: 4px;
+  color: var(--color-text-muted); border-radius: 6px; flex-shrink: 0;
+  transition: color .12s, background .12s;
+}
+.pd-close:hover { background: rgba(128,128,128,.12); color: var(--color-text); }
+
+/* Corpo rolável */
+.pd-body {
+  flex: 1; overflow-y: auto; padding: 20px;
+  display: flex; flex-direction: column; gap: 16px;
+}
+
+/* Foto */
+.pd-foto-area { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.pd-foto-frame {
+  position: relative; width: 160px; height: 160px;
+  border-radius: 14px; overflow: hidden; cursor: pointer;
+  border: 2px dashed var(--color-border);
+  background: rgba(128,128,128,.06);
+  transition: border-color .15s;
+}
+.pd-foto-frame:hover { border-color: var(--color-primary); }
+.pd-foto-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pd-foto-empty {
+  width: 100%; height: 100%;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 8px; color: var(--color-text-muted); font-size: 12px;
+}
+.pd-foto-overlay {
+  position: absolute; inset: 0;
+  background: rgba(0,0,0,.5); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  gap: 6px; font-size: 12px; font-weight: 600;
+  opacity: 0; transition: opacity .15s;
+}
+.pd-foto-frame:hover .pd-foto-overlay { opacity: 1; }
+.pd-foto-remove {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: none; border: none; cursor: pointer;
+  font-size: 11.5px; color: #ef4444; font-weight: 600;
+  transition: opacity .12s;
+}
+.pd-foto-remove:hover { opacity: .75; }
+
+/* Seção dados */
+.pd-section-title {
+  font-size: 10.5px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .06em; color: var(--color-text-muted);
+  border-bottom: 1px solid var(--color-border); padding-bottom: 6px;
+}
+.pd-fields { display: flex; flex-direction: column; gap: 0; }
+.pd-field {
+  display: flex; justify-content: space-between; align-items: baseline;
+  padding: 7px 0; border-bottom: 1px solid rgba(128,128,128,.07);
+  gap: 12px;
+}
+.pd-field:last-child { border-bottom: none; }
+.pd-field-label { font-size: 12px; color: var(--color-text-muted); flex-shrink: 0; }
+.pd-field-value { font-size: 13px; font-weight: 600; color: var(--color-text); text-align: right; word-break: break-word; }
+
+/* Loading extras */
+.pd-loading {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12.5px; color: var(--color-text-muted);
+}
+
+/* Campos extras */
+.pd-extra-field { display: flex; flex-direction: column; gap: 6px; }
+.pd-extra-label {
+  font-size: 12px; font-weight: 600; color: var(--color-text);
+  display: flex; align-items: baseline; gap: 6px;
+}
+.pd-hint { font-size: 10.5px; font-weight: 400; color: var(--color-text-muted); }
+.pd-textarea {
+  width: 100%; padding: 9px 12px; font-size: 13px;
+  background: rgba(128,128,128,.07); border: 1px solid var(--color-border);
+  border-radius: 9px; color: var(--color-text); resize: vertical;
+  outline: none; font-family: inherit; transition: border-color .15s;
+  box-sizing: border-box;
+}
+.pd-textarea:focus { border-color: var(--color-primary); }
+
+/* Tags */
+.pd-tag-wrap {
+  display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+  min-height: 38px; padding: 6px 10px;
+  background: rgba(128,128,128,.07); border: 1px solid var(--color-border);
+  border-radius: 9px; cursor: text; transition: border-color .15s;
+}
+.pd-tag-wrap:focus-within { border-color: var(--color-primary); }
+.pd-tag {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 8px; border-radius: 20px; font-size: 11.5px; font-weight: 600;
+  background: color-mix(in srgb, var(--color-primary) 15%, transparent);
+  color: var(--color-primary);
+}
+.pd-tag-rm {
+  background: none; border: none; cursor: pointer; padding: 0;
+  color: inherit; display: flex; align-items: center; opacity: .7;
+  transition: opacity .12s;
+}
+.pd-tag-rm:hover { opacity: 1; }
+.pd-tag-input {
+  flex: 1; min-width: 80px; background: none; border: none; outline: none;
+  font-size: 13px; color: var(--color-text);
+}
+
+/* Rodapé */
+.pd-foot {
+  display: flex; align-items: center; justify-content: flex-end; gap: 12px;
+  padding: 14px 20px; border-top: 1px solid var(--color-border); flex-shrink: 0;
+}
+.pd-msg { font-size: 12.5px; margin-right: auto; }
+.pd-msg--ok  { color: #22c55e; }
+.pd-msg--err { color: #ef4444; }
+.pd-btn-save {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 8px 18px; font-size: 13px; font-weight: 700;
+  background: var(--color-primary); color: #fff;
+  border: none; border-radius: 9px; cursor: pointer;
+  transition: opacity .15s;
+}
+.pd-btn-save:hover:not(:disabled) { opacity: .88; }
+.pd-btn-save:disabled { opacity: .5; cursor: not-allowed; }

@@ -25,6 +25,7 @@ const metasRoutes         = require('./routes/metas');
 const passwordResetsRoutes = require('./routes/passwordResets');
 const queriesRoutes        = require('./routes/queries');
 const cacheRoutes          = require('./routes/cache');
+const produtoExtraRoutes   = require('./routes/produtoExtra');
 const { scheduleNightlyJob } = require('./jobs/cacheVerification');
 
 const app = express();
@@ -154,6 +155,7 @@ app.use('/api/metas',          metasRoutes);
 app.use('/api/password-resets', passwordResetsRoutes);
 app.use('/api/queries',        queriesRoutes);
 app.use('/api/cache',          cacheRoutes);
+app.use('/api/produto-extra',  produtoExtraRoutes);
 
 if (fs.existsSync(clientBuildPath)) {
   app.use(express.static(clientBuildPath, {

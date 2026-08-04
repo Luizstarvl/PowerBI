@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { RefreshCw, Search, X, Package, DollarSign, AlertTriangle, TrendingUp, Printer, ChevronLeft, ChevronRight, ArrowLeft } from 'lucide-react';
 import { apiFetch } from '../../api';
+import ProdutoDetalhe from './ProdutoDetalhe';
 
 const fmtCurrency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 const fmtNum      = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 3 });
@@ -75,6 +76,7 @@ export default function PainelProdutos({ empresasKey, onVoltar }) {
   const [semEstoque, setSemEstoque] = useState(false);
   const [pagina,     setPagina]     = useState(1);
   const [pageSize,   setPageSize]   = useState(15);
+  const [detalhe,    setDetalhe]    = useState(null); // row selecionada
 
   const empresa = (empresasKey || '').split(',')[0];
   const det = useMemo(() => detectCols(cols), [cols]);
@@ -317,7 +319,7 @@ export default function PainelProdutos({ empresasKey, onVoltar }) {
                     </td>
                   </tr>
                 ) : pagRows.map((row, i) => (
-                  <tr key={i} className="pp-tr">
+                  <tr key={i} className="pp-tr pp-tr--click" onClick={() => setDetalhe(row)}>
                     {tabelaCols.map((c, ci) => {
                       const raw = c.calc ? c.calc(row) : row[c.key];
                       return (
@@ -372,6 +374,15 @@ export default function PainelProdutos({ empresasKey, onVoltar }) {
           </div>
         </div>
       </div>
+
+      {detalhe && (
+        <ProdutoDetalhe
+          row={detalhe}
+          cols={cols}
+          empresa={empresa}
+          onClose={() => setDetalhe(null)}
+        />
+      )}
     </div>
   );
 }
