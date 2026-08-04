@@ -381,7 +381,7 @@ ${filtroTags ? `<div class="filters-row"><span class="filters-label">Filtros apl
         // — Cabeçalho repetido (visível só na tela) —
         var hdrRow = document.createElement('tr');
         hdrRow.className = 'pg-repeat-header';
-        hdrRow.innerHTML = theadHTML.replace(/<tr[^>]*>/i, '').replace(/<\/tr>/i, '');
+        hdrRow.innerHTML = theadHTML.replace(/<tr[^>]*>/i, '').replace(/<\\/tr>/i, '');
         tbody.insertBefore(hdrRow, rows[i]);
         rows.splice(i, 0, hdrRow);
         i++;
