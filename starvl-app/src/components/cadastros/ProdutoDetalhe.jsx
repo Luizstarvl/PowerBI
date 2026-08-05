@@ -68,7 +68,7 @@ function buildOrderedFields(row, cols, det) {
   }).filter(Boolean);
 }
 
-export default function ProdutoDetalhe({ row, cols, det, empresa, onClose }) {
+export default function ProdutoDetalhe({ row, cols, det, empresa, onClose, onFotoAtualizada }) {
   const [foto,        setFoto]        = useState(null);   // base64 ou null
   const [observacoes, setObservacoes] = useState('');
   const [tags,        setTags]        = useState([]);
@@ -123,7 +123,13 @@ export default function ProdutoDetalhe({ row, cols, det, empresa, onClose }) {
           body: JSON.stringify({ foto_base64: foto, observacoes, tags }) }
       );
       const d = await r.json();
-      setMsg(d.ok ? 'Salvo com sucesso!' : (d.error || 'Erro ao salvar.'));
+      if (d.ok) {
+        setMsg('Salvo com sucesso!');
+        // Atualiza o fotosMap da listagem pai sem recarregar tudo
+        onFotoAtualizada?.(cod, foto);
+      } else {
+        setMsg(d.error || 'Erro ao salvar.');
+      }
     } catch { setMsg('Erro ao salvar.'); }
     setSaving(false);
   }

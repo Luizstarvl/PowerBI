@@ -704,6 +704,16 @@ export default function PainelProdutos({ empresasKey, onVoltar }) {
       .catch(() => {});
   }, [rows, empresa, det.codigo]);
 
+  // Atualiza fotosMap após salvar foto no detalhe (sem recarregar tudo)
+  const handleFotoAtualizada = useCallback((cod, foto) => {
+    setFotosMap(prev => {
+      if (foto) return { ...prev, [String(cod)]: foto };
+      const next = { ...prev };
+      delete next[String(cod)];
+      return next;
+    });
+  }, []);
+
   // Seções: usa SPRO se configurado, senão deriva das linhas
   const secoes = useMemo(() => {
     if (secoesExt.length) {
@@ -1075,6 +1085,7 @@ export default function PainelProdutos({ empresasKey, onVoltar }) {
           det={det}
           empresa={empresa}
           onClose={() => setDetalhe(null)}
+          onFotoAtualizada={handleFotoAtualizada}
         />
       )}
 
