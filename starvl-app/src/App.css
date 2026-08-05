@@ -3224,6 +3224,16 @@ select.themed-select option {
   box-shadow:0 0 24px rgba(249,115,22,.5),0 4px 20px rgba(249,115,22,.3);
 }
 .bpv-btn:active { transform:translateY(0) }
+.bpv-btn:disabled { opacity:.6; cursor:not-allowed; transform:none; filter:none; }
+.bpv-btn-spinner {
+  display:inline-block; width:14px; height:14px;
+  border:2px solid rgba(255,255,255,.35);
+  border-top-color:#fff; border-radius:50%;
+  animation:bpvSpin .7s linear infinite;
+}
+@keyframes bpvSpin { to { transform:rotate(360deg) } }
+.bpv-kpi-loading { opacity:.4; font-size:.85em; }
+.bpv-kpi-empty   { opacity:.35; }
 .bpv-ripple {
   position:absolute; border-radius:50%;
   background:rgba(255,255,255,.35);

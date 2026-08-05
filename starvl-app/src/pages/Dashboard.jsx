@@ -786,7 +786,7 @@ export default function Dashboard({ empresas, period, onNavigate }) {
             )}
           </div>
 
-          <BannerPrevisaoVendas />
+          <BannerPrevisaoVendas empresa={empresasKey.split(',')[0]} />
         </>
       )}
     </main>
