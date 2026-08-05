@@ -3,11 +3,12 @@
    Eclipse BI · Planejamento Comercial
 ═══════════════════════════════════════════════════════════════ */
 import React, { useState, useMemo, useCallback, useRef } from 'react';
+import * as XLSX from 'xlsx';
 import {
   TrendingUp, TrendingDown, Target, Rocket, DollarSign, BarChart2,
   AlertTriangle, Download, RefreshCw, ChevronDown, Search,
   ArrowUpRight, ArrowDownRight, Sparkles, Activity, Zap,
-  FileSpreadsheet, FileText, Image as ImgIcon, Star, Filter, Eye,
+  FileSpreadsheet, FileText, Star, Filter, Eye,
   ChevronUp, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import {
@@ -827,23 +828,180 @@ const ANALYTICS_COLS = [
   { key:'produto',  label:'Produto',       sortable:true  },
   { key:'cat',      label:'Categoria',     sortable:true  },
   { key:'forn',     label:'Fornecedor',    sortable:false },
-  { key:'atual',    label:'Venda Atual',   sortable:true, fmt:fmtR  },
-  { key:'proj',     label:'Projetado',     sortable:true, fmt:fmtR  },
-  { key:'meta',     label:'Meta',          sortable:true, fmt:fmtR  },
-  { key:'margem',   label:'Margem',        sortable:true, fmt:v=>`${v}%` },
-  { key:'lucro',    label:'Lucro',         sortable:true, fmt:fmtR  },
-  { key:'ticket',   label:'Ticket Médio',  sortable:true, fmt:v=>`R$ ${v.toFixed(2)}` },
-  { key:'qtd',      label:'Quantidade',    sortable:true, fmt:fmtN  },
-  { key:'part',     label:'Part.%',        sortable:true, fmt:v=>`${v}%` },
-  { key:'var',      label:'Variação',      sortable:true, fmt:v=><span style={{color:v>=0?CT.green:CT.red}}>{fmtP(v)}</span> },
-  { key:'desv',     label:'Desvio',        sortable:true, fmt:v=><span style={{color:v>=0?CT.green:CT.red}}>{fmtP(v)}</span> },
+  { key:'atual',    label:'Venda Atual',   sortable:true, fmtExcel: v => v, fmt:fmtR  },
+  { key:'proj',     label:'Projetado',     sortable:true, fmtExcel: v => v, fmt:fmtR  },
+  { key:'meta',     label:'Meta',          sortable:true, fmtExcel: v => v, fmt:fmtR  },
+  { key:'margem',   label:'Margem %',      sortable:true, fmtExcel: v => v, fmt:v=>`${v}%` },
+  { key:'lucro',    label:'Lucro',         sortable:true, fmtExcel: v => v, fmt:fmtR  },
+  { key:'ticket',   label:'Ticket Médio',  sortable:true, fmtExcel: v => v, fmt:v=>`R$ ${v.toFixed(2)}` },
+  { key:'qtd',      label:'Quantidade',    sortable:true, fmtExcel: v => v, fmt:fmtN  },
+  { key:'part',     label:'Part.%',        sortable:true, fmtExcel: v => v, fmt:v=>`${v}%` },
+  { key:'var',      label:'Variação %',    sortable:true, fmtExcel: v => v, fmt:v=><span style={{color:v>=0?CT.green:CT.red}}>{fmtP(v)}</span> },
+  { key:'desv',     label:'Desvio %',      sortable:true, fmtExcel: v => v, fmt:v=><span style={{color:v>=0?CT.green:CT.red}}>{fmtP(v)}</span> },
 ];
+
+/* ── Export helpers ────────────────────────────────────────── */
+function exportExcel(data) {
+  const headers = ANALYTICS_COLS.map(c => c.label);
+  const rows = data.map(row =>
+    ANALYTICS_COLS.map(c => {
+      const v = row[c.key];
+      // Para colunas numéricas mantém o número bruto; texto fica como string
+      return (c.fmtExcel && typeof v === 'number') ? v : (v ?? '');
+    })
+  );
+
+  const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+
+  // Largura automática das colunas
+  ws['!cols'] = headers.map((h, i) => {
+    const maxLen = Math.max(h.length, ...rows.map(r => String(r[i]).length));
+    return { wch: Math.min(maxLen + 2, 30) };
+  });
+
+  // Formatos numéricos para colunas de moeda (índices 3,4,5,7)
+  const currencyCols = [3, 4, 5, 7];
+  rows.forEach((_, ri) => {
+    currencyCols.forEach(ci => {
+      const addr = XLSX.utils.encode_cell({ r: ri + 1, c: ci });
+      if (ws[addr] && typeof ws[addr].v === 'number') {
+        ws[addr].z = '"R$"#,##0';
+      }
+    });
+  });
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Projeção de Vendas');
+
+  const now = new Date();
+  const stamp = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`;
+  XLSX.writeFile(wb, `projecao_vendas_${stamp}.xlsx`);
+}
+
+function exportPDF(data) {
+  const now = new Date().toLocaleDateString('pt-BR', { day:'2-digit', month:'long', year:'numeric' });
+
+  // Colunas simplificadas para o PDF (evita tabela muito larga)
+  const pdfCols = ANALYTICS_COLS.filter(c =>
+    ['produto','cat','atual','proj','meta','margem','lucro','var'].includes(c.key)
+  );
+
+  const fmtCell = (col, row) => {
+    const v = row[col.key];
+    if (col.key === 'atual' || col.key === 'proj' || col.key === 'meta' || col.key === 'lucro') return fmtR(v);
+    if (col.key === 'margem' || col.key === 'var') return `${v > 0 ? '+' : ''}${v}%`;
+    return v ?? '';
+  };
+
+  const rows = data.map(row => `
+    <tr>
+      ${pdfCols.map(c => {
+        const v = row[c.key];
+        let color = '#111';
+        if ((c.key === 'var' || c.key === 'desv') && typeof v === 'number') {
+          color = v >= 0 ? '#16a34a' : '#dc2626';
+        }
+        return `<td style="color:${color}">${fmtCell(c, row)}</td>`;
+      }).join('')}
+    </tr>`).join('');
+
+  const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"/>
+<title>Projeção de Vendas — Eclipse BI</title>
+<style>
+  @page { margin: 18mm 14mm; size: A4 landscape; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 11px; color: #111; background: #fff; }
+  header { display: flex; align-items: center; justify-content: space-between;
+           border-bottom: 2px solid #f97316; padding-bottom: 10px; margin-bottom: 16px; }
+  .logo { font-size: 20px; font-weight: 800; color: #f97316; letter-spacing: -.02em; }
+  .logo span { color: #111; }
+  .doc-title { font-size: 14px; font-weight: 700; color: #111; }
+  .doc-sub   { font-size: 10px; color: #666; margin-top: 3px; }
+  .doc-date  { font-size: 10px; color: #999; }
+  .kpis { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; margin-bottom: 18px; }
+  .kpi  { border: 1px solid #e5e7eb; border-left: 3px solid #f97316; border-radius: 6px; padding: 8px 12px; }
+  .kpi-label { font-size: 9px; color: #888; text-transform: uppercase; letter-spacing: .05em; }
+  .kpi-val   { font-size: 16px; font-weight: 800; color: #111; margin-top: 2px; }
+  .kpi-delta { font-size: 9px; color: #16a34a; margin-top: 2px; }
+  h2 { font-size: 12px; font-weight: 700; color: #111; margin-bottom: 8px;
+       display: flex; align-items: center; gap: 6px; }
+  h2::before { content:''; display:inline-block; width:3px; height:14px;
+               background:#f97316; border-radius:2px; }
+  table { width: 100%; border-collapse: collapse; font-size: 10px; }
+  thead tr { background: #f97316; }
+  thead th { color: #fff; font-weight: 700; padding: 7px 8px; text-align: left;
+             font-size: 9px; text-transform: uppercase; letter-spacing: .04em; }
+  tbody tr:nth-child(even) { background: #fff7ed; }
+  tbody tr:hover { background: #ffedd5; }
+  tbody td { padding: 6px 8px; border-bottom: 1px solid #f3f4f6; }
+  .td-name { font-weight: 600; }
+  footer { margin-top: 20px; border-top: 1px solid #e5e7eb; padding-top: 8px;
+           display: flex; justify-content: space-between; color: #aaa; font-size: 9px; }
+  .badge { display: inline-block; background: #fff7ed; color: #f97316; border: 1px solid #fed7aa;
+           border-radius: 4px; padding: 1px 6px; font-size: 9px; font-weight: 700; }
+  @media print {
+    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <div class="logo">Eclipse <span>BI</span></div>
+    <div style="font-size:9px;color:#999;margin-top:2px;">Sistema de Gestão de Postos</div>
+  </div>
+  <div style="text-align:center">
+    <div class="doc-title">Projeção Inteligente de Vendas</div>
+    <div class="doc-sub">Tabela Analítica Completa · ${data.length} produtos</div>
+  </div>
+  <div class="doc-date">${now}</div>
+</header>
+
+<div class="kpis">
+  <div class="kpi"><div class="kpi-label">Venda Projetada</div><div class="kpi-val">R$ 1,07M</div><div class="kpi-delta">▲ +12% vs anterior</div></div>
+  <div class="kpi"><div class="kpi-label">Venda Real</div><div class="kpi-val">R$ 637K</div><div class="kpi-delta">63% da meta</div></div>
+  <div class="kpi"><div class="kpi-label">Precisão do Modelo</div><div class="kpi-val">86%</div><div class="kpi-delta">Alta confiabilidade</div></div>
+  <div class="kpi"><div class="kpi-label">Desvio da Meta</div><div class="kpi-val">+R$ 74K</div><div class="kpi-delta">▲ +7,4% acima</div></div>
+</div>
+
+<h2>Análise por Produto <span class="badge">PERÍODO ATUAL</span></h2>
+<table>
+  <thead>
+    <tr>
+      ${pdfCols.map(c => `<th>${c.label}</th>`).join('')}
+    </tr>
+  </thead>
+  <tbody>
+    ${rows}
+  </tbody>
+</table>
+
+<footer>
+  <span>Eclipse BI · Projeção de Vendas</span>
+  <span>Gerado automaticamente em ${now} · Dados de demonstração</span>
+  <span>Desenvolvido por lb</span>
+</footer>
+</body>
+</html>`;
+
+  const w = window.open('', '_blank', 'width=1100,height=800');
+  w.document.write(html);
+  w.document.close();
+  // Aguarda carregar e abre diálogo de impressão
+  w.onload = () => { w.focus(); w.print(); };
+  // Fallback caso onload já tenha disparado
+  setTimeout(() => { try { w.focus(); w.print(); } catch(_){} }, 400);
+}
 
 function AnalyticsTable() {
   const [search, setSearch]   = useState('');
   const [sortKey, setSortKey] = useState('atual');
   const [sortDir, setSortDir] = useState('desc');
   const [page,    setPage]    = useState(1);
+  const [exporting, setExporting] = useState(null); // 'excel' | 'pdf' | null
   const PAGE_SIZE = 5;
 
   const filtered = useMemo(() => {
@@ -868,6 +1026,25 @@ function AnalyticsTable() {
     setPage(1);
   }
 
+  function handleExcel() {
+    setExporting('excel');
+    // Pequeno timeout para o estado de loading aparecer antes do processamento síncrono
+    setTimeout(() => {
+      try { exportExcel(filtered); }
+      catch(e) { console.error('Erro ao exportar Excel:', e); }
+      finally { setExporting(null); }
+    }, 50);
+  }
+
+  function handlePDF() {
+    setExporting('pdf');
+    setTimeout(() => {
+      try { exportPDF(filtered); }
+      catch(e) { console.error('Erro ao exportar PDF:', e); }
+      finally { setExporting(null); }
+    }, 50);
+  }
+
   return (
     <div className="pv-analytics">
       <div className="pv-section-title">
@@ -881,9 +1058,24 @@ function AnalyticsTable() {
             value={search} onChange={e => { setSearch(e.target.value); setPage(1); }}/>
         </div>
         <div className="pv-export-btns">
-          <button className="pv-icon-btn" title="Exportar Excel"><FileSpreadsheet size={14}/></button>
-          <button className="pv-icon-btn" title="Exportar PDF"><FileText size={14}/></button>
-          <button className="pv-icon-btn" title="Exportar Imagem"><ImgIcon size={14}/></button>
+          <button
+            className="pv-icon-btn"
+            title={`Exportar Excel (${filtered.length} registros)`}
+            onClick={handleExcel}
+            disabled={!!exporting}>
+            {exporting === 'excel'
+              ? <RefreshCw size={14} className="pv-spin"/>
+              : <FileSpreadsheet size={14}/>}
+          </button>
+          <button
+            className="pv-icon-btn"
+            title={`Exportar PDF (${filtered.length} registros)`}
+            onClick={handlePDF}
+            disabled={!!exporting}>
+            {exporting === 'pdf'
+              ? <RefreshCw size={14} className="pv-spin"/>
+              : <FileText size={14}/>}
+          </button>
         </div>
       </div>
       <div className="pv-table-wrap">
