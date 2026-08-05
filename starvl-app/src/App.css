@@ -3343,6 +3343,49 @@ select.themed-select option {
 .pd-fields-col {
   flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px;
 }
+/* ── Seção de contato ── */
+.pd-contato-section {
+  border-top: 1px solid var(--color-border);
+  padding-top: 18px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.pd-contato-cards {
+  display: flex; flex-wrap: wrap; gap: 10px;
+}
+.pd-contato-card {
+  display: flex; align-items: center; gap: 10px;
+  flex: 1 1 200px; min-width: 0;
+  padding: 10px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-surface-hover);
+  text-decoration: none;
+  color: inherit;
+  transition: border-color .15s, background .15s;
+  cursor: pointer;
+}
+.pd-contato-card:hover {
+  border-color: var(--color-primary);
+  background: var(--color-primary-light);
+}
+.pd-contato-icon {
+  display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 8px; flex-shrink: 0;
+}
+.pd-contato-icon--tel   { background: rgba(34,197,94,0.12);  color: #16a34a; }
+.pd-contato-icon--email { background: rgba(59,130,246,0.12); color: #2563eb; }
+.pd-contato-info {
+  display: flex; flex-direction: column; gap: 1px; min-width: 0;
+}
+.pd-contato-label {
+  font-size: 10px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: .06em; color: var(--color-text-secondary);
+}
+.pd-contato-value {
+  font-size: 13px; font-weight: 500; color: var(--color-text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
 /* Bloco de extras abaixo */
 .pd-extras-section {
   display: flex; flex-direction: column; gap: 14px;

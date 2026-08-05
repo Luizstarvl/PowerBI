@@ -669,6 +669,8 @@ export default function PainelClientes({ empresasKey, onVoltar }) {
     det.codigo     && { key: det.codigo,     label: 'Código' },
     det.documento  && { key: det.documento,  label: 'Documento' },
     det.inscricaoEstadual && { key: det.inscricaoEstadual, label: 'Insc. Estadual / RG' },
+    det.telefone   && { key: det.telefone,   label: 'Telefone' },
+    det.email      && { key: det.email,      label: 'E-mail' },
     det.logradouro && { key: det.logradouro, label: 'Rua' },
     det.numero     && { key: det.numero,     label: 'Número' },
     det.cidade     && { key: det.cidade,     label: 'Cidade' },

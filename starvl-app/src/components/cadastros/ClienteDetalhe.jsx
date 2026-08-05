@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom';
-import { X, Camera, Save, Tag, Loader, Trash2 } from 'lucide-react';
+import { X, Camera, Save, Tag, Loader, Trash2, Phone, Mail } from 'lucide-react';
 import { apiFetch } from '../../api';
 
 function compress(file, maxPx = 600, quality = 0.75) {
@@ -28,8 +28,6 @@ function buildOrderedFields(row, det) {
     det.nomeFantasia && { col: det.nomeFantasia, label: 'Nome Fantasia', fmt: v => String(v) },
     det.documento    && { col: det.documento,    label: 'Documento',     fmt: v => String(v) },
     det.inscricaoEstadual && { col: det.inscricaoEstadual, label: 'Insc. Estadual / RG', fmt: v => String(v) },
-    det.telefone   && { col: det.telefone,   label: 'Telefone',  fmt: v => String(v) },
-    det.email      && { col: det.email,      label: 'Email',     fmt: v => String(v) },
     det.logradouro && { col: det.logradouro, label: 'Rua',       fmt: v => String(v) },
     det.numero     && { col: det.numero,     label: 'Número',    fmt: v => String(v) },
     det.cidade    && { col: det.cidade,    label: 'Cidade',     fmt: v => String(v) },
@@ -158,6 +156,38 @@ export default function ClienteDetalhe({ row, cols, det, empresa, onClose }) {
             </div>
 
           </div>
+
+          {/* ── Contato ── */}
+          {(det?.telefone || det?.email) && (() => {
+            const tel   = det.telefone ? row[det.telefone]  : null;
+            const email = det.email    ? row[det.email]     : null;
+            if (!tel && !email) return null;
+            return (
+              <div className="pd-contato-section">
+                <div className="pd-section-title">Contato</div>
+                <div className="pd-contato-cards">
+                  {tel && (
+                    <a href={`tel:${String(tel).replace(/\D/g, '')}`} className="pd-contato-card">
+                      <span className="pd-contato-icon pd-contato-icon--tel"><Phone size={14} /></span>
+                      <div className="pd-contato-info">
+                        <span className="pd-contato-label">Telefone</span>
+                        <span className="pd-contato-value">{tel}</span>
+                      </div>
+                    </a>
+                  )}
+                  {email && (
+                    <a href={`mailto:${email}`} className="pd-contato-card">
+                      <span className="pd-contato-icon pd-contato-icon--email"><Mail size={14} /></span>
+                      <div className="pd-contato-info">
+                        <span className="pd-contato-label">E-mail</span>
+                        <span className="pd-contato-value">{email}</span>
+                      </div>
+                    </a>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
 
           {/* ── Extras abaixo ── */}
           {loading ? (
