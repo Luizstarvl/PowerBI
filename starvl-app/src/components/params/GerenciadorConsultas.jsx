@@ -13,18 +13,18 @@ const CATEGORIAS = ['Dashboard', 'Cadastros', 'Indicadores', 'Relatórios', 'Car
 
 const DASHBOARD_SLOTS = [
   { value: '',                  label: '— Nenhum —' },
-  { value: 'top5_convenio',    label: '🏆 Banner Top 5 Conveniência' },
-  { value: 'top5_pista',       label: '⛽ Banner Top 5 Pista' },
-  { value: 'top5_combustiveis', label: '🔥 Banner Top Combustíveis' },
-  { value: 'kpi_vendas',       label: '📊 KPI — Vendas Totais' },
-  { value: 'kpi_combustivel',  label: '⛽ KPI — Combustível' },
-  { value: 'kpi_conveniencia', label: '🛒 KPI — Conveniência' },
-  { value: 'kpi_compras_comb', label: '🚛 KPI — Compras Combustível' },
-  { value: 'kpi_compras_conv', label: '📦 KPI — Compras Conveniência' },
-  { value: 'kpi_afericoes',    label: '🔧 KPI — Aferições' },
-  { value: 'vendas_diarias',    label: '📈 Gráfico Vendas Diárias' },
-  { value: 'vendas_horarias',   label: '⏱ Gráfico Vendas por Hora' },
-  { value: 'historico_mensal',  label: '🔮 Previsão de Vendas (histórico mensal)' },
+  { value: 'top5_convenio',    label: 'Banner Top 5 Conveniência' },
+  { value: 'top5_pista',       label: 'Banner Top 5 Pista' },
+  { value: 'top5_combustiveis', label: 'Banner Top Combustíveis' },
+  { value: 'kpi_vendas',       label: 'KPI — Vendas Totais' },
+  { value: 'kpi_combustivel',  label: 'KPI — Combustível' },
+  { value: 'kpi_conveniencia', label: 'KPI — Conveniência' },
+  { value: 'kpi_compras_comb', label: 'KPI — Compras Combustível' },
+  { value: 'kpi_compras_conv', label: 'KPI — Compras Conveniência' },
+  { value: 'kpi_afericoes',    label: 'KPI — Aferições' },
+  { value: 'vendas_diarias',    label: 'Gráfico Vendas Diárias' },
+  { value: 'vendas_horarias',   label: 'Gráfico Vendas por Hora' },
+  { value: 'historico_mensal',  label: 'Previsão de Vendas (histórico mensal)' },
 ];
 
 const CAT_COLORS = {
