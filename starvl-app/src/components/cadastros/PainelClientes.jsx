@@ -36,8 +36,10 @@ function detectColsClientes(columns) {
     razaoSocial:  exact('razao_social|razao|nome_cliente|nome') || find('razao|nome_completo'),
     codigo:    exact('cod_cliente|codigo|clicodigo|cod'),
     documento: exact('documento|cpf_cnpj|cpf|cnpj') || find('cpf|cnpj|documento'),
-    telefone:  exact('telefone|fone|celular|whatsapp') || find('telefone|fone|celular'),
-    email:     exact('email|e_mail') || find('email'),
+    telefone:   exact('telefone|fone|celular|whatsapp') || find('telefone|fone|celular'),
+    email:      exact('email|e_mail') || find('email'),
+    logradouro: exact('logradouro|rua|endereco') || find('logradouro|endereco'),
+    numero:     exact('numero|nro|num') || find('numero'),
     cidade:    exact('cidade|municipio') || find('cidade|municipio'),
     tipo:      exact('tipo|tipo_pessoa|pessoa') || find('tipo_pessoa'),
     situacao:  exact('situacao|status|ativo|inativo') || find('situacao|status'),
@@ -663,12 +665,12 @@ export default function PainelClientes({ empresasKey, onVoltar }) {
 
   const tabelaCols = useMemo(() => [
     (det.nomeFantasia || det.razaoSocial) && { key: '__nome', label: 'Cliente', name: true, calc: row => clienteNome(row, det) },
-    det.codigo    && { key: det.codigo,    label: 'Código' },
-    det.documento && { key: det.documento, label: 'Documento' },
-    det.telefone  && { key: det.telefone,  label: 'Telefone' },
-    det.email     && { key: det.email,     label: 'Email' },
-    det.cidade    && { key: det.cidade,    label: 'Cidade' },
-    det.situacao  && { key: det.situacao,  label: 'Situação',  badge: true },
+    det.codigo     && { key: det.codigo,     label: 'Código' },
+    det.documento  && { key: det.documento,  label: 'Documento' },
+    det.logradouro && { key: det.logradouro, label: 'Rua' },
+    det.numero     && { key: det.numero,     label: 'Número' },
+    det.cidade     && { key: det.cidade,     label: 'Cidade' },
+    det.situacao   && { key: det.situacao,   label: 'Situação',  badge: true },
   ].filter(Boolean), [det]);
 
   const sortedFiltradas = useMemo(() => {
