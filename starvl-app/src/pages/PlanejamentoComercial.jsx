@@ -1,17 +1,29 @@
-import React from 'react';
-import { TrendingUp } from 'lucide-react';
+import React, { useState } from 'react';
+import ProjecaoVendas from '../components/planejamento/ProjecaoVendas';
 
-export default function PlanejamentoComercial() {
+const TABS = [
+  { key: 'projecao', label: 'Projeção de Vendas' },
+];
+
+export default function PlanejamentoComercial({ empresas }) {
+  const [tab, setTab] = useState('projecao');
+  const empresasKey = (empresas || []).join(',');
+
   return (
-    <div className="pc-empty-state">
-      <div className="pc-empty-icon-wrap">
-        <TrendingUp size={40} strokeWidth={1.5} />
+    <main className="dashboard pv-main-page">
+      <div className="usr-tabnav">
+        {TABS.map(t => (
+          <button
+            key={t.key}
+            className={`usr-tab${tab === t.key ? ' active' : ''}`}
+            onClick={() => setTab(t.key)}
+          >
+            {t.label}
+          </button>
+        ))}
       </div>
-      <h2 className="pc-empty-title">Planejamento Comercial</h2>
-      <p className="pc-empty-sub">
-        Esta seção está em desenvolvimento. Em breve você poderá gerenciar metas,
-        estratégias e indicadores comerciais aqui.
-      </p>
-    </div>
+
+      {tab === 'projecao' && <ProjecaoVendas empresasKey={empresasKey} />}
+    </main>
   );
 }
