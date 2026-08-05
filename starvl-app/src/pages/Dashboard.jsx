@@ -747,8 +747,6 @@ export default function Dashboard({ empresas, period, onNavigate }) {
 
       {empresasKey && !erro && (
         <>
-          <BannerPrevisaoVendas />
-
           <div className="kpi-grid">
             {(() => {
               const kpi = (slotKey, apiObj) => slotKpiData[slotKey] || apiObj || {};
@@ -787,6 +785,8 @@ export default function Dashboard({ empresas, period, onNavigate }) {
               />
             )}
           </div>
+
+          <BannerPrevisaoVendas />
         </>
       )}
     </main>
