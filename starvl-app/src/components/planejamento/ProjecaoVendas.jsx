@@ -718,11 +718,6 @@ function TreemapSection() {
 function InsightsPanel() {
   return (
     <div className="pv-insights">
-      <div className="pv-section-title">
-        <Sparkles size={18} style={{ color:CT.orange }}/>
-        Insights Automáticos
-        <span className="pv-badge-pill">IA</span>
-      </div>
       <div className="pv-insights-grid">
         {INSIGHTS.map((ins, i) => (
           <div key={i} className="pv-insight-card" style={{ '--ins-color': ins.cor }}>
@@ -745,11 +740,6 @@ function InsightsPanel() {
 function DescriptiveAnalysis() {
   return (
     <div className="pv-analysis">
-      <div className="pv-section-title">
-        <Activity size={18} style={{ color:CT.orange }}/>
-        Análise Descritiva da Projeção
-        <span className="pv-badge-pill">Auto</span>
-      </div>
       <div className="pv-analysis-body">
         <p>
           No período analisado, a projeção indica <strong>crescimento de 11,8%</strong> em relação ao mesmo período anterior.
@@ -776,10 +766,6 @@ function RankingTable() {
   const maxPj = Math.max(...RANKING.map(r=>r.proj));
   return (
     <div className="pv-ranking">
-      <div className="pv-section-title">
-        <Star size={18} style={{ color:CT.orange }}/>
-        Top Produtos Projetados
-      </div>
       <div className="pv-table-wrap">
         <table className="pv-table">
           <thead>
@@ -1047,10 +1033,6 @@ function AnalyticsTable() {
 
   return (
     <div className="pv-analytics">
-      <div className="pv-section-title">
-        <Eye size={18} style={{ color:CT.orange }}/>
-        Tabela Analítica Completa
-      </div>
       <div className="pv-analytics-toolbar">
         <div className="pv-search-wrap">
           <Search size={13} className="pv-search-icon"/>
@@ -1123,6 +1105,33 @@ function AnalyticsTable() {
   );
 }
 
+/* ── Section colapsável ────────────────────────────────────── */
+function Section({ id, icon: Icon, title, badge, defaultOpen = true, children }) {
+  const [open, setOpen] = useState(defaultOpen);
+
+  return (
+    <div className={`pv-section${open ? ' pv-section-open' : ' pv-section-closed'}`}>
+      {/* Cabeçalho clicável */}
+      <button className="pv-section-header" onClick={() => setOpen(o => !o)}>
+        <div className="pv-section-header-left">
+          {Icon && <Icon size={16} style={{ color: CT.orange, flexShrink: 0 }} />}
+          <span className="pv-section-header-title">{title}</span>
+          {badge && <span className="pv-badge-pill">{badge}</span>}
+        </div>
+        <div className="pv-section-header-right">
+          <span className="pv-section-toggle-label">{open ? 'Ocultar' : 'Mostrar'}</span>
+          <ChevronDown size={15} className={`pv-section-chevron${open ? '' : ' pv-section-chevron-up'}`} />
+        </div>
+      </button>
+
+      {/* Conteúdo com animação */}
+      <div className="pv-section-body">
+        {children}
+      </div>
+    </div>
+  );
+}
+
 /* ── Main Export ───────────────────────────────────────────── */
 export default function ProjecaoVendas({ empresasKey }) {
   const [loading, setLoading] = useState(false);
@@ -1138,44 +1147,66 @@ export default function ProjecaoVendas({ empresasKey }) {
       <FilterBar onRefresh={handleRefresh} loading={loading}/>
 
       <div className="pv-body">
+
         {/* KPIs */}
-        <KpiSection loading={loading}/>
+        <Section icon={BarChart2} title="Visão Geral — KPIs">
+          <KpiSection loading={loading}/>
+        </Section>
 
         {/* Seção 1: Evolução + Tendência */}
-        <div className="pv-chart-row">
-          <EvolutionChart/>
-          <TrendChart/>
-        </div>
+        <Section icon={TrendingUp} title="Evolução e Tendência de Vendas">
+          <div className="pv-chart-row">
+            <EvolutionChart/>
+            <TrendChart/>
+          </div>
+        </Section>
 
         {/* Seção 2: Barras + Waterfall */}
-        <div className="pv-chart-row">
-          <BarComparativo/>
-          <WaterfallChart/>
-        </div>
+        <Section icon={BarChart2} title="Comparativo Mensal e Variação da Receita">
+          <div className="pv-chart-row">
+            <BarComparativo/>
+            <WaterfallChart/>
+          </div>
+        </Section>
 
         {/* Seção 3: Radar */}
-        <RadarSection/>
+        <Section icon={Activity} title="Performance por Categoria">
+          <RadarSection/>
+        </Section>
 
         {/* Seção 4: Heatmap */}
-        <HeatmapSection/>
+        <Section icon={Zap} title="Mapa de Intensidade das Vendas">
+          <HeatmapSection/>
+        </Section>
 
         {/* Seção 5 + 6: Scatter + Treemap */}
-        <div className="pv-chart-row">
-          <ScatterSection/>
-          <TreemapSection/>
-        </div>
+        <Section icon={Target} title="Análise de Produtos — Preço, Volume e Participação">
+          <div className="pv-chart-row">
+            <ScatterSection/>
+            <TreemapSection/>
+          </div>
+        </Section>
 
         {/* Insights */}
-        <InsightsPanel/>
+        <Section icon={Sparkles} title="Insights Automáticos" badge="IA">
+          <InsightsPanel/>
+        </Section>
 
         {/* Análise Descritiva */}
-        <DescriptiveAnalysis/>
+        <Section icon={Activity} title="Análise Descritiva da Projeção" badge="Auto">
+          <DescriptiveAnalysis/>
+        </Section>
 
         {/* Ranking */}
-        <RankingTable/>
+        <Section icon={Star} title="Top Produtos Projetados">
+          <RankingTable/>
+        </Section>
 
         {/* Tabela Analítica */}
-        <AnalyticsTable/>
+        <Section icon={Eye} title="Tabela Analítica Completa">
+          <AnalyticsTable/>
+        </Section>
+
       </div>
     </div>
   );
