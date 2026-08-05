@@ -3143,6 +3143,13 @@ select.themed-select option {
 }
 @keyframes bpvIn { from { opacity:0; transform:translateY(24px) } to { opacity:1; transform:translateY(0) } }
 
+/* Modo sem animação — todas as transições e keyframes desativados */
+.bpv-no-anim, .bpv-no-anim * {
+  animation: none !important;
+  transition: none !important;
+}
+.bpv-no-anim { opacity: 1; transform: none; }
+
 .bpv-bg-grid {
   position:absolute; inset:0; pointer-events:none; z-index:0;
   background-image: linear-gradient(rgba(249,115,22,.04) 1px,transparent 1px),
