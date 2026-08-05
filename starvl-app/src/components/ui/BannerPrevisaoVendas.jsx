@@ -6,6 +6,8 @@ import { DollarSign, TrendingUp, Target, ShieldCheck } from 'lucide-react';
    HELPERS
 ════════════════════════════════════════════ */
 const MONTH_SHORT = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+const lerp = (a, b, t) => a + (b - a) * t;
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
 function linearRegression(values) {
   const n = values.length;
@@ -57,134 +59,225 @@ function fmtMoney(v) {
 }
 
 /* ════════════════════════════════════════════
-   MINI CHART — desenho estático
+   MINI CHART — animação de subida + RAF
 ════════════════════════════════════════════ */
+const CHART_DUR = 1600; // ms da animação
+
 function MiniChart({ hist, pred, labels, predLabel }) {
   const canvasRef = useRef(null);
+  const rafRef    = useRef(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || !hist?.length) return;
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
 
     const dpr  = window.devicePixelRatio || 1;
     const all  = [...hist, ...pred];
-    const w    = canvas.offsetWidth  || 400;
-    const h    = canvas.offsetHeight || 170;
-    canvas.width  = w * dpr;
-    canvas.height = h * dpr;
-    const ctx = canvas.getContext('2d');
-    ctx.scale(dpr, dpr);
+    const hc   = hist.length;
+    let startTs = null;
 
-    const pad = { l: 12, r: 16, t: 12, b: 22 };
-    const mn  = Math.min(...all) * 0.88;
-    const mx  = Math.max(...all) * 1.06;
-    const ptX = i => pad.l + (i / (all.length - 1)) * (w - pad.l - pad.r);
-    const ptY = v => h - pad.b - (v - mn) / (mx - mn) * (h - pad.t - pad.b);
-    const allLabels = [...labels, predLabel || 'Prev'];
-    const hc  = hist.length;
+    function resize() {
+      canvas.width  = (canvas.offsetWidth  || 400) * dpr;
+      canvas.height = (canvas.offsetHeight || 170) * dpr;
+    }
+    resize();
 
-    // fundo suave abaixo da linha histórica
-    const gradFill = ctx.createLinearGradient(0, pad.t, 0, h - pad.b);
-    gradFill.addColorStop(0, 'rgba(248,250,252,0.07)');
-    gradFill.addColorStop(1, 'rgba(248,250,252,0)');
-    ctx.beginPath();
-    hist.forEach((v, i) => { i === 0 ? ctx.moveTo(ptX(i), ptY(v)) : ctx.lineTo(ptX(i), ptY(v)); });
-    ctx.lineTo(ptX(hc - 1), h - pad.b);
-    ctx.lineTo(ptX(0), h - pad.b);
-    ctx.closePath();
-    ctx.fillStyle = gradFill;
-    ctx.fill();
+    function draw(ts) {
+      if (!startTs) startTs = ts;
+      const raw  = Math.min((ts - startTs) / CHART_DUR, 1);
+      // ease-out cubic
+      const ease = 1 - Math.pow(1 - raw, 3);
 
-    // eixo x
-    ctx.beginPath();
-    ctx.moveTo(pad.l, h - pad.b);
-    ctx.lineTo(w - pad.r, h - pad.b);
-    ctx.strokeStyle = 'rgba(255,255,255,0.07)';
-    ctx.lineWidth = 1;
-    ctx.stroke();
+      const w = canvas.width  / dpr;
+      const h = canvas.height / dpr;
+      const pad = { l: 12, r: 16, t: 12, b: 22 };
 
-    // grade horizontal leve
-    const gridLines = 3;
-    for (let g = 1; g <= gridLines; g++) {
-      const gy = pad.t + (h - pad.t - pad.b) * (g / (gridLines + 1));
+      const mn  = Math.min(...all) * 0.88;
+      const mx  = Math.max(...all) * 1.06;
+      const ptX = i => pad.l + (i / (all.length - 1)) * (w - pad.l - pad.r);
+
+      // ptY base (posição real)
+      const ptYReal = v => h - pad.b - (v - mn) / (mx - mn) * (h - pad.t - pad.b);
+
+      // ptY animado: cada ponto sobe da linha de base até o valor real
+      // com delay escalonado (ponto i começa a subir depois do i-1)
+      const ptY = (v, i) => {
+        const delay   = i / (all.length * 1.4); // 0..~0.7
+        const pStart  = delay;
+        const pEnd    = pStart + 0.5;
+        const local   = clamp((ease - pStart) / (pEnd - pStart), 0, 1);
+        const eLocal  = 1 - Math.pow(1 - local, 3);
+        return lerp(h - pad.b, ptYReal(v), eLocal);
+      };
+
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, w, h);
+
+      // ── fundo sob a linha histórica ──
+      const gradFill = ctx.createLinearGradient(0, pad.t, 0, h - pad.b);
+      gradFill.addColorStop(0, 'rgba(248,250,252,0.07)');
+      gradFill.addColorStop(1, 'rgba(248,250,252,0)');
       ctx.beginPath();
-      ctx.moveTo(pad.l, gy);
-      ctx.lineTo(w - pad.r, gy);
-      ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+      hist.forEach((v, i) => {
+        const y = ptY(v, i);
+        i === 0 ? ctx.moveTo(ptX(i), y) : ctx.lineTo(ptX(i), y);
+      });
+      ctx.lineTo(ptX(hc - 1), h - pad.b);
+      ctx.lineTo(ptX(0), h - pad.b);
+      ctx.closePath();
+      ctx.fillStyle = gradFill;
+      ctx.fill();
+
+      // ── eixo X ──
+      ctx.beginPath();
+      ctx.moveTo(pad.l, h - pad.b);
+      ctx.lineTo(w - pad.r, h - pad.b);
+      ctx.strokeStyle = 'rgba(255,255,255,0.07)';
       ctx.lineWidth = 1;
       ctx.stroke();
+
+      // ── grade horizontal ──
+      for (let g = 1; g <= 3; g++) {
+        const gy = pad.t + (h - pad.t - pad.b) * (g / 4);
+        ctx.beginPath();
+        ctx.moveTo(pad.l, gy);
+        ctx.lineTo(w - pad.r, gy);
+        ctx.strokeStyle = 'rgba(255,255,255,0.035)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+
+      // ── rótulos meses ──
+      const allLabels = [...labels, predLabel || 'Prev'];
+      ctx.font = `${Math.max(9, Math.min(11, Math.floor(w / 50)))}px system-ui`;
+      ctx.textAlign = 'center';
+      all.forEach((_, i) => {
+        ctx.fillStyle = i >= hc ? 'rgba(249,115,22,0.85)' : 'rgba(161,161,170,0.7)';
+        ctx.fillText(allLabels[i] || '', ptX(i), h - 4);
+      });
+
+      // ── linha histórica ──
+      ctx.beginPath();
+      hist.forEach((v, i) => {
+        i === 0 ? ctx.moveTo(ptX(i), ptY(v, i)) : ctx.lineTo(ptX(i), ptY(v, i));
+      });
+      ctx.strokeStyle = 'rgba(248,250,252,0.9)';
+      ctx.lineWidth   = 2;
+      ctx.lineJoin    = 'round';
+      ctx.shadowColor = 'rgba(255,255,255,0.2)';
+      ctx.shadowBlur  = 4;
+      ctx.stroke();
+      ctx.shadowBlur  = 0;
+
+      // ── linha previsão tracejada (começa quando histórico termina) ──
+      const predDelay = (hc - 1) / (all.length * 1.4);
+      const predLocalEase = clamp((ease - predDelay - 0.1) / 0.4, 0, 1);
+      if (predLocalEase > 0) {
+        const startX = ptX(hc - 1), startY = ptY(hist[hc - 1], hc - 1);
+        const endX   = ptX(hc),     endY   = ptY(pred[0], hc);
+        ctx.setLineDash([5, 4]);
+        ctx.beginPath();
+        ctx.moveTo(startX, startY);
+        ctx.lineTo(lerp(startX, endX, predLocalEase), lerp(startY, endY, predLocalEase));
+        ctx.strokeStyle = 'rgba(249,115,22,0.95)';
+        ctx.lineWidth   = 2;
+        ctx.shadowColor = 'rgba(249,115,22,0.5)';
+        ctx.shadowBlur  = 8;
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.shadowBlur  = 0;
+      }
+
+      // ── pontos históricos ──
+      hist.forEach((v, i) => {
+        const delay  = i / (all.length * 1.4);
+        const vis    = clamp((ease - delay) / 0.3, 0, 1);
+        if (vis <= 0) return;
+        ctx.globalAlpha = vis;
+        ctx.beginPath();
+        ctx.arc(ptX(i), ptY(v, i), 3.5, 0, Math.PI * 2);
+        ctx.fillStyle   = '#F8FAFC';
+        ctx.shadowColor = 'rgba(255,255,255,0.4)';
+        ctx.shadowBlur  = 6;
+        ctx.fill();
+        ctx.shadowBlur  = 0;
+        ctx.globalAlpha = 1;
+      });
+
+      // ── ponto previsão ──
+      if (predLocalEase >= 0.85) {
+        const px = ptX(hc), py = ptY(pred[0], hc);
+        const alpha = clamp((predLocalEase - 0.85) / 0.15, 0, 1);
+        ctx.globalAlpha = alpha;
+        // halo
+        const halo = ctx.createRadialGradient(px, py, 0, px, py, 14);
+        halo.addColorStop(0, 'rgba(249,115,22,0.25)');
+        halo.addColorStop(1, 'rgba(249,115,22,0)');
+        ctx.beginPath();
+        ctx.arc(px, py, 14, 0, Math.PI * 2);
+        ctx.fillStyle = halo;
+        ctx.fill();
+        // dot
+        ctx.beginPath();
+        ctx.arc(px, py, 5, 0, Math.PI * 2);
+        ctx.fillStyle   = '#F97316';
+        ctx.shadowColor = 'rgba(249,115,22,0.8)';
+        ctx.shadowBlur  = 12;
+        ctx.fill();
+        ctx.shadowBlur  = 0;
+        ctx.globalAlpha = 1;
+      }
+
+      if (raw < 1) rafRef.current = requestAnimationFrame(draw);
     }
 
-    // rótulos de meses
-    ctx.fillStyle = 'rgba(161,161,170,0.7)';
-    ctx.font = `${Math.max(9, Math.min(11, Math.floor(w / 50)))}px system-ui`;
-    ctx.textAlign = 'center';
-    all.forEach((_, i) => {
-      const lbl = allLabels[i] || '';
-      const isForecast = i >= hc;
-      ctx.fillStyle = isForecast ? 'rgba(249,115,22,0.85)' : 'rgba(161,161,170,0.7)';
-      ctx.fillText(lbl, ptX(i), h - 4);
-    });
-
-    // linha histórica
-    ctx.beginPath();
-    hist.forEach((v, i) => { i === 0 ? ctx.moveTo(ptX(i), ptY(v)) : ctx.lineTo(ptX(i), ptY(v)); });
-    ctx.strokeStyle = 'rgba(248,250,252,0.9)';
-    ctx.lineWidth   = 2;
-    ctx.lineJoin    = 'round';
-    ctx.shadowColor = 'rgba(255,255,255,0.2)';
-    ctx.shadowBlur  = 4;
-    ctx.stroke();
-    ctx.shadowBlur  = 0;
-
-    // linha previsão (tracejada laranja)
-    ctx.setLineDash([5, 4]);
-    ctx.beginPath();
-    const joined = [hist[hist.length - 1], ...pred];
-    joined.forEach((v, i) => {
-      const absI = hc - 1 + i;
-      i === 0 ? ctx.moveTo(ptX(absI), ptY(v)) : ctx.lineTo(ptX(absI), ptY(v));
-    });
-    ctx.strokeStyle = 'rgba(249,115,22,0.95)';
-    ctx.lineWidth   = 2;
-    ctx.shadowColor = 'rgba(249,115,22,0.5)';
-    ctx.shadowBlur  = 8;
-    ctx.stroke();
-    ctx.setLineDash([]);
-    ctx.shadowBlur  = 0;
-
-    // pontos históricos
-    hist.forEach((v, i) => {
-      ctx.beginPath();
-      ctx.arc(ptX(i), ptY(v), 3.5, 0, Math.PI * 2);
-      ctx.fillStyle   = '#F8FAFC';
-      ctx.shadowColor = 'rgba(255,255,255,0.4)';
-      ctx.shadowBlur  = 6;
-      ctx.fill();
-    });
-    ctx.shadowBlur = 0;
-
-    // ponto previsão (maior, laranja com halo)
-    const px = ptX(hc), py = ptY(pred[0]);
-    // halo
-    const haloGrad = ctx.createRadialGradient(px, py, 0, px, py, 14);
-    haloGrad.addColorStop(0, 'rgba(249,115,22,0.25)');
-    haloGrad.addColorStop(1, 'rgba(249,115,22,0)');
-    ctx.beginPath();
-    ctx.arc(px, py, 14, 0, Math.PI * 2);
-    ctx.fillStyle = haloGrad;
-    ctx.fill();
-    // dot
-    ctx.beginPath();
-    ctx.arc(px, py, 5, 0, Math.PI * 2);
-    ctx.fillStyle   = '#F97316';
-    ctx.shadowColor = 'rgba(249,115,22,0.8)';
-    ctx.shadowBlur  = 12;
-    ctx.fill();
-    ctx.shadowBlur  = 0;
+    rafRef.current = requestAnimationFrame(draw);
+    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
   }, [hist, pred, labels, predLabel]);
 
   return <canvas ref={canvasRef} className="bpv-mini-canvas" />;
+}
+
+/* ════════════════════════════════════════════
+   TOOLTIP DE CONFIANÇA
+════════════════════════════════════════════ */
+function TooltipConfianca({ precisao, confidencia, children }) {
+  const [show, setShow] = useState(false);
+
+  const titulo  = `Por que ${confidencia}?`;
+  const r2txt   = precisao != null ? `R² = ${precisao.toFixed(1)}%` : null;
+  const mensagem = precisao == null
+    ? 'Sem dados para calcular a precisão.'
+    : precisao >= 70
+      ? 'O modelo linear se ajusta bem ao histórico. A tendência dos dados é consistente — a previsão é confiável.'
+      : precisao >= 35
+        ? 'Há variação sazonal ou flutuações que a linha reta não captura completamente. Use como referência.'
+        : 'Alta volatilidade ou poucos meses de histórico. Adicione mais meses de dados para aumentar a precisão.';
+
+  const dica = precisao != null && precisao < 35
+    ? '💡 Dica: tente usar 24 meses no SQL histórico.'
+    : precisao != null && precisao < 70
+      ? '💡 Dica: mais meses de histórico melhoram o R².'
+      : null;
+
+  return (
+    <div
+      className="bpv-kpi-card bpv-kpi-card--confianca"
+      onMouseEnter={() => setShow(true)}
+      onMouseLeave={() => setShow(false)}
+    >
+      {children}
+      {show && (
+        <div className="bpv-conf-tooltip">
+          <div className="bpv-conf-tt-title">{titulo}</div>
+          {r2txt && <div className="bpv-conf-tt-r2">{r2txt}</div>}
+          <div className="bpv-conf-tt-body">{mensagem}</div>
+          {dica && <div className="bpv-conf-tt-dica">{dica}</div>}
+        </div>
+      )}
+    </div>
+  );
 }
 
 /* ════════════════════════════════════════════
@@ -218,7 +311,7 @@ export default function BannerPrevisaoVendas({ empresa }) {
       const { valueCol, labelCol } = detectColumns(rows);
       if (!valueCol) { setErro('Não foi possível detectar a coluna de valor numérico.'); return; }
 
-      const values = rows.map(r => {
+      const values      = rows.map(r => {
         const v = r[valueCol];
         return typeof v === 'number' ? v : parseFloat(String(v).replace(',', '.')) || 0;
       });
@@ -247,7 +340,6 @@ export default function BannerPrevisaoVendas({ empresa }) {
   const precisao    = dados?.precisao    ?? null;
   const mesAtual    = MONTH_SHORT[new Date().getMonth()];
 
-  // Limiares calibrados para dados mensais com sazonalidade
   const confidencia = precisao == null ? '—'
     : precisao >= 70 ? 'Alta' : precisao >= 35 ? 'Média' : 'Baixa';
   const confVerificado = precisao != null && precisao >= 35;
@@ -262,33 +354,41 @@ export default function BannerPrevisaoVendas({ empresa }) {
   const deltaLabel = dados
     ? `${crescimento >= 0 ? '↑' : '↓'} ${Math.abs(crescimento).toFixed(1)}% vs. mês anterior`
     : '';
+  const deltaColor = crescimento != null && crescimento < 0 ? '#f87171' : '#4ade80';
 
   /* ── JSX ── */
   return (
-    <div className="bpv-banner bpv-no-anim">
+    <div className="bpv-banner">
       <div className="bpv-bg-grid" />
 
-      {/* Decoração SVG — ondas + partículas */}
+      {/* Fundo animado — ondas + glow + sparkles */}
       <svg className="bpv-deco" viewBox="0 0 600 340" preserveAspectRatio="xMaxYMax slice" aria-hidden="true">
         <defs>
-          <radialGradient id="bpvGlow" cx="80%" cy="70%" r="50%">
+          <radialGradient id="bpvGlow" cx="75%" cy="65%" r="55%">
             <stop offset="0%"   stopColor="rgba(249,115,22,0.18)" />
             <stop offset="100%" stopColor="rgba(249,115,22,0)" />
           </radialGradient>
         </defs>
-        <rect width="600" height="340" fill="url(#bpvGlow)" />
-        <path d="M 100 280 Q 220 230 340 255 Q 440 275 600 220" stroke="rgba(249,115,22,0.28)" fill="none" strokeWidth="1.5" />
-        <path d="M 180 310 Q 300 260 420 285 Q 510 300 600 255" stroke="rgba(249,115,22,0.14)" fill="none" strokeWidth="1" />
-        <path d="M 60  320 Q 200 275 320 300 Q 440 320 600 280" stroke="rgba(249,115,22,0.08)" fill="none" strokeWidth="1" />
-        {/* sparkle dots */}
-        <circle cx="480" cy="28"  r="2.5" fill="rgba(249,115,22,0.65)" />
-        <circle cx="530" cy="55"  r="1.5" fill="rgba(249,115,22,0.45)" />
-        <circle cx="555" cy="18"  r="2"   fill="rgba(249,115,22,0.55)" />
-        <circle cx="575" cy="48"  r="1"   fill="rgba(249,115,22,0.75)" />
-        <circle cx="460" cy="60"  r="1.5" fill="rgba(249,115,22,0.35)" />
-        <circle cx="510" cy="82"  r="2"   fill="rgba(249,115,22,0.40)" />
-        <circle cx="440" cy="40"  r="1"   fill="rgba(249,115,22,0.50)" />
-        <circle cx="565" cy="90"  r="1.5" fill="rgba(249,115,22,0.30)" />
+        <rect width="600" height="340" fill="url(#bpvGlow)" className="bpv-deco-glow" />
+        {/* ondas animadas */}
+        <path className="bpv-deco-wave bpv-deco-wave--1"
+          d="M 80 275 Q 200 225 330 250 Q 440 270 620 215"
+          stroke="rgba(249,115,22,0.30)" fill="none" strokeWidth="1.5" />
+        <path className="bpv-deco-wave bpv-deco-wave--2"
+          d="M 40 305 Q 180 255 310 278 Q 430 298 620 248"
+          stroke="rgba(249,115,22,0.14)" fill="none" strokeWidth="1.2" />
+        <path className="bpv-deco-wave bpv-deco-wave--3"
+          d="M 0   320 Q 160 275 290 298 Q 420 318 620 272"
+          stroke="rgba(249,115,22,0.07)" fill="none" strokeWidth="1" />
+        {/* sparkles pulsantes */}
+        <circle className="bpv-spark" cx="480" cy="28"  r="2.5" fill="rgba(249,115,22,0.65)" style={{ animationDelay: '0s' }} />
+        <circle className="bpv-spark" cx="530" cy="55"  r="1.5" fill="rgba(249,115,22,0.50)" style={{ animationDelay: '0.8s' }} />
+        <circle className="bpv-spark" cx="555" cy="18"  r="2"   fill="rgba(249,115,22,0.55)" style={{ animationDelay: '1.6s' }} />
+        <circle className="bpv-spark" cx="575" cy="48"  r="1"   fill="rgba(249,115,22,0.75)" style={{ animationDelay: '0.4s' }} />
+        <circle className="bpv-spark" cx="460" cy="60"  r="1.5" fill="rgba(249,115,22,0.35)" style={{ animationDelay: '1.2s' }} />
+        <circle className="bpv-spark" cx="510" cy="82"  r="2"   fill="rgba(249,115,22,0.40)" style={{ animationDelay: '2.0s' }} />
+        <circle className="bpv-spark" cx="440" cy="40"  r="1"   fill="rgba(249,115,22,0.50)" style={{ animationDelay: '0.6s' }} />
+        <circle className="bpv-spark" cx="565" cy="90"  r="1.5" fill="rgba(249,115,22,0.30)" style={{ animationDelay: '1.4s' }} />
       </svg>
 
       <div className="bpv-inner">
@@ -321,9 +421,10 @@ export default function BannerPrevisaoVendas({ empresa }) {
             }
           </button>
 
-          {/* KPI cards — 2×2 */}
+          {/* KPI cards 2×2 */}
           <div className="bpv-kpi-row">
 
+            {/* Receita */}
             <div className="bpv-kpi-card">
               <div className="bpv-kpi-icon-wrap"><DollarSign size={18} /></div>
               <div className="bpv-kpi-body">
@@ -331,12 +432,13 @@ export default function BannerPrevisaoVendas({ empresa }) {
                 <div className="bpv-kpi-value">
                   {dados ? fmtMoney(dados.forecast) : <span className="bpv-kpi-empty">—</span>}
                 </div>
-                <div className="bpv-kpi-delta" style={{ color: crescimento != null && crescimento < 0 ? '#f87171' : '#4ade80' }}>
+                <div className="bpv-kpi-delta" style={{ color: deltaColor }}>
                   {dados ? deltaLabel : ''}
                 </div>
               </div>
             </div>
 
+            {/* Crescimento */}
             <div className="bpv-kpi-card">
               <div className="bpv-kpi-icon-wrap"><TrendingUp size={18} /></div>
               <div className="bpv-kpi-body">
@@ -353,35 +455,37 @@ export default function BannerPrevisaoVendas({ empresa }) {
               </div>
             </div>
 
-            <div className="bpv-kpi-card">
+            {/* Precisão */}
+            <div className="bpv-kpi-card" style={{ position: 'relative' }}>
               <div className="bpv-kpi-icon-wrap"><Target size={18} /></div>
-              <div className="bpv-kpi-body" style={{ position: 'relative' }}>
+              <div className="bpv-kpi-body">
                 <div className="bpv-kpi-label">Precisão (R²)</div>
                 <div className="bpv-kpi-value">
                   {dados ? `${precisao}%` : <span className="bpv-kpi-empty">—</span>}
                 </div>
-                <div className="bpv-circle-wrap">
-                  <svg className="bpv-circle" viewBox="0 0 36 36">
-                    <circle cx="18" cy="18" r="15" fill="none" stroke="rgba(255,255,255,.08)" strokeWidth="3" />
-                    <circle cx="18" cy="18" r="15" fill="none"
-                      stroke="#F97316" strokeWidth="3" strokeLinecap="round"
-                      strokeDasharray="94.2" strokeDashoffset={circleOffset}
-                      transform="rotate(-90 18 18)" />
-                  </svg>
-                </div>
+              </div>
+              <div className="bpv-circle-wrap">
+                <svg className="bpv-circle" viewBox="0 0 36 36">
+                  <circle cx="18" cy="18" r="15" fill="none" stroke="rgba(255,255,255,.08)" strokeWidth="3" />
+                  <circle cx="18" cy="18" r="15" fill="none"
+                    stroke="#F97316" strokeWidth="3" strokeLinecap="round"
+                    strokeDasharray="94.2" strokeDashoffset={circleOffset}
+                    transform="rotate(-90 18 18)" />
+                </svg>
               </div>
             </div>
 
-            <div className="bpv-kpi-card">
+            {/* Confiança — com tooltip */}
+            <TooltipConfianca precisao={precisao} confidencia={confidencia}>
               <div className="bpv-kpi-icon-wrap"><ShieldCheck size={18} /></div>
               <div className="bpv-kpi-body">
                 <div className="bpv-kpi-label">Confiança</div>
                 <div className="bpv-kpi-value bpv-confidence">{confidencia}</div>
-                <div className={`bpv-confidence-badge ${confVerificado ? '' : 'bpv-confidence-badge--warn'}`}>
+                <div className={`bpv-confidence-badge${confVerificado ? '' : ' bpv-confidence-badge--warn'}`}>
                   {confVerificado ? '✓ Verificado' : '⚠ Baixa precisão'}
                 </div>
               </div>
-            </div>
+            </TooltipConfianca>
 
           </div>
         </div>
@@ -400,10 +504,7 @@ export default function BannerPrevisaoVendas({ empresa }) {
                 <div className="bpv-callout">
                   <div className="bpv-callout-label">{dados.predLabel?.toUpperCase()} (PREVISÃO)</div>
                   <div className="bpv-callout-value">{fmtMoney(dados.forecast)}</div>
-                  <div className="bpv-callout-delta"
-                    style={{ color: crescimento >= 0 ? '#4ade80' : '#f87171' }}>
-                    {deltaLabel}
-                  </div>
+                  <div className="bpv-callout-delta" style={{ color: deltaColor }}>{deltaLabel}</div>
                 </div>
               </div>
               <MiniChart
@@ -416,8 +517,10 @@ export default function BannerPrevisaoVendas({ empresa }) {
           ) : (
             <div className="bpv-chart-placeholder">
               {loading
-                ? <span>Calculando...</span>
-                : <span>{semSlot ? 'Gráfico disponível após configurar o slot' : 'Aguardando dados...'}</span>
+                ? 'Calculando...'
+                : semSlot
+                  ? 'Gráfico disponível após configurar o slot'
+                  : 'Aguardando dados...'
               }
             </div>
           )}
