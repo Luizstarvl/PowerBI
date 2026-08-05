@@ -330,14 +330,6 @@ export default function BannerPrevisaoVendas() {
         ctx.fillText(l.txt, l.x * W, (l.y + fy) * H); ctx.shadowBlur = 0;
       });
 
-      // AI badge
-      const bpx = W * .82, bpy = H * .14;
-      ctx.beginPath();
-      if (ctx.roundRect) ctx.roundRect(bpx-28,bpy-12,56,24,6); else ctx.rect(bpx-28,bpy-12,56,24);
-      ctx.fillStyle = 'rgba(249,115,22,.12)'; ctx.strokeStyle = 'rgba(249,115,22,.35)';
-      ctx.lineWidth = 1; ctx.fill(); ctx.stroke();
-      ctx.font = 'bold 11px system-ui'; ctx.textAlign = 'center';
-      ctx.fillStyle = C_OL; ctx.fillText('🤖 IA', bpx, bpy + 4);
 
       techRafRef.current = requestAnimationFrame(draw);
     }
