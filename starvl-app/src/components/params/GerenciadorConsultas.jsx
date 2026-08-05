@@ -22,8 +22,9 @@ const DASHBOARD_SLOTS = [
   { value: 'kpi_compras_comb', label: '🚛 KPI — Compras Combustível' },
   { value: 'kpi_compras_conv', label: '📦 KPI — Compras Conveniência' },
   { value: 'kpi_afericoes',    label: '🔧 KPI — Aferições' },
-  { value: 'vendas_diarias',   label: '📈 Gráfico Vendas Diárias' },
-  { value: 'vendas_horarias',  label: '⏱ Gráfico Vendas por Hora' },
+  { value: 'vendas_diarias',    label: '📈 Gráfico Vendas Diárias' },
+  { value: 'vendas_horarias',   label: '⏱ Gráfico Vendas por Hora' },
+  { value: 'historico_mensal',  label: '🔮 Previsão de Vendas (histórico mensal)' },
 ];
 
 const CAT_COLORS = {
