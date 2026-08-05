@@ -59,22 +59,122 @@ function fmtMoney(v) {
 }
 
 /* ════════════════════════════════════════════
-   MINI CHART — animação de subida + RAF
+   MINI CHART — animação de subida + hover tooltip
 ════════════════════════════════════════════ */
-const CHART_DUR = 1600; // ms da animação
+const CHART_DUR = 1600;
 
 function MiniChart({ hist, pred, labels, predLabel }) {
-  const canvasRef = useRef(null);
-  const rafRef    = useRef(null);
+  const canvasRef  = useRef(null);
+  const rafRef     = useRef(null);
+  const pointsRef  = useRef([]);   // {x, y, label, value, isForecast}[]
+  const doneRef    = useRef(false);
+  const hoverRef   = useRef(-1);   // index do ponto hovered (-1 = nenhum)
+  const [tooltip, setTooltip] = useState(null); // {x, y, label, value, isForecast}
 
+  /* ── Redraw estático (após animação) com ponto destacado ── */
+  const redrawStatic = useCallback((highlightIdx) => {
+    const canvas = canvasRef.current;
+    if (!canvas || !hist?.length) return;
+    const dpr  = window.devicePixelRatio || 1;
+    const all  = [...hist, ...pred];
+    const hc   = hist.length;
+    const w    = canvas.width  / dpr;
+    const h    = canvas.height / dpr;
+    const pad  = { l: 12, r: 16, t: 12, b: 22 };
+    const mn   = Math.min(...all) * 0.88;
+    const mx   = Math.max(...all) * 1.06;
+    const ptX  = i => pad.l + (i / (all.length - 1)) * (w - pad.l - pad.r);
+    const ptYR = v => h - pad.b - (v - mn) / (mx - mn) * (h - pad.t - pad.b);
+    const allLabels = [...labels, predLabel || 'Prev'];
+
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, w, h);
+
+    // fundo
+    const gradFill = ctx.createLinearGradient(0, pad.t, 0, h - pad.b);
+    gradFill.addColorStop(0, 'rgba(248,250,252,0.07)');
+    gradFill.addColorStop(1, 'rgba(248,250,252,0)');
+    ctx.beginPath();
+    hist.forEach((v, i) => { i === 0 ? ctx.moveTo(ptX(i), ptYR(v)) : ctx.lineTo(ptX(i), ptYR(v)); });
+    ctx.lineTo(ptX(hc - 1), h - pad.b); ctx.lineTo(ptX(0), h - pad.b); ctx.closePath();
+    ctx.fillStyle = gradFill; ctx.fill();
+
+    // eixo X
+    ctx.beginPath(); ctx.moveTo(pad.l, h - pad.b); ctx.lineTo(w - pad.r, h - pad.b);
+    ctx.strokeStyle = 'rgba(255,255,255,0.07)'; ctx.lineWidth = 1; ctx.stroke();
+
+    // grade
+    for (let g = 1; g <= 3; g++) {
+      const gy = pad.t + (h - pad.t - pad.b) * (g / 4);
+      ctx.beginPath(); ctx.moveTo(pad.l, gy); ctx.lineTo(w - pad.r, gy);
+      ctx.strokeStyle = 'rgba(255,255,255,0.035)'; ctx.lineWidth = 1; ctx.stroke();
+    }
+
+    // rótulos
+    ctx.font = `${Math.max(9, Math.min(11, Math.floor(w / 50)))}px system-ui`;
+    ctx.textAlign = 'center';
+    all.forEach((_, i) => {
+      ctx.fillStyle = i >= hc ? 'rgba(249,115,22,0.85)' : 'rgba(161,161,170,0.7)';
+      ctx.fillText(allLabels[i] || '', ptX(i), h - 4);
+    });
+
+    // linha histórica
+    ctx.beginPath();
+    hist.forEach((v, i) => { i === 0 ? ctx.moveTo(ptX(i), ptYR(v)) : ctx.lineTo(ptX(i), ptYR(v)); });
+    ctx.strokeStyle = 'rgba(248,250,252,0.9)'; ctx.lineWidth = 2; ctx.lineJoin = 'round';
+    ctx.shadowColor = 'rgba(255,255,255,0.2)'; ctx.shadowBlur = 4; ctx.stroke(); ctx.shadowBlur = 0;
+
+    // linha previsão
+    ctx.setLineDash([5, 4]); ctx.beginPath();
+    ctx.moveTo(ptX(hc - 1), ptYR(hist[hc - 1])); ctx.lineTo(ptX(hc), ptYR(pred[0]));
+    ctx.strokeStyle = 'rgba(249,115,22,0.95)'; ctx.lineWidth = 2;
+    ctx.shadowColor = 'rgba(249,115,22,0.5)'; ctx.shadowBlur = 8;
+    ctx.stroke(); ctx.setLineDash([]); ctx.shadowBlur = 0;
+
+    // pontos
+    all.forEach((v, i) => {
+      const isH = highlightIdx === i;
+      const isFc = i >= hc;
+      const r = isH ? 5.5 : (isFc ? 5 : 3.5);
+      // halo quando highlight
+      if (isH) {
+        const halo = ctx.createRadialGradient(ptX(i), ptYR(v), 0, ptX(i), ptYR(v), 16);
+        halo.addColorStop(0, isFc ? 'rgba(249,115,22,0.35)' : 'rgba(248,250,252,0.2)');
+        halo.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.beginPath(); ctx.arc(ptX(i), ptYR(v), 16, 0, Math.PI * 2);
+        ctx.fillStyle = halo; ctx.fill();
+      }
+      ctx.beginPath(); ctx.arc(ptX(i), ptYR(v), r, 0, Math.PI * 2);
+      ctx.fillStyle   = isFc ? '#F97316' : '#F8FAFC';
+      ctx.shadowColor = isFc ? 'rgba(249,115,22,0.8)' : 'rgba(255,255,255,0.4)';
+      ctx.shadowBlur  = isH ? 14 : (isFc ? 12 : 6);
+      ctx.fill(); ctx.shadowBlur = 0;
+    });
+
+    // linha vertical pontilhada no ponto hovered
+    if (highlightIdx >= 0) {
+      const hx = ptX(highlightIdx);
+      const hy = ptYR(all[highlightIdx]);
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath(); ctx.moveTo(hx, hy + 6); ctx.lineTo(hx, h - pad.b);
+      ctx.strokeStyle = 'rgba(255,255,255,0.15)'; ctx.lineWidth = 1; ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  }, [hist, pred, labels, predLabel]);
+
+  /* ── RAF de animação inicial ── */
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || !hist?.length) return;
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    doneRef.current  = false;
+    pointsRef.current = [];
+    hoverRef.current  = -1;
+    setTooltip(null);
 
-    const dpr  = window.devicePixelRatio || 1;
-    const all  = [...hist, ...pred];
-    const hc   = hist.length;
+    const dpr = window.devicePixelRatio || 1;
+    const all = [...hist, ...pred];
+    const hc  = hist.length;
     let startTs = null;
 
     function resize() {
@@ -86,147 +186,95 @@ function MiniChart({ hist, pred, labels, predLabel }) {
     function draw(ts) {
       if (!startTs) startTs = ts;
       const raw  = Math.min((ts - startTs) / CHART_DUR, 1);
-      // ease-out cubic
       const ease = 1 - Math.pow(1 - raw, 3);
-
-      const w = canvas.width  / dpr;
-      const h = canvas.height / dpr;
+      const w = canvas.width / dpr, h = canvas.height / dpr;
       const pad = { l: 12, r: 16, t: 12, b: 22 };
-
-      const mn  = Math.min(...all) * 0.88;
-      const mx  = Math.max(...all) * 1.06;
+      const mn  = Math.min(...all) * 0.88, mx = Math.max(...all) * 1.06;
       const ptX = i => pad.l + (i / (all.length - 1)) * (w - pad.l - pad.r);
-
-      // ptY base (posição real)
       const ptYReal = v => h - pad.b - (v - mn) / (mx - mn) * (h - pad.t - pad.b);
-
-      // ptY animado: cada ponto sobe da linha de base até o valor real
-      // com delay escalonado (ponto i começa a subir depois do i-1)
       const ptY = (v, i) => {
-        const delay   = i / (all.length * 1.4); // 0..~0.7
-        const pStart  = delay;
-        const pEnd    = pStart + 0.5;
-        const local   = clamp((ease - pStart) / (pEnd - pStart), 0, 1);
-        const eLocal  = 1 - Math.pow(1 - local, 3);
-        return lerp(h - pad.b, ptYReal(v), eLocal);
+        const delay = i / (all.length * 1.4), pEnd = delay + 0.5;
+        const loc = clamp((ease - delay) / (pEnd - delay), 0, 1);
+        return lerp(h - pad.b, ptYReal(v), 1 - Math.pow(1 - loc, 3));
       };
-
+      const allLabels = [...labels, predLabel || 'Prev'];
       const ctx = canvas.getContext('2d');
       ctx.clearRect(0, 0, w, h);
 
-      // ── fundo sob a linha histórica ──
+      // fundo
       const gradFill = ctx.createLinearGradient(0, pad.t, 0, h - pad.b);
       gradFill.addColorStop(0, 'rgba(248,250,252,0.07)');
       gradFill.addColorStop(1, 'rgba(248,250,252,0)');
       ctx.beginPath();
-      hist.forEach((v, i) => {
-        const y = ptY(v, i);
-        i === 0 ? ctx.moveTo(ptX(i), y) : ctx.lineTo(ptX(i), y);
-      });
-      ctx.lineTo(ptX(hc - 1), h - pad.b);
-      ctx.lineTo(ptX(0), h - pad.b);
-      ctx.closePath();
-      ctx.fillStyle = gradFill;
-      ctx.fill();
+      hist.forEach((v, i) => { i === 0 ? ctx.moveTo(ptX(i), ptY(v,i)) : ctx.lineTo(ptX(i), ptY(v,i)); });
+      ctx.lineTo(ptX(hc-1), h-pad.b); ctx.lineTo(ptX(0), h-pad.b); ctx.closePath();
+      ctx.fillStyle = gradFill; ctx.fill();
 
-      // ── eixo X ──
-      ctx.beginPath();
-      ctx.moveTo(pad.l, h - pad.b);
-      ctx.lineTo(w - pad.r, h - pad.b);
-      ctx.strokeStyle = 'rgba(255,255,255,0.07)';
-      ctx.lineWidth = 1;
-      ctx.stroke();
-
-      // ── grade horizontal ──
-      for (let g = 1; g <= 3; g++) {
-        const gy = pad.t + (h - pad.t - pad.b) * (g / 4);
-        ctx.beginPath();
-        ctx.moveTo(pad.l, gy);
-        ctx.lineTo(w - pad.r, gy);
-        ctx.strokeStyle = 'rgba(255,255,255,0.035)';
-        ctx.lineWidth = 1;
-        ctx.stroke();
+      // eixo
+      ctx.beginPath(); ctx.moveTo(pad.l, h-pad.b); ctx.lineTo(w-pad.r, h-pad.b);
+      ctx.strokeStyle='rgba(255,255,255,0.07)'; ctx.lineWidth=1; ctx.stroke();
+      for (let g=1;g<=3;g++){
+        const gy=pad.t+(h-pad.t-pad.b)*(g/4);
+        ctx.beginPath(); ctx.moveTo(pad.l,gy); ctx.lineTo(w-pad.r,gy);
+        ctx.strokeStyle='rgba(255,255,255,0.035)'; ctx.lineWidth=1; ctx.stroke();
       }
 
-      // ── rótulos meses ──
-      const allLabels = [...labels, predLabel || 'Prev'];
-      ctx.font = `${Math.max(9, Math.min(11, Math.floor(w / 50)))}px system-ui`;
-      ctx.textAlign = 'center';
-      all.forEach((_, i) => {
-        ctx.fillStyle = i >= hc ? 'rgba(249,115,22,0.85)' : 'rgba(161,161,170,0.7)';
-        ctx.fillText(allLabels[i] || '', ptX(i), h - 4);
+      // rótulos
+      ctx.font=`${Math.max(9,Math.min(11,Math.floor(w/50)))}px system-ui`;
+      ctx.textAlign='center';
+      all.forEach((_,i)=>{
+        ctx.fillStyle = i>=hc ? 'rgba(249,115,22,0.85)' : 'rgba(161,161,170,0.7)';
+        ctx.fillText(allLabels[i]||'', ptX(i), h-4);
       });
 
-      // ── linha histórica ──
+      // linha histórica
       ctx.beginPath();
-      hist.forEach((v, i) => {
-        i === 0 ? ctx.moveTo(ptX(i), ptY(v, i)) : ctx.lineTo(ptX(i), ptY(v, i));
-      });
-      ctx.strokeStyle = 'rgba(248,250,252,0.9)';
-      ctx.lineWidth   = 2;
-      ctx.lineJoin    = 'round';
-      ctx.shadowColor = 'rgba(255,255,255,0.2)';
-      ctx.shadowBlur  = 4;
-      ctx.stroke();
-      ctx.shadowBlur  = 0;
+      hist.forEach((v,i)=>{ i===0?ctx.moveTo(ptX(i),ptY(v,i)):ctx.lineTo(ptX(i),ptY(v,i)); });
+      ctx.strokeStyle='rgba(248,250,252,0.9)'; ctx.lineWidth=2; ctx.lineJoin='round';
+      ctx.shadowColor='rgba(255,255,255,0.2)'; ctx.shadowBlur=4; ctx.stroke(); ctx.shadowBlur=0;
 
-      // ── linha previsão tracejada (começa quando histórico termina) ──
-      const predDelay = (hc - 1) / (all.length * 1.4);
-      const predLocalEase = clamp((ease - predDelay - 0.1) / 0.4, 0, 1);
-      if (predLocalEase > 0) {
-        const startX = ptX(hc - 1), startY = ptY(hist[hc - 1], hc - 1);
-        const endX   = ptX(hc),     endY   = ptY(pred[0], hc);
-        ctx.setLineDash([5, 4]);
-        ctx.beginPath();
-        ctx.moveTo(startX, startY);
-        ctx.lineTo(lerp(startX, endX, predLocalEase), lerp(startY, endY, predLocalEase));
-        ctx.strokeStyle = 'rgba(249,115,22,0.95)';
-        ctx.lineWidth   = 2;
-        ctx.shadowColor = 'rgba(249,115,22,0.5)';
-        ctx.shadowBlur  = 8;
-        ctx.stroke();
-        ctx.setLineDash([]);
-        ctx.shadowBlur  = 0;
+      // previsão
+      const predDelay=(hc-1)/(all.length*1.4);
+      const predEase=clamp((ease-predDelay-0.1)/0.4,0,1);
+      if(predEase>0){
+        const sx=ptX(hc-1),sy=ptY(hist[hc-1],hc-1),ex=ptX(hc),ey=ptY(pred[0],hc);
+        ctx.setLineDash([5,4]); ctx.beginPath(); ctx.moveTo(sx,sy); ctx.lineTo(lerp(sx,ex,predEase),lerp(sy,ey,predEase));
+        ctx.strokeStyle='rgba(249,115,22,0.95)'; ctx.lineWidth=2;
+        ctx.shadowColor='rgba(249,115,22,0.5)'; ctx.shadowBlur=8; ctx.stroke();
+        ctx.setLineDash([]); ctx.shadowBlur=0;
       }
 
-      // ── pontos históricos ──
-      hist.forEach((v, i) => {
-        const delay  = i / (all.length * 1.4);
-        const vis    = clamp((ease - delay) / 0.3, 0, 1);
-        if (vis <= 0) return;
-        ctx.globalAlpha = vis;
-        ctx.beginPath();
-        ctx.arc(ptX(i), ptY(v, i), 3.5, 0, Math.PI * 2);
-        ctx.fillStyle   = '#F8FAFC';
-        ctx.shadowColor = 'rgba(255,255,255,0.4)';
-        ctx.shadowBlur  = 6;
-        ctx.fill();
-        ctx.shadowBlur  = 0;
-        ctx.globalAlpha = 1;
+      // pontos históricos
+      hist.forEach((v,i)=>{
+        const vis=clamp((ease-i/(all.length*1.4))/0.3,0,1);
+        if(vis<=0) return;
+        ctx.globalAlpha=vis; ctx.beginPath(); ctx.arc(ptX(i),ptY(v,i),3.5,0,Math.PI*2);
+        ctx.fillStyle='#F8FAFC'; ctx.shadowColor='rgba(255,255,255,0.4)'; ctx.shadowBlur=6;
+        ctx.fill(); ctx.shadowBlur=0; ctx.globalAlpha=1;
       });
 
-      // ── ponto previsão ──
-      if (predLocalEase >= 0.85) {
-        const px = ptX(hc), py = ptY(pred[0], hc);
-        const alpha = clamp((predLocalEase - 0.85) / 0.15, 0, 1);
-        ctx.globalAlpha = alpha;
-        // halo
-        const halo = ctx.createRadialGradient(px, py, 0, px, py, 14);
-        halo.addColorStop(0, 'rgba(249,115,22,0.25)');
-        halo.addColorStop(1, 'rgba(249,115,22,0)');
-        ctx.beginPath();
-        ctx.arc(px, py, 14, 0, Math.PI * 2);
-        ctx.fillStyle = halo;
-        ctx.fill();
-        // dot
-        ctx.beginPath();
-        ctx.arc(px, py, 5, 0, Math.PI * 2);
-        ctx.fillStyle   = '#F97316';
-        ctx.shadowColor = 'rgba(249,115,22,0.8)';
-        ctx.shadowBlur  = 12;
-        ctx.fill();
-        ctx.shadowBlur  = 0;
-        ctx.globalAlpha = 1;
+      // ponto previsão
+      if(predEase>=0.85){
+        const px=ptX(hc),py=ptY(pred[0],hc),alpha=clamp((predEase-0.85)/0.15,0,1);
+        ctx.globalAlpha=alpha;
+        const halo=ctx.createRadialGradient(px,py,0,px,py,14);
+        halo.addColorStop(0,'rgba(249,115,22,0.25)'); halo.addColorStop(1,'rgba(249,115,22,0)');
+        ctx.beginPath(); ctx.arc(px,py,14,0,Math.PI*2); ctx.fillStyle=halo; ctx.fill();
+        ctx.beginPath(); ctx.arc(px,py,5,0,Math.PI*2);
+        ctx.fillStyle='#F97316'; ctx.shadowColor='rgba(249,115,22,0.8)'; ctx.shadowBlur=12;
+        ctx.fill(); ctx.shadowBlur=0; ctx.globalAlpha=1;
+      }
+
+      // ao terminar: salva posições reais para hover
+      if (raw >= 1 && !doneRef.current) {
+        doneRef.current = true;
+        pointsRef.current = all.map((v, i) => ({
+          x: ptX(i),
+          y: ptYReal(v),
+          label: allLabels[i] || '',
+          value: v,
+          isForecast: i >= hc,
+        }));
       }
 
       if (raw < 1) rafRef.current = requestAnimationFrame(draw);
@@ -234,9 +282,73 @@ function MiniChart({ hist, pred, labels, predLabel }) {
 
     rafRef.current = requestAnimationFrame(draw);
     return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
-  }, [hist, pred, labels, predLabel]);
+  }, [hist, pred, labels, predLabel]); // eslint-disable-line
 
-  return <canvas ref={canvasRef} className="bpv-mini-canvas" />;
+  /* ── Handlers de mouse ── */
+  const handleMouseMove = useCallback((e) => {
+    if (!doneRef.current || !pointsRef.current.length) return;
+    const canvas = canvasRef.current;
+    const rect   = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+
+    let nearest = -1, minDist = Infinity;
+    pointsRef.current.forEach((pt, i) => {
+      const d = Math.sqrt((mx - pt.x) ** 2 + (my - pt.y) ** 2);
+      if (d < minDist) { minDist = d; nearest = i; }
+    });
+
+    if (minDist < 32 && nearest !== hoverRef.current) {
+      hoverRef.current = nearest;
+      setTooltip(pointsRef.current[nearest]);
+      redrawStatic(nearest);
+    } else if (minDist >= 32 && hoverRef.current !== -1) {
+      hoverRef.current = -1;
+      setTooltip(null);
+      redrawStatic(-1);
+    }
+  }, [redrawStatic]);
+
+  const handleMouseLeave = useCallback(() => {
+    if (hoverRef.current !== -1) {
+      hoverRef.current = -1;
+      setTooltip(null);
+      redrawStatic(-1);
+    }
+  }, [redrawStatic]);
+
+  /* ── Calcula posição do tooltip para não sair do card ── */
+  function tooltipStyle(tt) {
+    if (!tt) return {};
+    const canvas = canvasRef.current;
+    const cw = canvas ? canvas.offsetWidth : 400;
+    let left = tt.x;
+    // se muito perto da borda direita, ancora à direita
+    if (tt.x > cw - 120) left = tt.x - 120;
+    // se muito perto da esquerda, ancora à esquerda
+    else if (tt.x < 60) left = tt.x;
+    else left = tt.x - 60; // centro
+    return { left, top: tt.y - 60 };
+  }
+
+  return (
+    <div className="bpv-chart-canvas-wrap"
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}>
+      <canvas ref={canvasRef} className="bpv-mini-canvas" />
+      {tooltip && (
+        <div className="bpv-pt-tooltip" style={tooltipStyle(tooltip)}>
+          <div className="bpv-pt-tt-label">{tooltip.label}</div>
+          <div className="bpv-pt-tt-value" style={{ color: tooltip.isForecast ? '#F97316' : '#F8FAFC' }}>
+            {fmtMoney(tooltip.value)}
+          </div>
+          {tooltip.isForecast && (
+            <div className="bpv-pt-tt-tag">Previsão</div>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 /* ════════════════════════════════════════════

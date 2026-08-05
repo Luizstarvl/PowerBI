@@ -3401,7 +3401,43 @@ select.themed-select option {
 .bpv-callout-delta { font-size:10px; font-weight:600; }
 
 /* canvas do mini gráfico */
-.bpv-mini-canvas { width:100%; height:170px; display:block; flex:1 }
+.bpv-chart-canvas-wrap { position:relative; width:100%; flex:1; min-height:170px; }
+.bpv-mini-canvas { width:100%; height:170px; display:block; }
+
+/* Tooltip dos pontos do gráfico */
+.bpv-pt-tooltip {
+  position: absolute;
+  pointer-events: none;
+  background: rgba(15,15,25,0.92);
+  border: 1px solid rgba(249,115,22,0.45);
+  border-radius: 8px;
+  padding: 6px 10px;
+  min-width: 100px;
+  text-align: center;
+  z-index: 10;
+  backdrop-filter: blur(6px);
+  box-shadow: 0 4px 18px rgba(0,0,0,0.45);
+}
+.bpv-pt-tt-label {
+  font-size: 11px;
+  color: rgba(161,161,170,0.85);
+  margin-bottom: 2px;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+}
+.bpv-pt-tt-value {
+  font-size: 14px;
+  font-weight: 700;
+  color: #F8FAFC;
+}
+.bpv-pt-tt-tag {
+  font-size: 10px;
+  color: #F97316;
+  margin-top: 3px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
 
 /* placeholder sem dados */
 .bpv-chart-placeholder {
