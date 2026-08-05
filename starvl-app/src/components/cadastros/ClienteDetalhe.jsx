@@ -23,9 +23,10 @@ function compress(file, maxPx = 600, quality = 0.75) {
 
 function buildOrderedFields(row, det) {
   const ordered = [
-    det.codigo    && { col: det.codigo,    label: 'Código',     fmt: v => String(v) },
-    det.nome      && { col: det.nome,      label: 'Nome',       fmt: v => String(v) },
-    det.documento && { col: det.documento, label: 'Documento',  fmt: v => String(v) },
+    det.codigo       && { col: det.codigo,       label: 'Código',        fmt: v => String(v) },
+    det.razaoSocial  && { col: det.razaoSocial,  label: 'Razão Social',  fmt: v => String(v) },
+    det.nomeFantasia && { col: det.nomeFantasia, label: 'Nome Fantasia', fmt: v => String(v) },
+    det.documento    && { col: det.documento,    label: 'Documento',     fmt: v => String(v) },
     det.telefone  && { col: det.telefone,  label: 'Telefone',   fmt: v => String(v) },
     det.email     && { col: det.email,     label: 'Email',      fmt: v => String(v) },
     det.cidade    && { col: det.cidade,    label: 'Cidade',     fmt: v => String(v) },
@@ -103,7 +104,7 @@ export default function ClienteDetalhe({ row, cols, det, empresa, onClose }) {
   if (!row) return null;
 
   const fields = buildOrderedFields(row, det || {});
-  const nomeExibido = (det?.nome ? row[det.nome] : null) || cod;
+  const nomeExibido = (det?.nomeFantasia && row[det.nomeFantasia]) || (det?.razaoSocial && row[det.razaoSocial]) || cod;
 
   return ReactDOM.createPortal(
     <div className="pd-overlay" onClick={e => e.target === e.currentTarget && onClose()}>

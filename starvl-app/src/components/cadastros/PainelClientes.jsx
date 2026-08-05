@@ -9,12 +9,31 @@ const fmtNum = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 0 });
 const PAGE_OPTS = [10, 30, 50, 'Todos'];
 const DIA_MS = 24 * 60 * 60 * 1000;
 
+// Remove acentos só pra comparação — muitas consultas usam alias em
+// português ("RAZÃO_SOCIAL", "SITUAÇÃO"...) e regex não trata á/ã/ç como
+// equivalentes de a/c sem isso, o que fazia a detecção falhar silenciosamente.
+function stripAccents(s) {
+  // Faixa Unicode das marcas de acento combinantes (U+0300 a U+036F), escrita
+  // via fromCharCode em vez de \uXXXX na regex pra evitar problemas de
+  // codificação do caractere literal no arquivo fonte.
+  const combiningMarks = new RegExp(
+    '[' + String.fromCharCode(768) + '-' + String.fromCharCode(879) + ']', 'g'
+  );
+  return String(s || '').normalize('NFD').replace(combiningMarks, '');
+}
+
 function detectColsClientes(columns) {
   // Match exato (^ $) tem prioridade; fallback para parcial
-  const exact = pat => columns.find(c => new RegExp(`^(${pat})$`, 'i').test(c)) || null;
-  const find  = pat => columns.find(c => new RegExp(pat, 'i').test(c)) || null;
+  const exact = pat => columns.find(c => new RegExp(`^(${pat})$`, 'i').test(stripAccents(c))) || null;
+  const find  = pat => columns.find(c => new RegExp(pat, 'i').test(stripAccents(c))) || null;
   return {
-    nome:      exact('nome|nome_cliente|razao_social|razao|cliente') || find('nome|razao'),
+    // "cliente" sozinho NÃO entra aqui: em tabelas de participante/parceiro
+    // (part/pars) é comum existir uma coluna booleana "CLIENTE" (Sim/Não,
+    // é cliente ou não) ao lado de FORNECEDOR/FUNCIONARIO/etc — nada a ver
+    // com o nome. nome_fantasia e razao_social são detectados separados
+    // (ver clienteNome() abaixo) porque nem sempre os dois existem juntos.
+    nomeFantasia: exact('nome_fantasia|fantasia|apelido') || find('fantasia'),
+    razaoSocial:  exact('razao_social|razao|nome_cliente|nome') || find('razao|nome_completo'),
     codigo:    exact('cod_cliente|codigo|clicodigo|cod'),
     documento: exact('documento|cpf_cnpj|cpf|cnpj') || find('cpf|cnpj|documento'),
     telefone:  exact('telefone|fone|celular|whatsapp') || find('telefone|fone|celular'),
@@ -24,6 +43,13 @@ function detectColsClientes(columns) {
     situacao:  exact('situacao|status|ativo|inativo') || find('situacao|status'),
     cadastro:  exact('data_cadastro|datacadastro|cliente_desde|cadastrado_em') || find('data_cadastro|cliente_desde|cadastrado'),
   };
+}
+
+// Nome fantasia tem prioridade (mais reconhecível), com razão social como
+// fallback — cobre tanto o caso de PJ sem fantasia preenchida quanto PF
+// (onde geralmente só razão social/nome completo existe).
+function clienteNome(row, det) {
+  return (det.nomeFantasia && row[det.nomeFantasia]) || (det.razaoSocial && row[det.razaoSocial]) || '';
 }
 
 function KpiCard({ icon: Icon, label, value, sub, accent }) {
@@ -618,7 +644,7 @@ export default function PainelClientes({ empresasKey, onVoltar }) {
     if (busca.trim()) {
       const q = busca.toLowerCase();
       r = r.filter(row =>
-        String(row[det.nome]      || '').toLowerCase().includes(q) ||
+        clienteNome(row, det).toLowerCase().includes(q) ||
         String(row[det.codigo]    || '').toLowerCase().includes(q) ||
         String(row[det.documento] || '').toLowerCase().includes(q)
       );
@@ -636,7 +662,7 @@ export default function PainelClientes({ empresasKey, onVoltar }) {
   }
 
   const tabelaCols = useMemo(() => [
-    det.nome      && { key: det.nome,      label: 'Cliente',   name: true },
+    (det.nomeFantasia || det.razaoSocial) && { key: '__nome', label: 'Cliente', name: true, calc: row => clienteNome(row, det) },
     det.codigo    && { key: det.codigo,    label: 'Código' },
     det.documento && { key: det.documento, label: 'Documento' },
     det.telefone  && { key: det.telefone,  label: 'Telefone' },
@@ -650,8 +676,8 @@ export default function PainelClientes({ empresasKey, onVoltar }) {
     const col = tabelaCols.find(c => c.key === sortCol);
     if (!col) return filtradas;
     return [...filtradas].sort((a, b) => {
-      const va = a[sortCol];
-      const vb = b[sortCol];
+      const va = col.calc ? col.calc(a) : a[sortCol];
+      const vb = col.calc ? col.calc(b) : b[sortCol];
       const cmp = String(va ?? '').localeCompare(String(vb ?? ''), 'pt-BR', { sensitivity: 'base', numeric: true });
       return sortDir === 'asc' ? cmp : -cmp;
     });
@@ -824,7 +850,7 @@ export default function PainelClientes({ empresasKey, onVoltar }) {
                     onContextMenu={e => { e.preventDefault(); setCtxMenu({ x: e.clientX, y: e.clientY, row }); }}
                   >
                     {tabelaCols.map((c, ci) => {
-                      const raw = row[c.key];
+                      const raw = c.calc ? c.calc(row) : row[c.key];
                       return (
                         <td key={c.key} className={[
                           'pp-td',
