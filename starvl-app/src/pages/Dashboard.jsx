@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ShoppingCart, Fuel, Flame, Droplet, Package, Truck, Boxes, Gauge, RefreshCw, CalendarDays, ChevronDown, Eye, EyeOff } from 'lucide-react';
 import { KpiCard } from '../components/ui';
+import BannerPrevisaoVendas from '../components/ui/BannerPrevisaoVendas';
 import { apiFetch } from '../api';
 
 const currency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -746,6 +747,8 @@ export default function Dashboard({ empresas, period, onNavigate }) {
 
       {empresasKey && !erro && (
         <>
+          <BannerPrevisaoVendas />
+
           <div className="kpi-grid">
             {(() => {
               const kpi = (slotKey, apiObj) => slotKpiData[slotKey] || apiObj || {};
