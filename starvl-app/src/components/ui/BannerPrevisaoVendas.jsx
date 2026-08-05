@@ -504,138 +504,143 @@ export default function BannerPrevisaoVendas({ empresa }) {
       </svg>
 
       <div className="bpv-inner">
-        {/* ── LEFT ── */}
-        <div className="bpv-left">
-          <div className="bpv-eyebrow">
-            <span className="bpv-eyebrow-dot" />
-            REGRESSÃO LINEAR · ECLIPSE
+
+        {/* ── TOPO: título + gráfico ── */}
+        <div className="bpv-top-row">
+
+          {/* LEFT — título e botão */}
+          <div className="bpv-left">
+            <div className="bpv-eyebrow">
+              <span className="bpv-eyebrow-dot" />
+              REGRESSÃO LINEAR · ECLIPSE
+            </div>
+
+            <h2 className="bpv-title">
+              Previsão <span className="bpv-title-accent">Inteligente</span><br />de Vendas
+            </h2>
+
+            <p className="bpv-subtitle">
+              {erro
+                ? `Erro: ${erro}`
+                : semSlot
+                  ? 'Configure o slot "historico_mensal" no Gerenciador de Consultas para ativar a previsão com dados reais.'
+                  : dados
+                    ? `Estimativa para ${mesAtual} calculada via regressão linear com base no histórico mensal.`
+                    : loading ? 'Calculando previsão...' : 'Clique em "Gerar Nova Previsão" para calcular.'
+              }
+            </p>
+
+            <button className="bpv-btn" onClick={fetchPrevisao} disabled={loading || !empresa}>
+              {loading
+                ? <><span className="bpv-btn-spinner" /> Calculando...</>
+                : <><TrendingUp size={16} /> Gerar Nova Previsão</>
+              }
+            </button>
           </div>
 
-          <h2 className="bpv-title">
-            Previsão <span className="bpv-title-accent">Inteligente</span><br />de Vendas
-          </h2>
-
-          <p className="bpv-subtitle">
-            {erro
-              ? `Erro: ${erro}`
-              : semSlot
-                ? 'Configure o slot "historico_mensal" no Gerenciador de Consultas para ativar a previsão com dados reais.'
-                : dados
-                  ? `Estimativa para ${mesAtual} calculada via regressão linear com base no histórico mensal.`
-                  : loading ? 'Calculando previsão...' : 'Clique em "Gerar Nova Previsão" para calcular.'
-            }
-          </p>
-
-          <button className="bpv-btn" onClick={fetchPrevisao} disabled={loading || !empresa}>
-            {loading
-              ? <><span className="bpv-btn-spinner" /> Calculando...</>
-              : <><TrendingUp size={16} /> Gerar Nova Previsão</>
-            }
-          </button>
-
-          {/* KPI cards 2×2 */}
-          <div className="bpv-kpi-row">
-
-            {/* Receita */}
-            <div className="bpv-kpi-card">
-              <div className="bpv-kpi-icon-wrap"><DollarSign size={18} /></div>
-              <div className="bpv-kpi-body">
-                <div className="bpv-kpi-label">Receita Prevista ({mesAtual})</div>
-                <div className="bpv-kpi-value">
-                  {dados ? fmtMoney(dados.forecast) : <span className="bpv-kpi-empty">—</span>}
+          {/* RIGHT — gráfico */}
+          <div className="bpv-right">
+            {dados ? (
+              <div className="bpv-chart-card">
+                <div className="bpv-chart-top">
+                  <div className="bpv-legend">
+                    <span className="bpv-leg-dot bpv-leg-dot--hist" />
+                    <span>Histórico</span>
+                    <span className="bpv-leg-dot bpv-leg-dot--pred" />
+                    <span>Previsão ({dados.predLabel})</span>
+                  </div>
+                  <div className="bpv-callout">
+                    <div className="bpv-callout-label">{dados.predLabel?.toUpperCase()} (PREVISÃO)</div>
+                    <div className="bpv-callout-value">{fmtMoney(dados.forecast)}</div>
+                    <div className="bpv-callout-delta" style={{ color: deltaColor }}>{deltaLabel}</div>
+                  </div>
                 </div>
-                <div className="bpv-kpi-delta" style={{ color: deltaColor }}>
-                  {dados ? deltaLabel : ''}
-                </div>
+                <MiniChart
+                  hist={dados.hist}
+                  pred={[dados.forecast]}
+                  labels={dados.labels}
+                  predLabel={dados.predLabel}
+                />
               </div>
-            </div>
-
-            {/* Crescimento */}
-            <div className="bpv-kpi-card">
-              <div className="bpv-kpi-icon-wrap"><TrendingUp size={18} /></div>
-              <div className="bpv-kpi-body">
-                <div className="bpv-kpi-label">Crescimento Esperado</div>
-                <div className="bpv-kpi-value">
-                  {dados
-                    ? `${crescimento >= 0 ? '+' : ''}${crescimento.toFixed(1)}%`
-                    : <span className="bpv-kpi-empty">—</span>
-                  }
-                </div>
-                <div className="bpv-kpi-progress">
-                  <div className="bpv-kpi-bar" style={{ width: barW }} />
-                </div>
+            ) : (
+              <div className="bpv-chart-placeholder">
+                {loading
+                  ? 'Calculando...'
+                  : semSlot
+                    ? 'Gráfico disponível após configurar o slot'
+                    : 'Aguardando dados...'
+                }
               </div>
-            </div>
-
-            {/* Precisão */}
-            <div className="bpv-kpi-card" style={{ position: 'relative' }}>
-              <div className="bpv-kpi-icon-wrap"><Target size={18} /></div>
-              <div className="bpv-kpi-body">
-                <div className="bpv-kpi-label">Precisão (R²)</div>
-                <div className="bpv-kpi-value">
-                  {dados ? `${precisao}%` : <span className="bpv-kpi-empty">—</span>}
-                </div>
-              </div>
-              <div className="bpv-circle-wrap">
-                <svg className="bpv-circle" viewBox="0 0 36 36">
-                  <circle cx="18" cy="18" r="15" fill="none" stroke="rgba(255,255,255,.08)" strokeWidth="3" />
-                  <circle cx="18" cy="18" r="15" fill="none"
-                    stroke="#F97316" strokeWidth="3" strokeLinecap="round"
-                    strokeDasharray="94.2" strokeDashoffset={circleOffset}
-                    transform="rotate(-90 18 18)" />
-                </svg>
-              </div>
-            </div>
-
-            {/* Confiança — com tooltip */}
-            <TooltipConfianca precisao={precisao} confidencia={confidencia}>
-              <div className="bpv-kpi-icon-wrap"><ShieldCheck size={18} /></div>
-              <div className="bpv-kpi-body">
-                <div className="bpv-kpi-label">Confiança</div>
-                <div className="bpv-kpi-value bpv-confidence">{confidencia}</div>
-                <div className={`bpv-confidence-badge${confVerificado ? '' : ' bpv-confidence-badge--warn'}`}>
-                  {confVerificado ? '✓ Verificado' : '⚠ Baixa precisão'}
-                </div>
-              </div>
-            </TooltipConfianca>
-
+            )}
           </div>
         </div>
 
-        {/* ── RIGHT — gráfico ── */}
-        <div className="bpv-right">
-          {dados ? (
-            <div className="bpv-chart-card">
-              <div className="bpv-chart-top">
-                <div className="bpv-legend">
-                  <span className="bpv-leg-dot bpv-leg-dot--hist" />
-                  <span>Histórico</span>
-                  <span className="bpv-leg-dot bpv-leg-dot--pred" />
-                  <span>Previsão ({dados.predLabel})</span>
-                </div>
-                <div className="bpv-callout">
-                  <div className="bpv-callout-label">{dados.predLabel?.toUpperCase()} (PREVISÃO)</div>
-                  <div className="bpv-callout-value">{fmtMoney(dados.forecast)}</div>
-                  <div className="bpv-callout-delta" style={{ color: deltaColor }}>{deltaLabel}</div>
-                </div>
+        {/* ── BAIXO: 4 KPIs em linha ── */}
+        <div className="bpv-kpi-row">
+
+          {/* Receita */}
+          <div className="bpv-kpi-card">
+            <div className="bpv-kpi-icon-wrap"><DollarSign size={18} /></div>
+            <div className="bpv-kpi-body">
+              <div className="bpv-kpi-label">Receita Prevista ({mesAtual})</div>
+              <div className="bpv-kpi-value">
+                {dados ? fmtMoney(dados.forecast) : <span className="bpv-kpi-empty">—</span>}
               </div>
-              <MiniChart
-                hist={dados.hist}
-                pred={[dados.forecast]}
-                labels={dados.labels}
-                predLabel={dados.predLabel}
-              />
+              <div className="bpv-kpi-delta" style={{ color: deltaColor }}>
+                {dados ? deltaLabel : ''}
+              </div>
             </div>
-          ) : (
-            <div className="bpv-chart-placeholder">
-              {loading
-                ? 'Calculando...'
-                : semSlot
-                  ? 'Gráfico disponível após configurar o slot'
-                  : 'Aguardando dados...'
-              }
+          </div>
+
+          {/* Crescimento */}
+          <div className="bpv-kpi-card">
+            <div className="bpv-kpi-icon-wrap"><TrendingUp size={18} /></div>
+            <div className="bpv-kpi-body">
+              <div className="bpv-kpi-label">Crescimento Esperado</div>
+              <div className="bpv-kpi-value">
+                {dados
+                  ? `${crescimento >= 0 ? '+' : ''}${crescimento.toFixed(1)}%`
+                  : <span className="bpv-kpi-empty">—</span>
+                }
+              </div>
+              <div className="bpv-kpi-progress">
+                <div className="bpv-kpi-bar" style={{ width: barW }} />
+              </div>
             </div>
-          )}
+          </div>
+
+          {/* Precisão */}
+          <div className="bpv-kpi-card" style={{ position: 'relative' }}>
+            <div className="bpv-kpi-icon-wrap"><Target size={18} /></div>
+            <div className="bpv-kpi-body">
+              <div className="bpv-kpi-label">Precisão (R²)</div>
+              <div className="bpv-kpi-value">
+                {dados ? `${precisao}%` : <span className="bpv-kpi-empty">—</span>}
+              </div>
+            </div>
+            <div className="bpv-circle-wrap">
+              <svg className="bpv-circle" viewBox="0 0 36 36">
+                <circle cx="18" cy="18" r="15" fill="none" stroke="rgba(255,255,255,.08)" strokeWidth="3" />
+                <circle cx="18" cy="18" r="15" fill="none"
+                  stroke="#F97316" strokeWidth="3" strokeLinecap="round"
+                  strokeDasharray="94.2" strokeDashoffset={circleOffset}
+                  transform="rotate(-90 18 18)" />
+              </svg>
+            </div>
+          </div>
+
+          {/* Confiança — com tooltip */}
+          <TooltipConfianca precisao={precisao} confidencia={confidencia}>
+            <div className="bpv-kpi-icon-wrap"><ShieldCheck size={18} /></div>
+            <div className="bpv-kpi-body">
+              <div className="bpv-kpi-label">Confiança</div>
+              <div className="bpv-kpi-value bpv-confidence">{confidencia}</div>
+              <div className={`bpv-confidence-badge${confVerificado ? '' : ' bpv-confidence-badge--warn'}`}>
+                {confVerificado ? '✓ Verificado' : '⚠ Baixa precisão'}
+              </div>
+            </div>
+          </TooltipConfianca>
+
         </div>
       </div>
     </div>

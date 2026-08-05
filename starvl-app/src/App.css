@@ -3202,15 +3202,21 @@ select.themed-select option {
 /* ── Layout ── */
 .bpv-inner {
   position:relative; z-index:2;
-  display:grid; grid-template-columns:1fr 1.15fr;
-  gap:0; min-height:340px;
+  display:flex; flex-direction:column;
+  gap:0;
 }
-@media(max-width:960px) { .bpv-inner { grid-template-columns:1fr } }
+
+/* ── Linha superior: título + gráfico ── */
+.bpv-top-row {
+  display:grid; grid-template-columns:1fr 1.3fr;
+  gap:0;
+}
+@media(max-width:960px) { .bpv-top-row { grid-template-columns:1fr } }
 
 /* ── Lado esquerdo ── */
 .bpv-left {
-  padding:36px 32px 32px;
-  display:flex; flex-direction:column; gap:18px;
+  padding:32px 28px 28px;
+  display:flex; flex-direction:column; gap:16px;
 }
 
 /* ── Eyebrow (pílula com borda) ── */
@@ -3260,9 +3266,13 @@ select.themed-select option {
 @keyframes bpvSpin { to { transform:rotate(360deg) } }
 .bpv-kpi-empty { opacity:.3; }
 
-/* ── KPI grid 1×4 (linha única) ── */
+/* ── KPI grid 1×4 — linha abaixo do topo ── */
 .bpv-kpi-row {
   display:grid; grid-template-columns:repeat(4,1fr); gap:10px;
+  padding:0 20px 20px;
+  border-top:1px solid rgba(249,115,22,.10);
+  margin-top:0;
+  padding-top:16px;
 }
 @media(max-width:900px) { .bpv-kpi-row { grid-template-columns:1fr 1fr; } }
 @media(max-width:500px) { .bpv-kpi-row { grid-template-columns:1fr } }
@@ -3357,12 +3367,12 @@ select.themed-select option {
 
 /* ── Lado direito ── */
 .bpv-right {
-  padding:18px 20px;
+  padding:18px 20px 18px 16px;
   display:flex; align-items:stretch;
   border-left:1px solid rgba(249,115,22,.12);
 }
 @media(max-width:960px) {
-  .bpv-right { border-left:none; border-top:1px solid rgba(249,115,22,.12); min-height:280px; }
+  .bpv-right { border-left:none; border-top:1px solid rgba(249,115,22,.12); min-height:220px; }
 }
 
 /* ── Card do gráfico ── */
