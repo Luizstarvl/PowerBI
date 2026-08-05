@@ -3119,6 +3119,12 @@ select.themed-select option {
 .spin { animation: spin 0.9s linear infinite; }
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
+/* Se o usuário usar Ctrl+P no browser enquanto o preview estiver aberto,
+   esconde o overlay (o Ctrl+P é interceptado e redirecionado para o iframe) */
+@media print {
+  .prv-overlay { display: none !important; }
+}
+
 /* ── PrintPreview — tela cheia dentro do sistema ─────────────────────────── */
 .prv-overlay {
   position: fixed; inset: 0; z-index: 1200;

@@ -406,7 +406,15 @@ function PrintPreview({ html, titulo, total, empresa, onClose }) {
   }
 
   useEffect(() => {
-    function onKey(e) { if (e.key === 'Escape') onClose(); }
+    function onKey(e) {
+      if (e.key === 'Escape') { onClose(); return; }
+      // Ctrl+P / Cmd+P na janela principal → imprime o iframe, não a página toda
+      if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
+        e.preventDefault();
+        e.stopPropagation();
+        iframeRef.current?.contentWindow?.print();
+      }
+    }
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, [onClose]);
