@@ -425,9 +425,9 @@ function PrintPreview({ html, titulo, total, empresa, onClose }) {
   );
 }
 
-function PrintModal({ cidades, tipos, tabelaCols, sortedFiltradas, det, empresa, onClose, onPreview }) {
+function PrintModal({ cidades, tipos, tabelaCols, rows, det, empresa, onClose, onPreview }) {
   const [titulo,    setTitulo]    = useState('Cadastro de Clientes');
-  const [pSituacao, setPSituacao] = useState('Ativos');
+  const [pSituacao, setPSituacao] = useState('Todos');
   const [pCidade,   setPCidade]   = useState('Todas');
   const [pTipo,     setPTipo]     = useState('Todos');
   const [pColKeys,  setPColKeys]  = useState(() => tabelaCols.map(c => c.key));
@@ -442,13 +442,13 @@ function PrintModal({ cidades, tipos, tabelaCols, sortedFiltradas, det, empresa,
   const norm = s => String(s || '').trim().toLowerCase();
 
   const linhas = useMemo(() => {
-    let r = sortedFiltradas;
+    let r = rows;
     if (pSituacao !== 'Todos' && det.situacao) r = r.filter(row => matchSituacao(row[det.situacao], pSituacao));
     if (pCidade !== 'Todas' && det.cidade) r = r.filter(row => norm(row[det.cidade]) === norm(pCidade));
     if (pTipo   !== 'Todos' && det.tipo)   r = r.filter(row => norm(row[det.tipo])   === norm(pTipo));
     return r;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sortedFiltradas, pSituacao, pCidade, pTipo, det]);
+  }, [rows, pSituacao, pCidade, pTipo, det]);
 
   const colunasSel = tabelaCols.filter(c => pColKeys.includes(c.key));
 
@@ -942,7 +942,7 @@ export default function PainelClientes({ empresasKey, onVoltar }) {
           cidades={cidades}
           tipos={tipos}
           tabelaCols={tabelaCols}
-          sortedFiltradas={sortedFiltradas}
+          rows={rows}
           det={det}
           empresa={empresa}
           onClose={() => setPrintOpen(false)}
