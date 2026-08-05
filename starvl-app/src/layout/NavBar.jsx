@@ -8,12 +8,13 @@ function canAccessPage(user, key) {
   if (!user) return false;
   if (user.perfil === 'admin') return true;
   switch (key) {
-    case 'dashboard':  return true;
-    case 'metas':      return true;
-    case 'cadastros':  return true;
-    case 'usuarios':   return false;
-    case 'parametros': return !!user.permissoes?.configuracoes;
-    default:           return false;
+    case 'dashboard':              return true;
+    case 'planejamento_comercial': return true;
+    case 'metas':                  return true;
+    case 'cadastros':              return true;
+    case 'usuarios':               return false;
+    case 'parametros':             return !!user.permissoes?.configuracoes;
+    default:                       return false;
   }
 }
 

@@ -3525,6 +3525,28 @@ select.themed-select option {
   color:rgba(255,255,255,.2); font-size:13px;
 }
 
+/* ── Planejamento Comercial — estado vazio ─────────────────────────────────── */
+.pc-empty-state {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  height: 100%; min-height: 420px; gap: 18px; text-align: center;
+  padding: 48px 24px;
+}
+.pc-empty-icon-wrap {
+  width: 80px; height: 80px; border-radius: 20px;
+  background: linear-gradient(135deg, rgba(249,115,22,.15), rgba(249,115,22,.05));
+  border: 1px solid rgba(249,115,22,.25);
+  display: flex; align-items: center; justify-content: center;
+  color: #F97316;
+}
+.pc-empty-title {
+  font-size: 22px; font-weight: 700; color: var(--color-text);
+  margin: 0;
+}
+.pc-empty-sub {
+  font-size: 14px; color: var(--color-text-muted);
+  max-width: 420px; line-height: 1.65; margin: 0;
+}
+
 /* ── PrintPreview — tela cheia dentro do sistema ─────────────────────────── */
 .prv-overlay {
   position: fixed; inset: 0; z-index: 1200;
@@ -3910,3 +3932,4 @@ select.themed-select option {
 }
 .pd-btn-save:hover:not(:disabled) { opacity: .88; }
 .pd-btn-save:disabled { opacity: .5; cursor: not-allowed; }
+

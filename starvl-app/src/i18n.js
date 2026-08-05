@@ -4,6 +4,7 @@ const T = {
   'pt-BR': {
     // NavBar
     nav_dashboard: 'Dashboard',
+    nav_planejamento_comercial: 'Planejamento Comercial',
     nav_usuarios: 'Usuários',
     nav_metas: 'Metas',
     nav_cadastros: 'Cadastros',
@@ -180,6 +181,7 @@ const T = {
   },
   'en': {
     nav_dashboard: 'Dashboard',
+    nav_planejamento_comercial: 'Commercial Planning',
     nav_usuarios: 'Users',
     nav_metas: 'Goals',
     nav_cadastros: 'Registrations',
@@ -341,6 +343,7 @@ const T = {
   },
   'es': {
     nav_dashboard: 'Panel',
+    nav_planejamento_comercial: 'Planificación Comercial',
     nav_usuarios: 'Usuarios',
     nav_metas: 'Metas',
     nav_cadastros: 'Registros',

@@ -6,6 +6,7 @@ import Dashboard from './pages/Dashboard';
 import Usuarios from './pages/Usuarios';
 import Cadastros from './pages/Cadastros';
 import Parametros from './pages/Parametros';
+import PlanejamentoComercial from './pages/PlanejamentoComercial';
 import AnimatedBackground from './components/login/AnimatedBackground';
 import { LangProvider } from './i18n';
 import { apiFetch, setApiToken, clearApiToken } from './api';
@@ -141,6 +142,11 @@ export default function App() {
           {visited.has('dashboard') && (
             <div className={`page-slot${page === 'dashboard' ? ' page-active' : ''}`}>
               <Dashboard empresas={selectedIds} period={period} onNavigate={handlePageChange} />
+            </div>
+          )}
+          {visited.has('planejamento_comercial') && (
+            <div className={`page-slot${page === 'planejamento_comercial' ? ' page-active' : ''}`}>
+              <PlanejamentoComercial empresas={selectedIds} />
             </div>
           )}
           {visited.has('cadastros') && (
