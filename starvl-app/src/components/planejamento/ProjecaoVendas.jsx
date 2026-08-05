@@ -321,10 +321,9 @@ function Banner() {
 }
 
 /* ── Filter Bar ────────────────────────────────────────────── */
-const PERIODOS  = ['Hoje','Semana','Mês','Trimestre','Ano','Personalizado'];
-const EMPRESAS  = ['Todos','Posto Central','Filial Norte','Filial Sul'];
-const GRUPOS    = ['Todos','Bebidas','Snacks','Combustível','Padaria','Gelados'];
-const TIPOS     = ['Todos','Varejo','Atacado','Delivery','Frota'];
+const PERIODOS = ['Hoje','Semana','Mês','Trimestre','Ano','Personalizado'];
+const GRUPOS   = ['Todos','Bebidas','Snacks','Combustível','Padaria','Gelados'];
+const TIPOS    = ['Todos','Varejo','Atacado','Delivery','Frota'];
 
 function FilterSelect({ label, options, value, onChange }) {
   const [open, setOpen] = useState(false);
@@ -343,9 +342,10 @@ function FilterSelect({ label, options, value, onChange }) {
       {open && (
         <div className="pv-fsel-drop">
           {options.map(o => (
-            <button key={o} className={`pv-fsel-opt${value===o?' active':''}`}
-              onClick={() => { onChange(o); setOpen(false); }}>
-              {o}
+            <button key={typeof o === 'object' ? o.value : o}
+              className={`pv-fsel-opt${value===(typeof o === 'object' ? o.value : o)?' active':''}`}
+              onClick={() => { onChange(typeof o === 'object' ? o.value : o); setOpen(false); }}>
+              {typeof o === 'object' ? o.label : o}
             </button>
           ))}
         </div>
@@ -354,11 +354,28 @@ function FilterSelect({ label, options, value, onChange }) {
   );
 }
 
-function FilterBar({ onRefresh, loading }) {
+function FilterBar({ onRefresh, loading, clients = [], empresas = [] }) {
   const [periodo, setPeriodo] = useState('Mês');
   const [empresa, setEmpresa] = useState('Todos');
   const [grupo,   setGrupo]   = useState('Todos');
   const [tipo,    setTipo]    = useState('Todos');
+
+  // Monta lista de empresas a partir dos clients selecionados
+  // Se só há uma empresa selecionada, não mostra o filtro "Todos"
+  const empresaOpts = useMemo(() => {
+    const selecionadas = clients.filter(c => empresas.includes(c.codigoEmpresa));
+    if (selecionadas.length === 0) return ['Todos'];
+    const opts = [{ value: 'Todos', label: 'Todos' },
+      ...selecionadas.map(c => ({ value: String(c.codigoEmpresa), label: c.nome }))
+    ];
+    return opts;
+  }, [clients, empresas]);
+
+  // Resetar seleção se a empresa selecionada saiu da lista
+  React.useEffect(() => {
+    const vals = empresaOpts.map(o => typeof o === 'object' ? o.value : o);
+    if (!vals.includes(empresa)) setEmpresa('Todos');
+  }, [empresaOpts]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="pv-filterbar">
@@ -373,9 +390,9 @@ function FilterBar({ onRefresh, loading }) {
         </div>
 
         <div className="pv-filterbar-sels">
-          <FilterSelect label="Empresa"   options={EMPRESAS} value={empresa} onChange={setEmpresa}/>
-          <FilterSelect label="Grupo"     options={GRUPOS}   value={grupo}   onChange={setGrupo}/>
-          <FilterSelect label="Tipo Venda"options={TIPOS}    value={tipo}    onChange={setTipo}/>
+          <FilterSelect label="Empresa"    options={empresaOpts} value={empresa} onChange={setEmpresa}/>
+          <FilterSelect label="Grupo"      options={GRUPOS}      value={grupo}   onChange={setGrupo}/>
+          <FilterSelect label="Tipo Venda" options={TIPOS}       value={tipo}    onChange={setTipo}/>
         </div>
 
         <button className="pv-refresh-btn" onClick={onRefresh} disabled={loading}>
@@ -1133,7 +1150,7 @@ function Section({ id, icon: Icon, title, badge, defaultOpen = true, children })
 }
 
 /* ── Main Export ───────────────────────────────────────────── */
-export default function ProjecaoVendas({ empresasKey }) {
+export default function ProjecaoVendas({ empresasKey, clients = [], empresas = [] }) {
   const [loading, setLoading] = useState(false);
 
   const handleRefresh = useCallback(() => {
@@ -1144,7 +1161,7 @@ export default function ProjecaoVendas({ empresasKey }) {
   return (
     <div className="pv-page">
       <Banner/>
-      <FilterBar onRefresh={handleRefresh} loading={loading}/>
+      <FilterBar onRefresh={handleRefresh} loading={loading} clients={clients} empresas={empresas}/>
 
       <div className="pv-body">
 

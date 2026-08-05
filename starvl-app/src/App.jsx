@@ -146,7 +146,7 @@ export default function App() {
           )}
           {visited.has('planejamento_comercial') && (
             <div className={`page-slot${page === 'planejamento_comercial' ? ' page-active' : ''}`}>
-              <PlanejamentoComercial empresas={selectedIds} />
+              <PlanejamentoComercial empresas={selectedIds} clients={clients} />
             </div>
           )}
           {visited.has('cadastros') && (

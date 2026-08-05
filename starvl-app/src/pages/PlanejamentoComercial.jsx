@@ -100,7 +100,7 @@ function Hub({ onSelect }) {
 }
 
 /* ── Módulo interno com cabeçalho de volta ─────────────────────── */
-function ModuloWrapper({ moduloKey, onBack, empresasKey }) {
+function ModuloWrapper({ moduloKey, onBack, empresasKey, clients, empresas }) {
   const mod = MODULOS.find(m => m.key === moduloKey);
 
   return (
@@ -119,13 +119,13 @@ function ModuloWrapper({ moduloKey, onBack, empresasKey }) {
       </div>
 
       {/* Conteúdo do módulo */}
-      {moduloKey === 'projecao' && <ProjecaoVendas empresasKey={empresasKey} />}
+      {moduloKey === 'projecao' && <ProjecaoVendas empresasKey={empresasKey} clients={clients} empresas={empresas} />}
     </div>
   );
 }
 
 /* ── Page principal ────────────────────────────────────────────── */
-export default function PlanejamentoComercial({ empresas }) {
+export default function PlanejamentoComercial({ empresas, clients = [] }) {
   const [modulo, setModulo] = useState(null); // null = hub
   const empresasKey = (empresas || []).join(',');
 
@@ -137,6 +137,8 @@ export default function PlanejamentoComercial({ empresas }) {
             moduloKey={modulo}
             onBack={() => setModulo(null)}
             empresasKey={empresasKey}
+            clients={clients}
+            empresas={empresas}
           />
       }
     </main>
