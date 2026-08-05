@@ -186,8 +186,9 @@ export default function BannerPrevisaoVendas({ empresa }) {
   /* ── Valores derivados ── */
   const crescimento  = dados?.crescimento ?? null;
   const precisao     = dados?.precisao    ?? null;
+  // Limiares calibrados para dados mensais com sazonalidade
   const confidencia  = precisao == null ? '—'
-    : precisao >= 80 ? 'Alta' : precisao >= 60 ? 'Média' : 'Baixa';
+    : precisao >= 70 ? 'Alta' : precisao >= 35 ? 'Média' : 'Baixa';
   const mesAtual = MONTH_SHORT[new Date().getMonth()];
 
   const barW = crescimento != null
@@ -290,7 +291,7 @@ export default function BannerPrevisaoVendas({ empresa }) {
               <div className="bpv-kpi-label">Confiança</div>
               <div className="bpv-kpi-value bpv-confidence">{confidencia}</div>
               <div className="bpv-confidence-badge">
-                {precisao != null && precisao >= 60 ? '✓ Verificado' : precisao != null ? '⚠ Baixa precisão' : '—'}
+                {precisao != null && precisao >= 35 ? '✓ Verificado' : precisao != null ? '⚠ Baixa precisão' : '—'}
               </div>
             </div>
           </div>
