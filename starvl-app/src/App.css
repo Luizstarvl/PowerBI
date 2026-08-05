@@ -482,6 +482,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   margin-top: auto; padding-top: 16px;
   border-top: 1px solid var(--color-border); padding-left: 10px;
   flex-shrink: 0;
+  display: flex; align-items: center; gap: 10px;
 }
 .sidebar-version { font-size: 11px; color: var(--color-text-muted); }
 .sidebar-assinatura {
@@ -490,7 +491,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   opacity: 0.45;
   font-style: italic;
   letter-spacing: 0.02em;
-  margin-left: 8px;
+  margin-right: 10px;
 }
 
 /* ── TopBar ──────────────────────────────────────────────────────────────────── */
