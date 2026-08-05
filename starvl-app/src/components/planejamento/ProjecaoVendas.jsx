@@ -2,8 +2,9 @@
    ProjecaoVendas.jsx — Projeção Inteligente de Vendas
    Eclipse BI · Planejamento Comercial
 ═══════════════════════════════════════════════════════════════ */
-import React, { useState, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import * as XLSX from 'xlsx';
+import { apiFetch } from '../../api';
 import {
   TrendingUp, TrendingDown, Target, Rocket, DollarSign, BarChart2,
   AlertTriangle, Download, RefreshCw, ChevronDown, Search,
@@ -322,7 +323,6 @@ function Banner() {
 
 /* ── Filter Bar ────────────────────────────────────────────── */
 const PERIODOS = ['Hoje','Semana','Mês','Trimestre','Ano','Personalizado'];
-const GRUPOS   = ['Todos','Bebidas','Snacks','Combustível','Padaria','Gelados'];
 const TIPOS    = ['Todos','Varejo','Atacado','Delivery','Frota'];
 
 function FilterSelect({ label, options, value, onChange }) {
@@ -354,28 +354,50 @@ function FilterSelect({ label, options, value, onChange }) {
   );
 }
 
-function FilterBar({ onRefresh, loading, clients = [], empresas = [] }) {
+function FilterBar({ onRefresh, loading, clients = [], empresas = [], empresasKey = '' }) {
   const [periodo, setPeriodo] = useState('Mês');
   const [empresa, setEmpresa] = useState('Todos');
   const [grupo,   setGrupo]   = useState('Todos');
   const [tipo,    setTipo]    = useState('Todos');
+  const [grupos,  setGrupos]  = useState([]);
 
   // Monta lista de empresas a partir dos clients selecionados
-  // Se só há uma empresa selecionada, não mostra o filtro "Todos"
   const empresaOpts = useMemo(() => {
     const selecionadas = clients.filter(c => empresas.includes(c.codigoEmpresa));
-    if (selecionadas.length === 0) return ['Todos'];
-    const opts = [{ value: 'Todos', label: 'Todos' },
-      ...selecionadas.map(c => ({ value: String(c.codigoEmpresa), label: c.nome }))
+    if (selecionadas.length === 0) return [{ value: 'Todos', label: 'Todos' }];
+    return [
+      { value: 'Todos', label: 'Todos' },
+      ...selecionadas.map(c => ({ value: String(c.codigoEmpresa), label: c.nome })),
     ];
-    return opts;
   }, [clients, empresas]);
 
-  // Resetar seleção se a empresa selecionada saiu da lista
-  React.useEffect(() => {
-    const vals = empresaOpts.map(o => typeof o === 'object' ? o.value : o);
+  // Resetar empresa se saiu da lista
+  useEffect(() => {
+    const vals = empresaOpts.map(o => o.value);
     if (!vals.includes(empresa)) setEmpresa('Todos');
   }, [empresaOpts]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Busca grupos reais do banco quando as empresas selecionadas mudam
+  useEffect(() => {
+    if (!empresasKey) { setGrupos([]); return; }
+    apiFetch(`/api/dashboard/prod-categorias?empresas=${empresasKey}&prodtipo=2`)
+      .then(r => r.json())
+      .then(data => {
+        const lista = Array.isArray(data?.grupos) ? data.grupos : [];
+        setGrupos(lista);
+        // Reseta seleção se o grupo não existe mais
+        if (grupo !== 'Todos' && !lista.some(g => g.nome === grupo)) {
+          setGrupo('Todos');
+        }
+      })
+      .catch(() => setGrupos([]));
+  }, [empresasKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Monta opções do dropdown Grupo
+  const grupoOpts = useMemo(() => {
+    if (grupos.length === 0) return ['Todos'];
+    return ['Todos', ...grupos.map(g => g.nome)];
+  }, [grupos]);
 
   return (
     <div className="pv-filterbar">
@@ -391,7 +413,7 @@ function FilterBar({ onRefresh, loading, clients = [], empresas = [] }) {
 
         <div className="pv-filterbar-sels">
           <FilterSelect label="Empresa"    options={empresaOpts} value={empresa} onChange={setEmpresa}/>
-          <FilterSelect label="Grupo"      options={GRUPOS}      value={grupo}   onChange={setGrupo}/>
+          <FilterSelect label="Grupo"      options={grupoOpts}   value={grupo}   onChange={setGrupo}/>
           <FilterSelect label="Tipo Venda" options={TIPOS}       value={tipo}    onChange={setTipo}/>
         </div>
 
@@ -1161,7 +1183,7 @@ export default function ProjecaoVendas({ empresasKey, clients = [], empresas = [
   return (
     <div className="pv-page">
       <Banner/>
-      <FilterBar onRefresh={handleRefresh} loading={loading} clients={clients} empresas={empresas}/>
+      <FilterBar onRefresh={handleRefresh} loading={loading} clients={clients} empresas={empresas} empresasKey={empresasKey}/>
 
       <div className="pv-body">
 
