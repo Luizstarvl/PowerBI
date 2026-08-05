@@ -1275,7 +1275,19 @@ select.themed-select option {
   .ppv3-field { max-width: 100%; }
 }
 
-.kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 16px;
+}
+/* tela média: 3 colunas × 2 linhas */
+@media (max-width: 1100px) {
+  .kpi-grid { grid-template-columns: repeat(3, 1fr); gap: 14px; }
+}
+/* tela pequena: 2 colunas × 3 linhas */
+@media (max-width: 640px) {
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+}
 .kpi-card {
   background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 16px;
   padding: 22px; transition: border-color .15s, background .15s;
@@ -1297,7 +1309,6 @@ select.themed-select option {
 
 .chart-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 20px; }
 @media (max-width: 640px) {
-  .kpi-grid   { grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
   .chart-grid { grid-template-columns: 1fr; }
   .meta-grid  { grid-template-columns: 1fr; }
   .metas-filter-bar > div, .metas-filter-bar input { width: 100% !important; }
