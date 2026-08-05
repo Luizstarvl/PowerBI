@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Package, Users, ChevronLeft, ChevronRight, ClipboardList } from 'lucide-react';
 import TabelaConsulta from '../components/cadastros/TabelaConsulta';
 import PainelProdutos from '../components/cadastros/PainelProdutos';
+import PainelClientes from '../components/cadastros/PainelClientes';
 
 const CADASTROS = [
   { key: 'produtos', label: 'Cadastro de Produtos', desc: 'Consulte os produtos cadastrados no sistema.', Icon: Package, slot: 'cadastro_produtos' },
@@ -19,6 +20,14 @@ export default function Cadastros({ empresas }) {
       return (
         <main className="dashboard">
           <PainelProdutos empresasKey={empresasKey} onVoltar={() => setView('home')} />
+        </main>
+      );
+    }
+
+    if (item.key === 'clientes') {
+      return (
+        <main className="dashboard">
+          <PainelClientes empresasKey={empresasKey} onVoltar={() => setView('home')} />
         </main>
       );
     }
