@@ -1,48 +1,144 @@
 import React, { useState } from 'react';
-import { TrendingUp } from 'lucide-react';
+import {
+  TrendingUp, BarChart2, Target, ArrowLeft, ChevronRight,
+  Sparkles, Activity, Clock
+} from 'lucide-react';
 import ProjecaoVendas from '../components/planejamento/ProjecaoVendas';
 
-const TABS = [
-  { key: 'projecao', label: 'Projeção de Vendas' },
+/* ── Definição dos módulos ─────────────────────────────────────
+   Adicione novos módulos aqui no futuro.
+   status: 'ativo' | 'em_breve'
+──────────────────────────────────────────────────────────────── */
+const MODULOS = [
+  {
+    key: 'projecao',
+    titulo: 'Projeção de Vendas',
+    descricao: 'Analise tendências, compare históricos e acompanhe previsões com suporte de IA preditiva.',
+    Icon: TrendingUp,
+    cor: '#F97316',
+    tags: ['IA Preditiva', 'Gráficos', 'Export'],
+    status: 'ativo',
+  },
+  {
+    key: 'metas_comerciais',
+    titulo: 'Metas Comerciais',
+    descricao: 'Defina, acompanhe e gerencie as metas por equipe, produto e período.',
+    Icon: Target,
+    cor: '#60A5FA',
+    tags: ['KPIs', 'Equipes', 'Período'],
+    status: 'em_breve',
+  },
+  {
+    key: 'performance',
+    titulo: 'Performance de Vendas',
+    descricao: 'Avalie o desempenho de produtos, categorias e fornecedores em tempo real.',
+    Icon: BarChart2,
+    cor: '#22C55E',
+    tags: ['Rankings', 'Comparativo', 'Fornecedores'],
+    status: 'em_breve',
+  },
 ];
 
-export default function PlanejamentoComercial({ empresas }) {
-  const [tab, setTab] = useState('projecao');
-  const empresasKey = (empresas || []).join(',');
-
-  /* ── Nenhuma empresa selecionada ── */
-  if (!empresasKey) {
-    return (
-      <main className="dashboard pv-main-page">
-        <div className="pc-empty-state">
-          <div className="pc-empty-icon-wrap">
-            <TrendingUp size={36} />
-          </div>
-          <h2 className="pc-empty-title">Planejamento Comercial</h2>
-          <p className="pc-empty-sub">
-            Selecione uma empresa na barra superior para visualizar
-            a projeção de vendas, análises e insights comerciais.
-          </p>
-        </div>
-      </main>
-    );
-  }
-
+/* ── Hub — tela inicial com cards ─────────────────────────────── */
+function Hub({ onSelect }) {
   return (
-    <main className="dashboard pv-main-page">
-      <div className="usr-tabnav">
-        {TABS.map(t => (
+    <div className="pc-hub">
+      {/* Cabeçalho do hub */}
+      <div className="pc-hub-header">
+        <div className="pc-hub-eyebrow">
+          <Activity size={13} />
+          ECLIPSE BI · PLANEJAMENTO
+        </div>
+        <h1 className="pc-hub-title">Planejamento Comercial</h1>
+        <p className="pc-hub-sub">
+          Selecione um módulo para começar a analisar e planejar suas operações comerciais.
+        </p>
+      </div>
+
+      {/* Grid de cards */}
+      <div className="pc-hub-grid">
+        {MODULOS.map(mod => (
           <button
-            key={t.key}
-            className={`usr-tab${tab === t.key ? ' active' : ''}`}
-            onClick={() => setTab(t.key)}
+            key={mod.key}
+            className={`pc-mod-card${mod.status === 'em_breve' ? ' pc-mod-soon' : ''}`}
+            onClick={() => mod.status === 'ativo' && onSelect(mod.key)}
+            disabled={mod.status === 'em_breve'}
+            style={{ '--mod-cor': mod.cor }}
           >
-            {t.label}
+            {/* Badge em breve */}
+            {mod.status === 'em_breve' && (
+              <span className="pc-mod-badge-soon">
+                <Clock size={10} /> Em breve
+              </span>
+            )}
+
+            {/* Ícone */}
+            <div className="pc-mod-icon-wrap">
+              <mod.Icon size={28} />
+            </div>
+
+            {/* Texto */}
+            <div className="pc-mod-content">
+              <div className="pc-mod-titulo">{mod.titulo}</div>
+              <p className="pc-mod-desc">{mod.descricao}</p>
+              <div className="pc-mod-tags">
+                {mod.tags.map(t => (
+                  <span key={t} className="pc-mod-tag">{t}</span>
+                ))}
+              </div>
+            </div>
+
+            {/* Seta */}
+            {mod.status === 'ativo' && (
+              <ChevronRight size={18} className="pc-mod-arrow" />
+            )}
           </button>
         ))}
       </div>
+    </div>
+  );
+}
 
-      {tab === 'projecao' && <ProjecaoVendas empresasKey={empresasKey} />}
+/* ── Módulo interno com cabeçalho de volta ─────────────────────── */
+function ModuloWrapper({ moduloKey, onBack, empresasKey }) {
+  const mod = MODULOS.find(m => m.key === moduloKey);
+
+  return (
+    <div className="pc-modulo-wrap">
+      {/* Barra de volta */}
+      <div className="pc-modulo-topbar">
+        <button className="pc-back-btn" onClick={onBack}>
+          <ArrowLeft size={15} />
+          Planejamento Comercial
+        </button>
+        <div className="pc-modulo-breadcrumb">
+          <span>Planejamento Comercial</span>
+          <ChevronRight size={13} className="pc-breadcrumb-sep" />
+          <span className="pc-breadcrumb-current">{mod?.titulo}</span>
+        </div>
+      </div>
+
+      {/* Conteúdo do módulo */}
+      {moduloKey === 'projecao' && <ProjecaoVendas empresasKey={empresasKey} />}
+    </div>
+  );
+}
+
+/* ── Page principal ────────────────────────────────────────────── */
+export default function PlanejamentoComercial({ empresas }) {
+  const [modulo, setModulo] = useState(null); // null = hub
+  const empresasKey = (empresas || []).join(',');
+
+  return (
+    <main className="dashboard pv-main-page">
+      {modulo === null
+        ? <Hub onSelect={setModulo} />
+        : <ModuloWrapper
+            moduloKey={modulo}
+            onBack={() => setModulo(null)}
+            empresasKey={empresasKey}
+          />
+      }
     </main>
   );
 }

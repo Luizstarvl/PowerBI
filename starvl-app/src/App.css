@@ -3956,6 +3956,150 @@ select.themed-select option {
   max-width: 420px; line-height: 1.65; margin: 0;
 }
 
+/* ── Planejamento Comercial — Hub de módulos ────────────────────────────────── */
+.pc-hub {
+  display: flex; flex-direction: column; gap: 36px;
+  padding: 40px 32px 60px;
+  max-width: 960px; margin: 0 auto; width: 100%;
+}
+
+/* Cabeçalho */
+.pc-hub-header { display: flex; flex-direction: column; gap: 10px; }
+.pc-hub-eyebrow {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+  color: #F97316; opacity: .8;
+}
+.pc-hub-title {
+  font-size: clamp(26px, 3vw, 38px); font-weight: 800; line-height: 1.1;
+  letter-spacing: -.02em; color: var(--color-text); margin: 0;
+}
+.pc-hub-sub {
+  font-size: 14px; color: var(--color-text-muted); line-height: 1.65;
+  max-width: 520px; margin: 0;
+}
+
+/* Grid de cards */
+.pc-hub-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+/* Card de módulo */
+.pc-mod-card {
+  position: relative; display: flex; flex-direction: column; gap: 16px;
+  padding: 24px 22px; border-radius: 16px; text-align: left; cursor: pointer;
+  border: 1px solid rgba(255,255,255,.07);
+  background: rgba(255,255,255,.025);
+  transition: transform .22s, box-shadow .22s, border-color .22s, background .22s;
+  overflow: hidden;
+}
+.pc-mod-card::before {
+  content: ''; position: absolute; inset: 0; pointer-events: none; border-radius: inherit;
+  background: linear-gradient(135deg, var(--mod-cor, #F97316), transparent 60%);
+  opacity: 0; transition: opacity .25s;
+}
+.pc-mod-card:not(:disabled):hover {
+  transform: translateY(-4px);
+  border-color: var(--mod-cor, #F97316);
+  box-shadow: 0 8px 32px rgba(0,0,0,.3), 0 0 0 1px var(--mod-cor, #F97316) inset;
+}
+.pc-mod-card:not(:disabled):hover::before { opacity: .04; }
+.pc-mod-card:not(:disabled):hover .pc-mod-arrow { transform: translateX(4px); opacity: 1; }
+
+/* Em breve */
+.pc-mod-card.pc-mod-soon {
+  cursor: default; opacity: .5; filter: grayscale(.4);
+}
+.pc-mod-badge-soon {
+  position: absolute; top: 14px; right: 14px;
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 9px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+  background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.12);
+  color: rgba(255,255,255,.45); border-radius: 20px; padding: 3px 8px;
+}
+
+/* Ícone */
+.pc-mod-icon-wrap {
+  width: 56px; height: 56px; border-radius: 14px; flex-shrink: 0;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--mod-cor, #F97316) 30%, transparent), color-mix(in srgb, var(--mod-cor, #F97316) 10%, transparent));
+  border: 1px solid color-mix(in srgb, var(--mod-cor, #F97316) 35%, transparent);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--mod-cor, #F97316);
+  transition: transform .22s;
+}
+.pc-mod-card:not(:disabled):hover .pc-mod-icon-wrap { transform: scale(1.08); }
+
+/* Conteúdo */
+.pc-mod-content { display: flex; flex-direction: column; gap: 8px; flex: 1; }
+.pc-mod-titulo { font-size: 16px; font-weight: 700; color: var(--color-text); }
+.pc-mod-desc   { font-size: 12.5px; color: var(--color-text-muted); line-height: 1.6; margin: 0; }
+.pc-mod-tags   { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+.pc-mod-tag {
+  font-size: 10px; font-weight: 600;
+  background: color-mix(in srgb, var(--mod-cor, #F97316) 12%, transparent);
+  color: var(--mod-cor, #F97316);
+  border: 1px solid color-mix(in srgb, var(--mod-cor, #F97316) 25%, transparent);
+  border-radius: 20px; padding: 2px 8px;
+}
+
+/* Seta */
+.pc-mod-arrow {
+  position: absolute; right: 18px; bottom: 22px;
+  color: var(--mod-cor, #F97316); opacity: 0; transition: transform .22s, opacity .22s;
+}
+
+/* ── Wrapper do módulo interno ─────────────────────────────────── */
+.pc-modulo-wrap { display: flex; flex-direction: column; }
+
+.pc-modulo-topbar {
+  display: flex; align-items: center; gap: 14px;
+  padding: 10px 20px 10px 16px;
+  border-bottom: 1px solid rgba(255,255,255,.06);
+  background: rgba(255,255,255,.02);
+  position: sticky; top: 0; z-index: 40;
+  backdrop-filter: blur(8px);
+}
+
+.pc-back-btn {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-size: 12px; font-weight: 600; color: rgba(255,255,255,.5);
+  background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1);
+  border-radius: 8px; padding: 6px 12px; cursor: pointer;
+  transition: color .15s, border-color .15s, background .15s;
+  white-space: nowrap;
+}
+.pc-back-btn:hover { color: #F97316; border-color: rgba(249,115,22,.4); background: rgba(249,115,22,.06); }
+
+.pc-modulo-breadcrumb {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 12px; color: rgba(255,255,255,.3);
+}
+.pc-breadcrumb-sep { opacity: .35; }
+.pc-breadcrumb-current { color: var(--color-text); font-weight: 600; }
+
+/* ── Light theme overrides ─────────────────────────────────────── */
+[data-theme="light"] .pc-mod-card {
+  background: rgba(255,255,255,.7);
+  border-color: rgba(0,0,0,.08);
+}
+[data-theme="light"] .pc-mod-card:not(:disabled):hover {
+  box-shadow: 0 8px 28px rgba(0,0,0,.12), 0 0 0 1px var(--mod-cor, #F97316) inset;
+}
+[data-theme="light"] .pc-mod-badge-soon {
+  background: rgba(0,0,0,.05); border-color: rgba(0,0,0,.1); color: rgba(0,0,0,.4);
+}
+[data-theme="light"] .pc-modulo-topbar {
+  background: rgba(255,255,255,.8); border-bottom-color: rgba(0,0,0,.07);
+}
+[data-theme="light"] .pc-back-btn {
+  color: rgba(0,0,0,.5); background: rgba(0,0,0,.04); border-color: rgba(0,0,0,.1);
+}
+[data-theme="light"] .pc-back-btn:hover { color: #EA580C; border-color: rgba(234,88,12,.4); background: rgba(234,88,12,.06); }
+[data-theme="light"] .pc-modulo-breadcrumb { color: rgba(0,0,0,.3); }
+[data-theme="light"] .pc-breadcrumb-current { color: #111; }
+
 /* ── PrintPreview — tela cheia dentro do sistema ─────────────────────────── */
 .prv-overlay {
   position: fixed; inset: 0; z-index: 1200;
