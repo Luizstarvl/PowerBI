@@ -1,0 +1,740 @@
+<title>Previsão de Vendas — Eclipse</title>
+<style>
+/* ═══════════════════════════════════════════════
+   TOKENS
+═══════════════════════════════════════════════ */
+:root {
+  --bg:        #121212;
+  --card:      #1A1A1A;
+  --orange:    #F97316;
+  --orange-lt: #FB923C;
+  --white:     #F8FAFC;
+  --gray:      #A1A1AA;
+  --border:    rgba(249,115,22,.18);
+  --glass-bg:  rgba(255,255,255,.04);
+  --glass-blur:12px;
+  --radius:    18px;
+  --transition:300ms cubic-bezier(.4,0,.2,1);
+}
+
+/* ═══════════════════════════════════════════════
+   RESET / BASE
+═══════════════════════════════════════════════ */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
+  background:#0f0f0f;color:var(--white);min-height:100vh;
+  display:flex;align-items:center;justify-content:center;padding:24px}
+
+/* ═══════════════════════════════════════════════
+   BANNER WRAPPER
+═══════════════════════════════════════════════ */
+.banner{
+  position:relative;width:100%;max-width:1280px;
+  border-radius:var(--radius);overflow:hidden;
+  background:var(--bg);
+  border:1px solid var(--border);
+  box-shadow:0 0 0 1px rgba(249,115,22,.06),
+             0 8px 40px rgba(0,0,0,.6),
+             0 0 80px rgba(249,115,22,.06);
+  cursor:default;
+  transition:transform var(--transition),box-shadow var(--transition);
+  animation:bannerIn .7s ease both;
+}
+.banner:hover{
+  transform:scale(1.005);
+  box-shadow:0 0 0 1px rgba(249,115,22,.15),
+             0 12px 60px rgba(0,0,0,.7),
+             0 0 120px rgba(249,115,22,.12);
+}
+@keyframes bannerIn{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
+
+/* grid de fundo */
+.banner-bg-grid{
+  position:absolute;inset:0;pointer-events:none;z-index:0;
+  background-image:
+    linear-gradient(rgba(249,115,22,.04) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(249,115,22,.04) 1px,transparent 1px);
+  background-size:48px 48px;
+  mask-image:radial-gradient(ellipse 80% 70% at 70% 50%,black 30%,transparent 100%);
+}
+
+/* shimmer scan */
+.banner-shimmer{
+  position:absolute;inset:0;pointer-events:none;z-index:1;
+  background:linear-gradient(105deg,transparent 40%,rgba(249,115,22,.07) 50%,transparent 60%);
+  background-size:300% 100%;
+  animation:shimmerScan 4s linear infinite;
+}
+@keyframes shimmerScan{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+/* parallax layer */
+.banner-parallax{
+  position:absolute;inset:0;pointer-events:none;z-index:0;
+  background:radial-gradient(ellipse 60% 60% at var(--mx,70%) var(--my,50%),
+    rgba(249,115,22,.08) 0%,transparent 70%);
+  transition:background .1s linear;
+}
+
+/* ═══════════════════════════════════════════════
+   INNER LAYOUT
+═══════════════════════════════════════════════ */
+.banner-inner{
+  position:relative;z-index:2;
+  display:grid;grid-template-columns:1fr 380px;
+  gap:0;min-height:480px;
+}
+@media(max-width:900px){.banner-inner{grid-template-columns:1fr}}
+
+/* ═══════════════════════════════════════════════
+   LEFT SIDE
+═══════════════════════════════════════════════ */
+.banner-left{
+  padding:36px 32px 32px;
+  display:flex;flex-direction:column;gap:20px;
+}
+
+/* eyebrow */
+.banner-eyebrow{
+  display:inline-flex;align-items:center;gap:8px;
+  font-size:10px;font-weight:700;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--orange);
+  animation:slideUp .5s .1s ease both;
+}
+.eyebrow-dot{
+  width:7px;height:7px;border-radius:50%;background:var(--orange);
+  animation:pulseDot 2s ease infinite;
+}
+@keyframes pulseDot{
+  0%,100%{box-shadow:0 0 0 0 rgba(249,115,22,.6)}
+  50%{box-shadow:0 0 0 5px rgba(249,115,22,0)}
+}
+
+/* title */
+.banner-title{
+  font-size:clamp(22px,3vw,38px);font-weight:800;line-height:1.15;
+  letter-spacing:-.02em;
+  animation:slideUp .5s .15s ease both;
+}
+.title-accent{
+  background:linear-gradient(135deg,var(--orange),var(--orange-lt));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  background-clip:text;
+}
+
+/* subtitle */
+.banner-subtitle{
+  font-size:14px;color:var(--gray);line-height:1.7;max-width:480px;
+  animation:slideUp .5s .2s ease both;
+}
+
+@keyframes slideUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── button ── */
+.btn-gerar{
+  position:relative;overflow:hidden;
+  display:inline-flex;align-items:center;gap:10px;
+  padding:13px 26px;border-radius:12px;border:none;
+  background:linear-gradient(135deg,var(--orange),var(--orange-lt));
+  color:#fff;font-size:14px;font-weight:700;cursor:pointer;
+  width:max-content;
+  box-shadow:0 0 0 0 rgba(249,115,22,.4);
+  transition:transform var(--transition),box-shadow var(--transition),filter var(--transition);
+  animation:slideUp .5s .25s ease both;
+}
+.btn-gerar:hover{
+  transform:translateY(-2px);
+  filter:brightness(1.15);
+  box-shadow:0 0 24px rgba(249,115,22,.5),0 4px 20px rgba(249,115,22,.3);
+}
+.btn-gerar:active{transform:translateY(0)}
+.btn-gerar .btn-icon{font-size:16px}
+
+/* ripple */
+.ripple{
+  position:absolute;border-radius:50%;
+  background:rgba(255,255,255,.35);
+  transform:scale(0);animation:ripple .6s linear;
+  pointer-events:none;
+}
+@keyframes ripple{to{transform:scale(4);opacity:0}}
+
+/* ═══════════════════════════════════════════════
+   KPI CARDS ROW
+═══════════════════════════════════════════════ */
+.kpi-row{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:10px;
+  animation:slideUp .5s .3s ease both;
+}
+@media(max-width:700px){.kpi-row{grid-template-columns:repeat(2,1fr)}}
+
+.kpi-card{
+  background:var(--glass-bg);
+  border:1px solid var(--border);
+  border-radius:12px;padding:12px 14px;
+  backdrop-filter:blur(var(--glass-blur));
+  -webkit-backdrop-filter:blur(var(--glass-blur));
+  display:flex;flex-direction:column;gap:4px;
+  transition:border-color var(--transition),background var(--transition);
+}
+.kpi-card:hover{
+  border-color:rgba(249,115,22,.4);
+  background:rgba(249,115,22,.06);
+}
+.kpi-label{font-size:9.5px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--gray)}
+.kpi-value{font-size:16px;font-weight:800;color:var(--white);line-height:1.2;font-variant-numeric:tabular-nums}
+.kpi-delta{font-size:10px;color:#4ade80;font-weight:600}
+
+/* progress bar */
+.kpi-progress{height:4px;background:rgba(255,255,255,.08);border-radius:4px;overflow:hidden;margin-top:2px}
+.kpi-bar{height:100%;background:linear-gradient(90deg,var(--orange),var(--orange-lt));
+  border-radius:4px;width:0;transition:width 1.2s cubic-bezier(.4,0,.2,1)}
+
+/* SVG circle */
+.kpi-circle-wrap{position:absolute;top:10px;right:10px}
+.kpi-card:has(.kpi-circle-wrap){position:relative}
+.kpi-circle{width:28px;height:28px}
+.kpi-circle-bar{stroke-linecap:round;transition:stroke-dashoffset 1.4s cubic-bezier(.4,0,.2,1)}
+
+/* confidence */
+.confidence{background:linear-gradient(135deg,var(--orange),var(--orange-lt));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.confidence-badge{
+  display:inline-flex;align-items:center;gap:4px;
+  background:rgba(74,222,128,.12);border:1px solid rgba(74,222,128,.25);
+  color:#4ade80;font-size:9px;font-weight:700;
+  padding:2px 7px;border-radius:20px;width:max-content;
+}
+
+/* ═══════════════════════════════════════════════
+   BOTTOM ROW: mini-chart + AI panel
+═══════════════════════════════════════════════ */
+.banner-bottom{
+  display:grid;grid-template-columns:1fr 1fr;gap:12px;
+  animation:slideUp .5s .4s ease both;
+}
+@media(max-width:700px){.banner-bottom{grid-template-columns:1fr}}
+
+/* mini chart */
+.mini-chart-wrap{
+  background:var(--glass-bg);border:1px solid var(--border);
+  border-radius:12px;padding:12px 14px;
+  backdrop-filter:blur(var(--glass-blur));-webkit-backdrop-filter:blur(var(--glass-blur));
+}
+.mini-chart-legend{display:flex;gap:14px;margin-bottom:8px}
+.legend-hist,.legend-pred{font-size:10px;font-weight:600;display:flex;align-items:center;gap:4px}
+.legend-hist{color:rgba(248,250,252,.7)}
+.legend-pred{color:var(--orange)}
+#miniChart{width:100%;height:80px;display:block}
+
+/* AI panel */
+.ai-panel{
+  background:var(--glass-bg);border:1px solid var(--border);
+  border-radius:12px;padding:12px 14px;
+  backdrop-filter:blur(var(--glass-blur));-webkit-backdrop-filter:blur(var(--glass-blur));
+  overflow:hidden;
+}
+.ai-panel-title{font-size:10px;font-weight:700;text-transform:uppercase;
+  letter-spacing:.08em;color:var(--orange);margin-bottom:8px}
+.ai-items{display:flex;flex-wrap:wrap;gap:4px 10px}
+.ai-item{
+  font-size:10px;color:var(--gray);display:flex;align-items:center;gap:4px;
+  opacity:0;transform:translateX(-6px);
+  transition:opacity .3s ease,transform .3s ease;
+}
+.ai-item.visible{opacity:1;transform:translateX(0)}
+.ai-check{
+  width:13px;height:13px;border-radius:50%;
+  background:rgba(74,222,128,.15);border:1px solid rgba(74,222,128,.3);
+  color:#4ade80;font-size:7px;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+
+/* ═══════════════════════════════════════════════
+   RIGHT SIDE — tech canvas
+═══════════════════════════════════════════════ */
+.banner-right{
+  position:relative;
+  background:linear-gradient(135deg,rgba(249,115,22,.04) 0%,transparent 50%);
+  border-left:1px solid var(--border);
+  display:flex;align-items:center;justify-content:center;
+  overflow:hidden;
+}
+@media(max-width:900px){
+  .banner-right{border-left:none;border-top:1px solid var(--border);min-height:260px}
+}
+#techCanvas{width:100%;height:100%;display:block}
+</style>
+
+<!-- ═══════════════════════════════════════════════
+     HTML
+═══════════════════════════════════════════════ -->
+<div class="banner" id="banner">
+  <div class="banner-bg-grid"></div>
+  <div class="banner-shimmer"></div>
+  <div class="banner-parallax" id="parallax"></div>
+
+  <div class="banner-inner">
+
+    <!-- ── LEFT ── -->
+    <div class="banner-left">
+
+      <div class="banner-eyebrow">
+        <span class="eyebrow-dot"></span>
+        IA PREDITIVA · ECLIPSE
+      </div>
+
+      <h1 class="banner-title">
+        Previsão <span class="title-accent">Inteligente</span><br>de Vendas
+      </h1>
+
+      <p class="banner-subtitle">
+        Utilizando modelos estatísticos e inteligência artificial para estimar
+        seu desempenho comercial com alta precisão e confiança.
+      </p>
+
+      <button class="btn-gerar" id="btnGerar">
+        <span class="btn-icon">📈</span>
+        Gerar Nova Previsão
+      </button>
+
+      <!-- KPI cards -->
+      <div class="kpi-row">
+        <div class="kpi-card">
+          <div class="kpi-label">Receita Prevista</div>
+          <div class="kpi-value">R$&nbsp;<span id="ctr-receita">0</span></div>
+          <div class="kpi-delta">↑ +12,3% vs. mês anterior</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Crescimento Esperado</div>
+          <div class="kpi-value">+<span id="ctr-cresc">0</span>%</div>
+          <div class="kpi-progress"><div class="kpi-bar" id="bar-cresc"></div></div>
+        </div>
+        <div class="kpi-card" style="position:relative">
+          <div class="kpi-label">Precisão do Modelo</div>
+          <div class="kpi-value"><span id="ctr-prec">0</span>%</div>
+          <div class="kpi-circle-wrap">
+            <svg class="kpi-circle" viewBox="0 0 36 36">
+              <circle cx="18" cy="18" r="15" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="3"/>
+              <circle id="circleBar" cx="18" cy="18" r="15" fill="none"
+                stroke="#F97316" stroke-width="3" stroke-linecap="round"
+                stroke-dasharray="94.2" stroke-dashoffset="94.2"
+                transform="rotate(-90 18 18)"/>
+            </svg>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Confiança</div>
+          <div class="kpi-value confidence">Alta</div>
+          <div class="confidence-badge">✓ Verificado</div>
+        </div>
+      </div>
+
+      <!-- Bottom: mini chart + AI panel -->
+      <div class="banner-bottom">
+        <div class="mini-chart-wrap">
+          <div class="mini-chart-legend">
+            <span class="legend-hist">─ Histórico</span>
+            <span class="legend-pred">- - Previsão</span>
+          </div>
+          <canvas id="miniChart"></canvas>
+        </div>
+        <div class="ai-panel">
+          <div class="ai-panel-title">🤖 IA analisando:</div>
+          <div class="ai-items" id="aiItems"></div>
+        </div>
+      </div>
+
+    </div><!-- /left -->
+
+    <!-- ── RIGHT: animated tech illustration ── -->
+    <div class="banner-right">
+      <canvas id="techCanvas"></canvas>
+    </div>
+
+  </div><!-- /inner -->
+</div><!-- /banner -->
+
+<script>
+/* ═══════════════════════════════════════════════
+   UTILITIES
+═══════════════════════════════════════════════ */
+const lerp = (a,b,t)=> a+(b-a)*t;
+const clamp=(v,lo,hi)=>Math.max(lo,Math.min(hi,v));
+const rng=(a,b)=>a+Math.random()*(b-a);
+
+/* ═══════════════════════════════════════════════
+   PARALLAX
+═══════════════════════════════════════════════ */
+const banner   = document.getElementById('banner');
+const parallax = document.getElementById('parallax');
+banner.addEventListener('mousemove', e=>{
+  const r = banner.getBoundingClientRect();
+  const mx = ((e.clientX-r.left)/r.width*100).toFixed(1);
+  const my = ((e.clientY-r.top)/r.height*100).toFixed(1);
+  parallax.style.setProperty('--mx',mx+'%');
+  parallax.style.setProperty('--my',my+'%');
+});
+
+/* ═══════════════════════════════════════════════
+   BUTTON RIPPLE
+═══════════════════════════════════════════════ */
+document.getElementById('btnGerar').addEventListener('click', function(e){
+  const r  = this.getBoundingClientRect();
+  const el = document.createElement('span');
+  const d  = Math.max(r.width,r.height);
+  el.className='ripple';
+  el.style.cssText=`width:${d}px;height:${d}px;left:${e.clientX-r.left-d/2}px;top:${e.clientY-r.top-d/2}px`;
+  this.appendChild(el);
+  setTimeout(()=>el.remove(),700);
+});
+
+/* ═══════════════════════════════════════════════
+   COUNTER ANIMATION
+═══════════════════════════════════════════════ */
+function animateCounter(el, target, decimals=0, prefix='', suffix='', duration=1800){
+  const start = performance.now();
+  const fmt = v => {
+    const n = v.toFixed(decimals);
+    if(decimals===0) return parseInt(n).toLocaleString('pt-BR');
+    return parseFloat(n).toLocaleString('pt-BR',{minimumFractionDigits:decimals});
+  };
+  const tick = now=>{
+    const p = Math.min((now-start)/duration,1);
+    const ease = 1-Math.pow(1-p,3);
+    el.textContent = prefix + fmt(ease*target) + suffix;
+    if(p<1) requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}
+
+/* ═══════════════════════════════════════════════
+   PROGRESS BAR ANIMATION
+═══════════════════════════════════════════════ */
+function animateBar(el, pct, delay=600){
+  setTimeout(()=>{ el.style.width = pct+'%'; }, delay);
+}
+
+/* ═══════════════════════════════════════════════
+   SVG CIRCLE ANIMATION
+═══════════════════════════════════════════════ */
+function animateCircle(el, pct, delay=800){
+  const circ = 2*Math.PI*15; // r=15
+  const offset = circ*(1-pct/100);
+  setTimeout(()=>{ el.style.strokeDashoffset = offset; }, delay);
+}
+
+/* ═══════════════════════════════════════════════
+   AI ITEMS
+═══════════════════════════════════════════════ */
+const aiData = [
+  'Histórico de vendas','Tendência mensal','Sazonalidade',
+  'Crescimento','Mais vendidos','Ticket médio',
+  'Datas comemorativas','Estoque','Promoções','Clima'
+];
+const aiContainer = document.getElementById('aiItems');
+aiData.forEach((txt,i)=>{
+  const div = document.createElement('div');
+  div.className='ai-item';
+  div.innerHTML=`<span class="ai-check">✓</span>${txt}`;
+  aiContainer.appendChild(div);
+  setTimeout(()=>div.classList.add('visible'), 900+i*130);
+});
+
+/* ═══════════════════════════════════════════════
+   MINI CHART (left bottom)
+═══════════════════════════════════════════════ */
+(function(){
+  const canvas = document.getElementById('miniChart');
+  const dpr = window.devicePixelRatio||1;
+  function resize(){
+    const w=canvas.offsetWidth; const h=canvas.offsetHeight||80;
+    canvas.width=w*dpr; canvas.height=h*dpr;
+  }
+  window.addEventListener('resize',()=>{resize();draw(1)});
+  resize();
+  const ctx=canvas.getContext('2d');
+  ctx.scale(dpr,dpr);
+
+  // data: 6 historical + 4 forecast
+  const hist=[42,58,51,73,68,82];
+  const pred=[88,97,108,118];
+  const all=[...hist,...pred];
+  const W=()=>canvas.width/dpr, H=()=>canvas.height/dpr;
+  const pad={l:8,r:8,t:10,b:12};
+
+  function ptX(i){ return pad.l+(i/(all.length-1))*(W()-pad.l-pad.r); }
+  function ptY(v){
+    const mn=Math.min(...all)-5, mx=Math.max(...all)+5;
+    return H()-pad.b-(v-mn)/(mx-mn)*(H()-pad.t-pad.b);
+  }
+
+  let progress=0;
+  function draw(p){
+    const w=W(),h=H();
+    ctx.clearRect(0,0,w,h);
+
+    // x-axis
+    ctx.beginPath();ctx.moveTo(pad.l,h-pad.b);ctx.lineTo(w-pad.r,h-pad.b);
+    ctx.strokeStyle='rgba(255,255,255,.08)';ctx.lineWidth=1;ctx.stroke();
+
+    // month labels
+    const months=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out'];
+    ctx.fillStyle='rgba(161,161,170,.5)';ctx.font=`8px system-ui`;ctx.textAlign='center';
+    all.forEach((_,i)=>{ if(i%2===0) ctx.fillText(months[i]||'',ptX(i),h-2); });
+
+    const histCount=hist.length;
+
+    // --- draw historical line ---
+    ctx.beginPath();
+    hist.forEach((v,i)=>{
+      const px=ptX(i), py=ptY(v);
+      const visible=clamp(p*all.length-i,0,1);
+      if(i===0) ctx.moveTo(px,py);
+      else ctx.lineTo(px,lerp(ptY(hist[i-1]),py,visible));
+    });
+    // glow
+    ctx.shadowColor='rgba(248,250,252,.5)';ctx.shadowBlur=6;
+    ctx.strokeStyle='rgba(248,250,252,.85)';ctx.lineWidth=2;ctx.lineJoin='round';ctx.stroke();
+    ctx.shadowBlur=0;
+
+    // --- draw forecast line (dashed orange) ---
+    ctx.setLineDash([4,3]);
+    ctx.beginPath();
+    const joined=[hist[hist.length-1],...pred];
+    joined.forEach((v,i)=>{
+      const absI=histCount-1+i;
+      const px=ptX(absI), py=ptY(v);
+      const prog=clamp(p*all.length-absI,0,1);
+      if(i===0) ctx.moveTo(px,py);
+      else ctx.lineTo(px,lerp(ptY(joined[i-1]),py,prog));
+    });
+    ctx.shadowColor='rgba(249,115,22,.7)';ctx.shadowBlur=8;
+    ctx.strokeStyle='rgba(249,115,22,.9)';ctx.lineWidth=2;ctx.stroke();
+    ctx.setLineDash([]);ctx.shadowBlur=0;
+
+    // --- dots ---
+    all.forEach((v,i)=>{
+      const phase=p*all.length;
+      if(phase<i) return;
+      const isForecast=i>=histCount;
+      const t=Date.now()/1000;
+      const pulse=Math.sin(t*2+i)*1.5;
+      const r=isForecast?3.5:3;
+      ctx.beginPath();
+      ctx.arc(ptX(i),ptY(v),r+pulse*0.3,0,Math.PI*2);
+      ctx.fillStyle=isForecast?'#F97316':'rgba(248,250,252,.9)';
+      ctx.shadowColor=isForecast?'rgba(249,115,22,.8)':'rgba(255,255,255,.5)';
+      ctx.shadowBlur=isForecast?10:6;
+      ctx.fill();ctx.shadowBlur=0;
+    });
+  }
+
+  // animate draw
+  const start=performance.now();
+  const dur=2000;
+  function loop(now){
+    progress=Math.min((now-start)/dur,1);
+    draw(progress);
+    if(progress<1||true) requestAnimationFrame(loop); // keep pulsing
+  }
+  requestAnimationFrame(loop);
+})();
+
+/* ═══════════════════════════════════════════════
+   TECH ILLUSTRATION CANVAS (right)
+═══════════════════════════════════════════════ */
+(function(){
+  const canvas=document.getElementById('techCanvas');
+  const parent=canvas.parentElement;
+  const dpr=window.devicePixelRatio||1;
+  let W=0,H=0;
+
+  function resize(){
+    W=parent.clientWidth; H=parent.clientHeight;
+    canvas.width=W*dpr; canvas.height=H*dpr;
+    canvas.style.width=W+'px'; canvas.style.height=H+'px';
+  }
+  resize();
+  window.addEventListener('resize',resize);
+
+  const ctx=canvas.getContext('2d');
+  ctx.scale(dpr,dpr);
+
+  const C_ORANGE='#F97316';
+  const C_ORANGE_LT='#FB923C';
+
+  /* ── Particles ── */
+  const particles=Array.from({length:40},()=>({
+    x:rng(0,1),y:rng(0,1),
+    vx:rng(-0.0003,0.0003),vy:rng(-0.0004,-0.0001),
+    r:rng(1,3),a:rng(0.1,0.5),
+    color:Math.random()<0.4?C_ORANGE:'rgba(248,250,252,0.5)'
+  }));
+
+  /* ── Neural network nodes ── */
+  const layers=[[.2,.25,.5,.75],[.5,.2,.5,.8],[.8,.35,.65]];
+  // convert to pixel fractions handled at draw time
+
+  /* ── Floating labels ── */
+  const labels=[
+    {x:.15,y:.12,txt:'97.2%',color:C_ORANGE},
+    {x:.6,y:.08,txt:'↑18.4%',color:'#4ade80'},
+    {x:.05,y:.6,txt:'R$1.25M',color:C_ORANGE_LT},
+    {x:.55,y:.9,txt:'96.8% acc',color:'rgba(248,250,252,.6)'},
+  ];
+  labels.forEach(l=>{ l.vy=rng(-.0002,.0002); l.t=rng(0,Math.PI*2); });
+
+  /* ── Bar chart data ── */
+  const bars=[0.45,0.62,0.55,0.78,0.70,0.85,0.92];
+  let barProg=0;
+
+  /* ── Line chart (right side) ── */
+  const lineData=[0.5,0.55,0.48,0.62,0.58,0.72,0.68,0.82,0.88,0.95];
+  let lineProg=0;
+
+  const startTime=performance.now();
+
+  function draw(now){
+    const t=(now-startTime)/1000;
+    ctx.clearRect(0,0,W,H);
+    barProg=Math.min(barProg+.012,1);
+    lineProg=Math.min(lineProg+.008,1);
+
+    /* ── faint grid ── */
+    ctx.strokeStyle='rgba(249,115,22,.04)';ctx.lineWidth=1;
+    for(let x=0;x<W;x+=32){ ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke(); }
+    for(let y=0;y<H;y+=32){ ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke(); }
+
+    /* ── hologram rings ── */
+    const cx=W*.65, cy=H*.35;
+    [80,110,140].forEach((r,i)=>{
+      const phase=t*.6+i*1.1;
+      const a=0.06+Math.sin(phase)*.04;
+      ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);
+      ctx.strokeStyle=`rgba(249,115,22,${a})`;ctx.lineWidth=1;ctx.stroke();
+    });
+
+    /* ── neural network ── */
+    const nly=[[.22,.4,.58,.76],[.42,.3,.56,.72,.88],[.72,.42,.62]];
+    const nlx=[.12,.45,.78];
+    // connections
+    nly.forEach((col,li)=>{
+      if(li>=nlx.length-1)return;
+      col.forEach(yf=>{
+        nly[li+1].forEach(yf2=>{
+          const x1=nlx[li]*W, y1=yf*H;
+          const x2=nlx[li+1]*W, y2=yf2*H;
+          const pulse=Math.sin(t*2+yf*10+yf2*7)*.5+.5;
+          ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);
+          ctx.strokeStyle=`rgba(249,115,22,${.04+pulse*.08})`;
+          ctx.lineWidth=1;ctx.stroke();
+          // moving dot along connection
+          const dt=(t*.4+yf*3)%1;
+          const mx2=lerp(x1,x2,dt), my2=lerp(y1,y2,dt);
+          ctx.beginPath();ctx.arc(mx2,my2,1.5,0,Math.PI*2);
+          ctx.fillStyle=`rgba(249,115,22,${.3+pulse*.4})`;ctx.fill();
+        });
+      });
+    });
+    // nodes
+    nly.forEach((col,li)=>{
+      col.forEach(yf=>{
+        const nx=nlx[li]*W, ny=yf*H;
+        const pulse=Math.sin(t*2.5+nx*.02+ny*.02)*.5+.5;
+        const nr=4+pulse;
+        // glow
+        const grd=ctx.createRadialGradient(nx,ny,0,nx,ny,nr*3);
+        grd.addColorStop(0,`rgba(249,115,22,${.4+pulse*.3})`);
+        grd.addColorStop(1,'transparent');
+        ctx.beginPath();ctx.arc(nx,ny,nr*3,0,Math.PI*2);
+        ctx.fillStyle=grd;ctx.fill();
+        // core
+        ctx.beginPath();ctx.arc(nx,ny,nr,0,Math.PI*2);
+        ctx.fillStyle=`rgba(249,115,22,${.7+pulse*.3})`;ctx.fill();
+      });
+    });
+
+    /* ── bar chart (bottom area) ── */
+    const bW=W*.55, bH=H*.28;
+    const bX=(W-bW)/2, bY=H*.68;
+    const barW=(bW/bars.length)*.7;
+    bars.forEach((v,i)=>{
+      const bh=bH*v*barProg;
+      const bx=bX+i*(bW/bars.length)+((bW/bars.length)-barW)/2;
+      const by=bY+bH-bh;
+      // gradient fill
+      const grd=ctx.createLinearGradient(bx,by,bx,bY+bH);
+      grd.addColorStop(0,C_ORANGE_LT);
+      grd.addColorStop(1,'rgba(249,115,22,.15)');
+      ctx.beginPath();
+      ctx.roundRect?ctx.roundRect(bx,by,barW,bh,3):ctx.rect(bx,by,barW,bh);
+      ctx.fillStyle=grd;ctx.fill();
+    });
+
+    /* ── trend line (mid area) ── */
+    const lY1=H*.12, lY2=H*.6;
+    const lX1=W*.08, lX2=W*.92;
+    const visiblePts=Math.floor(lineData.length*lineProg);
+    if(visiblePts>1){
+      ctx.beginPath();
+      lineData.slice(0,visiblePts).forEach((v,i)=>{
+        const px=lerp(lX1,lX2,i/(lineData.length-1));
+        const py=lerp(lY2,lY1,v);
+        i===0?ctx.moveTo(px,py):ctx.lineTo(px,py);
+      });
+      ctx.strokeStyle=C_ORANGE;ctx.lineWidth=2;ctx.lineJoin='round';
+      ctx.shadowColor='rgba(249,115,22,.6)';ctx.shadowBlur=10;ctx.stroke();
+      ctx.shadowBlur=0;
+    }
+
+    /* ── particles ── */
+    particles.forEach(p=>{
+      p.x+=p.vx; p.y+=p.vy;
+      if(p.x<0)p.x=1; if(p.x>1)p.x=0;
+      if(p.y<0)p.y=1; if(p.y>1)p.y=0;
+      ctx.beginPath();ctx.arc(p.x*W,p.y*H,p.r,0,Math.PI*2);
+      ctx.fillStyle=p.color;ctx.globalAlpha=p.a+Math.sin(t+p.x*10)*.1;
+      ctx.fill();ctx.globalAlpha=1;
+    });
+
+    /* ── floating labels ── */
+    labels.forEach(l=>{
+      l.t+=.012;
+      const fy=Math.sin(l.t)*.012;
+      ctx.font='bold 10px system-ui';ctx.textAlign='left';
+      ctx.fillStyle=l.color;
+      ctx.shadowColor=l.color;ctx.shadowBlur=8;
+      ctx.fillText(l.txt,l.x*W,(l.y+fy)*H);
+      ctx.shadowBlur=0;
+    });
+
+    /* ── corner "AI" badge ── */
+    const bpx=W*.82,bpy=H*.14;
+    ctx.beginPath();ctx.roundRect?ctx.roundRect(bpx-28,bpy-12,56,24,6):ctx.rect(bpx-28,bpy-12,56,24);
+    ctx.fillStyle='rgba(249,115,22,.12)';ctx.strokeStyle='rgba(249,115,22,.35)';
+    ctx.lineWidth=1;ctx.fill();ctx.stroke();
+    ctx.font='bold 11px system-ui';ctx.textAlign='center';
+    ctx.fillStyle=C_ORANGE_LT;ctx.fillText('🤖 IA',bpx,bpy+4);
+
+    requestAnimationFrame(draw);
+  }
+  requestAnimationFrame(draw);
+})();
+
+/* ═══════════════════════════════════════════════
+   INTERSECTION OBSERVER → trigger on enter
+═══════════════════════════════════════════════ */
+const io = new IntersectionObserver(entries=>{
+  if(!entries[0].isIntersecting) return;
+  io.disconnect();
+  // counters
+  animateCounter(document.getElementById('ctr-receita'),1258420,0);
+  animateCounter(document.getElementById('ctr-cresc'),18.4,1);
+  animateCounter(document.getElementById('ctr-prec'),96.8,1);
+  // bar
+  animateBar(document.getElementById('bar-cresc'),75,700);
+  // circle (96.8% of 94.2 circumference)
+  animateCircle(document.getElementById('circleBar'),96.8,900);
+},{threshold:.2});
+io.observe(document.getElementById('banner'));
+</script>
