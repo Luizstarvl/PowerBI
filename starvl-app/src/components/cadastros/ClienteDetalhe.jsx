@@ -27,6 +27,7 @@ function buildOrderedFields(row, det) {
     det.razaoSocial  && { col: det.razaoSocial,  label: 'Razão Social',  fmt: v => String(v) },
     det.nomeFantasia && { col: det.nomeFantasia, label: 'Nome Fantasia', fmt: v => String(v) },
     det.documento    && { col: det.documento,    label: 'Documento',     fmt: v => String(v) },
+    det.inscricaoEstadual && { col: det.inscricaoEstadual, label: 'Insc. Estadual / RG', fmt: v => String(v) },
     det.telefone   && { col: det.telefone,   label: 'Telefone',  fmt: v => String(v) },
     det.email      && { col: det.email,      label: 'Email',     fmt: v => String(v) },
     det.logradouro && { col: det.logradouro, label: 'Rua',       fmt: v => String(v) },
