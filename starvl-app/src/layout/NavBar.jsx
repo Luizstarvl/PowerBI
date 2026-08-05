@@ -44,6 +44,7 @@ export default function NavBar({ page, onPageChange, user, badges }) {
 
       <div className="sidebar-footer">
         <span className="sidebar-version">v{version}</span>
+        <span className="sidebar-assinatura">Desenvolvido por lb</span>
       </div>
     </aside>
   );

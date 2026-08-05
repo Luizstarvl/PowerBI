@@ -484,6 +484,14 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   flex-shrink: 0;
 }
 .sidebar-version { font-size: 11px; color: var(--color-text-muted); }
+.sidebar-assinatura {
+  font-size: 10px;
+  color: var(--color-text-muted);
+  opacity: 0.45;
+  font-style: italic;
+  letter-spacing: 0.02em;
+  margin-left: 8px;
+}
 
 /* ── TopBar ──────────────────────────────────────────────────────────────────── */
 .topbar {
