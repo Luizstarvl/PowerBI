@@ -323,7 +323,6 @@ function Banner() {
 
 /* ── Filter Bar ────────────────────────────────────────────── */
 const PERIODOS = ['Hoje','Semana','Mês','Trimestre','Ano','Personalizado'];
-const TIPOS    = ['Todos','Varejo','Atacado','Delivery','Frota'];
 
 function FilterSelect({ label, options, value, onChange }) {
   const [open, setOpen] = useState(false);
@@ -358,7 +357,6 @@ function FilterBar({ onRefresh, loading, clients = [], empresas = [], empresasKe
   const [periodo, setPeriodo] = useState('Mês');
   const [empresa, setEmpresa] = useState('Todos');
   const [grupo,   setGrupo]   = useState('Todos');
-  const [tipo,    setTipo]    = useState('Todos');
   const [grupos,  setGrupos]  = useState([]);
 
   // Monta lista de empresas a partir dos clients selecionados
@@ -413,8 +411,7 @@ function FilterBar({ onRefresh, loading, clients = [], empresas = [], empresasKe
 
         <div className="pv-filterbar-sels">
           <FilterSelect label="Empresa"    options={empresaOpts} value={empresa} onChange={setEmpresa}/>
-          <FilterSelect label="Grupo"      options={grupoOpts}   value={grupo}   onChange={setGrupo}/>
-          <FilterSelect label="Tipo Venda" options={TIPOS}       value={tipo}    onChange={setTipo}/>
+          <FilterSelect label="Grupo" options={grupoOpts} value={grupo} onChange={setGrupo}/>
         </div>
 
         <button className="pv-refresh-btn" onClick={onRefresh} disabled={loading}>
