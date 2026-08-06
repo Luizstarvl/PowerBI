@@ -631,11 +631,6 @@ export default function MetasComerciais({ empresasKey, clients, empresas }) {
               </div>
             ))}
           </div>
-          {!readonly && configPct < 100 && (
-            <button className="mc3-config-cta" onClick={openEdit}>
-              Configure suas metas →
-            </button>
-          )}
         </div>
 
         {/* Right: SVG illustration */}
