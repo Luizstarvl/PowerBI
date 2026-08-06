@@ -449,4 +449,291 @@ router.get('/heatmap', async (req, res) => {
   }
 });
 
+/* ── GET /api/planejamento/scatter ───────────────────────────────────────────
+   Produtos com preço, volume e margem — para gráfico de dispersão
+   Query params: empresas, periodo, secao, grupo
+────────────────────────────────────────────────────────────────────────────── */
+router.get('/scatter', async (req, res) => {
+  const empresaList = parseEmpresas(req.query);
+  if (!empresaList.length) return res.status(400).json({ error: 'empresas é obrigatório' });
+
+  const periodo = req.query.periodo || 'Mês';
+  const secao   = req.query.secao   || '';
+  const grupo   = req.query.grupo   || '';
+  const { dataInicio, dataFim } = periodoToDates(periodo);
+
+  const secaoClause = secao && secao !== 'Todos' ? `AND spro.sprodescricao = '${secao.replace(/'/g,"''")}'` : '';
+  const grupoClause = grupo && grupo !== 'Todos' ? `AND gpro.gprodescricao  = '${grupo.replace(/'/g,"''")}'` : '';
+
+  try {
+    const rows = await queryAll(empresaList,
+      `SELECT
+         prod.prodcodigo                                            AS codigo,
+         prod.proddescricao                                        AS nome,
+         COALESCE(ep.e_prodv1, 0)                                  AS preco,
+         COALESCE(ep.e_prodcusto, 0)                               AS custo,
+         COALESCE(SUM(vdit.vdittotal), 0)                          AS faturamento,
+         COALESCE(SUM(vdit.vditqtd), 0)                            AS volume,
+         COALESCE(spro.sprodescricao, 'Sem Seção')                AS cat
+       FROM vda
+       JOIN vdit ON vdit.vditcodigovda  = vda.vdacodigo
+                AND vdit.vditempresa    = vda.vdaempresa
+       JOIN prod ON prod.prodcodigo     = vdit.vditproduto
+       LEFT JOIN e_prod ep ON ep.e_prodproduto = prod.prodcodigo
+                          AND ep.e_prodempresa = vda.vdaempresa
+       LEFT JOIN spro ON spro.sprocodigo = prod.prodsecao
+       LEFT JOIN gpro ON gpro.gprocodigo = prod.prodgrupo
+                     AND gpro.gprosecao  = prod.prodsecao
+       WHERE vda.vdaempresa = $1
+         AND vda.vdamovimento >= $2
+         AND vda.vdamovimento <= $3
+         AND (vda.vdastatus IS NULL OR vda.vdastatus = 0)
+         AND prod.prodtipo = 2
+         ${secaoClause}
+         ${grupoClause}
+       GROUP BY prod.prodcodigo, prod.proddescricao,
+                ep.e_prodv1, ep.e_prodcusto, spro.sprodescricao
+       ORDER BY faturamento DESC
+       LIMIT 200`,
+      emp => [emp, dataInicio, dataFim]
+    );
+
+    // Agrega duplicatas entre empresas pelo nome do produto
+    const byProd = {};
+    rows.forEach(r => {
+      const k = r.codigo;
+      if (!byProd[k]) {
+        byProd[k] = {
+          nome:         r.nome,
+          cat:          r.cat,
+          preco:        parseFloat(r.preco  || 0),
+          custo:        parseFloat(r.custo  || 0),
+          faturamento:  0,
+          volume:       0,
+        };
+      }
+      byProd[k].faturamento += parseFloat(r.faturamento || 0);
+      byProd[k].volume      += parseFloat(r.volume      || 0);
+    });
+
+    const pontos = Object.values(byProd)
+      .filter(p => p.volume > 0)
+      .map(p => {
+        const margem = p.preco > 0 && p.custo > 0
+          ? Math.max(0, Math.min(99, (p.preco - p.custo) / p.preco * 100))
+          : 0;
+        return {
+          name:       p.nome,
+          cat:        p.cat,
+          preco:      parseFloat(p.preco.toFixed(2)),
+          volume:     parseFloat(p.volume.toFixed(3)),
+          margem:     parseFloat(margem.toFixed(1)),
+          faturamento:parseFloat(p.faturamento.toFixed(2)),
+        };
+      })
+      .sort((a, b) => b.faturamento - a.faturamento);
+
+    res.json({ periodo: { dataInicio, dataFim }, pontos });
+  } catch (err) {
+    console.error('[planejamento/scatter]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/* ── GET /api/planejamento/radar ─────────────────────────────────────────────
+   Performance por seção normalizada 0-100 — atual vs anterior
+   Query params: empresas, periodo, grupo
+────────────────────────────────────────────────────────────────────────────── */
+router.get('/radar', async (req, res) => {
+  const empresaList = parseEmpresas(req.query);
+  if (!empresaList.length) return res.status(400).json({ error: 'empresas é obrigatório' });
+
+  const periodo = req.query.periodo || 'Mês';
+  const grupo   = req.query.grupo   || '';
+  const { dataInicio, dataFim } = periodoToDates(periodo);
+
+  // Período anterior de mesmo comprimento
+  const dias     = Math.max(1, Math.round((new Date(dataFim) - new Date(dataInicio)) / (1000*60*60*24)));
+  const antFim   = new Date(dataInicio); antFim.setDate(antFim.getDate() - 1);
+  const antIni   = new Date(antFim);     antIni.setDate(antFim.getDate() - dias + 1);
+  const dataAntInicio = formatDate(antIni);
+  const dataAntFim    = formatDate(antFim);
+
+  const grupoClause = grupo && grupo !== 'Todos' ? `AND gpro.gprodescricao = '${grupo.replace(/'/g,"''")}'` : '';
+
+  const sqlSecao = (di, df) => `
+    SELECT
+      COALESCE(spro.sprodescricao, 'Sem Seção') AS secao,
+      COALESCE(SUM(vdit.vdittotal), 0)           AS valor_total
+    FROM vda
+    JOIN vdit ON vdit.vditcodigovda  = vda.vdacodigo
+             AND vdit.vditempresa    = vda.vdaempresa
+    JOIN prod ON prod.prodcodigo     = vdit.vditproduto
+    LEFT JOIN spro ON spro.sprocodigo = prod.prodsecao
+    LEFT JOIN gpro ON gpro.gprocodigo = prod.prodgrupo
+                  AND gpro.gprosecao  = prod.prodsecao
+    WHERE vda.vdaempresa = $1
+      AND vda.vdamovimento >= '${di}'
+      AND vda.vdamovimento <= '${df}'
+      AND (vda.vdastatus IS NULL OR vda.vdastatus = 0)
+      AND prod.prodtipo = 2
+      ${grupoClause}
+    GROUP BY spro.sprodescricao
+    ORDER BY valor_total DESC
+    LIMIT 8`;
+
+  try {
+    const [rowsAtual, rowsAnt] = await Promise.all([
+      queryAll(empresaList, sqlSecao(dataInicio, dataFim),     emp => [emp]),
+      queryAll(empresaList, sqlSecao(dataAntInicio, dataAntFim), emp => [emp]),
+    ]);
+
+    // Agrega por seção
+    const agg = (rows) => {
+      const m = {};
+      rows.forEach(r => {
+        const k = r.secao;
+        m[k] = (m[k] || 0) + parseFloat(r.valor_total || 0);
+      });
+      return m;
+    };
+
+    const atual   = agg(rowsAtual);
+    const anterior = agg(rowsAnt);
+
+    // Une todas as seções (pode haver no anterior que sumiu no atual)
+    const secoes = [...new Set([...Object.keys(atual), ...Object.keys(anterior)])]
+      .slice(0, 8);
+
+    // Normaliza 0-100 dentro de cada período
+    const maxAtual = Math.max(...secoes.map(s => atual[s] || 0), 1);
+    const maxAnt   = Math.max(...secoes.map(s => anterior[s] || 0), 1);
+
+    const dados = secoes.map(s => ({
+      cat:      s,
+      atual:    parseFloat(((atual[s]    || 0) / maxAtual * 100).toFixed(1)),
+      anterior: parseFloat(((anterior[s] || 0) / maxAnt   * 100).toFixed(1)),
+      valorAtual:    parseFloat((atual[s]    || 0).toFixed(2)),
+      valorAnterior: parseFloat((anterior[s] || 0).toFixed(2)),
+    }));
+
+    res.json({ periodo: { dataInicio, dataFim, dataAntInicio, dataAntFim }, dados });
+  } catch (err) {
+    console.error('[planejamento/radar]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/* ── GET /api/planejamento/waterfall ─────────────────────────────────────────
+   Variação de faturamento por seção: período atual vs anterior
+   Formato de saída: { name, base, val, tipo } compatível com Recharts
+   Query params: empresas, periodo, grupo
+────────────────────────────────────────────────────────────────────────────── */
+router.get('/waterfall', async (req, res) => {
+  const empresaList = parseEmpresas(req.query);
+  if (!empresaList.length) return res.status(400).json({ error: 'empresas é obrigatório' });
+
+  const periodo = req.query.periodo || 'Mês';
+  const grupo   = req.query.grupo   || '';
+  const { dataInicio, dataFim } = periodoToDates(periodo);
+
+  // Período anterior de mesmo comprimento
+  const dias     = Math.max(1, Math.round((new Date(dataFim) - new Date(dataInicio)) / (1000*60*60*24)));
+  const antFim   = new Date(dataInicio); antFim.setDate(antFim.getDate() - 1);
+  const antIni   = new Date(antFim);     antIni.setDate(antFim.getDate() - dias + 1);
+  const dataAntInicio = formatDate(antIni);
+  const dataAntFim    = formatDate(antFim);
+
+  const grupoClause = grupo && grupo !== 'Todos' ? `AND gpro.gprodescricao = '${grupo.replace(/'/g,"''")}'` : '';
+
+  const sqlSecao = (di, df) => `
+    SELECT
+      COALESCE(spro.sprodescricao, 'Sem Seção') AS secao,
+      COALESCE(SUM(vdit.vdittotal), 0)           AS valor_total
+    FROM vda
+    JOIN vdit ON vdit.vditcodigovda  = vda.vdacodigo
+             AND vdit.vditempresa    = vda.vdaempresa
+    JOIN prod ON prod.prodcodigo     = vdit.vditproduto
+    LEFT JOIN spro ON spro.sprocodigo = prod.prodsecao
+    LEFT JOIN gpro ON gpro.gprocodigo = prod.prodgrupo
+                  AND gpro.gprosecao  = prod.prodsecao
+    WHERE vda.vdaempresa = $1
+      AND vda.vdamovimento >= '${di}'
+      AND vda.vdamovimento <= '${df}'
+      AND (vda.vdastatus IS NULL OR vda.vdastatus = 0)
+      AND prod.prodtipo = 2
+      ${grupoClause}
+    GROUP BY spro.sprodescricao
+    ORDER BY valor_total DESC`;
+
+  try {
+    const [rowsAtual, rowsAnt] = await Promise.all([
+      queryAll(empresaList, sqlSecao(dataInicio, dataFim),       emp => [emp]),
+      queryAll(empresaList, sqlSecao(dataAntInicio, dataAntFim), emp => [emp]),
+    ]);
+
+    const agg = (rows) => {
+      const m = {};
+      rows.forEach(r => {
+        const k = r.secao;
+        m[k] = (m[k] || 0) + parseFloat(r.valor_total || 0);
+      });
+      return m;
+    };
+
+    const atual    = agg(rowsAtual);
+    const anterior = agg(rowsAnt);
+
+    // Todas as seções presentes em pelo menos um período
+    const secoes = [...new Set([...Object.keys(atual), ...Object.keys(anterior)])]
+      .sort((a, b) => (atual[b] || 0) - (atual[a] || 0))
+      .slice(0, 10);
+
+    const totalAnt = secoes.reduce((s, k) => s + (anterior[k] || 0), 0);
+    const totalAtu = secoes.reduce((s, k) => s + (atual[k]    || 0), 0);
+
+    // Constrói barras Waterfall: base = período anterior, variação positiva ou negativa
+    let runningBase = 0;
+    const barras = [];
+
+    // Ponto inicial: total período anterior
+    barras.push({ name: 'Período Anterior', base: 0, val: parseFloat(totalAnt.toFixed(2)), tipo: 'total' });
+    runningBase = totalAnt;
+
+    secoes.forEach(secao => {
+      const ant = anterior[secao] || 0;
+      const atu = atual[secao]    || 0;
+      const diff = atu - ant;
+      if (Math.abs(diff) < 0.01) return; // ignora variação nula
+      const tipo = diff > 0 ? 'positivo' : 'negativo';
+      barras.push({
+        name:  secao.length > 18 ? secao.slice(0, 17) + '…' : secao,
+        base:  parseFloat(runningBase.toFixed(2)),
+        val:   parseFloat(Math.abs(diff).toFixed(2)),
+        diff:  parseFloat(diff.toFixed(2)),
+        tipo,
+        valorAtual:    parseFloat(atu.toFixed(2)),
+        valorAnterior: parseFloat(ant.toFixed(2)),
+      });
+      runningBase += diff;
+    });
+
+    // Ponto final: total atual
+    barras.push({ name: 'Período Atual', base: 0, val: parseFloat(totalAtu.toFixed(2)), tipo: 'total' });
+
+    const variacao = totalAnt > 0 ? ((totalAtu - totalAnt) / totalAnt * 100) : null;
+
+    res.json({
+      periodo: { dataInicio, dataFim, dataAntInicio, dataAntFim },
+      totalAtual:    parseFloat(totalAtu.toFixed(2)),
+      totalAnterior: parseFloat(totalAnt.toFixed(2)),
+      variacaoPerc:  variacao !== null ? parseFloat(variacao.toFixed(2)) : null,
+      barras,
+    });
+  } catch (err) {
+    console.error('[planejamento/waterfall]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

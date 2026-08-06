@@ -598,15 +598,16 @@ function BarComparativo({ data }) {
   );
 }
 
-function WaterfallChart() {
-  const max = 135000;
+function WaterfallChart({ data }) {
+  const barras = data?.barras || WATERFALL;
+  const max    = Math.max(...barras.map(d => d.base + d.val), 1);
   return (
     <ChartCard
-      title="Variação da Receita"
-      subtitle="Contribuição de cada fator entre meta e projetado">
+      title="Variação da Receita por Seção"
+      subtitle={data ? 'Contribuição de cada seção: período anterior → atual' : 'Contribuição de cada fator entre meta e projetado'}>
       <div className="pv-waterfall">
-        {WATERFALL.map((d, i) => {
-          const isNeg   = d.tipo === 'neg';
+        {barras.map((d, i) => {
+          const isNeg   = d.tipo === 'neg' || d.tipo === 'negativo';
           const isTotal = d.tipo === 'total';
           const isMeta  = d.tipo === 'meta';
           const barH    = Math.abs(d.val) / max * 160;
@@ -615,32 +616,38 @@ function WaterfallChart() {
           return (
             <div key={i} className="pv-wf-col">
               <div className="pv-wf-bar-wrap">
-                {/* spacer to push bar down */}
                 <div style={{ flex: 1, minHeight: `${160 - baseH - (isNeg ? 0 : barH)}px` }}/>
                 {isNeg && <div style={{ height: `${barH}px`, background: color, borderRadius:'4px 4px 0 0', opacity:.85, boxShadow:`0 0 8px ${color}55` }}/>}
                 {!isNeg && <div style={{ height: `${barH}px`, background: color, borderRadius:'4px 4px 0 0', opacity: isTotal ? 1 : .85, boxShadow:`0 0 8px ${color}55` }}/>}
               </div>
               <div className="pv-wf-label">{d.name}</div>
-              <div className="pv-wf-val" style={{ color }}>{isNeg?'-':isTotal||isMeta?'':'+'}
-                {Math.abs(d.val)>=1000?`R$${(Math.abs(d.val)/1000).toFixed(0)}K`:`R$${Math.abs(d.val)}`}
+              <div className="pv-wf-val" style={{ color }}>
+                {isNeg?'-':isTotal||isMeta?'':'+'}
+                {Math.abs(d.val)>=1000?`R$${(Math.abs(d.val)/1000).toFixed(0)}K`:`R$${Math.abs(d.val).toFixed(0)}`}
               </div>
             </div>
           );
         })}
       </div>
+      {data?.variacaoPerc != null && (
+        <div style={{ textAlign:'center', marginTop: 8, fontSize: 11, color: data.variacaoPerc >= 0 ? CT.green : CT.red }}>
+          Variação total: {data.variacaoPerc > 0 ? '+' : ''}{data.variacaoPerc.toFixed(1)}% vs período anterior
+        </div>
+      )}
     </ChartCard>
   );
 }
 
 /* ── Section 3: Radar ──────────────────────────────────────── */
-function RadarSection() {
+function RadarSection({ data }) {
+  const chartData = data || RADAR_DATA;
   return (
     <ChartCard
-      title="Performance por Categoria"
-      subtitle="Comparativo entre período atual e anterior"
+      title="Performance por Seção"
+      subtitle="Comparativo normalizado (0-100) entre período atual e anterior"
       className="pv-full">
       <ResponsiveContainer width="100%" height={300}>
-        <RadarChart data={RADAR_DATA} margin={{top:10,right:40,left:40,bottom:10}}>
+        <RadarChart data={chartData} margin={{top:10,right:40,left:40,bottom:10}}>
           <PolarGrid stroke={CT.grid}/>
           <PolarAngleAxis dataKey="cat" tick={{ fill:CT.axis, fontSize:11 }}/>
           <PolarRadiusAxis tick={false} axisLine={false} domain={[0,100]}/>
@@ -716,17 +723,29 @@ function HeatmapSection({ data }) {
 }
 
 /* ── Section 5: Scatter ────────────────────────────────────── */
-const CAT_COLORS = { 'Bebidas':CT.blue, 'Padaria':CT.yellow, 'Conveniência':CT.purple, 'Snacks':CT.green, 'Gelados':CT.red, 'Doces':CT.red, 'Combustível':CT.orange, 'Tabaco':'#94A3B8' };
+const CAT_COLORS = { 'Bebidas':CT.blue, 'Padaria':CT.yellow, 'Conveniência':CT.purple, 'Snacks':CT.green, 'Gelados':CT.red, 'Doces':CT.red, 'Combustível':CT.orange, 'Tabaco':'#94A3B8', 'Sem Seção':'#94A3B8' };
+const CAT_COLOR_POOL = [CT.blue, CT.yellow, CT.purple, CT.green, CT.red, CT.orange, '#14B8A6', '#EC4899', '#94A3B8'];
 
-function ScatterSection() {
+function ScatterSection({ data }) {
+  const pontos = data || SCATTER;
   const bycat = useMemo(() => {
     const map = {};
-    SCATTER.forEach(d => { (map[d.cat] = map[d.cat]||[]).push(d); });
+    pontos.forEach(d => { (map[d.cat] = map[d.cat]||[]).push(d); });
     return Object.entries(map);
-  }, []);
+  }, [pontos]);
+
+  // Assign stable colors (predefined or from pool by index)
+  const catColorMap = useMemo(() => {
+    const m = {};
+    bycat.forEach(([cat], i) => {
+      m[cat] = CAT_COLORS[cat] || CAT_COLOR_POOL[i % CAT_COLOR_POOL.length];
+    });
+    return m;
+  }, [bycat]);
+
   return (
     <ChartCard
-      title="Preço × Volume"
+      title="Preço × Volume × Margem"
       subtitle="Identifique produtos com alto preço/baixo volume e vice-versa">
       <ResponsiveContainer width="100%" height={300}>
         <ScatterChart margin={{top:10,right:20,left:10,bottom:10}}>
@@ -735,8 +754,8 @@ function ScatterSection() {
           <YAxis type="number" dataKey="volume" name="Volume" unit=" un" tick={{ fill:CT.axis, fontSize:10 }} label={{ value:'Volume', angle:-90, position:'insideLeft', fill:CT.axis, fontSize:10 }}/>
           <Tooltip content={<ScatterTip/>}/>
           <Legend wrapperStyle={{ fontSize:11, color:'rgba(255,255,255,0.5)' }}/>
-          {bycat.map(([cat, data]) => (
-            <Scatter key={cat} name={cat} data={data} fill={CAT_COLORS[cat]||CT.axis}/>
+          {bycat.map(([cat, pts]) => (
+            <Scatter key={cat} name={cat} data={pts} fill={catColorMap[cat]||CT.axis}/>
           ))}
         </ScatterChart>
       </ResponsiveContainer>
@@ -779,11 +798,86 @@ function TreemapSection({ data }) {
 }
 
 /* ── Insights Panel ────────────────────────────────────────── */
-function InsightsPanel() {
+function buildInsights(kpiCards, porSecaoData, topProdData) {
+  if (!kpiCards && !porSecaoData && !topProdData) return null;
+  const ins = [];
+
+  // Insight 1: variação do faturamento
+  if (kpiCards?.variacaoPerc != null) {
+    const v = kpiCards.variacaoPerc;
+    ins.push({
+      icon: v >= 0 ? '📈' : '📉',
+      cor:  v >= 0 ? '#22C55E' : '#EF4444',
+      prio: Math.abs(v) > 10 ? 'Alta' : 'Média',
+      titulo: v >= 0 ? 'Crescimento no período' : 'Queda no período',
+      desc: `O faturamento ${v >= 0 ? 'cresceu' : 'caiu'} ${Math.abs(v).toFixed(1)}% em relação ao período anterior. ` +
+            `Total realizado: ${fmtK(kpiCards.valorTotal)}, ticket médio: R$ ${kpiCards.ticketMedio.toFixed(2)}.`,
+    });
+  }
+
+  // Insight 2: seção líder
+  if (porSecaoData?.length) {
+    const top = porSecaoData[0];
+    ins.push({
+      icon: '🏆',
+      cor:  CT.orange,
+      prio: 'Alta',
+      titulo: `${top.secao} lidera as vendas`,
+      desc: `A seção "${top.secao}" representa ${top.part.toFixed(1)}% do faturamento total do período, com ${fmtK(top.valor)}.`,
+    });
+
+    // Seção com menor participação (oportunidade)
+    if (porSecaoData.length > 2) {
+      const low = porSecaoData[porSecaoData.length - 1];
+      ins.push({
+        icon: '⚠️',
+        cor:  '#EAB308',
+        prio: 'Média',
+        titulo: `Oportunidade: ${low.secao}`,
+        desc: `A seção "${low.secao}" representa apenas ${low.part.toFixed(1)}% do faturamento (${fmtK(low.valor)}). ` +
+              `Ações promocionais podem impulsionar essa categoria.`,
+      });
+    }
+  }
+
+  // Insight 3: produto destaque
+  if (topProdData?.length) {
+    const best = topProdData[0];
+    ins.push({
+      icon: '🚀',
+      cor:  CT.blue,
+      prio: 'Alta',
+      titulo: `Destaque: ${best.produto}`,
+      desc: `O produto "${best.produto}" (${best.secao}) lidera o período com ${fmtK(best.valorTotal)} em faturamento ` +
+            `e ${fmtN(best.qtd)} unidades vendidas.`,
+    });
+  }
+
+  // Insight 4: ticket médio
+  if (kpiCards?.ticketMedio) {
+    ins.push({
+      icon: '💰',
+      cor:  CT.purple,
+      prio: 'Média',
+      titulo: 'Ticket médio do período',
+      desc: `O ticket médio foi de R$ ${kpiCards.ticketMedio.toFixed(2)} por transação, ` +
+            `com ${fmtN(kpiCards.qtdVendas)} vendas registradas no período.`,
+    });
+  }
+
+  return ins.length > 0 ? ins : null;
+}
+
+function InsightsPanel({ kpiCards, porSecaoData, topProdData }) {
+  const insights = useMemo(
+    () => buildInsights(kpiCards, porSecaoData, topProdData) || INSIGHTS,
+    [kpiCards, porSecaoData, topProdData]
+  );
+
   return (
     <div className="pv-insights">
       <div className="pv-insights-grid">
-        {INSIGHTS.map((ins, i) => (
+        {insights.map((ins, i) => (
           <div key={i} className="pv-insight-card" style={{ '--ins-color': ins.cor }}>
             <div className="pv-insight-top">
               <span className="pv-insight-icon">{ins.icon}</span>
@@ -801,25 +895,70 @@ function InsightsPanel() {
 }
 
 /* ── Descriptive Analysis ──────────────────────────────────── */
-function DescriptiveAnalysis() {
+function DescriptiveAnalysis({ kpiCards, evolucaoData, porSecaoData }) {
+  const texto = useMemo(() => {
+    if (!kpiCards && !evolucaoData) return null;
+
+    const partes = [];
+
+    // Parágrafo 1: visão geral
+    if (kpiCards) {
+      const vari = kpiCards.variacaoPerc;
+      const dir  = vari >= 0 ? 'crescimento' : 'queda';
+      const sinal = Math.abs(vari ?? 0).toFixed(1);
+      partes.push(
+        <>No período analisado, o faturamento apresentou {' '}
+          <strong>{dir} de {sinal}%</strong> em relação ao período anterior.
+          O total realizado foi de <strong>{fmtK(kpiCards.valorTotal)}</strong>,
+          com <strong>{fmtN(kpiCards.qtdVendas)} transações</strong> e
+          ticket médio de <strong>R$ {kpiCards.ticketMedio.toFixed(2)}</strong>.</>
+      );
+    }
+
+    // Parágrafo 2: seções
+    if (porSecaoData?.length) {
+      const top2 = porSecaoData.slice(0, 2).map(s => `${s.secao} (${s.part.toFixed(1)}%)`).join(' e ');
+      partes.push(
+        <>As seções com maior representatividade são <strong>{top2}</strong>,
+          que juntas respondem pela maior parte do faturamento.
+          {porSecaoData.length > 2 && <>{' '}As demais {porSecaoData.length - 2} seções complementam o portfólio.</>}</>
+      );
+    }
+
+    // Parágrafo 3: projeção
+    if (evolucaoData) {
+      const comProj = evolucaoData.filter(m => m.projetado && !m.real);
+      if (comProj.length > 0) {
+        const ultimaProj = comProj[comProj.length - 1];
+        partes.push(
+          <>A projeção linear para os próximos meses indica continuidade da tendência atual.
+            O mês de <strong>{ultimaProj.mes}</strong> está estimado em
+            {' '}<strong>{fmtK(ultimaProj.projetado)}</strong>.
+            Ajuste os filtros de período e empresa para refinar a análise.</>
+        );
+      }
+    }
+
+    return partes;
+  }, [kpiCards, evolucaoData, porSecaoData]);
+
+  if (!texto) {
+    // Mock enquanto não há dados reais
+    return (
+      <div className="pv-analysis">
+        <div className="pv-analysis-body">
+          <p>No período analisado, a projeção indica <strong>crescimento de 11,8%</strong> em relação ao mesmo período anterior. A tendência é sustentada principalmente pelo aumento nas vendas das categorias de <strong>Bebidas e Conveniência</strong>, que representam <strong>64%</strong> do faturamento previsto.</p>
+          <p>Apesar do crescimento esperado, observa-se um <strong>desvio negativo em Conveniência</strong>, que está 12% abaixo da projeção, sugerindo oportunidades para campanhas promocionais direcionadas. Os produtos de alta margem — como Café Expresso (65%) e Pão de Queijo (55%) — estão com bom desempenho e sustentam a rentabilidade geral.</p>
+          <p>Caso o ritmo atual seja mantido, estima-se que a <strong>meta comercial seja superada em aproximadamente 6%</strong>, com a venda projetada encerrando o período em torno de <strong>R$ 1,07 milhão</strong>. A precisão do modelo está em <strong>86%</strong>, classificada como Alta confiabilidade.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="pv-analysis">
       <div className="pv-analysis-body">
-        <p>
-          No período analisado, a projeção indica <strong>crescimento de 11,8%</strong> em relação ao mesmo período anterior.
-          A tendência é sustentada principalmente pelo aumento nas vendas das categorias de <strong>Bebidas e Conveniência</strong>,
-          que representam <strong>64%</strong> do faturamento previsto.
-        </p>
-        <p>
-          Apesar do crescimento esperado, observa-se um <strong>desvio negativo em Conveniência</strong>, que está 12% abaixo
-          da projeção, sugerindo oportunidades para campanhas promocionais direcionadas. Os produtos de alta margem
-          — como Café Expresso (65%) e Pão de Queijo (55%) — estão com bom desempenho e sustentam a rentabilidade geral.
-        </p>
-        <p>
-          Caso o ritmo atual seja mantido, estima-se que a <strong>meta comercial seja superada em aproximadamente 6%</strong>,
-          com a venda projetada encerrando o período em torno de <strong>R$ 1,07 milhão</strong>.
-          A precisão do modelo está em <strong>86%</strong>, classificada como Alta confiabilidade.
-        </p>
+        {texto.map((p, i) => <p key={i}>{p}</p>)}
       </div>
     </div>
   );
@@ -1212,6 +1351,9 @@ export default function ProjecaoVendas({ empresasKey, clients = [], empresas = [
   const [topProdData,     setTopProdData]     = useState(null);
   const [heatmapData,     setHeatmapData]     = useState(null);
   const [porSecaoData,    setPorSecaoData]    = useState(null);
+  const [waterfallData,   setWaterfallData]   = useState(null);
+  const [radarData,       setRadarData]       = useState(null);
+  const [scatterData,     setScatterData]     = useState(null);
 
   // Resolve qual empresasKey usar: se empresa específica selecionada, filtra só ela
   const qs = useMemo(() => {
@@ -1233,12 +1375,18 @@ export default function ProjecaoVendas({ empresasKey, clients = [], empresas = [
       apiFetch(`/api/planejamento/top-produtos?empresas=${base}&periodo=${p}${s}${g}&limit=10`).then(r=>r.json()),
       apiFetch(`/api/planejamento/heatmap?empresas=${base}&periodo=${p}${s}${g}`).then(r=>r.json()),
       apiFetch(`/api/planejamento/por-secao?empresas=${base}&periodo=${p}${g}`).then(r=>r.json()),
-    ]).then(([evol, kpis, top, heat, secoes]) => {
-      if (evol.status   === 'fulfilled') setEvolucaoData(evol.value?.historico   || null);
-      if (kpis.status   === 'fulfilled') setKpisData(kpis.value                  || null);
-      if (top.status    === 'fulfilled') setTopProdData(top.value?.produtos       || null);
-      if (heat.status   === 'fulfilled') setHeatmapData(heat.value?.heatmap      || null);
-      if (secoes.status === 'fulfilled') setPorSecaoData(secoes.value?.secoes     || null);
+      apiFetch(`/api/planejamento/waterfall?empresas=${base}&periodo=${p}${g}`).then(r=>r.json()),
+      apiFetch(`/api/planejamento/radar?empresas=${base}&periodo=${p}${g}`).then(r=>r.json()),
+      apiFetch(`/api/planejamento/scatter?empresas=${base}&periodo=${p}${s}${g}`).then(r=>r.json()),
+    ]).then(([evol, kpis, top, heat, secoes, wf, radar, scatter]) => {
+      if (evol.status    === 'fulfilled') setEvolucaoData(evol.value?.historico   || null);
+      if (kpis.status    === 'fulfilled') setKpisData(kpis.value                  || null);
+      if (top.status     === 'fulfilled') setTopProdData(top.value?.produtos       || null);
+      if (heat.status    === 'fulfilled') setHeatmapData(heat.value?.heatmap      || null);
+      if (secoes.status  === 'fulfilled') setPorSecaoData(secoes.value?.secoes     || null);
+      if (wf.status      === 'fulfilled') setWaterfallData(wf.value               || null);
+      if (radar.status   === 'fulfilled') setRadarData(radar.value?.dados          || null);
+      if (scatter.status === 'fulfilled') setScatterData(scatter.value?.pontos     || null);
       setLoading(false);
     });
   }, [qs]);
@@ -1306,13 +1454,13 @@ export default function ProjecaoVendas({ empresasKey, clients = [], empresas = [
         <Section icon={BarChart2} title="Comparativo Mensal e Variação da Receita">
           <div className="pv-chart-row">
             <BarComparativo data={evolucaoChart?.map(m => ({ mes: m.mes, realizado: m.real, projetado: m.projetado }))}/>
-            <WaterfallChart/>
+            <WaterfallChart data={waterfallData}/>
           </div>
         </Section>
 
         {/* Radar */}
-        <Section icon={Activity} title="Performance por Categoria">
-          <RadarSection/>
+        <Section icon={Activity} title="Performance por Seção">
+          <RadarSection data={radarData}/>
         </Section>
 
         {/* Heatmap */}
@@ -1323,19 +1471,19 @@ export default function ProjecaoVendas({ empresasKey, clients = [], empresas = [
         {/* Scatter + Treemap */}
         <Section icon={Target} title="Análise de Produtos — Preço, Volume e Participação">
           <div className="pv-chart-row">
-            <ScatterSection/>
+            <ScatterSection data={scatterData}/>
             <TreemapSection data={treemapChart}/>
           </div>
         </Section>
 
         {/* Insights */}
         <Section icon={Sparkles} title="Insights Automáticos" badge="IA">
-          <InsightsPanel/>
+          <InsightsPanel kpiCards={kpiCards} porSecaoData={porSecaoData} topProdData={topProdData}/>
         </Section>
 
         {/* Análise Descritiva */}
         <Section icon={Activity} title="Análise Descritiva da Projeção" badge="Auto">
-          <DescriptiveAnalysis/>
+          <DescriptiveAnalysis kpiCards={kpiCards} evolucaoData={evolucaoData} porSecaoData={porSecaoData}/>
         </Section>
 
         {/* Ranking / Top Produtos */}
