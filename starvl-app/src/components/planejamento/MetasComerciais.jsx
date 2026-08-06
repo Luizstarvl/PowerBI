@@ -365,18 +365,25 @@ export default function MetasComerciais({ empresasKey, clients, empresas }) {
 
       {/* ── Header ───────────────────────────────────────────── */}
       <div className="mc2-header">
-        <div className="mc2-nav">
-          <button className="mc2-nav-btn" onClick={() => setMes(m => addMes(m, -1))}>
-            <ChevronLeft size={16} />
+
+        {/* Seletor de período em pill */}
+        <div className="mc2-period-pill">
+          <button className="mc2-pill-arrow" onClick={() => setMes(m => addMes(m, -1))}>
+            <ChevronLeft size={15} />
           </button>
-          <div className="mc2-nav-center">
-            <h2 className="mc2-mes">{mesLabel(mes)}</h2>
-            <span className="mc2-sub">
-              Dia {diasPassados} de {diasNoMes} — {pctMes.toFixed(0)}% do mês
-            </span>
+
+          <div className="mc2-pill-center">
+            <span className="mc2-pill-mes">{mesLabel(mes)}</span>
+            <div className="mc2-pill-prog">
+              <div className="mc2-pill-track">
+                <div className="mc2-pill-fill" style={{ width: `${pctMes}%` }} />
+              </div>
+              <span className="mc2-pill-sub">{diasPassados}/{diasNoMes} dias · {pctMes.toFixed(0)}%</span>
+            </div>
           </div>
-          <button className="mc2-nav-btn" onClick={() => setMes(m => addMes(m, 1))} disabled={mes >= mesAtual}>
-            <ChevronRight size={16} />
+
+          <button className="mc2-pill-arrow" onClick={() => setMes(m => addMes(m, 1))} disabled={mes >= mesAtual}>
+            <ChevronRight size={15} />
           </button>
         </div>
 
@@ -387,13 +394,6 @@ export default function MetasComerciais({ empresasKey, clients, empresas }) {
             <Target size={14} />
             {temAlgunaMeta ? 'Editar Metas' : 'Definir Metas'}
           </button>
-        </div>
-      </div>
-
-      {/* ── Barra do mês ─────────────────────────────────────── */}
-      <div className="mc2-mes-bar">
-        <div className="mc2-mes-track">
-          <div className="mc2-mes-fill" style={{ width: `${pctMes}%` }} />
         </div>
       </div>
 
