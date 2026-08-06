@@ -112,11 +112,6 @@ function ModuloWrapper({ moduloKey, onBack, empresasKey, clients, empresas }) {
           <ArrowLeft size={15} />
           Voltar
         </button>
-        <div className="pc-modulo-breadcrumb">
-          <span>Planejamento Comercial</span>
-          <ChevronRight size={13} className="pc-breadcrumb-sep" />
-          <span className="pc-breadcrumb-current">{mod?.titulo}</span>
-        </div>
       </div>
 
       {/* Conteúdo do módulo */}
