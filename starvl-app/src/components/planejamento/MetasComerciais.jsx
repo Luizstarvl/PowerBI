@@ -2,11 +2,11 @@
    MetasComerciais.jsx — Metas e Acompanhamento Comercial
    Eclipse BI · Planejamento Comercial
 ═══════════════════════════════════════════════════════════════ */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { apiFetch } from '../../api';
 import {
   Target, TrendingUp, Edit3, Plus, Trash2,
-  ChevronLeft, ChevronRight, RefreshCw, Sparkles,
+  ChevronLeft, ChevronRight, ChevronDown, RefreshCw, Sparkles,
   X, Save, BarChart2, ShoppingCart, DollarSign,
   CheckCircle, AlertTriangle, Zap,
 } from 'lucide-react';
@@ -161,6 +161,40 @@ function KpiCard({ titulo, Icone, cor, meta, realizado, unidade, diasPassados, d
           <span>{statusTxt}</span>
         </div>
       </div>
+    </div>
+  );
+}
+
+/* ── Dropdown customizado (evita select nativo bugado) ───────── */
+function CustomSelect({ options, value, onChange, placeholder = 'Selecione...' }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    function handleClick(e) { if (ref.current && !ref.current.contains(e.target)) setOpen(false); }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  const label = options.find(o => o === value) || null;
+
+  return (
+    <div className="mc2-select" ref={ref}>
+      <button className="mc2-select-btn" onClick={() => setOpen(v => !v)} type="button">
+        <span style={{ color: label ? '#F1F5F9' : '#6B7280' }}>{label || placeholder}</span>
+        <ChevronDown size={13} style={{ color: '#6B7280', transition: 'transform .15s', transform: open ? 'rotate(180deg)' : 'none' }} />
+      </button>
+      {open && (
+        <div className="mc2-select-menu">
+          {options.map(opt => (
+            <button key={opt} className={`mc2-select-item${opt === value ? ' mc2-select-item--active' : ''}`}
+              onMouseDown={() => { onChange(opt); setOpen(false); }}>
+              {opt}
+            </button>
+          ))}
+          {options.length === 0 && <div className="mc2-select-empty">Nenhuma seção disponível</div>}
+        </div>
+      )}
     </div>
   );
 }
@@ -478,11 +512,12 @@ export default function MetasComerciais({ empresasKey, clients, empresas }) {
 
         {addSecao && (
           <div className="mc2-add-row">
-            <select className="mc-input mc-input-sm" value={novaSecao.secao}
-              onChange={e => setNovaSecao(f => ({ ...f, secao: e.target.value }))}>
-              <option value="">Selecione a seção</option>
-              {secoesParaAdicionar.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
+            <CustomSelect
+              options={secoesParaAdicionar}
+              value={novaSecao.secao}
+              onChange={v => setNovaSecao(f => ({ ...f, secao: v }))}
+              placeholder="Selecione a seção"
+            />
             <input className="mc-input mc-input-sm" type="number" min="0" placeholder="Meta R$"
               value={novaSecao.faturamento}
               onChange={e => setNovaSecao(f => ({ ...f, faturamento: e.target.value }))} />
