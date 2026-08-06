@@ -812,9 +812,9 @@ router.get('/metas', async (req, res) => {
     const q = queryFor(empresa);
 
     const { rows: totRows } = await q(
-      `SELECT COALESCE(SUM(vdit.vdittotal),0)           AS faturamento,
-              COUNT(DISTINCT vda.vdacodigo)::int         AS quantidade,
-              COALESCE(SUM(vda.vdatotal)/NULLIF(COUNT(DISTINCT vda.vdacodigo),0),0) AS ticket_medio
+      `SELECT COALESCE(SUM(vdit.vdittotal),0)                                        AS faturamento,
+              COUNT(DISTINCT vda.vdacodigo)::int                                      AS quantidade,
+              COALESCE(SUM(vdit.vdittotal)/NULLIF(COUNT(DISTINCT vda.vdacodigo),0),0) AS ticket_medio
        FROM vda
        JOIN vdit ON vdit.vditcodigovda = vda.vdacodigo
                 AND vdit.vditempresa   = vda.vdaempresa
