@@ -107,9 +107,9 @@ function ModuloWrapper({ moduloKey, onBack, empresasKey, clients, empresas }) {
     <div className="pc-modulo-wrap">
       {/* Barra de volta */}
       <div className="pc-modulo-topbar">
-        <button className="pc-back-btn" onClick={onBack}>
+        <button className="pc-back-btn pc-back-btn-destaque" onClick={onBack}>
           <ArrowLeft size={15} />
-          Planejamento Comercial
+          Voltar
         </button>
         <div className="pc-modulo-breadcrumb">
           <span>Planejamento Comercial</span>
