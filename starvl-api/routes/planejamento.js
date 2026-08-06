@@ -741,33 +741,47 @@ router.get('/waterfall', async (req, res) => {
    Query params: empresas
 ────────────────────────────────────────────────────────────────────────────── */
 router.get('/debug', async (req, res) => {
+  const { isEmpresaRegistered, mainPool } = require('../db/poolManager');
   const empresaList = parseEmpresas(req.query);
-  if (!empresaList.length) return res.status(400).json({ error: 'empresas é obrigatório' });
-
   const serverDate = formatDate(new Date());
-  const results = {};
 
+  // Verifica starvl_clients
+  let clientes = [];
+  try {
+    const r = await mainPool.query('SELECT sc_codigo, sc_banco, sc_host FROM starvl_clients ORDER BY sc_codigo');
+    clientes = r.rows;
+  } catch (e) {
+    clientes = [{ erro: e.message }];
+  }
+
+  // Verifica se mainPool tem vda
+  let mainPoolTemVda = false;
+  try {
+    await mainPool.query("SELECT 1 FROM vda LIMIT 1");
+    mainPoolTemVda = true;
+  } catch (_) {}
+
+  const results = {};
   await Promise.allSettled(
-    empresaList.map(async emp => {
+    (empresaList.length ? empresaList : []).map(async emp => {
+      const registrado = isEmpresaRegistered(emp);
       try {
         const q = queryFor(emp);
         const r = await q(
-          `SELECT
-             MIN(vda.vdamovimento)::text AS data_min,
-             MAX(vda.vdamovimento)::text AS data_max,
-             COUNT(*)                   AS total_vendas
-           FROM vda
-           WHERE vda.vdaempresa = $1`,
+          `SELECT MIN(vda.vdamovimento)::text AS data_min,
+                  MAX(vda.vdamovimento)::text AS data_max,
+                  COUNT(*)::int              AS total_vendas
+           FROM vda WHERE vda.vdaempresa = $1`,
           [emp]
         );
-        results[emp] = r.rows[0] || { data_min: null, data_max: null, total_vendas: 0 };
+        results[emp] = { registrado, ...r.rows[0] };
       } catch (err) {
-        results[emp] = { erro: err.message };
+        results[emp] = { registrado, erro: err.message };
       }
     })
   );
 
-  res.json({ serverDate, empresas: results });
+  res.json({ serverDate, mainPoolTemVda, clientes, empresas: results });
 });
 
 module.exports = router;
