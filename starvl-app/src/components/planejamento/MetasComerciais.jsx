@@ -682,6 +682,16 @@ export default function MetasComerciais({ empresasKey, clients, empresas }) {
         </div>
       </header>
 
+      {/* ═══ Dica ════════════════════════════════════════════════ */}
+      <div className="mc3-footer">
+        <Lightbulb size={14} style={{ color: YELLOW, flexShrink: 0 }}/>
+        <span>
+          <strong>Dica:</strong> Metas bem definidas tornam sua equipe mais focada
+          e seus resultados muito melhores!
+        </span>
+        <button className="mc3-footer-link" onClick={() => setDicasOpen(true)}>Saiba mais sobre metas →</button>
+      </div>
+
       {/* ═══ 3. KPI CARDS ═══════════════════════════════════════ */}
       <div className="mc3-kpi-grid">
         <KpiCard3 titulo="Faturamento"  Icone={DollarSign}  cor={ORANGE} unidade="$"
@@ -869,15 +879,6 @@ export default function MetasComerciais({ empresasKey, clients, empresas }) {
         </div>
       </div>
 
-      {/* ═══ 6. FOOTER DICA ══════════════════════════════════════ */}
-      <div className="mc3-footer">
-        <Lightbulb size={14} style={{ color: YELLOW, flexShrink: 0 }}/>
-        <span>
-          <strong>Dica:</strong> Metas bem definidas tornam sua equipe mais focada
-          e seus resultados muito melhores!
-        </span>
-        <button className="mc3-footer-link" onClick={() => setDicasOpen(true)}>Saiba mais sobre metas →</button>
-      </div>
 
       {/* Modal */}
       {editando && (
