@@ -4121,7 +4121,7 @@ select.themed-select option {
 }
 
 /* ── Wrapper do módulo interno ─────────────────────────────────── */
-.pc-modulo-wrap { display: flex; flex-direction: column; }
+.pc-modulo-wrap { display: flex; flex-direction: column; overflow-x: hidden; max-width: 100%; }
 
 .pc-modulo-topbar {
   display: flex; align-items: center; gap: 14px;
@@ -5045,6 +5045,8 @@ select.themed-select option {
   display: flex; flex-direction: column; gap: 20px;
   padding: 20px 20px 32px;
   font-family: 'Sora', 'Inter', sans-serif;
+  overflow-x: hidden;
+  max-width: 100%;
 }
 
 /* ── Header ──────────────────────────────────────────────────── */
