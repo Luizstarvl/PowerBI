@@ -3,8 +3,9 @@ import {
   TrendingUp, BarChart2, Target, ArrowLeft, ChevronRight,
   Activity, Clock
 } from 'lucide-react';
-import ProjecaoVendas   from '../components/planejamento/ProjecaoVendas';
-import MetasComerciais  from '../components/planejamento/MetasComerciais';
+import ProjecaoVendas     from '../components/planejamento/ProjecaoVendas';
+import MetasComerciais    from '../components/planejamento/MetasComerciais';
+import PerformanceVendas  from '../components/planejamento/PerformanceVendas';
 
 /* ── Definição dos módulos ─────────────────────────────────────
    Adicione novos módulos aqui no futuro.
@@ -36,7 +37,7 @@ const MODULOS = [
     Icon: BarChart2,
     cor: '#22C55E',
     tags: ['Rankings', 'Comparativo', 'Fornecedores'],
-    status: 'em_breve',
+    status: 'ativo',
   },
 ];
 
@@ -115,8 +116,9 @@ function ModuloWrapper({ moduloKey, onBack, empresasKey, clients, empresas }) {
       </div>
 
       {/* Conteúdo do módulo */}
-      {moduloKey === 'projecao'          && <ProjecaoVendas  empresasKey={empresasKey} clients={clients} empresas={empresas} />}
-      {moduloKey === 'metas_comerciais'  && <MetasComerciais empresasKey={empresasKey} clients={clients} empresas={empresas} />}
+      {moduloKey === 'projecao'          && <ProjecaoVendas    empresasKey={empresasKey} clients={clients} empresas={empresas} />}
+      {moduloKey === 'metas_comerciais'  && <MetasComerciais   empresasKey={empresasKey} clients={clients} empresas={empresas} />}
+      {moduloKey === 'performance'       && <PerformanceVendas empresasKey={empresasKey} clients={clients} empresas={empresas} />}
     </div>
   );
 }

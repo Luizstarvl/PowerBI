@@ -1146,4 +1146,218 @@ router.get('/debug', async (req, res) => {
   res.json({ serverDate, mainPoolTemVda, clientes, databases, dbComVda, empresas: results });
 });
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   PERFORMANCE DE VENDAS
+   GET /api/planejamento/performance
+   Query params: empresa, periodo (Hoje|Semana|Mês|Ano), limit (default 10)
+   Returns: { rankings: { produtos, secoes, fornecedores }, comparativo }
+═══════════════════════════════════════════════════════════════════════════ */
+router.get('/performance', async (req, res) => {
+  const empresa = parseInt(req.query.empresa);
+  if (!empresa) return res.status(400).json({ error: 'empresa é obrigatório' });
+
+  const periodo = req.query.periodo || 'Mês';
+  const limit   = Math.min(parseInt(req.query.limit) || 10, 50);
+
+  const { dataInicio, dataFim } = periodoToDates(periodo);
+
+  // Período anterior de mesmo comprimento para comparativo
+  const dias    = Math.max(1, Math.round((new Date(dataFim) - new Date(dataInicio)) / 86400000));
+  const antFim  = new Date(dataInicio); antFim.setDate(antFim.getDate() - 1);
+  const antIni  = new Date(antFim);     antIni.setDate(antFim.getDate() - dias + 1);
+  const antInicio = formatDate(antIni);
+  const antFimFmt = formatDate(antFim);
+
+  const query = queryFor(empresa);
+
+  try {
+    const [
+      produtosRows,
+      secoesRows,
+      fornecedoresRows,
+      atualRows,
+      anteriorRows,
+      comparMesesRows,
+    ] = await Promise.all([
+
+      /* ── Top produtos ──────────────────────────────────────── */
+      query(
+        `SELECT
+           prod.prodcodigo                                     AS codigo,
+           prod.prodresumo                                     AS nome,
+           COALESCE(spro.sprodescricao, 'Sem seção')          AS secao,
+           COALESCE(SUM(vdit.vdittotal), 0)                   AS faturamento,
+           COALESCE(SUM(vdit.vditquantidade), 0)              AS quantidade,
+           COALESCE(SUM(vdit.vdittotal), 0)
+             / NULLIF(SUM(vdit.vditquantidade), 0)            AS preco_medio
+         FROM vdit
+         JOIN vda  ON vda.vdacodigo   = vdit.vditcodigovda
+                  AND vda.vdaempresa  = vdit.vditempresa
+         JOIN prod ON prod.prodcodigo = vdit.vditproduto
+         LEFT JOIN spro ON spro.sprocodigo = prod.prodsecao
+         WHERE vdit.vditempresa = $1
+           AND vda.vdamovimento >= $2
+           AND vda.vdamovimento <= $3
+           AND (vda.vdastatus IS NULL OR vda.vdastatus = 0)
+         GROUP BY prod.prodcodigo, prod.prodresumo, spro.sprodescricao
+         ORDER BY faturamento DESC
+         LIMIT $4`,
+        [empresa, dataInicio, dataFim, limit]
+      ),
+
+      /* ── Top seções ────────────────────────────────────────── */
+      query(
+        `SELECT
+           COALESCE(spro.sprodescricao, 'Sem seção')  AS secao,
+           COALESCE(SUM(vdit.vdittotal), 0)           AS faturamento,
+           COUNT(DISTINCT vda.vdacodigo)              AS qtd_vendas,
+           COALESCE(SUM(vdit.vditquantidade), 0)      AS quantidade
+         FROM vdit
+         JOIN vda  ON vda.vdacodigo   = vdit.vditcodigovda
+                  AND vda.vdaempresa  = vdit.vditempresa
+         JOIN prod ON prod.prodcodigo = vdit.vditproduto
+         LEFT JOIN spro ON spro.sprocodigo = prod.prodsecao
+         WHERE vdit.vditempresa = $1
+           AND vda.vdamovimento >= $2
+           AND vda.vdamovimento <= $3
+           AND (vda.vdastatus IS NULL OR vda.vdastatus = 0)
+         GROUP BY spro.sprodescricao
+         ORDER BY faturamento DESC
+         LIMIT $4`,
+        [empresa, dataInicio, dataFim, limit]
+      ),
+
+      /* ── Top fornecedores (por compras) ────────────────────── */
+      query(
+        `SELECT
+           COALESCE(part.partrazao, 'Sem fornecedor')  AS fornecedor,
+           COALESCE(SUM(entcpi.entcpitotal), 0)        AS total_compras,
+           COALESCE(SUM(entcpi.entcpiqtd), 0)          AS quantidade,
+           COUNT(DISTINCT entcpa.entcpacodigo)          AS qtd_notas
+         FROM entcpa
+         JOIN entcpi ON entcpi.entcpicompra  = entcpa.entcpacodigo
+                    AND entcpi.entcpiempresa = entcpa.entcpaempresa
+         LEFT JOIN part ON part.partcodigo = entcpa.entcpafornecedor
+         WHERE entcpa.entcpaempresa = $1
+           AND DATE(entcpa.entcpachegada) >= $2
+           AND DATE(entcpa.entcpachegada) <= $3
+         GROUP BY part.partrazao
+         ORDER BY total_compras DESC
+         LIMIT $4`,
+        [empresa, dataInicio, dataFim, limit]
+      ),
+
+      /* ── KPIs período atual ─────────────────────────────────── */
+      query(
+        `SELECT
+           COALESCE(SUM(vdit.vdittotal), 0)                        AS faturamento,
+           COUNT(DISTINCT vda.vdacodigo)                           AS qtd_vendas,
+           COALESCE(SUM(vdit.vdittotal), 0)
+             / NULLIF(COUNT(DISTINCT vda.vdacodigo), 0)            AS ticket_medio,
+           COUNT(DISTINCT vdit.vditproduto)                        AS produtos_ativos
+         FROM vda
+         JOIN vdit ON vdit.vditcodigovda = vda.vdacodigo
+                  AND vdit.vditempresa   = vda.vdaempresa
+         WHERE vda.vdaempresa = $1
+           AND vda.vdamovimento >= $2
+           AND vda.vdamovimento <= $3
+           AND (vda.vdastatus IS NULL OR vda.vdastatus = 0)`,
+        [empresa, dataInicio, dataFim]
+      ),
+
+      /* ── KPIs período anterior ──────────────────────────────── */
+      query(
+        `SELECT
+           COALESCE(SUM(vdit.vdittotal), 0)                        AS faturamento,
+           COUNT(DISTINCT vda.vdacodigo)                           AS qtd_vendas,
+           COALESCE(SUM(vdit.vdittotal), 0)
+             / NULLIF(COUNT(DISTINCT vda.vdacodigo), 0)            AS ticket_medio
+         FROM vda
+         JOIN vdit ON vdit.vditcodigovda = vda.vdacodigo
+                  AND vdit.vditempresa   = vda.vdaempresa
+         WHERE vda.vdaempresa = $1
+           AND vda.vdamovimento >= $2
+           AND vda.vdamovimento <= $3
+           AND (vda.vdastatus IS NULL OR vda.vdastatus = 0)`,
+        [empresa, antInicio, antFimFmt]
+      ),
+
+      /* ── Comparativo últimos 6 meses ────────────────────────── */
+      query(
+        `SELECT
+           TO_CHAR(DATE_TRUNC('month', vda.vdamovimento), 'YYYY-MM') AS mes,
+           COALESCE(SUM(vdit.vdittotal), 0)                          AS faturamento,
+           COUNT(DISTINCT vda.vdacodigo)                             AS qtd_vendas
+         FROM vda
+         JOIN vdit ON vdit.vditcodigovda = vda.vdacodigo
+                  AND vdit.vditempresa   = vda.vdaempresa
+         WHERE vda.vdaempresa = $1
+           AND vda.vdamovimento >= (DATE_TRUNC('month', CURRENT_DATE) - INTERVAL '5 months')
+           AND vda.vdamovimento <= CURRENT_DATE
+           AND (vda.vdastatus IS NULL OR vda.vdastatus = 0)
+         GROUP BY DATE_TRUNC('month', vda.vdamovimento)
+         ORDER BY mes`,
+        [empresa]
+      ),
+    ]);
+
+    const atual    = atualRows.rows[0]    || {};
+    const anterior = anteriorRows.rows[0] || {};
+
+    function delta(a, b) {
+      const av = parseFloat(a || 0), bv = parseFloat(b || 0);
+      if (bv === 0) return null;
+      return parseFloat(((av - bv) / bv * 100).toFixed(1));
+    }
+
+    const MESES_ABREV = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+
+    res.json({
+      periodo: { dataInicio, dataFim, label: periodo },
+      kpis: {
+        faturamento:    parseFloat(atual.faturamento   || 0),
+        qtdVendas:      parseInt(atual.qtd_vendas      || 0),
+        ticketMedio:    parseFloat(atual.ticket_medio  || 0),
+        produtosAtivos: parseInt(atual.produtos_ativos || 0),
+        deltaFaturamento: delta(atual.faturamento,  anterior.faturamento),
+        deltaQtd:         delta(atual.qtd_vendas,   anterior.qtd_vendas),
+        deltaTicket:      delta(atual.ticket_medio, anterior.ticket_medio),
+      },
+      rankings: {
+        produtos: produtosRows.rows.map(r => ({
+          nome:       r.nome,
+          secao:      r.secao,
+          faturamento: parseFloat(r.faturamento || 0),
+          quantidade:  parseFloat(r.quantidade  || 0),
+          precoMedio:  parseFloat(r.preco_medio || 0),
+        })),
+        secoes: secoesRows.rows.map(r => ({
+          nome:        r.secao,
+          faturamento: parseFloat(r.faturamento || 0),
+          qtdVendas:   parseInt(r.qtd_vendas    || 0),
+          quantidade:  parseFloat(r.quantidade  || 0),
+        })),
+        fornecedores: fornecedoresRows.rows.map(r => ({
+          nome:         r.fornecedor,
+          totalCompras: parseFloat(r.total_compras || 0),
+          quantidade:   parseFloat(r.quantidade    || 0),
+          qtdNotas:     parseInt(r.qtd_notas       || 0),
+        })),
+      },
+      comparativo: comparMesesRows.rows.map(r => {
+        const [ano, m] = r.mes.split('-').map(Number);
+        return {
+          mes:         MESES_ABREV[m - 1] + '/' + String(ano).slice(2),
+          mesKey:      r.mes,
+          faturamento: parseFloat(r.faturamento || 0),
+          qtdVendas:   parseInt(r.qtd_vendas    || 0),
+        };
+      }),
+    });
+  } catch (err) {
+    console.error('[planejamento/performance]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
