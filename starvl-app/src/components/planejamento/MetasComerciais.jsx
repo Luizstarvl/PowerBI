@@ -8,7 +8,7 @@ import {
   Target, TrendingUp, Edit3, Plus, Trash2,
   ChevronLeft, ChevronRight, RefreshCw, Sparkles,
   X, Save, BarChart2, ShoppingCart, DollarSign,
-  CheckCircle, AlertTriangle, Minus
+  CheckCircle, AlertTriangle, Zap,
 } from 'lucide-react';
 import {
   ComposedChart, Area, Line,
@@ -21,16 +21,20 @@ const CT = {
   yellow: '#FBBF24', red: '#EF4444', purple: '#A78BFA',
 };
 
-/* ── Helpers de formato ──────────────────────────────────────── */
+/* ── Helpers ─────────────────────────────────────────────────── */
 const fmtR$ = v =>
   v == null ? '—' : 'R$ ' + Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const fmtN  = v =>
+const fmtN = v =>
   v == null ? '—' : Number(v).toLocaleString('pt-BR');
+const fmtK = v => {
+  if (v == null) return '—';
+  if (v >= 1_000_000) return `R$ ${(v / 1_000_000).toFixed(1)}M`;
+  if (v >= 1_000)     return `R$ ${(v / 1_000).toFixed(1)}k`;
+  return fmtR$(v);
+};
 
-const MESES_PT = [
-  'Janeiro','Fevereiro','Março','Abril','Maio','Junho',
-  'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro',
-];
+const MESES_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
+  'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 
 function getMesAtual() {
   const d = new Date();
@@ -45,13 +49,120 @@ function addMes(k, delta) {
   const d = new Date(a, m - 1 + delta, 1);
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
 }
-
 function progressColor(pct) {
-  if (pct == null) return '#6B7280';
+  if (pct == null) return '#374151';
   if (pct >= 100) return CT.green;
   if (pct >= 80)  return CT.orange;
   if (pct >= 50)  return CT.yellow;
   return CT.red;
+}
+
+/* ── SVG Arc de progresso ────────────────────────────────────── */
+function ArcProgress({ pct, cor, size = 72, stroke = 7 }) {
+  const r   = (size - stroke) / 2;
+  const circ = 2 * Math.PI * r;
+  const fill = pct != null ? Math.min(100, pct) / 100 * circ : 0;
+
+  return (
+    <svg width={size} height={size} style={{ transform: 'rotate(-90deg)', flexShrink: 0 }}>
+      <circle cx={size/2} cy={size/2} r={r}
+        fill="none" stroke="rgba(255,255,255,.08)" strokeWidth={stroke} />
+      {pct != null && (
+        <circle cx={size/2} cy={size/2} r={r}
+          fill="none" stroke={cor} strokeWidth={stroke}
+          strokeDasharray={`${fill} ${circ}`}
+          strokeLinecap="round"
+          style={{ transition: 'stroke-dasharray .6s cubic-bezier(.4,0,.2,1)' }} />
+      )}
+      <text x={size/2} y={size/2}
+        textAnchor="middle" dominantBaseline="central"
+        style={{ fill: pct != null ? cor : '#4B5563', fontSize: pct != null ? 13 : 10,
+                 fontWeight: 700, transform: 'rotate(90deg)',
+                 transformOrigin: `${size/2}px ${size/2}px` }}>
+        {pct != null ? `${Math.round(pct)}%` : '—'}
+      </text>
+    </svg>
+  );
+}
+
+/* ── KPI Card ────────────────────────────────────────────────── */
+function KpiCard({ titulo, Icone, cor, meta, realizado, unidade, diasPassados, diasNoMes, onEdit }) {
+  const pct         = meta > 0 ? realizado / meta * 100 : null;
+  const proporcional= diasNoMes > 0 ? diasPassados / diasNoMes * 100 : 0;
+  const temMeta     = meta != null;
+
+  let statusTxt = 'Sem meta definida';
+  let StatusIco = Target;
+  let statusCor = '#4B5563';
+  if (temMeta) {
+    if (pct >= 100)               { statusTxt = 'Meta atingida!';     StatusIco = CheckCircle; statusCor = CT.green;  }
+    else if (pct >= proporcional) { statusTxt = 'No ritmo certo';     StatusIco = CheckCircle; statusCor = CT.green;  }
+    else                          { statusTxt = 'Abaixo do esperado'; StatusIco = AlertTriangle; statusCor = CT.yellow; }
+  }
+
+  const arcCor = temMeta ? progressColor(pct) : '#374151';
+
+  return (
+    <div className="mc2-card" style={{ '--mc-cor': cor }}>
+      {/* Faixa colorida no topo */}
+      <div className="mc2-card-top-bar" />
+
+      <div className="mc2-card-body">
+        {/* Cabeçalho */}
+        <div className="mc2-card-head">
+          <span className="mc2-card-icon" style={{ background: `${cor}1A`, color: cor }}>
+            <Icone size={14} />
+          </span>
+          <span className="mc2-card-titulo">{titulo}</span>
+          <button className="mc2-edit-btn" onClick={onEdit} title="Editar meta">
+            <Edit3 size={12} />
+          </button>
+        </div>
+
+        {/* Valores + Arco */}
+        <div className="mc2-card-content">
+          <div className="mc2-card-nums">
+            <div>
+              <div className="mc2-label">Realizado</div>
+              <div className="mc2-realizado" style={{ color: cor }}>
+                {unidade === '$' ? fmtK(realizado) : fmtN(realizado)}
+              </div>
+            </div>
+            <div>
+              <div className="mc2-label">Meta</div>
+              <div className="mc2-meta-val">
+                {!temMeta
+                  ? <button className="mc2-def-meta-btn" onClick={onEdit}>Definir →</button>
+                  : unidade === '$' ? fmtK(meta) : fmtN(meta)
+                }
+              </div>
+            </div>
+          </div>
+          <ArcProgress pct={pct} cor={arcCor} />
+        </div>
+
+        {/* Barra linear */}
+        {temMeta && (
+          <div className="mc2-bar-wrap">
+            <div className="mc2-bar-track">
+              <div className="mc2-bar-fill" style={{
+                width: `${Math.min(100, pct || 0)}%`,
+                background: `linear-gradient(90deg, ${progressColor(pct)}99, ${progressColor(pct)})`,
+              }} />
+              {/* Marcador do ritmo esperado */}
+              <div className="mc2-bar-marker" style={{ left: `${Math.min(100, proporcional)}%` }} />
+            </div>
+          </div>
+        )}
+
+        {/* Status */}
+        <div className="mc2-status" style={{ color: statusCor }}>
+          <StatusIco size={11} />
+          <span>{statusTxt}</span>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 /* ── Tooltip do gráfico ──────────────────────────────────────── */
@@ -71,63 +182,7 @@ function DailyTooltip({ active, payload, label }) {
   );
 }
 
-/* ── Card de KPI ─────────────────────────────────────────────── */
-function KpiCard({ titulo, Icone, cor, meta, realizado, unidade, diasPassados, diasNoMes, onEdit }) {
-  const pct = meta > 0 ? Math.min(150, realizado / meta * 100) : null;
-  const proporcional = diasNoMes > 0 ? (diasPassados / diasNoMes * 100) : 0;
-
-  let StatusIcon = Minus;
-  let statusLabel = 'Sem meta';
-  if (pct != null) {
-    if (pct >= 100)          { StatusIcon = CheckCircle; statusLabel = 'Meta atingida!'; }
-    else if (pct >= proporcional) { StatusIcon = CheckCircle; statusLabel = 'No ritmo'; }
-    else                     { StatusIcon = AlertTriangle; statusLabel = 'Abaixo do ritmo'; }
-  }
-  const sColor = pct == null ? '#6B7280' : pct >= proporcional ? CT.green : CT.yellow;
-
-  return (
-    <div className="mc-kpi-card">
-      <div className="mc-kpi-head">
-        <span className="mc-kpi-icon-wrap" style={{ background: `${cor}22`, color: cor }}>
-          <Icone size={15} />
-        </span>
-        <span className="mc-kpi-titulo">{titulo}</span>
-        <button className="mc-kpi-edit" onClick={onEdit} title="Editar meta">
-          <Edit3 size={12} />
-        </button>
-      </div>
-
-      <div className="mc-kpi-vals">
-        <div>
-          <div className="mc-kpi-label">Realizado</div>
-          <div className="mc-kpi-main">{unidade === '$' ? fmtR$(realizado) : fmtN(realizado)}</div>
-        </div>
-        <div>
-          <div className="mc-kpi-label">Meta</div>
-          <div className="mc-kpi-secondary">
-            {meta == null ? 'Não definida' : unidade === '$' ? fmtR$(meta) : fmtN(meta)}
-          </div>
-        </div>
-      </div>
-
-      <div className="mc-prog-row">
-        <div className="mc-prog-track">
-          <div className="mc-prog-fill" style={{ width: `${Math.min(100, pct || 0)}%`, background: progressColor(pct) }} />
-        </div>
-        <span className="mc-prog-pct" style={{ color: progressColor(pct) }}>
-          {pct != null ? `${pct.toFixed(1)}%` : '—'}
-        </span>
-      </div>
-
-      <div className="mc-kpi-status" style={{ color: sColor }}>
-        <StatusIcon size={12} />
-        <span>{statusLabel}</span>
-      </div>
-    </div>
-  );
-}
-
-/* ── Modal de definição de metas ─────────────────────────────── */
+/* ── Modal ───────────────────────────────────────────────────── */
 function EditModal({ mes, metaAtual, sugestao, loadingSug, onSave, onClose }) {
   const [form, setForm] = useState({
     faturamento: metaAtual?.faturamento != null ? String(metaAtual.faturamento) : '',
@@ -161,21 +216,21 @@ function EditModal({ mes, metaAtual, sugestao, loadingSug, onSave, onClose }) {
         <div className="mc-modal-head">
           <div className="mc-modal-titulo">
             <Target size={17} style={{ color: CT.orange }} />
-            Metas — {mesLabel(mes)}
+            Definir Metas — {mesLabel(mes)}
           </div>
           <button className="mc-modal-close" onClick={onClose}><X size={15} /></button>
         </div>
 
-        {/* Sugestão automática */}
+        {/* Sugestão */}
         {(sugestao || loadingSug) && (
           <div className="mc-sug-box">
             <div className="mc-sug-row">
               <Sparkles size={13} style={{ color: CT.yellow }} />
               {loadingSug
-                ? <span style={{ opacity: 0.6 }}>Calculando sugestão...</span>
+                ? <span style={{ opacity: 0.6 }}>Calculando sugestão automática...</span>
                 : <>
-                    <span>Sugestão: média de 3 meses +{sugestao.crescimento}%</span>
-                    <button className="mc-sug-btn" onClick={aplicar}>Aplicar</button>
+                    <span>Sugestão: média 3 meses +{sugestao.crescimento}%</span>
+                    <button className="mc-sug-btn" onClick={aplicar}><Zap size={11} /> Aplicar</button>
                   </>
               }
             </div>
@@ -189,9 +244,7 @@ function EditModal({ mes, metaAtual, sugestao, loadingSug, onSave, onClose }) {
             {sugestao?.historico?.length > 0 && (
               <div className="mc-sug-hist">
                 {sugestao.historico.map(h => (
-                  <span key={h.mes} className="mc-sug-hist-item">
-                    {h.mes}: {fmtR$(h.faturamento)}
-                  </span>
+                  <span key={h.mes} className="mc-sug-hist-item">{h.mes}: {fmtK(h.faturamento)}</span>
                 ))}
               </div>
             )}
@@ -200,22 +253,16 @@ function EditModal({ mes, metaAtual, sugestao, loadingSug, onSave, onClose }) {
 
         <div className="mc-modal-body">
           <label className="mc-label"><DollarSign size={13} /> Faturamento (R$)</label>
-          <input className="mc-input" type="number" min="0" step="100"
-            placeholder="Ex: 150000"
-            value={form.faturamento}
-            onChange={e => setForm(f => ({ ...f, faturamento: e.target.value }))} />
+          <input className="mc-input" type="number" min="0" step="100" placeholder="Ex: 150000"
+            value={form.faturamento} onChange={e => setForm(f => ({ ...f, faturamento: e.target.value }))} />
 
           <label className="mc-label"><ShoppingCart size={13} /> Quantidade de Vendas</label>
-          <input className="mc-input" type="number" min="0" step="1"
-            placeholder="Ex: 5000"
-            value={form.quantidade}
-            onChange={e => setForm(f => ({ ...f, quantidade: e.target.value }))} />
+          <input className="mc-input" type="number" min="0" step="1" placeholder="Ex: 5000"
+            value={form.quantidade} onChange={e => setForm(f => ({ ...f, quantidade: e.target.value }))} />
 
           <label className="mc-label"><BarChart2 size={13} /> Ticket Médio (R$)</label>
-          <input className="mc-input" type="number" min="0" step="0.01"
-            placeholder="Ex: 45.00"
-            value={form.ticketMedio}
-            onChange={e => setForm(f => ({ ...f, ticketMedio: e.target.value }))} />
+          <input className="mc-input" type="number" min="0" step="0.01" placeholder="Ex: 91.36"
+            value={form.ticketMedio} onChange={e => setForm(f => ({ ...f, ticketMedio: e.target.value }))} />
         </div>
 
         <div className="mc-modal-foot">
@@ -261,22 +308,19 @@ export default function MetasComerciais({ empresasKey, clients, empresas }) {
   useEffect(() => { loadData(); }, [loadData]);
 
   async function openEdit() {
-    setEditando(true);
-    setSugestao(null);
-    setLoadingSug(true);
+    setEditando(true); setSugestao(null); setLoadingSug(true);
     try {
       const r = await apiFetch(`/api/planejamento/metas/sugestao?empresa=${empresa}&mes=${mes}`);
-      if (r.ok) { const j = await r.json(); setSugestao(j.sugestao ? j : null); }
+      if (r.ok) { const j = await r.json(); if (j.sugestao) setSugestao(j); }
     } catch (_) {}
     finally { setLoadingSug(false); }
   }
 
   async function saveMetas(vals) {
-    const r = await apiFetch('/api/planejamento/metas', {
+    await apiFetch('/api/planejamento/metas', {
       method: 'POST',
       body: JSON.stringify({ empresa, mes, ...vals }),
     });
-    if (!r.ok) { const e = await r.json(); throw new Error(e.error); }
     setEditando(false);
     loadData();
   }
@@ -285,33 +329,30 @@ export default function MetasComerciais({ empresasKey, clients, empresas }) {
     if (!novaSecao.secao || !novaSecao.faturamento) return;
     setSavingSecao(true);
     try {
-      const r = await apiFetch('/api/planejamento/metas/secao', {
+      await apiFetch('/api/planejamento/metas/secao', {
         method: 'POST',
         body: JSON.stringify({ empresa, mes, secao: novaSecao.secao, faturamento: parseFloat(novaSecao.faturamento) }),
       });
-      if (!r.ok) throw new Error((await r.json()).error);
-      setNovaSecao({ secao: '', faturamento: '' });
-      setAddSecao(false);
-      loadData();
+      setNovaSecao({ secao: '', faturamento: '' }); setAddSecao(false); loadData();
     } finally { setSavingSecao(false); }
   }
 
   async function handleDeleteSecao(id) {
-    const r = await apiFetch(`/api/planejamento/metas/secao/${id}`, { method: 'DELETE' });
-    if (r.ok) loadData();
+    await apiFetch(`/api/planejamento/metas/secao/${id}`, { method: 'DELETE' });
+    loadData();
   }
 
-  /* ── Desestruturação dos dados ─────────────────────────────── */
   const {
     meta = {}, realizado = {}, progressoDiario = [],
     metasSecao = [], secoesDisponiveis = [],
     diasNoMes = 30, diasPassados = 0,
   } = data || {};
 
-  const mesAtual = getMesAtual();
-  const secoesParaAdicionar = secoesDisponiveis.filter(s => !metasSecao.some(m => m.secao === s));
+  const mesAtual             = getMesAtual();
+  const pctMes               = diasNoMes > 0 ? (diasPassados / diasNoMes * 100) : 0;
+  const secoesParaAdicionar  = secoesDisponiveis.filter(s => !metasSecao.some(m => m.secao === s));
+  const temAlgunaMeta        = meta.faturamento != null || meta.quantidade != null || meta.ticketMedio != null;
 
-  /* ── Render principal ──────────────────────────────────────── */
   if (!empresa) return (
     <div className="pv-empty-state">
       <Target size={48} style={{ opacity: 0.3 }} />
@@ -320,110 +361,123 @@ export default function MetasComerciais({ empresasKey, clients, empresas }) {
   );
 
   return (
-    <div className="mc-root">
+    <div className="mc2-root">
 
-      {/* ── Cabeçalho com navegação de mês ─────────────────── */}
-      <div className="mc-header">
-        <div className="mc-nav">
-          <button className="mc-nav-btn" onClick={() => setMes(m => addMes(m, -1))}>
-            <ChevronLeft size={17} />
+      {/* ── Header ───────────────────────────────────────────── */}
+      <div className="mc2-header">
+        <div className="mc2-nav">
+          <button className="mc2-nav-btn" onClick={() => setMes(m => addMes(m, -1))}>
+            <ChevronLeft size={16} />
           </button>
-          <h2 className="mc-nav-label">{mesLabel(mes)}</h2>
-          <button className="mc-nav-btn" onClick={() => setMes(m => addMes(m, 1))} disabled={mes >= mesAtual}>
-            <ChevronRight size={17} />
+          <div className="mc2-nav-center">
+            <h2 className="mc2-mes">{mesLabel(mes)}</h2>
+            <span className="mc2-sub">
+              Dia {diasPassados} de {diasNoMes} — {pctMes.toFixed(0)}% do mês
+            </span>
+          </div>
+          <button className="mc2-nav-btn" onClick={() => setMes(m => addMes(m, 1))} disabled={mes >= mesAtual}>
+            <ChevronRight size={16} />
           </button>
         </div>
-        <div className="mc-header-actions">
+
+        <div className="mc2-header-right">
           {loading && <RefreshCw size={14} className="spin" style={{ color: CT.orange, opacity: 0.7 }} />}
-          <button className="mc-btn-primary" onClick={openEdit}>
-            <Target size={13} />
-            Definir Metas
+          {error   && <span className="mc2-err-badge"><AlertTriangle size={13} /> {error}</span>}
+          <button className="mc2-btn-definir" onClick={openEdit}>
+            <Target size={14} />
+            {temAlgunaMeta ? 'Editar Metas' : 'Definir Metas'}
           </button>
         </div>
       </div>
 
-      {/* ── Barra de progresso do mês ─────────────────────── */}
-      <div className="mc-mes-progress">
-        <div className="mc-mes-track">
-          <div className="mc-mes-fill" style={{ width: `${diasNoMes > 0 ? (diasPassados/diasNoMes*100) : 0}%` }} />
+      {/* ── Barra do mês ─────────────────────────────────────── */}
+      <div className="mc2-mes-bar">
+        <div className="mc2-mes-track">
+          <div className="mc2-mes-fill" style={{ width: `${pctMes}%` }} />
         </div>
-        <span className="mc-mes-label">
-          {diasPassados} de {diasNoMes} dias — {diasNoMes > 0 ? ((diasPassados/diasNoMes)*100).toFixed(0) : 0}% do mês concluído
-        </span>
       </div>
 
-      {/* ── Erro ────────────────────────────────────────────── */}
-      {error && (
-        <div className="mc-error-box">
-          <AlertTriangle size={15} /> {error}
+      {/* ── Banner quando sem meta ───────────────────────────── */}
+      {!temAlgunaMeta && !loading && (
+        <div className="mc2-empty-banner">
+          <Target size={22} style={{ color: CT.orange, opacity: .7 }} />
+          <div>
+            <p className="mc2-empty-title">Nenhuma meta definida para {mesLabel(mes)}</p>
+            <p className="mc2-empty-sub">Clique em "Definir Metas" para configurar faturamento, quantidade e ticket médio.</p>
+          </div>
+          <button className="mc2-btn-definir" onClick={openEdit}>
+            <Sparkles size={13} /> Começar agora
+          </button>
         </div>
       )}
 
-      {/* ── KPI Cards ───────────────────────────────────────── */}
-      <div className="mc-kpi-grid">
-        <KpiCard titulo="Faturamento"     Icone={DollarSign}   cor={CT.orange} unidade="$"
+      {/* ── KPI Cards ────────────────────────────────────────── */}
+      <div className="mc2-kpi-grid">
+        <KpiCard titulo="Faturamento"  Icone={DollarSign}  cor={CT.orange} unidade="$"
           meta={meta.faturamento} realizado={realizado.faturamento || 0}
           diasPassados={diasPassados} diasNoMes={diasNoMes} onEdit={openEdit} />
-        <KpiCard titulo="Qtd Vendas"      Icone={ShoppingCart}  cor={CT.blue}   unidade="n"
+        <KpiCard titulo="Qtd Vendas"   Icone={ShoppingCart} cor={CT.blue}   unidade="n"
           meta={meta.quantidade}  realizado={realizado.quantidade  || 0}
           diasPassados={diasPassados} diasNoMes={diasNoMes} onEdit={openEdit} />
-        <KpiCard titulo="Ticket Médio"    Icone={BarChart2}     cor={CT.purple} unidade="$"
+        <KpiCard titulo="Ticket Médio" Icone={BarChart2}    cor={CT.purple} unidade="$"
           meta={meta.ticketMedio} realizado={realizado.ticketMedio || 0}
           diasPassados={diasPassados} diasNoMes={diasNoMes} onEdit={openEdit} />
       </div>
 
-      {/* ── Gráfico de evolução diária ───────────────────────── */}
+      {/* ── Gráfico diário ───────────────────────────────────── */}
       {progressoDiario.length > 0 && (
-        <div className="mc-chart-card">
-          <div className="mc-section-head">
+        <div className="mc2-chart-card">
+          <div className="mc2-chart-head">
             <TrendingUp size={14} style={{ color: CT.orange }} />
             <span>Evolução Diária — Faturamento Acumulado</span>
+            {meta.faturamento && (
+              <div className="mc2-chart-legend">
+                <span><span className="mc2-dot" style={{ background: CT.orange }} /> Realizado</span>
+                <span><span className="mc2-dash" style={{ background: CT.green }} /> Meta proporcional</span>
+              </div>
+            )}
           </div>
-          <ResponsiveContainer width="100%" height={220}>
+          <ResponsiveContainer width="100%" height={200}>
             <ComposedChart data={progressoDiario} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
               <defs>
-                <linearGradient id="mcGradReal" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%"  stopColor={CT.orange} stopOpacity={0.28} />
+                <linearGradient id="mcGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%"  stopColor={CT.orange} stopOpacity={0.25} />
                   <stop offset="95%" stopColor={CT.orange} stopOpacity={0.02} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,.06)" vertical={false} />
-              <XAxis dataKey="dia" tick={{ fill: '#9CA3AF', fontSize: 11 }} tickLine={false} axisLine={false} />
-              <YAxis tick={{ fill: '#9CA3AF', fontSize: 11 }} tickLine={false} axisLine={false}
-                tickFormatter={v => `${(v/1000).toFixed(0)}k`} />
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,.05)" vertical={false} />
+              <XAxis dataKey="dia" tick={{ fill:'#6B7280', fontSize:11 }} tickLine={false} axisLine={false} />
+              <YAxis tick={{ fill:'#6B7280', fontSize:11 }} tickLine={false} axisLine={false}
+                tickFormatter={v => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v} />
               <Tooltip content={<DailyTooltip />} />
               <Area type="monotone" dataKey="realizado" name="Realizado"
-                stroke={CT.orange} strokeWidth={2} fill="url(#mcGradReal)" />
+                stroke={CT.orange} strokeWidth={2.5} fill="url(#mcGrad)" />
               {meta.faturamento && (
                 <Line type="monotone" dataKey="metaProporcional" name="Meta (ritmo)"
                   stroke={CT.green} strokeWidth={1.5} strokeDasharray="5 3" dot={false} />
               )}
             </ComposedChart>
           </ResponsiveContainer>
-          {meta.faturamento && (
-            <div className="mc-legend">
-              <span><span className="mc-legend-dot" style={{ background: CT.orange }} /> Realizado</span>
-              <span><span className="mc-legend-dash" style={{ background: CT.green }} /> Meta proporcional</span>
-            </div>
-          )}
         </div>
       )}
 
-      {/* ── Metas por Seção ─────────────────────────────────── */}
-      <div className="mc-secao-card">
-        <div className="mc-section-head">
-          <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+      {/* ── Metas por Seção ──────────────────────────────────── */}
+      <div className="mc2-secao-card">
+        <div className="mc2-secao-head">
+          <div className="mc2-secao-titulo">
             <BarChart2 size={14} style={{ color: CT.blue }} />
             <span>Metas por Seção</span>
+            {metasSecao.length > 0 && (
+              <span className="mc2-count-badge">{metasSecao.length}</span>
+            )}
           </div>
-          <button className="mc-btn-add" onClick={() => setAddSecao(true)} disabled={addSecao}>
+          <button className="mc2-btn-add" onClick={() => setAddSecao(v => !v)} disabled={addSecao && !secoesParaAdicionar.length}>
             <Plus size={13} /> Adicionar Seção
           </button>
         </div>
 
-        {/* Formulário de nova seção */}
         {addSecao && (
-          <div className="mc-add-secao">
+          <div className="mc2-add-row">
             <select className="mc-input mc-input-sm" value={novaSecao.secao}
               onChange={e => setNovaSecao(f => ({ ...f, secao: e.target.value }))}>
               <option value="">Selecione a seção</option>
@@ -439,42 +493,42 @@ export default function MetasComerciais({ empresasKey, clients, empresas }) {
           </div>
         )}
 
-        {/* Lista */}
         {metasSecao.length === 0 && !addSecao ? (
-          <div className="mc-secao-empty">
-            <Target size={32} style={{ opacity: 0.25 }} />
-            <p>Nenhuma meta por seção definida.</p>
-            <p style={{ fontSize: 12, opacity: 0.5 }}>Clique em "Adicionar Seção" para começar.</p>
+          <div className="mc2-secao-empty">
+            <p>Adicione metas por seção para acompanhar cada categoria separadamente.</p>
           </div>
         ) : (
-          <div className="mc-secao-list">
-            {metasSecao.map(s => (
-              <div key={s.id} className="mc-secao-row">
-                <div className="mc-secao-info">
-                  <span className="mc-secao-nome">{s.secao}</span>
-                  <span className="mc-secao-nums">
-                    {fmtR$(s.realizado)} <span style={{ opacity: 0.4 }}>/</span> {fmtR$(s.meta)}
-                  </span>
-                </div>
-                <div className="mc-secao-bar-wrap">
-                  <div className="mc-prog-track">
-                    <div className="mc-prog-fill"
-                      style={{ width: `${Math.min(100, s.progresso || 0)}%`, background: progressColor(s.progresso) }} />
+          <div className="mc2-secao-list">
+            {metasSecao.map(s => {
+              const pct = s.progresso;
+              const cor = progressColor(pct);
+              return (
+                <div key={s.id} className="mc2-secao-item">
+                  <div className="mc2-secao-left">
+                    <span className="mc2-secao-nome">{s.secao}</span>
+                    <div className="mc2-secao-bar-wrap">
+                      <div className="mc2-secao-track">
+                        <div className="mc2-secao-fill" style={{ width: `${Math.min(100, pct || 0)}%`, background: cor }} />
+                      </div>
+                    </div>
+                    <span className="mc2-secao-nums">{fmtR$(s.realizado)} / {fmtR$(s.meta)}</span>
                   </div>
-                  <span className="mc-prog-pct" style={{ color: progressColor(s.progresso) }}>
-                    {s.progresso != null ? `${s.progresso.toFixed(1)}%` : '—'}
-                  </span>
+                  <div className="mc2-secao-right">
+                    <span className="mc2-secao-pct" style={{ color: cor }}>
+                      {pct != null ? `${pct.toFixed(1)}%` : '—'}
+                    </span>
+                    <button className="mc2-secao-del" onClick={() => handleDeleteSecao(s.id)}>
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
                 </div>
-                <button className="mc-secao-del" onClick={() => handleDeleteSecao(s.id)} title="Remover">
-                  <Trash2 size={13} />
-                </button>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
 
-      {/* ── Modal ──────────────────────────────────────────────── */}
+      {/* ── Modal ────────────────────────────────────────────── */}
       {editando && (
         <EditModal
           mes={mes}
