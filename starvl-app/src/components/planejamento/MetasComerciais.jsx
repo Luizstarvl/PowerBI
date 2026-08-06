@@ -500,6 +500,7 @@ export default function MetasComerciais({ empresasKey, clients, empresas }) {
   const [novaSecao, setNovaSecao]   = useState({ secao: '', faturamento: '' });
   const [savingSecao, setSavingSecao] = useState(false);
   const [simMsg, setSimMsg]         = useState(false);
+  const [dicasOpen, setDicasOpen]   = useState(false);
 
   const loadData = useCallback(async () => {
     if (!empresa) { setLoading(false); return; }
@@ -886,7 +887,7 @@ export default function MetasComerciais({ empresasKey, clients, empresas }) {
           <strong>Dica:</strong> Metas bem definidas tornam sua equipe mais focada
           e seus resultados muito melhores!
         </span>
-        <span className="mc3-footer-link">Saiba mais sobre metas →</span>
+        <button className="mc3-footer-link" onClick={() => setDicasOpen(true)}>Saiba mais sobre metas →</button>
       </div>
 
       {/* Modal */}
@@ -895,6 +896,72 @@ export default function MetasComerciais({ empresasKey, clients, empresas }) {
           sugestao={sugestao?.sugestao ?? sugestao}
           loadingSug={loadingSug} onSave={saveMetas} onClose={() => setEditando(false)}/>
       )}
+
+      {/* Modal de dicas */}
+      {dicasOpen && <DicasModal onClose={() => setDicasOpen(false)}/>}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Modal de Boas Práticas de Metas
+═══════════════════════════════════════════════════════════════ */
+const DICAS = [
+  {
+    emoji: '🎯',
+    titulo: 'Metas S.M.A.R.T.',
+    texto: 'Defina metas Específicas, Mensuráveis, Atingíveis, Relevantes e com Prazo definido. Evite metas vagas como "vender mais" — prefira "faturar R$ 150.000 em agosto".',
+  },
+  {
+    emoji: '📊',
+    titulo: 'Use o histórico como base',
+    texto: 'Analise os últimos 3 meses de desempenho antes de definir a meta. O sistema já calcula automaticamente a sugestão com média + crescimento ao clicar em "Definir Metas".',
+  },
+  {
+    emoji: '📈',
+    titulo: 'Crescimento gradual',
+    texto: 'Metas muito agressivas desmotivam a equipe. Um crescimento de 5% a 10% ao mês sobre o histórico é sustentável e motivador.',
+  },
+  {
+    emoji: '🗂️',
+    titulo: 'Divida por categorias',
+    texto: 'Use as "Metas por Categoria" para distribuir o objetivo entre as seções do negócio. Isso facilita o acompanhamento e a responsabilidade de cada área.',
+  },
+  {
+    emoji: '📅',
+    titulo: 'Acompanhe diariamente',
+    texto: 'O gráfico de evolução diária mostra o acumulado dia a dia. Se o ritmo estiver abaixo do esperado no meio do mês, ainda há tempo para ajustar a operação.',
+  },
+  {
+    emoji: '💡',
+    titulo: 'Ticket médio é estratégico',
+    texto: 'Aumentar o ticket médio é muitas vezes mais fácil do que aumentar o volume de vendas. Treine a equipe em técnicas de upsell e cross-sell para elevar esse indicador.',
+  },
+];
+
+function DicasModal({ onClose }) {
+  return (
+    <div className="mc-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="mc-modal mc3-dicas-modal">
+        <div className="mc-modal-head">
+          <div className="mc-modal-titulo">
+            <Lightbulb size={17} style={{ color: YELLOW }}/> Boas Práticas de Metas Comerciais
+          </div>
+          <button className="mc-modal-close" onClick={onClose}><X size={15}/></button>
+        </div>
+        <div className="mc3-dicas-grid">
+          {DICAS.map((d, i) => (
+            <div key={i} className="mc3-dica-card">
+              <div className="mc3-dica-emoji">{d.emoji}</div>
+              <div className="mc3-dica-titulo">{d.titulo}</div>
+              <div className="mc3-dica-texto">{d.texto}</div>
+            </div>
+          ))}
+        </div>
+        <div className="mc-modal-foot" style={{ justifyContent: 'flex-end' }}>
+          <button className="mc-btn-save" onClick={onClose}>Entendido!</button>
+        </div>
+      </div>
     </div>
   );
 }

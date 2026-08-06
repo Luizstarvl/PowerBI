@@ -5486,8 +5486,33 @@ select.themed-select option {
 .mc3-footer-link {
   margin-left: auto; white-space: nowrap;
   color: #F97316; font-weight: 600; cursor: pointer; font-size: 12px;
+  background: none; border: none; font-family: 'Sora', 'Inter', sans-serif;
+  padding: 0; transition: opacity .15s;
 }
-.mc3-footer-link:hover { text-decoration: underline; }
+.mc3-footer-link:hover { text-decoration: underline; opacity: .85; }
+
+/* ── Modal de Dicas ──────────────────────────────────────────── */
+.mc3-dicas-modal { max-width: 700px !important; }
+.mc3-dicas-grid {
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px;
+  padding: 20px; max-height: 60vh; overflow-y: auto;
+}
+.mc3-dicas-grid::-webkit-scrollbar { width: 4px; }
+.mc3-dicas-grid::-webkit-scrollbar-track { background: transparent; }
+.mc3-dicas-grid::-webkit-scrollbar-thumb { background: rgba(255,255,255,.12); border-radius: 4px; }
+@media (max-width: 560px) { .mc3-dicas-grid { grid-template-columns: 1fr; } }
+
+.mc3-dica-card {
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 14px; padding: 16px;
+  display: flex; flex-direction: column; gap: 7px;
+  transition: border-color .15s;
+}
+.mc3-dica-card:hover { border-color: rgba(251,191,36,.25); }
+.mc3-dica-emoji { font-size: 22px; line-height: 1; }
+.mc3-dica-titulo { font-size: 13px; font-weight: 700; color: #F1F5F9; }
+.mc3-dica-texto  { font-size: 12px; color: #94A3B8; line-height: 1.6; }
 
 /* ── Shared input helpers ─────────────────────────────────────── */
 .mc-input-sm { max-width: 130px; }
