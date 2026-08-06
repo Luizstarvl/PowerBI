@@ -356,7 +356,9 @@ function FilterSelect({ label, options, value, onChange }) {
 function FilterBar({ onRefresh, loading, clients = [], empresas = [], empresasKey = '' }) {
   const [periodo, setPeriodo] = useState('Mês');
   const [empresa, setEmpresa] = useState('Todos');
+  const [secao,   setSecao]   = useState('Todos');
   const [grupo,   setGrupo]   = useState('Todos');
+  const [secoes,  setSecoes]  = useState([]);
   const [grupos,  setGrupos]  = useState([]);
 
   // Monta lista de empresas a partir dos clients selecionados
@@ -375,27 +377,25 @@ function FilterBar({ onRefresh, loading, clients = [], empresas = [], empresasKe
     if (!vals.includes(empresa)) setEmpresa('Todos');
   }, [empresaOpts]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Busca grupos reais do banco quando as empresas selecionadas mudam
+  // Busca seções e grupos reais do banco quando as empresas selecionadas mudam
   useEffect(() => {
-    if (!empresasKey) { setGrupos([]); return; }
+    if (!empresasKey) { setSecoes([]); setGrupos([]); return; }
     apiFetch(`/api/dashboard/prod-categorias?empresas=${empresasKey}&prodtipo=2`)
       .then(r => r.json())
       .then(data => {
-        const lista = Array.isArray(data?.grupos) ? data.grupos : [];
-        setGrupos(lista);
-        // Reseta seleção se o grupo não existe mais
-        if (grupo !== 'Todos' && !lista.some(g => g.nome === grupo)) {
-          setGrupo('Todos');
-        }
+        const listaSecoes = Array.isArray(data?.secoes) ? data.secoes : [];
+        const listaGrupos = Array.isArray(data?.grupos) ? data.grupos : [];
+        setSecoes(listaSecoes);
+        setGrupos(listaGrupos);
+        if (secao !== 'Todos' && !listaSecoes.some(s => s.nome === secao)) setSecao('Todos');
+        if (grupo !== 'Todos' && !listaGrupos.some(g => g.nome === grupo))  setGrupo('Todos');
       })
-      .catch(() => setGrupos([]));
+      .catch(() => { setSecoes([]); setGrupos([]); });
   }, [empresasKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Monta opções do dropdown Grupo
-  const grupoOpts = useMemo(() => {
-    if (grupos.length === 0) return ['Todos'];
-    return ['Todos', ...grupos.map(g => g.nome)];
-  }, [grupos]);
+  // Monta opções dos dropdowns
+  const secaoOpts = useMemo(() => ['Todos', ...secoes.map(s => s.nome)], [secoes]);
+  const grupoOpts = useMemo(() => ['Todos', ...grupos.map(g => g.nome)], [grupos]);
 
   return (
     <div className="pv-filterbar">
@@ -411,7 +411,8 @@ function FilterBar({ onRefresh, loading, clients = [], empresas = [], empresasKe
 
         <div className="pv-filterbar-sels">
           <FilterSelect label="Empresa"    options={empresaOpts} value={empresa} onChange={setEmpresa}/>
-          <FilterSelect label="Grupo" options={grupoOpts} value={grupo} onChange={setGrupo}/>
+          <FilterSelect label="Seção"  options={secaoOpts} value={secao} onChange={setSecao}/>
+          <FilterSelect label="Grupo"  options={grupoOpts} value={grupo} onChange={setGrupo}/>
         </div>
 
         <button className="pv-refresh-btn" onClick={onRefresh} disabled={loading}>
@@ -1142,7 +1143,7 @@ function AnalyticsTable() {
 }
 
 /* ── Section colapsável ────────────────────────────────────── */
-function Section({ id, icon: Icon, title, badge, defaultOpen = true, children }) {
+function Section({ id, icon: Icon, title, badge, defaultOpen = false, children }) {
   const [open, setOpen] = useState(defaultOpen);
 
   return (
