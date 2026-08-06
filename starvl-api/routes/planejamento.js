@@ -736,6 +736,323 @@ router.get('/waterfall', async (req, res) => {
   }
 });
 
+/* ══════════════════════════════════════════════════════════════════════════════
+   METAS COMERCIAIS
+   Armazena metas mensais (faturamento, qtd, ticket) e metas por seção no
+   banco principal (Railway). Os dados reais vêm dos bancos dos clientes.
+══════════════════════════════════════════════════════════════════════════════ */
+
+async function ensureMetasTables(pool) {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS mc_metas (
+      mc_id           SERIAL PRIMARY KEY,
+      mc_empresa      INTEGER      NOT NULL,
+      mc_mes          VARCHAR(7)   NOT NULL,
+      mc_faturamento  NUMERIC(15,2),
+      mc_quantidade   INTEGER,
+      mc_ticket_medio NUMERIC(15,2),
+      mc_criado_em    TIMESTAMPTZ  DEFAULT NOW(),
+      mc_atualizado_em TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(mc_empresa, mc_mes)
+    )
+  `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS mc_metas_secao (
+      mcs_id          SERIAL PRIMARY KEY,
+      mcs_empresa     INTEGER      NOT NULL,
+      mcs_mes         VARCHAR(7)   NOT NULL,
+      mcs_secao       VARCHAR(200) NOT NULL,
+      mcs_faturamento NUMERIC(15,2),
+      mcs_criado_em   TIMESTAMPTZ  DEFAULT NOW(),
+      UNIQUE(mcs_empresa, mcs_mes, mcs_secao)
+    )
+  `);
+}
+
+/* ── GET /api/planejamento/metas ─────────────────────────────────────────────
+   Retorna metas + realizado para empresa e mês.
+   Query params: empresa, mes (YYYY-MM, default = mês atual)
+────────────────────────────────────────────────────────────────────────────── */
+router.get('/metas', async (req, res) => {
+  const empresaList = parseEmpresas(req.query);
+  if (!empresaList.length) return res.status(400).json({ error: 'empresa é obrigatório' });
+  const empresa = empresaList[0];
+
+  const hoje  = new Date();
+  const mesParam = req.query.mes
+    || `${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,'0')}`;
+
+  const [ano, mes] = mesParam.split('-').map(Number);
+  const dataInicio = `${ano}-${String(mes).padStart(2,'0')}-01`;
+  const ultimoDia  = new Date(ano, mes, 0);
+  const dataFimMes = formatDate(ultimoDia);
+  const dataHoje   = formatDate(hoje);
+  const dataFim    = dataHoje < dataFimMes ? dataHoje : dataFimMes;
+
+  const { mainPool } = require('../db/poolManager');
+  try {
+    await ensureMetasTables(mainPool);
+
+    // Metas salvas
+    const { rows: metaRows } = await mainPool.query(
+      `SELECT mc_faturamento, mc_quantidade, mc_ticket_medio
+       FROM mc_metas WHERE mc_empresa = $1 AND mc_mes = $2`,
+      [empresa, mesParam]
+    );
+    const metaRow = metaRows[0] || {};
+
+    const { rows: secaoRows } = await mainPool.query(
+      `SELECT mcs_id, mcs_secao, mcs_faturamento
+       FROM mc_metas_secao WHERE mcs_empresa = $1 AND mcs_mes = $2
+       ORDER BY mcs_faturamento DESC NULLS LAST`,
+      [empresa, mesParam]
+    );
+
+    // Realizado (banco do cliente)
+    const q = queryFor(empresa);
+
+    const { rows: totRows } = await q(
+      `SELECT COALESCE(SUM(vdit.vdittotal),0)           AS faturamento,
+              COUNT(DISTINCT vda.vdacodigo)::int         AS quantidade,
+              COALESCE(SUM(vda.vdatotal)/NULLIF(COUNT(DISTINCT vda.vdacodigo),0),0) AS ticket_medio
+       FROM vda
+       JOIN vdit ON vdit.vditcodigovda = vda.vdacodigo
+                AND vdit.vditempresa   = vda.vdaempresa
+       WHERE vda.vdaempresa = $1
+         AND vda.vdamovimento >= $2
+         AND vda.vdamovimento <= $3
+         AND (vda.vdastatus IS NULL OR vda.vdastatus = 0)`,
+      [empresa, dataInicio, dataFim]
+    );
+    const real = totRows[0] || {};
+
+    // Evolução diária acumulada
+    const { rows: dayRows } = await q(
+      `SELECT TO_CHAR(vda.vdamovimento,'YYYY-MM-DD') AS dia,
+              COALESCE(SUM(vdit.vdittotal),0)         AS valor
+       FROM vda
+       JOIN vdit ON vdit.vditcodigovda = vda.vdacodigo
+                AND vdit.vditempresa   = vda.vdaempresa
+       WHERE vda.vdaempresa = $1
+         AND vda.vdamovimento >= $2
+         AND vda.vdamovimento <= $3
+         AND (vda.vdastatus IS NULL OR vda.vdastatus = 0)
+       GROUP BY vda.vdamovimento
+       ORDER BY dia`,
+      [empresa, dataInicio, dataFim]
+    );
+
+    const diasNoMes    = ultimoDia.getDate();
+    const diasPassados = Math.min(diasNoMes,
+      Math.max(1, Math.round((new Date(dataFim) - new Date(dataInicio)) / (1000*60*60*24)) + 1)
+    );
+
+    const byDia = {};
+    dayRows.forEach(r => { byDia[r.dia] = parseFloat(r.valor || 0); });
+
+    let acum = 0;
+    const metaFat = metaRow.mc_faturamento ? parseFloat(metaRow.mc_faturamento) : null;
+    const progressoDiario = [];
+    for (let d = 1; d <= diasPassados; d++) {
+      const key = `${ano}-${String(mes).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      acum += byDia[key] || 0;
+      progressoDiario.push({
+        dia:            d,
+        realizado:      parseFloat(acum.toFixed(2)),
+        metaProporcional: metaFat ? parseFloat((metaFat * d / diasNoMes).toFixed(2)) : null,
+      });
+    }
+
+    // Realizado por seção
+    const { rows: secActRows } = await q(
+      `SELECT COALESCE(spro.sprodescricao,'Sem Seção') AS secao,
+              COALESCE(SUM(vdit.vdittotal),0)           AS valor
+       FROM vda
+       JOIN vdit ON vdit.vditcodigovda = vda.vdacodigo
+                AND vdit.vditempresa   = vda.vdaempresa
+       JOIN prod ON prod.prodcodigo    = vdit.vditproduto
+       LEFT JOIN spro ON spro.sprocodigo = prod.prodsecao
+       WHERE vda.vdaempresa = $1
+         AND vda.vdamovimento >= $2
+         AND vda.vdamovimento <= $3
+         AND (vda.vdastatus IS NULL OR vda.vdastatus = 0)
+       GROUP BY spro.sprodescricao
+       ORDER BY valor DESC`,
+      [empresa, dataInicio, dataFim]
+    );
+
+    const secaoActual = {};
+    secActRows.forEach(r => { secaoActual[r.secao] = parseFloat(r.valor || 0); });
+
+    const metasSecao = secaoRows.map(s => {
+      const realSec  = secaoActual[s.mcs_secao] || 0;
+      const metaSec  = parseFloat(s.mcs_faturamento || 0);
+      return {
+        id:        s.mcs_id,
+        secao:     s.mcs_secao,
+        meta:      metaSec,
+        realizado: realSec,
+        progresso: metaSec > 0 ? parseFloat((realSec / metaSec * 100).toFixed(1)) : null,
+      };
+    });
+
+    res.json({
+      mes: mesParam,
+      periodo: { dataInicio, dataFim },
+      diasNoMes,
+      diasPassados,
+      meta: {
+        faturamento: metaRow.mc_faturamento  != null ? parseFloat(metaRow.mc_faturamento)  : null,
+        quantidade:  metaRow.mc_quantidade   != null ? parseInt(metaRow.mc_quantidade)      : null,
+        ticketMedio: metaRow.mc_ticket_medio != null ? parseFloat(metaRow.mc_ticket_medio)  : null,
+      },
+      realizado: {
+        faturamento: parseFloat(real.faturamento   || 0),
+        quantidade:  parseInt(real.quantidade      || 0),
+        ticketMedio: parseFloat(real.ticket_medio  || 0),
+      },
+      progressoDiario,
+      metasSecao,
+      secoesDisponiveis: Object.keys(secaoActual).sort(),
+    });
+  } catch (err) {
+    console.error('[planejamento/metas GET]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/* ── POST /api/planejamento/metas ────────────────────────────────────────────
+   Cria ou atualiza metas mensais.
+   Body: { empresa, mes, faturamento, quantidade, ticketMedio }
+────────────────────────────────────────────────────────────────────────────── */
+router.post('/metas', async (req, res) => {
+  const { empresa, mes, faturamento, quantidade, ticketMedio } = req.body || {};
+  if (!empresa || !mes) return res.status(400).json({ error: 'empresa e mes são obrigatórios' });
+
+  const { mainPool } = require('../db/poolManager');
+  try {
+    await ensureMetasTables(mainPool);
+    await mainPool.query(`
+      INSERT INTO mc_metas
+        (mc_empresa, mc_mes, mc_faturamento, mc_quantidade, mc_ticket_medio, mc_atualizado_em)
+      VALUES ($1,$2,$3,$4,$5,NOW())
+      ON CONFLICT (mc_empresa, mc_mes) DO UPDATE SET
+        mc_faturamento   = EXCLUDED.mc_faturamento,
+        mc_quantidade    = EXCLUDED.mc_quantidade,
+        mc_ticket_medio  = EXCLUDED.mc_ticket_medio,
+        mc_atualizado_em = NOW()
+    `, [empresa, mes, faturamento || null, quantidade || null, ticketMedio || null]);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[planejamento/metas POST]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/* ── POST /api/planejamento/metas/secao ──────────────────────────────────────
+   Cria ou atualiza meta de uma seção.
+   Body: { empresa, mes, secao, faturamento }
+────────────────────────────────────────────────────────────────────────────── */
+router.post('/metas/secao', async (req, res) => {
+  const { empresa, mes, secao, faturamento } = req.body || {};
+  if (!empresa || !mes || !secao) return res.status(400).json({ error: 'empresa, mes e secao são obrigatórios' });
+
+  const { mainPool } = require('../db/poolManager');
+  try {
+    await ensureMetasTables(mainPool);
+    await mainPool.query(`
+      INSERT INTO mc_metas_secao (mcs_empresa, mcs_mes, mcs_secao, mcs_faturamento)
+      VALUES ($1,$2,$3,$4)
+      ON CONFLICT (mcs_empresa, mcs_mes, mcs_secao) DO UPDATE SET
+        mcs_faturamento = EXCLUDED.mcs_faturamento
+    `, [empresa, mes, secao, faturamento || null]);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[planejamento/metas/secao POST]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/* ── DELETE /api/planejamento/metas/secao/:id ────────────────────────────────
+   Remove meta de seção pelo ID.
+────────────────────────────────────────────────────────────────────────────── */
+router.delete('/metas/secao/:id', async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (!id) return res.status(400).json({ error: 'id inválido' });
+
+  const { mainPool } = require('../db/poolManager');
+  try {
+    await mainPool.query('DELETE FROM mc_metas_secao WHERE mcs_id = $1', [id]);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[planejamento/metas/secao DELETE]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/* ── GET /api/planejamento/metas/sugestao ────────────────────────────────────
+   Sugere metas baseadas na média dos últimos 3 meses + 5%.
+   Query params: empresa, mes (mês alvo YYYY-MM)
+────────────────────────────────────────────────────────────────────────────── */
+router.get('/metas/sugestao', async (req, res) => {
+  const empresaList = parseEmpresas(req.query);
+  if (!empresaList.length) return res.status(400).json({ error: 'empresa é obrigatório' });
+  const empresa = empresaList[0];
+
+  const hoje     = new Date();
+  const mesParam = req.query.mes
+    || `${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,'0')}`;
+  const [ano, mes] = mesParam.split('-').map(Number);
+
+  // 3 meses antes do mês alvo
+  const mesInicio  = new Date(ano, mes - 4, 1);
+  const dataInicio = formatDate(mesInicio);
+  const dataFim    = formatDate(new Date(ano, mes - 1, 0));
+
+  try {
+    const q = queryFor(empresa);
+    const { rows } = await q(
+      `SELECT TO_CHAR(DATE_TRUNC('month',vda.vdamovimento),'YYYY-MM') AS mes,
+              COALESCE(SUM(vdit.vdittotal),0)      AS faturamento,
+              COUNT(DISTINCT vda.vdacodigo)::int    AS quantidade
+       FROM vda
+       JOIN vdit ON vdit.vditcodigovda = vda.vdacodigo
+                AND vdit.vditempresa   = vda.vdaempresa
+       WHERE vda.vdaempresa = $1
+         AND vda.vdamovimento >= $2
+         AND vda.vdamovimento <= $3
+         AND (vda.vdastatus IS NULL OR vda.vdastatus = 0)
+       GROUP BY DATE_TRUNC('month',vda.vdamovimento)
+       ORDER BY mes DESC
+       LIMIT 3`,
+      [empresa, dataInicio, dataFim]
+    );
+
+    if (!rows.length) return res.json({ sugestao: null, motivo: 'Sem dados históricos' });
+
+    const avgFat = rows.reduce((s, r) => s + parseFloat(r.faturamento || 0), 0) / rows.length;
+    const avgQtd = rows.reduce((s, r) => s + parseInt(r.quantidade    || 0), 0) / rows.length;
+    const crescimento = 5;
+
+    res.json({
+      sugestao: {
+        faturamento: parseFloat((avgFat * (1 + crescimento/100)).toFixed(2)),
+        quantidade:  Math.round(avgQtd * (1 + crescimento/100)),
+        ticketMedio: avgQtd > 0 ? parseFloat((avgFat / avgQtd).toFixed(2)) : null,
+      },
+      historico: rows.map(r => ({
+        mes:         r.mes,
+        faturamento: parseFloat(r.faturamento),
+        quantidade:  parseInt(r.quantidade),
+      })),
+      crescimento,
+    });
+  } catch (err) {
+    console.error('[planejamento/metas/sugestao]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 /* ── POST /api/planejamento/reload-pools ─────────────────────────────────────
    Força recarregar todos os pools sem reiniciar o servidor.
    Útil após cadastrar uma nova conexão no gerenciador de conexões.

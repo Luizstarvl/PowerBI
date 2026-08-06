@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import {
   TrendingUp, BarChart2, Target, ArrowLeft, ChevronRight,
-  Sparkles, Activity, Clock
+  Activity, Clock
 } from 'lucide-react';
-import ProjecaoVendas from '../components/planejamento/ProjecaoVendas';
+import ProjecaoVendas   from '../components/planejamento/ProjecaoVendas';
+import MetasComerciais  from '../components/planejamento/MetasComerciais';
 
 /* ── Definição dos módulos ─────────────────────────────────────
    Adicione novos módulos aqui no futuro.
@@ -25,8 +26,8 @@ const MODULOS = [
     descricao: 'Defina, acompanhe e gerencie as metas por equipe, produto e período.',
     Icon: Target,
     cor: '#60A5FA',
-    tags: ['KPIs', 'Equipes', 'Período'],
-    status: 'em_breve',
+    tags: ['KPIs', 'Seções', 'Período'],
+    status: 'ativo',
   },
   {
     key: 'performance',
@@ -119,7 +120,8 @@ function ModuloWrapper({ moduloKey, onBack, empresasKey, clients, empresas }) {
       </div>
 
       {/* Conteúdo do módulo */}
-      {moduloKey === 'projecao' && <ProjecaoVendas empresasKey={empresasKey} clients={clients} empresas={empresas} />}
+      {moduloKey === 'projecao'          && <ProjecaoVendas  empresasKey={empresasKey} clients={clients} empresas={empresas} />}
+      {moduloKey === 'metas_comerciais'  && <MetasComerciais empresasKey={empresasKey} clients={clients} empresas={empresas} />}
     </div>
   );
 }
