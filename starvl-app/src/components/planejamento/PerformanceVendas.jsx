@@ -31,6 +31,24 @@ const TABS     = [
   { key: 'comparativo',   label: 'Comparativo',   Icon: BarChart2 },
 ];
 
+/* ── Cores por combustível ────────────────────────────────────── */
+const FUEL_MAP = [
+  { pattern: /etanol/i,               cor: '#22C55E' },
+  { pattern: /gnv/i,                  cor: '#06B6D4' },
+  { pattern: /gasolina\s+aditivada/i, cor: '#F97316' },
+  { pattern: /gasolina/i,             cor: '#FACC15' },
+  { pattern: /diesel\s+s\s*10/i,      cor: '#2563EB' },
+  { pattern: /diesel\s+s\s*500/i,     cor: '#4B5563' },
+  { pattern: /diesel/i,               cor: '#3B82F6' },
+];
+function fuelColor(nome, fallback) {
+  if (!nome) return fallback;
+  for (const { pattern, cor } of FUEL_MAP) {
+    if (pattern.test(nome)) return cor;
+  }
+  return fallback;
+}
+
 const RANK_COLORS = ['#F97316','#FB923C','#FDBA74','#FED7AA','#FEF3C7',
   '#60A5FA','#93C5FD','#BFDBFE','#22C55E','#86EFAC'];
 
@@ -252,7 +270,7 @@ export default function PerformanceVendas({ empresasKey, clients, empresas }) {
                       sub={`${p.secao} · Qtd: ${fmtN(p.quantidade)} · Preço médio: ${fmtK(p.precoMedio)}`}
                       valor={fmtK(p.faturamento)}
                       pct={p.faturamento / maxProd * 100}
-                      cor={RANK_COLORS[i] || ORANGE}/>
+                      cor={fuelColor(p.nome, RANK_COLORS[i] || ORANGE)}/>
                   ))}
                 </div>
               )}
@@ -278,7 +296,7 @@ export default function PerformanceVendas({ empresasKey, clients, empresas }) {
                       sub={`${fmtN(s.qtdVendas)} vendas · Qtd itens: ${fmtN(s.quantidade)}`}
                       valor={fmtK(s.faturamento)}
                       pct={s.faturamento / maxSec * 100}
-                      cor={RANK_COLORS[i] || BLUE}/>
+                      cor={fuelColor(s.nome, RANK_COLORS[i] || BLUE)}/>
                   ))}
                 </div>
               )}
