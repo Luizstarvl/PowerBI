@@ -353,47 +353,48 @@ function FilterSelect({ label, options, value, onChange }) {
   );
 }
 
-function FilterBar({ onRefresh, loading, clients = [], empresas = [], empresasKey = '' }) {
-  const [periodo, setPeriodo] = useState('Mês');
-  const [empresa, setEmpresa] = useState('Todos');
-  const [secao,   setSecao]   = useState('Todos');
-  const [grupo,   setGrupo]   = useState('Todos');
-  const [secoes,  setSecoes]  = useState([]);
-  const [grupos,  setGrupos]  = useState([]);
+/* FilterBar é controlado: recebe estado e setters do pai */
+function FilterBar({
+  onRefresh, loading,
+  clients = [], empresas = [], empresasKey = '',
+  periodo, setPeriodo,
+  empresa, setEmpresa,
+  secao,   setSecao,
+  grupo,   setGrupo,
+}) {
+  const [secoes, setSecoes] = useState([]);
+  const [grupos, setGrupos] = useState([]);
 
-  // Monta lista de empresas a partir dos clients selecionados
+  // Opções de empresa vindas dos clients reais
   const empresaOpts = useMemo(() => {
-    const selecionadas = clients.filter(c => empresas.includes(c.codigoEmpresa));
-    if (selecionadas.length === 0) return [{ value: 'Todos', label: 'Todos' }];
-    return [
-      { value: 'Todos', label: 'Todos' },
-      ...selecionadas.map(c => ({ value: String(c.codigoEmpresa), label: c.nome })),
-    ];
+    const sel = clients.filter(c => empresas.includes(c.codigoEmpresa));
+    if (!sel.length) return [{ value: 'Todos', label: 'Todos' }];
+    return [{ value: 'Todos', label: 'Todos' },
+      ...sel.map(c => ({ value: String(c.codigoEmpresa), label: c.nome }))];
   }, [clients, empresas]);
 
-  // Resetar empresa se saiu da lista
+  // Reseta empresa se saiu da lista
   useEffect(() => {
     const vals = empresaOpts.map(o => o.value);
     if (!vals.includes(empresa)) setEmpresa('Todos');
   }, [empresaOpts]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Busca seções e grupos reais do banco quando as empresas selecionadas mudam
+  // Busca seções e grupos do banco quando empresas mudam
   useEffect(() => {
     if (!empresasKey) { setSecoes([]); setGrupos([]); return; }
     apiFetch(`/api/dashboard/prod-categorias?empresas=${empresasKey}&prodtipo=2`)
       .then(r => r.json())
       .then(data => {
-        const listaSecoes = Array.isArray(data?.secoes) ? data.secoes : [];
-        const listaGrupos = Array.isArray(data?.grupos) ? data.grupos : [];
-        setSecoes(listaSecoes);
-        setGrupos(listaGrupos);
-        if (secao !== 'Todos' && !listaSecoes.some(s => s.nome === secao)) setSecao('Todos');
-        if (grupo !== 'Todos' && !listaGrupos.some(g => g.nome === grupo))  setGrupo('Todos');
+        const ls = Array.isArray(data?.secoes) ? data.secoes : [];
+        const lg = Array.isArray(data?.grupos) ? data.grupos : [];
+        setSecoes(ls);
+        setGrupos(lg);
+        if (secao !== 'Todos' && !ls.some(s => s.nome === secao)) setSecao('Todos');
+        if (grupo !== 'Todos' && !lg.some(g => g.nome === grupo))  setGrupo('Todos');
       })
       .catch(() => { setSecoes([]); setGrupos([]); });
   }, [empresasKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Monta opções dos dropdowns
   const secaoOpts = useMemo(() => ['Todos', ...secoes.map(s => s.nome)], [secoes]);
   const grupoOpts = useMemo(() => ['Todos', ...grupos.map(g => g.nome)], [grupos]);
 
@@ -410,9 +411,9 @@ function FilterBar({ onRefresh, loading, clients = [], empresas = [], empresasKe
         </div>
 
         <div className="pv-filterbar-sels">
-          <FilterSelect label="Empresa"    options={empresaOpts} value={empresa} onChange={setEmpresa}/>
-          <FilterSelect label="Seção"  options={secaoOpts} value={secao} onChange={setSecao}/>
-          <FilterSelect label="Grupo"  options={grupoOpts} value={grupo} onChange={setGrupo}/>
+          <FilterSelect label="Empresa" options={empresaOpts} value={empresa} onChange={setEmpresa}/>
+          <FilterSelect label="Seção"   options={secaoOpts}   value={secao}   onChange={setSecao}/>
+          <FilterSelect label="Grupo"   options={grupoOpts}   value={grupo}   onChange={setGrupo}/>
         </div>
 
         <button className="pv-refresh-btn" onClick={onRefresh} disabled={loading}>
@@ -461,25 +462,36 @@ function KpiCard({ icon: Icon, label, value, sub, delta, deltaPositive, badge, s
   );
 }
 
-function KpiSection({ loading }) {
+function KpiSection({ loading, kpiReal }) {
   if (loading) return (
     <div className="pv-kpi-row">
-      {Array.from({length:6}).map((_,i) => <div key={i} className="pv-kpi pv-skel"/>)}
+      {Array.from({length:4}).map((_,i) => <div key={i} className="pv-kpi pv-skel"/>)}
     </div>
   );
+
+  // Se temos dados reais, exibe; caso contrário exibe mock
+  if (kpiReal) {
+    const { valorTotal, qtdVendas, ticketMedio, variacaoPerc, pos } = kpiReal;
+    return (
+      <div className="pv-kpi-row">
+        <KpiCard icon={DollarSign}  label="Faturamento no Período" value={fmtK(valorTotal)}
+          delta={variacaoPerc != null ? `${variacaoPerc > 0 ? '+' : ''}${variacaoPerc.toFixed(1)}% vs anterior` : null}
+          deltaPositive={pos} />
+        <KpiCard icon={BarChart2}   label="Vendas Realizadas"      value={fmtN(qtdVendas)}
+          sub="transações no período" />
+        <KpiCard icon={TrendingUp}  label="Ticket Médio"           value={`R$ ${ticketMedio.toFixed(2)}`}
+          sub="por transação" />
+        <KpiCard icon={Activity}    label="Variação vs. Anterior"  value={variacaoPerc != null ? `${variacaoPerc > 0 ? '+' : ''}${variacaoPerc.toFixed(1)}%` : '—'}
+          deltaPositive={pos} />
+      </div>
+    );
+  }
+
+  // Mock (enquanto não há dados)
   return (
     <div className="pv-kpi-row">
       <KpiCard icon={TrendingUp}   label="Venda Projetada"       value="R$ 1,07M"  delta="+12% vs anterior"  deltaPositive />
       <KpiCard icon={DollarSign}   label="Venda Real (até hoje)" value="R$ 637K"   sub="Meta atingida: 63%" />
-      <KpiCard icon={Target}       label="Precisão da Projeção"  value="">
-        <GaugeMini value={86}/>
-      </KpiCard>
-      <KpiCard icon={Star}         label="Meta Comercial"        value="R$ 1,0M">
-        <div className="pv-progress-wrap">
-          <div className="pv-progress-bar" style={{ width:'85%', background: CT.orange }}/>
-        </div>
-        <span className="pv-kpi-sub">85% alcançado</span>
-      </KpiCard>
       <KpiCard icon={BarChart2}    label="Desvio da Meta"        value="+R$ 74K"   delta="+7,4% acima"       deltaPositive />
       <KpiCard icon={Rocket}       label="Crescimento Esperado"  value="+11,8%"    delta="vs mesmo período"  deltaPositive />
     </div>
@@ -487,14 +499,15 @@ function KpiSection({ loading }) {
 }
 
 /* ── Section 1: Evolução + Tendência ───────────────────────── */
-function EvolutionChart() {
+function EvolutionChart({ data }) {
+  const chartData = data || EVOLUTION;
   return (
     <ChartCard
       title="Evolução da Venda Projetada × Venda Real"
       subtitle="Comparativo mensal: realizado, projeção e meta"
       actions={<button className="pv-icon-btn"><Download size={14}/></button>}>
       <ResponsiveContainer width="100%" height={280}>
-        <ComposedChart data={EVOLUTION} margin={{top:10,right:20,left:10,bottom:0}}>
+        <ComposedChart data={chartData} margin={{top:10,right:20,left:10,bottom:0}}>
           <defs>
             <linearGradient id="realG" x1="0" y1="0" x2="0" y2="1">
               <stop offset="5%"  stopColor={CT.blue}   stopOpacity={0.18}/>
@@ -520,13 +533,14 @@ function EvolutionChart() {
   );
 }
 
-function TrendChart() {
+function TrendChart({ data }) {
+  const chartData = data || TREND;
   return (
     <ChartCard
       title="Tendência de Crescimento"
       subtitle="Curvas histórica, projetada e média móvel">
       <ResponsiveContainer width="100%" height={280}>
-        <AreaChart data={TREND} margin={{top:10,right:20,left:10,bottom:0}}>
+        <AreaChart data={chartData} margin={{top:10,right:20,left:10,bottom:0}}>
           <defs>
             <linearGradient id="histG" x1="0" y1="0" x2="0" y2="1">
               <stop offset="5%"  stopColor={CT.purple} stopOpacity={0.2}/>
@@ -553,14 +567,15 @@ function TrendChart() {
 }
 
 /* ── Section 2: Barras + Waterfall ─────────────────────────── */
-function BarComparativo() {
+function BarComparativo({ data }) {
   const [active, setActive] = useState(null);
+  const chartData = data || BAR_DATA;
   return (
     <ChartCard
       title="Comparativo Mensal"
       subtitle="Realizado × Projetado — clique nas barras para detalhar">
       <ResponsiveContainer width="100%" height={260}>
-        <BarChart data={BAR_DATA} margin={{top:10,right:20,left:10,bottom:0}}
+        <BarChart data={chartData} margin={{top:10,right:20,left:10,bottom:0}}
           onClick={d => setActive(d?.activeLabel)}>
           <CartesianGrid stroke={CT.grid} vertical={false}/>
           <XAxis dataKey="mes" tick={{ fill:CT.axis, fontSize:11 }} axisLine={false} tickLine={false}/>
@@ -648,8 +663,17 @@ function heatColor(v) {
   return 'rgba(249,115,22,0.95)';
 }
 
-function HeatmapSection() {
+function HeatmapSection({ data }) {
   const [tip, setTip] = useState(null);
+  const heatData = data || HEATMAP;
+  // Para dados reais, as horas são índices 0-23; filtra para exibir só 06-22
+  const SHOW_HOURS = heatData[0]?.vals
+    ? heatData[0].vals.filter(v => v.hora >= 6 && v.hora <= 22)
+    : [];
+  const hoursLabels = SHOW_HOURS.length
+    ? SHOW_HOURS.map(v => v.label)
+    : HEATMAP_HOURS;
+
   return (
     <ChartCard
       title="Mapa de Intensidade das Vendas"
@@ -657,16 +681,16 @@ function HeatmapSection() {
       <div className="pv-heatmap">
         <div className="pv-hm-hours">
           <div className="pv-hm-corner"/>
-          {HEATMAP_HOURS.map(h => <div key={h} className="pv-hm-hlabel">{h}</div>)}
+          {hoursLabels.map(h => <div key={h} className="pv-hm-hlabel">{h}</div>)}
         </div>
-        {HEATMAP.map(row => (
+        {heatData.map(row => (
           <div key={row.day} className="pv-hm-row">
             <div className="pv-hm-dlabel">{row.day}</div>
-            {row.vals.map(cell => (
-              <div key={cell.hour}
+            {(SHOW_HOURS.length ? row.vals.filter(v => v.hora >= 6 && v.hora <= 22) : row.vals).map(cell => (
+              <div key={cell.hora ?? cell.hour}
                 className="pv-hm-cell"
                 style={{ background: heatColor(cell.v) }}
-                onMouseEnter={e => setTip({ day:row.day, hour:cell.hour, v:cell.v, x:e.clientX, y:e.clientY })}
+                onMouseEnter={e => setTip({ day:row.day, hour:cell.label ?? cell.hour, v:cell.v, valor:cell.valor, x:e.clientX, y:e.clientY })}
                 onMouseLeave={() => setTip(null)}
               />
             ))}
@@ -683,6 +707,8 @@ function HeatmapSection() {
           <div className="pv-tip-label">{tip.day} · {tip.hour}</div>
           <div className="pv-tip-row"><span className="pv-tip-name">Intensidade</span>
             <span className="pv-tip-val" style={{ color:CT.orange }}>{tip.v}%</span></div>
+          {tip.valor > 0 && <div className="pv-tip-row"><span className="pv-tip-name">Valor</span>
+            <span className="pv-tip-val">{fmtR(tip.valor)}</span></div>}
         </div>
       )}
     </ChartCard>
@@ -736,13 +762,14 @@ function TreemapContent({ root, depth, x, y, width, height, name, value }) {
   );
 }
 
-function TreemapSection() {
+function TreemapSection({ data }) {
+  const tmData = data || TREEMAP;
   return (
     <ChartCard
       title="Participação nas Vendas"
       subtitle="Faturamento proporcional por grupo/categoria">
       <ResponsiveContainer width="100%" height={300}>
-        <Treemap data={TREEMAP} dataKey="size" aspectRatio={4/3}
+        <Treemap data={tmData} dataKey="size" aspectRatio={4/3}
           content={<TreemapContent/>}>
           <Tooltip formatter={(v,n) => [fmtR(v), n]}/>
         </Treemap>
@@ -799,8 +826,9 @@ function DescriptiveAnalysis() {
 }
 
 /* ── Ranking Table ─────────────────────────────────────────── */
-function RankingTable() {
-  const maxPj = Math.max(...RANKING.map(r=>r.proj));
+function RankingTable({ data }) {
+  const lista = data || RANKING;
+  const maxVal = Math.max(...lista.map(r => r.valorTotal ?? r.proj ?? 0), 1);
   return (
     <div className="pv-ranking">
       <div className="pv-table-wrap">
@@ -809,31 +837,31 @@ function RankingTable() {
             <tr>
               <th>#</th>
               <th>Produto</th>
-              <th>Venda Atual</th>
-              <th>Projetado</th>
-              <th>Diferença</th>
-              <th>Margem</th>
-              <th>Crescimento</th>
+              <th>Seção</th>
+              <th>Faturamento</th>
+              <th>Qtd Vendida</th>
+              <th>Ticket Médio</th>
               <th>Progresso</th>
             </tr>
           </thead>
           <tbody>
-            {RANKING.map(r => {
-              const dif = r.proj - r.atual;
+            {lista.length === 0 && (
+              <tr><td colSpan={7} className="pv-td-empty">Nenhum dado para o período</td></tr>
+            )}
+            {lista.map((r, i) => {
+              const val = r.valorTotal ?? r.atual ?? 0;
+              const rank = r.rank ?? (i + 1);
               return (
-                <tr key={r.rank} className="pv-tr">
-                  <td><span className={`pv-rank-badge r${r.rank}`}>{r.rank}</span></td>
+                <tr key={rank} className="pv-tr">
+                  <td><span className={`pv-rank-badge r${rank}`}>{rank}</span></td>
                   <td className="pv-td-name">{r.produto}</td>
-                  <td>{fmtR(r.atual)}</td>
-                  <td style={{ color:CT.orange, fontWeight:700 }}>{fmtR(r.proj)}</td>
-                  <td style={{ color: dif>=0 ? CT.green : CT.red }}>
-                    {dif>=0?'+':''}{fmtR(dif)}
-                  </td>
-                  <td>{r.margem}%</td>
-                  <td style={{ color: CT.green }}>+{r.cresc}%</td>
+                  <td style={{ color:'rgba(255,255,255,.45)', fontSize:11 }}>{r.secao || '—'}</td>
+                  <td style={{ color:CT.orange, fontWeight:700 }}>{fmtR(val)}</td>
+                  <td>{fmtN(r.qtd ?? 0)}</td>
+                  <td>{r.ticket ? `R$ ${parseFloat(r.ticket).toFixed(2)}` : '—'}</td>
                   <td>
                     <div className="pv-mini-progress">
-                      <div className="pv-mini-bar" style={{ width:`${(r.proj/maxPj)*100}%` }}/>
+                      <div className="pv-mini-bar" style={{ width:`${(val/maxVal)*100}%` }}/>
                     </div>
                   </td>
                 </tr>
@@ -1171,56 +1199,132 @@ function Section({ id, icon: Icon, title, badge, defaultOpen = false, children }
 
 /* ── Main Export ───────────────────────────────────────────── */
 export default function ProjecaoVendas({ empresasKey, clients = [], empresas = [] }) {
+  // ── Estado dos filtros (controlado aqui, passado ao FilterBar) ──
+  const [periodo, setPeriodo] = useState('Mês');
+  const [empresa, setEmpresa] = useState('Todos');
+  const [secao,   setSecao]   = useState('Todos');
+  const [grupo,   setGrupo]   = useState('Todos');
   const [loading, setLoading] = useState(false);
 
-  const handleRefresh = useCallback(() => {
+  // ── Dados reais buscados da API ──
+  const [evolucaoData,    setEvolucaoData]    = useState(null);
+  const [kpisData,        setKpisData]        = useState(null);
+  const [topProdData,     setTopProdData]     = useState(null);
+  const [heatmapData,     setHeatmapData]     = useState(null);
+  const [porSecaoData,    setPorSecaoData]    = useState(null);
+
+  // Resolve qual empresasKey usar: se empresa específica selecionada, filtra só ela
+  const qs = useMemo(() => {
+    const base = empresa !== 'Todos' ? empresa : empresasKey;
+    const p = encodeURIComponent(periodo);
+    const s = secao !== 'Todos' ? `&secao=${encodeURIComponent(secao)}` : '';
+    const g = grupo !== 'Todos' ? `&grupo=${encodeURIComponent(grupo)}` : '';
+    return { base, p, s, g };
+  }, [empresa, empresasKey, periodo, secao, grupo]);
+
+  const fetchAll = useCallback(() => {
+    if (!qs.base) return;
     setLoading(true);
-    setTimeout(() => setLoading(false), 1800);
-  }, []);
+    const { base, p, s, g } = qs;
+
+    Promise.allSettled([
+      apiFetch(`/api/planejamento/evolucao?empresas=${base}&meses=12${s}${g}`).then(r=>r.json()),
+      apiFetch(`/api/planejamento/kpis?empresas=${base}&periodo=${p}${s}${g}`).then(r=>r.json()),
+      apiFetch(`/api/planejamento/top-produtos?empresas=${base}&periodo=${p}${s}${g}&limit=10`).then(r=>r.json()),
+      apiFetch(`/api/planejamento/heatmap?empresas=${base}&periodo=${p}${s}${g}`).then(r=>r.json()),
+      apiFetch(`/api/planejamento/por-secao?empresas=${base}&periodo=${p}${g}`).then(r=>r.json()),
+    ]).then(([evol, kpis, top, heat, secoes]) => {
+      if (evol.status   === 'fulfilled') setEvolucaoData(evol.value?.historico   || null);
+      if (kpis.status   === 'fulfilled') setKpisData(kpis.value                  || null);
+      if (top.status    === 'fulfilled') setTopProdData(top.value?.produtos       || null);
+      if (heat.status   === 'fulfilled') setHeatmapData(heat.value?.heatmap      || null);
+      if (secoes.status === 'fulfilled') setPorSecaoData(secoes.value?.secoes     || null);
+      setLoading(false);
+    });
+  }, [qs]);
+
+  // Busca inicial e a cada mudança de filtro
+  useEffect(() => { fetchAll(); }, [fetchAll]);
+
+  // Converte evolucaoData para o formato dos gráficos de evolução/tendência
+  const evolucaoChart = useMemo(() => {
+    if (!evolucaoData) return null;
+    return evolucaoData.map(m => ({
+      mes:       m.mes,
+      real:      m.real,
+      projetado: m.projetado,
+      meta:      null, // sem metas integradas ainda
+      historico: m.real,
+      projecao:  m.projetado,
+      tendencia: null,
+      media:     null,
+    }));
+  }, [evolucaoData]);
+
+  // Treemap a partir de por-seção
+  const treemapChart = useMemo(() => {
+    if (!porSecaoData?.length) return null;
+    return porSecaoData.map(s => ({ name: s.secao, size: s.valor }));
+  }, [porSecaoData]);
+
+  // KpiSection com dados reais
+  const kpiCards = useMemo(() => {
+    if (!kpisData) return null;
+    const { valorTotal, qtdVendas, ticketMedio, variacaoPerc } = kpisData;
+    const pos = variacaoPerc >= 0;
+    return { valorTotal, qtdVendas, ticketMedio, variacaoPerc, pos };
+  }, [kpisData]);
 
   return (
     <div className="pv-page">
       <Banner/>
-      <FilterBar onRefresh={handleRefresh} loading={loading} clients={clients} empresas={empresas} empresasKey={empresasKey}/>
+      <FilterBar
+        onRefresh={fetchAll} loading={loading}
+        clients={clients} empresas={empresas} empresasKey={empresasKey}
+        periodo={periodo} setPeriodo={setPeriodo}
+        empresa={empresa} setEmpresa={setEmpresa}
+        secao={secao}     setSecao={setSecao}
+        grupo={grupo}     setGrupo={setGrupo}
+      />
 
       <div className="pv-body">
 
         {/* KPIs */}
         <Section icon={BarChart2} title="Visão Geral — KPIs">
-          <KpiSection loading={loading}/>
+          <KpiSection loading={loading} kpiReal={kpiCards}/>
         </Section>
 
-        {/* Seção 1: Evolução + Tendência */}
+        {/* Evolução + Tendência */}
         <Section icon={TrendingUp} title="Evolução e Tendência de Vendas">
           <div className="pv-chart-row">
-            <EvolutionChart/>
-            <TrendChart/>
+            <EvolutionChart data={evolucaoChart}/>
+            <TrendChart     data={evolucaoChart}/>
           </div>
         </Section>
 
-        {/* Seção 2: Barras + Waterfall */}
+        {/* Barras + Waterfall */}
         <Section icon={BarChart2} title="Comparativo Mensal e Variação da Receita">
           <div className="pv-chart-row">
-            <BarComparativo/>
+            <BarComparativo data={evolucaoChart?.map(m => ({ mes: m.mes, realizado: m.real, projetado: m.projetado }))}/>
             <WaterfallChart/>
           </div>
         </Section>
 
-        {/* Seção 3: Radar */}
+        {/* Radar */}
         <Section icon={Activity} title="Performance por Categoria">
           <RadarSection/>
         </Section>
 
-        {/* Seção 4: Heatmap */}
+        {/* Heatmap */}
         <Section icon={Zap} title="Mapa de Intensidade das Vendas">
-          <HeatmapSection/>
+          <HeatmapSection data={heatmapData}/>
         </Section>
 
-        {/* Seção 5 + 6: Scatter + Treemap */}
+        {/* Scatter + Treemap */}
         <Section icon={Target} title="Análise de Produtos — Preço, Volume e Participação">
           <div className="pv-chart-row">
             <ScatterSection/>
-            <TreemapSection/>
+            <TreemapSection data={treemapChart}/>
           </div>
         </Section>
 
@@ -1234,9 +1338,9 @@ export default function ProjecaoVendas({ empresasKey, clients = [], empresas = [
           <DescriptiveAnalysis/>
         </Section>
 
-        {/* Ranking */}
-        <Section icon={Star} title="Top Produtos Projetados">
-          <RankingTable/>
+        {/* Ranking / Top Produtos */}
+        <Section icon={Star} title="Top Produtos no Período">
+          <RankingTable data={topProdData}/>
         </Section>
 
         {/* Tabela Analítica */}

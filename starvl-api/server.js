@@ -25,8 +25,9 @@ const metasRoutes         = require('./routes/metas');
 const passwordResetsRoutes = require('./routes/passwordResets');
 const queriesRoutes        = require('./routes/queries');
 const cacheRoutes          = require('./routes/cache');
-const produtoExtraRoutes   = require('./routes/produtoExtra');
-const clienteExtraRoutes   = require('./routes/clienteExtra');
+const produtoExtraRoutes    = require('./routes/produtoExtra');
+const clienteExtraRoutes    = require('./routes/clienteExtra');
+const planejamentoRoutes    = require('./routes/planejamento');
 const { scheduleNightlyJob } = require('./jobs/cacheVerification');
 
 const app = express();
@@ -156,8 +157,9 @@ app.use('/api/metas',          metasRoutes);
 app.use('/api/password-resets', passwordResetsRoutes);
 app.use('/api/queries',        queriesRoutes);
 app.use('/api/cache',          cacheRoutes);
-app.use('/api/produto-extra',  produtoExtraRoutes);
-app.use('/api/cliente-extra',  clienteExtraRoutes);
+app.use('/api/produto-extra',   produtoExtraRoutes);
+app.use('/api/cliente-extra',   clienteExtraRoutes);
+app.use('/api/planejamento',    planejamentoRoutes);
 
 if (fs.existsSync(clientBuildPath)) {
   app.use(express.static(clientBuildPath, {
