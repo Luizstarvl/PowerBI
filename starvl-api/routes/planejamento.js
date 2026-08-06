@@ -741,7 +741,7 @@ router.get('/waterfall', async (req, res) => {
    Query params: empresas
 ────────────────────────────────────────────────────────────────────────────── */
 router.get('/debug', async (req, res) => {
-  const { isEmpresaRegistered, mainPool } = require('../db/poolManager');
+  const { isEmpresaRegistered, mainPool, registerClient } = require('../db/poolManager');
   const empresaList = parseEmpresas(req.query);
   const serverDate = formatDate(new Date());
 
@@ -781,7 +781,38 @@ router.get('/debug', async (req, res) => {
     })
   );
 
-  res.json({ serverDate, mainPoolTemVda, clientes, empresas: results });
+  // Lista todos os databases no servidor (mesmo host do mainPool)
+  let databases = [];
+  let dbComVda   = [];
+  try {
+    const r = await mainPool.query(
+      `SELECT datname FROM pg_catalog.pg_database WHERE datistemplate = false ORDER BY datname`
+    );
+    databases = r.rows.map(row => row.datname);
+
+    // Tenta cada database para ver qual tem vda
+    const { Pool } = require('pg');
+    await Promise.allSettled(databases.map(async dbName => {
+      let pool;
+      try {
+        if (process.env.DATABASE_URL) {
+          const url = new URL(process.env.DATABASE_URL);
+          url.pathname = '/' + dbName;
+          pool = new Pool({ connectionString: url.toString(), ssl: { rejectUnauthorized: false }, max: 1, connectionTimeoutMillis: 3000 });
+        } else {
+          pool = new Pool({ host: process.env.DB_HOST, port: process.env.DB_PORT || 5432, database: dbName, user: process.env.DB_USER, password: process.env.DB_PASSWORD, max: 1, connectionTimeoutMillis: 3000 });
+        }
+        await pool.query("SELECT 1 FROM vda LIMIT 1");
+        dbComVda.push(dbName);
+      } catch (_) {} finally {
+        if (pool) pool.end().catch(() => {});
+      }
+    }));
+  } catch (e) {
+    databases = [{ erro: e.message }];
+  }
+
+  res.json({ serverDate, mainPoolTemVda, clientes, databases, dbComVda, empresas: results });
 });
 
 module.exports = router;
