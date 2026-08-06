@@ -454,6 +454,23 @@ function mapToTopCombust(result) {
 /* ── Banner Top Combustíveis ────────────────────────────────────────────────── */
 const FUEL_COLORS = ['#ff6b00', '#0ea5e9', '#10b981', '#8b5cf6', '#f472b6'];
 
+const FUEL_COLOR_MAP = [
+  { pattern: /etanol/i,               cor: '#22C55E' },
+  { pattern: /gnv|gas natural/i,      cor: '#06B6D4' },
+  { pattern: /gasolina\s+aditivada/i, cor: '#F97316' },
+  { pattern: /gasolina/i,             cor: '#FACC15' },
+  { pattern: /diesel\s+s\s*10/i,      cor: '#2563EB' },
+  { pattern: /diesel\s+s\s*500/i,     cor: '#4B5563' },
+  { pattern: /diesel/i,               cor: '#3B82F6' },
+];
+function getFuelColor(name, fallback) {
+  if (!name) return fallback;
+  for (const { pattern, cor } of FUEL_COLOR_MAP) {
+    if (pattern.test(name)) return cor;
+  }
+  return fallback;
+}
+
 function FuelTypeIcon() {
   return <Fuel size={18} />;
 }
@@ -497,7 +514,7 @@ function TopCombustiveisBanner({ dados, loading }) {
       {eyebrow}
       <div className="tcb-list">
         {dados.map((item, i) => {
-          const color = FUEL_COLORS[i % FUEL_COLORS.length];
+          const color = getFuelColor(item.name, FUEL_COLORS[i % FUEL_COLORS.length]);
           const pct   = maxQty > 0 ? (item.qty / maxQty) * 100 : 0;
           const share = totQty > 0 ? (item.qty / totQty) * 100 : 0;
           return (
