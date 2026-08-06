@@ -5043,7 +5043,7 @@ select.themed-select option {
 /* ── Root ────────────────────────────────────────────────────── */
 .mc3-root {
   display: flex; flex-direction: column; gap: 20px;
-  padding: 0 0 24px;
+  padding: 20px 20px 32px;
   font-family: 'Sora', 'Inter', sans-serif;
 }
 
@@ -5521,7 +5521,7 @@ select.themed-select option {
 
 .pv2-root {
   display: flex; flex-direction: column; gap: 20px;
-  padding: 0 0 24px;
+  padding: 20px 20px 32px;
   font-family: 'Sora', 'Inter', sans-serif;
 }
 
