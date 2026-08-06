@@ -695,7 +695,92 @@ export default function MetasComerciais({ empresasKey, clients, empresas }) {
           onEdit={readonly ? null : openEdit} mesKey={mes}/>
       </div>
 
-      {/* ═══ 4. CHART ROW 70/30 ══════════════════════════════════ */}
+      {/* ═══ 4. METAS POR CATEGORIA ══════════════════════════════ */}
+      <section className="mc3-cat-section">
+        <div className="mc3-cat-head">
+          <div>
+            <div className="mc3-cat-title">Metas por Categoria</div>
+            <div className="mc3-cat-sub">Acompanhe o desempenho por categoria e área de negócio.</div>
+          </div>
+          {!readonly && (
+            <button className="mc3-btn-add-cat" onClick={() => setAddSecao(v => !v)}>
+              <Plus size={13}/> Adicionar Seção
+            </button>
+          )}
+        </div>
+
+        {addSecao && !readonly && (
+          <div className="mc2-add-row" style={{ marginBottom: 4 }}>
+            <CustomSelect options={secoesLivres} value={novaSecao.secao}
+              onChange={v => setNovaSecao(f => ({ ...f, secao: v }))} placeholder="Selecione a seção"/>
+            <input className="mc-input mc-input-sm" type="number" min="0" placeholder="Meta R$"
+              value={novaSecao.faturamento}
+              onChange={e => setNovaSecao(f => ({ ...f, faturamento: e.target.value }))}/>
+            <button className="mc-btn-save-sm" onClick={handleSaveSecao} disabled={savingSecao}>
+              {savingSecao ? <RefreshCw size={12} className="spin"/> : <Save size={12}/>}
+            </button>
+            <button className="mc-btn-cancel-sm" onClick={() => setAddSecao(false)}><X size={12}/></button>
+          </div>
+        )}
+
+        {metasSecao.length === 0 && secoesLivres.length === 0 && !addSecao ? (
+          <div className="mc3-cat-empty">
+            <Target size={36} style={{ opacity: 0.2 }}/>
+            <p>Nenhuma categoria disponível.</p>
+          </div>
+        ) : (
+          <div className="mc3-cat-scroll">
+            {metasSecao.map((s, i) => {
+              const cor     = CAT_COLORS[i % CAT_COLORS.length];
+              const CatIcon = CAT_ICONS[i % CAT_ICONS.length];
+              const pct     = s.progresso;
+              return (
+                <div key={s.id} className="mc3-cat-card" style={{ '--cat-cor': cor }}>
+                  <div className="mc3-cat-card-top"/>
+                  <div className="mc3-cat-icon" style={{ background: `${cor}18`, color: cor }}>
+                    <CatIcon size={16}/>
+                  </div>
+                  <div className="mc3-cat-nome">{s.secao}</div>
+                  <div className="mc3-cat-realizado" style={{ color: cor }}>{fmtK(s.realizado)}</div>
+                  <div className="mc3-cat-meta">Meta: {fmtK(s.meta)}</div>
+                  <div className="mc3-cat-bar-track">
+                    <div className="mc3-cat-bar-fill" style={{ width: `${Math.min(100, pct || 0)}%`, background: pColor(pct) }}/>
+                  </div>
+                  <div className="mc3-cat-footer">
+                    <span className="mc3-cat-pct" style={{ color: pColor(pct) }}>
+                      {pct != null ? `${pct.toFixed(1)}%` : '—'}
+                    </span>
+                    {!readonly && (
+                      <button className="mc3-cat-del" onClick={() => handleDeleteSecao(s.id)}>
+                        <Trash2 size={11}/>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+            {!readonly && secoesLivres.slice(0, 5).map((s, i) => {
+              const idx     = (metasSecao.length + i) % CAT_COLORS.length;
+              const cor     = CAT_COLORS[idx];
+              const CatIcon = CAT_ICONS[idx % CAT_ICONS.length];
+              return (
+                <div key={s} className="mc3-cat-card mc3-cat-card--ghost" style={{ '--cat-cor': cor }}>
+                  <div className="mc3-cat-icon" style={{ background: `${cor}0D`, color: cor, opacity: 0.5 }}>
+                    <CatIcon size={16}/>
+                  </div>
+                  <div className="mc3-cat-nome" style={{ opacity: 0.5 }}>{s}</div>
+                  <div className="mc3-cat-no-meta">Sem meta definida</div>
+                  <button className="mc3-cat-add-btn" onClick={openEdit}>
+                    <Plus size={11}/> Definir meta
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
+      {/* ═══ 5. CHART ROW 70/30 ══════════════════════════════════ */}
       <div className="mc3-main-row">
         {/* Chart 70% */}
         <div className="mc3-chart-card">
@@ -783,97 +868,6 @@ export default function MetasComerciais({ empresasKey, clients, empresas }) {
           </div>
         </div>
       </div>
-
-      {/* ═══ 5. METAS POR CATEGORIA ══════════════════════════════ */}
-      <section className="mc3-cat-section">
-        <div className="mc3-cat-head">
-          <div>
-            <div className="mc3-cat-title">Metas por Categoria</div>
-            <div className="mc3-cat-sub">Acompanhe o desempenho por categoria e área de negócio.</div>
-          </div>
-          {!readonly && (
-            <button className="mc3-btn-add-cat" onClick={() => setAddSecao(v => !v)}>
-              <Plus size={13}/> Adicionar Seção
-            </button>
-          )}
-        </div>
-
-        {/* Form de nova seção */}
-        {addSecao && !readonly && (
-          <div className="mc2-add-row" style={{ marginBottom: 4 }}>
-            <CustomSelect options={secoesLivres} value={novaSecao.secao}
-              onChange={v => setNovaSecao(f => ({ ...f, secao: v }))} placeholder="Selecione a seção"/>
-            <input className="mc-input mc-input-sm" type="number" min="0" placeholder="Meta R$"
-              value={novaSecao.faturamento}
-              onChange={e => setNovaSecao(f => ({ ...f, faturamento: e.target.value }))}/>
-            <button className="mc-btn-save-sm" onClick={handleSaveSecao} disabled={savingSecao}>
-              {savingSecao ? <RefreshCw size={12} className="spin"/> : <Save size={12}/>}
-            </button>
-            <button className="mc-btn-cancel-sm" onClick={() => setAddSecao(false)}><X size={12}/></button>
-          </div>
-        )}
-
-        {/* Cards de seções */}
-        {metasSecao.length === 0 && secoesLivres.length === 0 && !addSecao ? (
-          <div className="mc3-cat-empty">
-            <Target size={36} style={{ opacity: 0.2 }}/>
-            <p>Nenhuma categoria disponível.</p>
-          </div>
-        ) : (
-          <div className="mc3-cat-scroll">
-            {/* Com meta */}
-            {metasSecao.map((s, i) => {
-              const cor     = CAT_COLORS[i % CAT_COLORS.length];
-              const CatIcon = CAT_ICONS[i % CAT_ICONS.length];
-              const pct     = s.progresso;
-              return (
-                <div key={s.id} className="mc3-cat-card" style={{ '--cat-cor': cor }}>
-                  <div className="mc3-cat-card-top"/>
-                  <div className="mc3-cat-icon" style={{ background: `${cor}18`, color: cor }}>
-                    <CatIcon size={16}/>
-                  </div>
-                  <div className="mc3-cat-nome">{s.secao}</div>
-                  <div className="mc3-cat-realizado" style={{ color: cor }}>
-                    {fmtK(s.realizado)}
-                  </div>
-                  <div className="mc3-cat-meta">Meta: {fmtK(s.meta)}</div>
-                  <div className="mc3-cat-bar-track">
-                    <div className="mc3-cat-bar-fill" style={{ width: `${Math.min(100, pct || 0)}%`, background: pColor(pct) }}/>
-                  </div>
-                  <div className="mc3-cat-footer">
-                    <span className="mc3-cat-pct" style={{ color: pColor(pct) }}>
-                      {pct != null ? `${pct.toFixed(1)}%` : '—'}
-                    </span>
-                    {!readonly && (
-                      <button className="mc3-cat-del" onClick={() => handleDeleteSecao(s.id)}>
-                        <Trash2 size={11}/>
-                      </button>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-            {/* Sem meta — ghost cards */}
-            {!readonly && secoesLivres.slice(0, 5).map((s, i) => {
-              const idx     = (metasSecao.length + i) % CAT_COLORS.length;
-              const cor     = CAT_COLORS[idx];
-              const CatIcon = CAT_ICONS[idx % CAT_ICONS.length];
-              return (
-                <div key={s} className="mc3-cat-card mc3-cat-card--ghost" style={{ '--cat-cor': cor }}>
-                  <div className="mc3-cat-icon" style={{ background: `${cor}0D`, color: cor, opacity: 0.5 }}>
-                    <CatIcon size={16}/>
-                  </div>
-                  <div className="mc3-cat-nome" style={{ opacity: 0.5 }}>{s}</div>
-                  <div className="mc3-cat-no-meta">Sem meta definida</div>
-                  <button className="mc3-cat-add-btn" onClick={openEdit}>
-                    <Plus size={11}/> Definir meta
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </section>
 
       {/* ═══ 6. FOOTER DICA ══════════════════════════════════════ */}
       <div className="mc3-footer">
