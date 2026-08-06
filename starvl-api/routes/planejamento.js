@@ -736,6 +736,20 @@ router.get('/waterfall', async (req, res) => {
   }
 });
 
+/* ── POST /api/planejamento/reload-pools ─────────────────────────────────────
+   Força recarregar todos os pools sem reiniciar o servidor.
+   Útil após cadastrar uma nova conexão no gerenciador de conexões.
+────────────────────────────────────────────────────────────────────────────── */
+router.post('/reload-pools', async (req, res) => {
+  try {
+    const { loadConnections } = require('../db/poolManager');
+    const total = await loadConnections();
+    res.json({ ok: true, pools: total, msg: `${total} conexão(ões) recarregada(s)` });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
 /* ── GET /api/planejamento/debug ─────────────────────────────────────────────
    Diagnóstico: mostra datas mín/máx de vda, data do servidor e empresas registradas
    Query params: empresas

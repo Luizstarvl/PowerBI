@@ -58,19 +58,25 @@ function buildConfig(dbName, host, port, dbUser, dbPass) {
  * @param {{ codigoEmpresa, dbName, host?, port?, dbUser?, dbPass? }} opts
  */
 function registerClient({ codigoEmpresa, dbName, host, port, dbUser, dbPass }) {
-  if (!dbPools.has(dbName)) {
+  if (!dbName) {
+    console.warn(`[poolManager] empresa ${codigoEmpresa} sem sc_banco configurado — ignorando`);
+    return;
+  }
+  // Chave única considera host+porta+banco (evita colisão entre servidores diferentes)
+  const poolKey = host ? `${host}:${port || 5432}/${dbName}` : dbName;
+  if (!dbPools.has(poolKey)) {
     const cfg  = buildConfig(dbName, host, port, dbUser, dbPass);
     const pool = new Pool(cfg);
     pool.on('error', err =>
-      console.error(`[poolManager][${dbName}] erro inesperado:`, err.message));
-    dbPools.set(dbName, pool);
-    console.log(`[poolManager] pool criado para banco "${dbName}"`);
+      console.error(`[poolManager][${poolKey}] erro inesperado:`, err.message));
+    dbPools.set(poolKey, pool);
+    console.log(`[poolManager] pool criado: "${poolKey}"`);
   }
   empresaMap.set(String(codigoEmpresa), {
-    dbName,
-    pool: dbPools.get(dbName),
+    dbName: poolKey,
+    pool:   dbPools.get(poolKey),
   });
-  console.log(`[poolManager] empresa ${codigoEmpresa} → banco "${dbName}"`);
+  console.log(`[poolManager] empresa ${codigoEmpresa} → "${poolKey}"`);
 }
 
 /**
@@ -115,15 +121,80 @@ function queryFor(codigoEmpresa) {
 
 // ── Inicialização: carrega clientes salvos no banco de gestão ─────────────────
 
+/**
+ * Carrega conexões de starvl_clients (legado) e starvl_connections (novo).
+ * Pode ser chamada no startup ou depois via /api/planejamento/reload-pools.
+ */
+async function loadConnections() {
+  let total = 0;
+
+  // 1. starvl_clients legado — apenas linhas com sc_banco preenchido
+  try {
+    const { rows } = await mainPool.query(
+      `SELECT sc_codigo, sc_banco, sc_host, sc_port, sc_user, sc_pass
+       FROM starvl_clients
+       WHERE sc_banco IS NOT NULL AND sc_banco <> ''`
+    );
+    for (const r of rows) {
+      registerClient({
+        codigoEmpresa: r.sc_codigo,
+        dbName:  r.sc_banco,
+        host:    r.sc_host || null,
+        port:    r.sc_port || null,
+        dbUser:  r.sc_user || null,
+        dbPass:  r.sc_pass || null,
+      });
+      total++;
+    }
+    console.log(`[poolManager] starvl_clients: ${rows.length} entrada(s)`);
+  } catch (e) {
+    console.error('[poolManager] erro ao ler starvl_clients:', e.message);
+  }
+
+  // 2. starvl_connections (gerenciador de conexões do app)
+  try {
+    const { rows } = await mainPool.query(`
+      SELECT
+        c.sc_servidor  AS host,
+        c.sc_porta     AS port,
+        c.sc_banco     AS banco,
+        c.sc_usuario   AS usuario,
+        c.sc_senha     AS senha,
+        cl.sc_codigo   AS codigo_empresa
+      FROM starvl_connections c
+      JOIN starvl_connection_empresas sce ON sce.sce_conexao_id = c.sc_id
+      JOIN starvl_clients cl             ON cl.sc_id            = sce.sce_empresa_id
+      WHERE c.sc_banco IS NOT NULL AND c.sc_servidor IS NOT NULL
+    `);
+    for (const r of rows) {
+      registerClient({
+        codigoEmpresa: r.codigo_empresa,
+        dbName:  r.banco,
+        host:    r.host    || null,
+        port:    r.port    || null,
+        dbUser:  r.usuario || null,
+        dbPass:  r.senha   || null,
+      });
+      total++;
+    }
+    console.log(`[poolManager] starvl_connections: ${rows.length} entrada(s)`);
+  } catch (e) {
+    // A tabela pode não existir ainda
+    console.log('[poolManager] starvl_connections não disponível:', e.message);
+  }
+
+  return total;
+}
+
 async function initialize() {
   try {
-    // Garante que a tabela de clientes existe
+    // Garante que a tabela de clientes existe (permite sc_banco NULL)
     await mainPool.query(`
       CREATE TABLE IF NOT EXISTS starvl_clients (
         sc_id           SERIAL       PRIMARY KEY,
         sc_nome         VARCHAR(200) NOT NULL,
         sc_codigo       INTEGER      NOT NULL UNIQUE,
-        sc_banco        VARCHAR(200) NOT NULL,
+        sc_banco        VARCHAR(200),
         sc_host         VARCHAR(200),
         sc_port         INTEGER,
         sc_user         VARCHAR(200),
@@ -131,6 +202,10 @@ async function initialize() {
         sc_criado       TIMESTAMPTZ  DEFAULT NOW()
       )
     `);
+    // Permite NULL caso a coluna tenha sido criada com NOT NULL antes
+    await mainPool.query(
+      `ALTER TABLE starvl_clients ALTER COLUMN sc_banco DROP NOT NULL`
+    ).catch(() => {});
 
     // Seed: se não houver nenhum cliente, cria o padrão a partir do .env
     const { rows: count } = await mainPool.query('SELECT COUNT(*) AS n FROM starvl_clients');
@@ -144,21 +219,8 @@ async function initialize() {
       console.log(`[poolManager] cliente padrão seedado: "${defaultNome}" (empresa ${defaultEmpresa})`);
     }
 
-    // Carrega todos os clientes e registra os pools
-    const { rows } = await mainPool.query(
-      `SELECT sc_codigo, sc_banco, sc_host, sc_port, sc_user, sc_pass FROM starvl_clients`
-    );
-    for (const r of rows) {
-      registerClient({
-        codigoEmpresa: r.sc_codigo,
-        dbName:  r.sc_banco,
-        host:    r.sc_host   || null,
-        port:    r.sc_port   || null,
-        dbUser:  r.sc_user   || null,
-        dbPass:  r.sc_pass   || null,
-      });
-    }
-    console.log(`[poolManager] ${rows.length} cliente(s) carregado(s)`);
+    const total = await loadConnections();
+    console.log(`[poolManager] inicializado com ${total} pool(s)`);
   } catch (err) {
     console.error('[poolManager] falha na inicialização:', err.message);
   }
@@ -166,6 +228,7 @@ async function initialize() {
 
 module.exports = {
   initialize,
+  loadConnections,
   registerClient,
   unregisterClient,
   getPoolByEmpresa,
