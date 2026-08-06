@@ -1187,9 +1187,9 @@ router.get('/performance', async (req, res) => {
            prod.prodresumo                                     AS nome,
            COALESCE(spro.sprodescricao, 'Sem seção')          AS secao,
            COALESCE(SUM(vdit.vdittotal), 0)                   AS faturamento,
-           COALESCE(SUM(vdit.vditquantidade), 0)              AS quantidade,
+           COALESCE(SUM(vdit.vditqtd), 0)              AS quantidade,
            COALESCE(SUM(vdit.vdittotal), 0)
-             / NULLIF(SUM(vdit.vditquantidade), 0)            AS preco_medio
+             / NULLIF(SUM(vdit.vditqtd), 0)            AS preco_medio
          FROM vdit
          JOIN vda  ON vda.vdacodigo   = vdit.vditcodigovda
                   AND vda.vdaempresa  = vdit.vditempresa
@@ -1211,7 +1211,7 @@ router.get('/performance', async (req, res) => {
            COALESCE(spro.sprodescricao, 'Sem seção')  AS secao,
            COALESCE(SUM(vdit.vdittotal), 0)           AS faturamento,
            COUNT(DISTINCT vda.vdacodigo)              AS qtd_vendas,
-           COALESCE(SUM(vdit.vditquantidade), 0)      AS quantidade
+           COALESCE(SUM(vdit.vditqtd), 0)      AS quantidade
          FROM vdit
          JOIN vda  ON vda.vdacodigo   = vdit.vditcodigovda
                   AND vda.vdaempresa  = vdit.vditempresa
