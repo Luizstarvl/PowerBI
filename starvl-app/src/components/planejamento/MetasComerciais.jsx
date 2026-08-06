@@ -589,7 +589,61 @@ export default function MetasComerciais({ empresasKey, clients, empresas }) {
   return (
     <div className="mc3-root">
 
-      {/* ═══ 1. HEADER ══════════════════════════════════════════ */}
+      {/* ═══ 1. HERO BANNER ═════════════════════════════════════ */}
+      <section className="mc3-hero">
+        {/* Left: copy + CTA */}
+        <div className="mc3-hero-copy">
+          <div className="mc3-hero-badge">
+            <Sparkles size={11}/> ECLIPSE BI · METAS
+          </div>
+          <h1 className="mc3-hero-title">
+            Transforme metas<br/>
+            em <span className="mc3-orange">resultados.</span>
+          </h1>
+          <p className="mc3-hero-sub">
+            Defina objetivos de faturamento, quantidade de vendas e ticket médio.<br/>
+            Acompanhe diariamente o desempenho através de indicadores inteligentes.
+          </p>
+        </div>
+
+        {/* Center: config progress */}
+        <div className="mc3-hero-config">
+          <div className="mc3-config-label">Progresso de configuração</div>
+          <div className="mc3-config-pct" style={{ color: configPct === 100 ? GREEN : ORANGE }}>
+            {configPct}%
+          </div>
+          <div className="mc3-config-track">
+            <div className="mc3-config-fill" style={{ width: `${configPct}%` }}/>
+          </div>
+          <div className="mc3-config-items">
+            {[
+              { label: 'Faturamento', val: meta.faturamento },
+              { label: 'Qtd Vendas',  val: meta.quantidade  },
+              { label: 'Ticket Médio',val: meta.ticketMedio },
+            ].map(({ label, val }) => (
+              <div key={label} className="mc3-config-item">
+                <span className={`mc3-config-dot ${val != null ? 'mc3-config-dot--ok' : ''}`}/>
+                <span>{label}</span>
+                <span style={{ color: val != null ? GREEN : '#4B5563', marginLeft: 'auto', fontSize: 11 }}>
+                  {val != null ? '✓' : '—'}
+                </span>
+              </div>
+            ))}
+          </div>
+          {!readonly && configPct < 100 && (
+            <button className="mc3-config-cta" onClick={openEdit}>
+              Configure suas metas →
+            </button>
+          )}
+        </div>
+
+        {/* Right: SVG illustration */}
+        <div className="mc3-hero-art-wrap">
+          <HeroArt/>
+        </div>
+      </section>
+
+      {/* ═══ 2. HEADER ══════════════════════════════════════════ */}
       <header className="mc3-header">
         {/* Period selector */}
         <div className="mc3-period">
@@ -631,67 +685,6 @@ export default function MetasComerciais({ empresasKey, clients, empresas }) {
           }
         </div>
       </header>
-
-      {/* ═══ 2. HERO BANNER ═════════════════════════════════════ */}
-      <section className="mc3-hero">
-        {/* Left: copy + CTA */}
-        <div className="mc3-hero-copy">
-          <div className="mc3-hero-badge">
-            <Sparkles size={11}/> ECLIPSE BI · METAS
-          </div>
-          <h1 className="mc3-hero-title">
-            Transforme metas<br/>
-            em <span className="mc3-orange">resultados.</span>
-          </h1>
-          <p className="mc3-hero-sub">
-            Defina objetivos de faturamento, quantidade de vendas e ticket médio.<br/>
-            Acompanhe diariamente o desempenho através de indicadores inteligentes.
-          </p>
-          {!readonly && (
-            <div className="mc3-hero-actions">
-              <button className="mc3-btn-def mc3-hero-cta" onClick={openEdit}>
-                <Target size={14}/> {temMeta ? 'Editar Metas' : 'Começar agora'}
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Center: config progress */}
-        <div className="mc3-hero-config">
-          <div className="mc3-config-label">Progresso de configuração</div>
-          <div className="mc3-config-pct" style={{ color: configPct === 100 ? GREEN : ORANGE }}>
-            {configPct}%
-          </div>
-          <div className="mc3-config-track">
-            <div className="mc3-config-fill" style={{ width: `${configPct}%` }}/>
-          </div>
-          <div className="mc3-config-items">
-            {[
-              { label: 'Faturamento', val: meta.faturamento },
-              { label: 'Qtd Vendas',  val: meta.quantidade  },
-              { label: 'Ticket Médio',val: meta.ticketMedio },
-            ].map(({ label, val }) => (
-              <div key={label} className="mc3-config-item">
-                <span className={`mc3-config-dot ${val != null ? 'mc3-config-dot--ok' : ''}`}/>
-                <span>{label}</span>
-                <span style={{ color: val != null ? GREEN : '#4B5563', marginLeft: 'auto', fontSize: 11 }}>
-                  {val != null ? '✓' : '—'}
-                </span>
-              </div>
-            ))}
-          </div>
-          {!readonly && configPct < 100 && (
-            <button className="mc3-config-cta" onClick={openEdit}>
-              Configure suas metas →
-            </button>
-          )}
-        </div>
-
-        {/* Right: SVG illustration */}
-        <div className="mc3-hero-art-wrap">
-          <HeroArt/>
-        </div>
-      </section>
 
       {/* ═══ 3. KPI CARDS ═══════════════════════════════════════ */}
       <div className="mc3-kpi-grid">
