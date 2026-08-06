@@ -1360,4 +1360,273 @@ router.get('/performance', async (req, res) => {
   }
 });
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   ANÁLISE DE MARGEM E MARKUP
+   GET /api/planejamento/margem
+   Query params: empresa, periodo (Hoje|Semana|Mês|Ano), margemMinima (default 20)
+═══════════════════════════════════════════════════════════════════════════ */
+router.get('/margem', async (req, res) => {
+  const empresa      = parseInt(req.query.empresa);
+  if (!empresa) return res.status(400).json({ error: 'empresa é obrigatório' });
+
+  const periodo      = req.query.periodo      || 'Mês';
+  const margemMinima = parseFloat(req.query.margemMinima) || 20;
+
+  const { dataInicio, dataFim } = periodoToDates(periodo);
+
+  // Período anterior de mesmo comprimento
+  const dias   = Math.max(1, Math.round((new Date(dataFim) - new Date(dataInicio)) / 86400000));
+  const antFim = new Date(dataInicio); antFim.setDate(antFim.getDate() - 1);
+  const antIni = new Date(antFim);     antIni.setDate(antFim.getDate() - dias + 1);
+  const antInicio = formatDate(antIni);
+  const antFimFmt = formatDate(antFim);
+
+  const query = queryFor(empresa);
+
+  // SQL base: vende por produto com custo de e_prod
+  const sqlProdutos = (di, df) => `
+    SELECT
+      prod.prodcodigo                                                     AS codigo,
+      prod.prodresumo                                                     AS produto,
+      COALESCE(spro.sprodescricao, 'Sem Categoria')                      AS categoria,
+      COALESCE(gpro.gprodescricao, 'Sem Grupo')                          AS grupo,
+      COALESCE(part.partrazao, 'Sem Fornecedor')                         AS fornecedor,
+      COALESCE(ep.e_prodv1, 0)                                           AS preco_atual,
+      COALESCE(ep.e_prodcusto, 0)                                        AS custo_atual,
+      COALESCE(SUM(vdit.vdittotal), 0)                                   AS receita,
+      COALESCE(SUM(vdit.vditqtd), 0)                                     AS quantidade,
+      COALESCE(SUM(vdit.vdittotal) / NULLIF(SUM(vdit.vditqtd), 0), 0)   AS preco_medio_venda,
+      COALESCE(ep.e_prodcusto, 0)                                        AS custo_medio,
+      COALESCE(
+        SUM(vdit.vdittotal) - SUM(vdit.vditqtd) * COALESCE(ep.e_prodcusto, 0),
+        0
+      )                                                                   AS lucro,
+      CASE
+        WHEN SUM(vdit.vdittotal) > 0 AND ep.e_prodcusto IS NOT NULL
+        THEN (SUM(vdit.vdittotal) - SUM(vdit.vditqtd) * ep.e_prodcusto)
+              / NULLIF(SUM(vdit.vdittotal), 0) * 100
+        ELSE NULL
+      END                                                                 AS margem,
+      CASE
+        WHEN ep.e_prodcusto > 0 AND SUM(vdit.vdittotal) > 0
+        THEN (SUM(vdit.vdittotal) - SUM(vdit.vditqtd) * ep.e_prodcusto)
+              / NULLIF(SUM(vdit.vditqtd) * ep.e_prodcusto, 0) * 100
+        ELSE NULL
+      END                                                                 AS markup
+    FROM vdit
+    JOIN vda  ON vda.vdacodigo  = vdit.vditcodigovda
+             AND vda.vdaempresa = vdit.vditempresa
+    JOIN prod ON prod.prodcodigo = vdit.vditproduto
+    LEFT JOIN e_prod ep  ON ep.e_prodproduto = prod.prodcodigo
+                        AND ep.e_prodempresa  = vdit.vditempresa
+    LEFT JOIN spro ON spro.sprocodigo = prod.prodsecao
+    LEFT JOIN gpro ON gpro.gprocodigo = prod.prodgrupo
+                  AND gpro.gprosecao  = prod.prodsecao
+    LEFT JOIN part ON part.partcodigo = prod.prodfornecedor
+    WHERE vdit.vditempresa = $1
+      AND vda.vdamovimento >= '${di}'
+      AND vda.vdamovimento <= '${df}'
+      AND (vda.vdastatus IS NULL OR vda.vdastatus = 0)
+    GROUP BY
+      prod.prodcodigo, prod.prodresumo,
+      spro.sprodescricao, gpro.gprodescricao, part.partrazao,
+      ep.e_prodv1, ep.e_prodcusto
+    ORDER BY lucro DESC`;
+
+  const sqlEvolucao = `
+    SELECT
+      TO_CHAR(DATE_TRUNC('month', vda.vdamovimento), 'YYYY-MM') AS mes,
+      COALESCE(SUM(vdit.vdittotal), 0)                           AS receita,
+      COALESCE(SUM(vdit.vditqtd * COALESCE(ep.e_prodcusto, 0)), 0) AS custo_total,
+      COALESCE(SUM(vdit.vdittotal) - SUM(vdit.vditqtd * COALESCE(ep.e_prodcusto, 0)), 0) AS lucro
+    FROM vdit
+    JOIN vda  ON vda.vdacodigo  = vdit.vditcodigovda
+             AND vda.vdaempresa = vdit.vditempresa
+    JOIN prod ON prod.prodcodigo = vdit.vditproduto
+    LEFT JOIN e_prod ep ON ep.e_prodproduto = prod.prodcodigo
+                       AND ep.e_prodempresa  = vdit.vditempresa
+    WHERE vdit.vditempresa = $1
+      AND vda.vdamovimento >= (DATE_TRUNC('month', CURRENT_DATE) - INTERVAL '5 months')
+      AND vda.vdamovimento <= CURRENT_DATE
+      AND (vda.vdastatus IS NULL OR vda.vdastatus = 0)
+    GROUP BY DATE_TRUNC('month', vda.vdamovimento)
+    ORDER BY mes`;
+
+  try {
+    const [prodAtual, prodAnt, evolRows] = await Promise.all([
+      query(sqlProdutos(dataInicio, dataFim),   [empresa]),
+      query(sqlProdutos(antInicio, antFimFmt),  [empresa]),
+      query(sqlEvolucao, [empresa]),
+    ]);
+
+    const rows    = prodAtual.rows;
+    const rowsAnt = prodAnt.rows;
+
+    // ── KPIs agregados ───────────────────────────────────────────
+    const receitaTotal = rows.reduce((s, r) => s + parseFloat(r.receita || 0), 0);
+    const custoTotal   = rows.reduce((s, r) => s + parseFloat(r.custo_medio || 0) * parseFloat(r.quantidade || 0), 0);
+    const lucroTotal   = receitaTotal - custoTotal;
+    const margemMedia  = receitaTotal > 0 ? lucroTotal / receitaTotal * 100 : 0;
+    const markupMedio  = custoTotal   > 0 ? lucroTotal / custoTotal   * 100 : 0;
+    const abaixoMin    = rows.filter(r => r.margem != null && parseFloat(r.margem) < margemMinima).length;
+
+    // Período anterior
+    const recAnt  = rowsAnt.reduce((s, r) => s + parseFloat(r.receita || 0), 0);
+    const custAnt = rowsAnt.reduce((s, r) => s + parseFloat(r.custo_medio || 0) * parseFloat(r.quantidade || 0), 0);
+    const lucAnt  = recAnt - custAnt;
+    const margAnt = recAnt > 0 ? lucAnt / recAnt * 100 : 0;
+    const mkpAnt  = custAnt > 0 ? lucAnt / custAnt * 100 : 0;
+
+    function d(a, b) { return b !== 0 ? parseFloat(((a - b) / Math.abs(b) * 100).toFixed(1)) : null; }
+
+    // ── Margem por categoria ──────────────────────────────────────
+    const byCategoria = {};
+    rows.forEach(r => {
+      const k = r.categoria;
+      if (!byCategoria[k]) byCategoria[k] = { receita: 0, custo: 0, lucro: 0 };
+      byCategoria[k].receita += parseFloat(r.receita || 0);
+      byCategoria[k].custo   += parseFloat(r.custo_medio || 0) * parseFloat(r.quantidade || 0);
+      byCategoria[k].lucro   += parseFloat(r.lucro || 0);
+    });
+    const margemCategoria = Object.entries(byCategoria)
+      .map(([cat, v]) => ({
+        categoria: cat,
+        receita:   v.receita,
+        lucro:     v.lucro,
+        margem:    v.receita > 0 ? v.lucro / v.receita * 100 : 0,
+      }))
+      .sort((a, b) => b.margem - a.margem);
+
+    // ── Margem por grupo ──────────────────────────────────────────
+    const byGrupo = {};
+    rows.forEach(r => {
+      const k = r.grupo;
+      if (!byGrupo[k]) byGrupo[k] = { lucro: 0, receita: 0 };
+      byGrupo[k].lucro   += parseFloat(r.lucro || 0);
+      byGrupo[k].receita += parseFloat(r.receita || 0);
+    });
+    const lucroGrupo = Object.entries(byGrupo)
+      .map(([grupo, v]) => ({ grupo, lucro: v.lucro, receita: v.receita }))
+      .sort((a, b) => b.lucro - a.lucro);
+
+    // ── Rankings ──────────────────────────────────────────────────
+    const topLucrativos = [...rows]
+      .sort((a, b) => parseFloat(b.lucro || 0) - parseFloat(a.lucro || 0))
+      .slice(0, 10)
+      .map(r => ({
+        produto:    r.produto,
+        lucro:      parseFloat(r.lucro     || 0),
+        margem:     r.margem != null ? parseFloat(r.margem) : null,
+        markup:     r.markup != null ? parseFloat(r.markup) : null,
+        quantidade: parseFloat(r.quantidade || 0),
+        receita:    parseFloat(r.receita   || 0),
+      }));
+
+    const menoresMargens = [...rows]
+      .filter(r => r.margem != null && parseFloat(r.receita || 0) > 0)
+      .sort((a, b) => parseFloat(a.margem) - parseFloat(b.margem))
+      .slice(0, 10)
+      .map(r => ({
+        produto:    r.produto,
+        margem:     parseFloat(r.margem),
+        markup:     r.markup != null ? parseFloat(r.markup) : null,
+        preco:      parseFloat(r.preco_medio_venda || 0),
+        custo:      parseFloat(r.custo_medio || 0),
+        diferenca:  parseFloat(r.preco_medio_venda || 0) - parseFloat(r.custo_medio || 0),
+      }));
+
+    // ── Scatter: Margem x Faturamento ────────────────────────────
+    const scatter = rows
+      .filter(r => r.margem != null && parseFloat(r.receita || 0) > 0)
+      .map(r => ({
+        produto:  r.produto,
+        receita:  parseFloat(r.receita || 0),
+        margem:   parseFloat(r.margem),
+        lucro:    parseFloat(r.lucro   || 0),
+        categoria: r.categoria,
+      }));
+
+    // ── Donut: participação no lucro por categoria ─────────────────
+    const donutLucro = margemCategoria
+      .filter(c => c.lucro > 0)
+      .slice(0, 6)
+      .map(c => ({ name: c.categoria, value: parseFloat(c.lucro.toFixed(2)) }));
+
+    // ── Evolução mensal ───────────────────────────────────────────
+    const MESES_ABREV = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+    const evolucao = evolRows.rows.map(r => {
+      const [ano, m] = r.mes.split('-').map(Number);
+      const rec  = parseFloat(r.receita    || 0);
+      const cust = parseFloat(r.custo_total|| 0);
+      const luc  = parseFloat(r.lucro      || 0);
+      return {
+        mes:       MESES_ABREV[m - 1],
+        mesKey:    r.mes,
+        receita:   rec,
+        custo:     cust,
+        lucro:     luc,
+        margem:    rec > 0 ? parseFloat((luc / rec * 100).toFixed(2)) : 0,
+      };
+    });
+
+    // ── Alertas inteligentes ──────────────────────────────────────
+    const alertas = [];
+    if (abaixoMin > 0) alertas.push({ tipo: 'erro',    msg: `${abaixoMin} produto(s) abaixo da margem mínima de ${margemMinima}%.` });
+    if (margemMedia > margAnt && margAnt > 0) alertas.push({ tipo: 'sucesso', msg: `Margem média subiu ${d(margemMedia, margAnt)}% em relação ao período anterior.` });
+    if (margemMedia < margAnt && margAnt > 0) alertas.push({ tipo: 'atencao', msg: `Margem média caiu ${Math.abs(d(margemMedia, margAnt))}% em relação ao período anterior.` });
+    if (lucroTotal > lucAnt && lucAnt > 0)    alertas.push({ tipo: 'sucesso', msg: `Lucro bruto cresceu ${d(lucroTotal, lucAnt)}% vs período anterior.` });
+    if (margemCategoria.length > 0) {
+      const top = margemCategoria[0];
+      alertas.push({ tipo: 'info', msg: `Categoria "${top.categoria}" possui a maior margem: ${top.margem.toFixed(1)}%.` });
+    }
+    const menorMargem = menoresMargens[0];
+    if (menorMargem) alertas.push({ tipo: 'atencao', msg: `Produto "${menorMargem.produto}" possui a menor margem: ${menorMargem.margem.toFixed(1)}%.` });
+
+    // ── Tabela completa ───────────────────────────────────────────
+    const tabela = rows.map(r => ({
+      produto:     r.produto,
+      grupo:       r.grupo,
+      categoria:   r.categoria,
+      fornecedor:  r.fornecedor,
+      custoMedio:  parseFloat(r.custo_medio        || 0),
+      precoMedio:  parseFloat(r.preco_medio_venda  || 0),
+      receita:     parseFloat(r.receita            || 0),
+      quantidade:  parseFloat(r.quantidade         || 0),
+      lucro:       parseFloat(r.lucro              || 0),
+      margem:      r.margem != null ? parseFloat(r.margem) : null,
+      markup:      r.markup != null ? parseFloat(r.markup) : null,
+    }));
+
+    res.json({
+      periodo:      { dataInicio, dataFim, label: periodo },
+      margemMinima,
+      kpis: {
+        margemMedia:  parseFloat(margemMedia.toFixed(2)),
+        markupMedio:  parseFloat(markupMedio.toFixed(2)),
+        lucroBruto:   lucroTotal,
+        receitaTotal,
+        custoTotal,
+        abaixoMin,
+        deltaMargemMedia: d(margemMedia,  margAnt),
+        deltaMarkupMedio: d(markupMedio,  mkpAnt),
+        deltaLucro:       d(lucroTotal,   lucAnt),
+        deltaReceita:     d(receitaTotal, recAnt),
+        deltaCusto:       d(custoTotal,   custAnt),
+      },
+      margemCategoria,
+      lucroGrupo,
+      topLucrativos,
+      menoresMargens,
+      scatter,
+      donutLucro,
+      evolucao,
+      alertas,
+      tabela,
+    });
+  } catch (err) {
+    console.error('[planejamento/margem]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

@@ -6,6 +6,7 @@ import {
 import ProjecaoVendas     from '../components/planejamento/ProjecaoVendas';
 import MetasComerciais    from '../components/planejamento/MetasComerciais';
 import PerformanceVendas  from '../components/planejamento/PerformanceVendas';
+import MargemMarkup       from '../components/planejamento/MargemMarkup';
 
 /* ── Definição dos módulos ─────────────────────────────────────
    Adicione novos módulos aqui no futuro.
@@ -28,6 +29,15 @@ const MODULOS = [
     Icon: Target,
     cor: '#60A5FA',
     tags: ['KPIs', 'Seções', 'Período'],
+    status: 'ativo',
+  },
+  {
+    key: 'margem',
+    titulo: 'Análise de Margem e Markup',
+    descricao: 'Monitore a rentabilidade dos seus produtos e identifique oportunidades de aumentar seus resultados.',
+    Icon: TrendingUp,
+    cor: '#10B981',
+    tags: ['Margem', 'Markup', 'Rentabilidade'],
     status: 'ativo',
   },
   {
@@ -119,6 +129,7 @@ function ModuloWrapper({ moduloKey, onBack, empresasKey, clients, empresas }) {
       {moduloKey === 'projecao'          && <ProjecaoVendas    empresasKey={empresasKey} clients={clients} empresas={empresas} />}
       {moduloKey === 'metas_comerciais'  && <MetasComerciais   empresasKey={empresasKey} clients={clients} empresas={empresas} />}
       {moduloKey === 'performance'       && <PerformanceVendas empresasKey={empresasKey} clients={clients} empresas={empresas} />}
+      {moduloKey === 'margem'            && <MargemMarkup      empresasKey={empresasKey} clients={clients} empresas={empresas} />}
     </div>
   );
 }
