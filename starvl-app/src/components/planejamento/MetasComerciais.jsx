@@ -114,9 +114,11 @@ function KpiCard({ titulo, Icone, cor, meta, realizado, unidade, diasPassados, d
             <Icone size={14} />
           </span>
           <span className="mc2-card-titulo">{titulo}</span>
-          <button className="mc2-edit-btn" onClick={onEdit} title="Editar meta">
-            <Edit3 size={12} />
-          </button>
+          {onEdit && (
+            <button className="mc2-edit-btn" onClick={onEdit} title="Editar meta">
+              <Edit3 size={12} />
+            </button>
+          )}
         </div>
 
         {/* Valores + Arco */}
@@ -132,7 +134,9 @@ function KpiCard({ titulo, Icone, cor, meta, realizado, unidade, diasPassados, d
               <div className="mc2-label">Meta</div>
               <div className="mc2-meta-val">
                 {!temMeta
-                  ? <button className="mc2-def-meta-btn" onClick={onEdit}>Definir →</button>
+                  ? onEdit
+                    ? <button className="mc2-def-meta-btn" onClick={onEdit}>Definir →</button>
+                    : <span style={{ color: '#4B5563', fontSize: 12 }}>Não definida</span>
                   : unidade === '$' ? fmtK(meta) : fmtN(meta)
                 }
               </div>
@@ -383,6 +387,7 @@ export default function MetasComerciais({ empresasKey, clients, empresas }) {
   } = data || {};
 
   const mesAtual             = getMesAtual();
+  const somenteLeitura       = mes < mesAtual;   // meses passados: visualização apenas
   const pctMes               = diasNoMes > 0 ? (diasPassados / diasNoMes * 100) : 0;
   const secoesParaAdicionar  = secoesDisponiveis.filter(s => !metasSecao.some(m => m.secao === s));
   const temAlgunaMeta        = meta.faturamento != null || meta.quantidade != null || meta.ticketMedio != null;
@@ -424,10 +429,13 @@ export default function MetasComerciais({ empresasKey, clients, empresas }) {
         <div className="mc2-header-right">
           {loading && <RefreshCw size={14} className="spin" style={{ color: CT.orange, opacity: 0.7 }} />}
           {error   && <span className="mc2-err-badge"><AlertTriangle size={13} /> {error}</span>}
-          <button className="mc2-btn-definir" onClick={openEdit}>
-            <Target size={14} />
-            {temAlgunaMeta ? 'Editar Metas' : 'Definir Metas'}
-          </button>
+          {somenteLeitura
+            ? <span className="mc2-readonly-badge">Somente visualização</span>
+            : <button className="mc2-btn-definir" onClick={openEdit}>
+                <Target size={14} />
+                {temAlgunaMeta ? 'Editar Metas' : 'Definir Metas'}
+              </button>
+          }
         </div>
       </div>
 
@@ -437,11 +445,18 @@ export default function MetasComerciais({ empresasKey, clients, empresas }) {
           <Target size={22} style={{ color: CT.orange, opacity: .7 }} />
           <div>
             <p className="mc2-empty-title">Nenhuma meta definida para {mesLabel(mes)}</p>
-            <p className="mc2-empty-sub">Clique em "Definir Metas" para configurar faturamento, quantidade e ticket médio.</p>
+            <p className="mc2-empty-sub">
+              {somenteLeitura
+                ? 'Nenhuma meta foi cadastrada para este mês.'
+                : 'Clique em "Definir Metas" para configurar faturamento, quantidade e ticket médio.'
+              }
+            </p>
           </div>
-          <button className="mc2-btn-definir" onClick={openEdit}>
-            <Sparkles size={13} /> Começar agora
-          </button>
+          {!somenteLeitura && (
+            <button className="mc2-btn-definir" onClick={openEdit}>
+              <Sparkles size={13} /> Começar agora
+            </button>
+          )}
         </div>
       )}
 
@@ -449,13 +464,16 @@ export default function MetasComerciais({ empresasKey, clients, empresas }) {
       <div className="mc2-kpi-grid">
         <KpiCard titulo="Faturamento"  Icone={DollarSign}  cor={CT.orange} unidade="$"
           meta={meta.faturamento} realizado={realizado.faturamento || 0}
-          diasPassados={diasPassados} diasNoMes={diasNoMes} onEdit={openEdit} />
+          diasPassados={diasPassados} diasNoMes={diasNoMes}
+          onEdit={somenteLeitura ? null : openEdit} />
         <KpiCard titulo="Qtd Vendas"   Icone={ShoppingCart} cor={CT.blue}   unidade="n"
           meta={meta.quantidade}  realizado={realizado.quantidade  || 0}
-          diasPassados={diasPassados} diasNoMes={diasNoMes} onEdit={openEdit} />
+          diasPassados={diasPassados} diasNoMes={diasNoMes}
+          onEdit={somenteLeitura ? null : openEdit} />
         <KpiCard titulo="Ticket Médio" Icone={BarChart2}    cor={CT.purple} unidade="$"
           meta={meta.ticketMedio} realizado={realizado.ticketMedio || 0}
-          diasPassados={diasPassados} diasNoMes={diasNoMes} onEdit={openEdit} />
+          diasPassados={diasPassados} diasNoMes={diasNoMes}
+          onEdit={somenteLeitura ? null : openEdit} />
       </div>
 
       {/* ── Gráfico diário ───────────────────────────────────── */}
@@ -505,12 +523,14 @@ export default function MetasComerciais({ empresasKey, clients, empresas }) {
               <span className="mc2-count-badge">{metasSecao.length}</span>
             )}
           </div>
-          <button className="mc2-btn-add" onClick={() => setAddSecao(v => !v)} disabled={addSecao && !secoesParaAdicionar.length}>
-            <Plus size={13} /> Adicionar Seção
-          </button>
+          {!somenteLeitura && (
+            <button className="mc2-btn-add" onClick={() => setAddSecao(v => !v)} disabled={addSecao && !secoesParaAdicionar.length}>
+              <Plus size={13} /> Adicionar Seção
+            </button>
+          )}
         </div>
 
-        {addSecao && (
+        {addSecao && !somenteLeitura && (
           <div className="mc2-add-row">
             <CustomSelect
               options={secoesParaAdicionar}
@@ -552,9 +572,11 @@ export default function MetasComerciais({ empresasKey, clients, empresas }) {
                     <span className="mc2-secao-pct" style={{ color: cor }}>
                       {pct != null ? `${pct.toFixed(1)}%` : '—'}
                     </span>
-                    <button className="mc2-secao-del" onClick={() => handleDeleteSecao(s.id)}>
-                      <Trash2 size={12} />
-                    </button>
+                    {!somenteLeitura && (
+                      <button className="mc2-secao-del" onClick={() => handleDeleteSecao(s.id)}>
+                        <Trash2 size={12} />
+                      </button>
+                    )}
                   </div>
                 </div>
               );

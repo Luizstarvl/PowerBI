@@ -5024,3 +5024,12 @@ select.themed-select option {
 .mc2-select-item--active     { background: rgba(249,115,22,.12); color: #F97316; font-weight: 600; }
 .mc2-select-empty { padding: 12px 14px; font-size: 12px; color: #4B5563; }
 
+
+/* ── Readonly badge (mc2) ───────────────────────────────────── */
+.mc2-readonly-badge {
+  display: flex; align-items: center; gap: 6px;
+  padding: 7px 14px; border-radius: 8px;
+  border: 1px solid rgba(107,114,128,.25);
+  background: rgba(107,114,128,.08);
+  color: #6B7280; font-size: 12px; font-weight: 600;
+}
