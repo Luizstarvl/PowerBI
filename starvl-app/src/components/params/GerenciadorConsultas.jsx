@@ -9,7 +9,7 @@ import { apiFetch } from '../../api';
 import Portal from '../../Portal';
 
 // ── Constantes ─────────────────────────────────────────────────────────────────
-const CATEGORIAS = ['Dashboard', 'Cadastros', 'Indicadores', 'Relatórios', 'Cards', 'Gráficos', 'Listagens', 'Outros'];
+const CATEGORIAS = ['Dashboard', 'Cadastros', 'Estoque', 'Indicadores', 'Relatórios', 'Cards', 'Gráficos', 'Listagens', 'Outros'];
 
 const DASHBOARD_SLOTS = [
   { value: '',                  label: '— Nenhum —' },
@@ -29,11 +29,13 @@ const DASHBOARD_SLOTS = [
 
 const CAT_COLORS = {
   Dashboard:   { bg: '#dbeafe', color: '#1d4ed8' },
-  Indicadores: { bg: '#d1fae5', color: '#065f46' },
-  Relatórios:  { bg: '#ede9fe', color: '#5b21b6' },
+  Cadastros:   { bg: '#fef9c3', color: '#854d0e' },
+  Estoque:     { bg: '#d1fae5', color: '#065f46' },
+  Indicadores: { bg: '#ede9fe', color: '#5b21b6' },
+  Relatórios:  { bg: '#fce7f3', color: '#9d174d' },
   Cards:       { bg: '#fef3c7', color: '#92400e' },
-  Gráficos:    { bg: '#fce7f3', color: '#9d174d' },
-  Listagens:   { bg: '#e0f2fe', color: '#075985' },
+  Gráficos:    { bg: '#e0f2fe', color: '#075985' },
+  Listagens:   { bg: '#f3f4f6', color: '#374151' },
   Outros:      { bg: '#f3f4f6', color: '#374151' },
 };
 
@@ -350,6 +352,28 @@ function ModalQueryForm({ query, conexoes, onSave, onClose }) {
                 </select>
                 <span style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4, display: 'block' }}>
                   Os resultados desta consulta serão exibidos como tabela no cadastro selecionado.
+                </span>
+              </div>
+            )}
+
+            {/* Painel de estoque */}
+            {form.categoria === 'Estoque' && (
+              <div className="form-field" style={{ margin: 0 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                    <polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>
+                  </svg>
+                  Vincular ao módulo de estoque
+                </label>
+                <select value={form.slot} onChange={e => set('slot', e.target.value)} style={{ width: '100%' }}>
+                  <option value="">— Nenhum —</option>
+                  <option value="estoque_principal">📦 Tabela Principal — Posição de Estoque</option>
+                  <option value="estoque_secoes">🗂️ Filtro — Seções</option>
+                  <option value="estoque_grupos">📂 Filtro — Grupos</option>
+                </select>
+                <span style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4, display: 'block' }}>
+                  Os resultados desta consulta alimentarão o módulo Estoque. Use <code style={{ fontSize: 10 }}>{'{{empresa}}'}</code> para filtrar por empresa.
                 </span>
               </div>
             )}
