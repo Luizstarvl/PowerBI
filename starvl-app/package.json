@@ -1,6 +1,6 @@
 {
   "name": "starvl-app",
-  "version": "2.32.0",
+  "version": "2.33.0",
   "description": "Eclipse - Sistema de Gestão de Postos",
   "private": true,
   "dependencies": {

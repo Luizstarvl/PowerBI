@@ -7,6 +7,7 @@ import Usuarios from './pages/Usuarios';
 import Cadastros from './pages/Cadastros';
 import Parametros from './pages/Parametros';
 import PlanejamentoComercial from './pages/PlanejamentoComercial';
+import Estoque from './pages/Estoque';
 import AnimatedBackground from './components/login/AnimatedBackground';
 import { LangProvider } from './i18n';
 import { apiFetch, setApiToken, clearApiToken } from './api';
@@ -152,6 +153,11 @@ export default function App() {
           {visited.has('cadastros') && (
             <div className={`page-slot${page === 'cadastros' ? ' page-active' : ''}`}>
               <Cadastros empresas={selectedIds} />
+            </div>
+          )}
+          {visited.has('estoque') && (
+            <div className={`page-slot${page === 'estoque' ? ' page-active' : ''}`}>
+              <Estoque empresas={selectedIds} />
             </div>
           )}
           {visited.has('usuarios') && (

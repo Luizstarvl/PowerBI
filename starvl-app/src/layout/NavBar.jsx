@@ -12,6 +12,7 @@ function canAccessPage(user, key) {
     case 'planejamento_comercial': return true;
     case 'metas':                  return true;
     case 'cadastros':              return true;
+    case 'estoque':                return true;
     case 'usuarios':               return false;
     case 'parametros':             return !!user.permissoes?.configuracoes;
     default:                       return false;
