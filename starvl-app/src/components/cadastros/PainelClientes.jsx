@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import ReactDOM from 'react-dom';
-import { RefreshCw, Search, X, Users, UserCheck, UserX, UserPlus, Printer, ChevronLeft, ChevronRight, ArrowLeft, Edit2, Check, ChevronDown } from 'lucide-react';
+import * as XLSX from 'xlsx';
+import { RefreshCw, Search, X, Users, UserCheck, UserX, UserPlus, Printer, ChevronLeft, ChevronRight, ArrowLeft, Edit2, Check, ChevronDown, FileDown, Filter } from 'lucide-react';
 import { apiFetch } from '../../api';
 import ClienteDetalhe from './ClienteDetalhe';
 
@@ -8,6 +9,24 @@ const fmtNum = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 0 });
 
 const PAGE_OPTS = [10, 30, 50, 'Todos'];
 const DIA_MS = 24 * 60 * 60 * 1000;
+
+// ── Helpers de módulo ─────────────────────────────────────────────────────────
+const normStr = s => String(s || '').trim().toLowerCase();
+
+function matchSitCliente(val, tipo) {
+  const v = normStr(val);
+  if (tipo === 'Ativos')   return v === 'ativo'   || v === 'a';
+  if (tipo === 'Inativos') return v === 'inativo' || v === 'i';
+  return true;
+}
+
+function aplicarFiltrosClientes(rows, { cidade, tipo, situacao }, det) {
+  let r = rows;
+  if (cidade   !== 'Todas' && det.cidade)   r = r.filter(row => normStr(row[det.cidade])   === normStr(cidade));
+  if (tipo     !== 'Todos' && det.tipo)     r = r.filter(row => normStr(row[det.tipo])     === normStr(tipo));
+  if (situacao !== 'Todos' && det.situacao) r = r.filter(row => matchSitCliente(row[det.situacao], situacao));
+  return r;
+}
 
 // Remove acentos só pra comparação — muitas consultas usam alias em
 // português ("RAZÃO_SOCIAL", "SITUAÇÃO"...) e regex não trata á/ã/ç como
@@ -433,107 +452,264 @@ function PrintPreview({ html, titulo, total, empresa, onClose }) {
   );
 }
 
-function PrintModal({ cidades, tipos, tabelaCols, rows, det, empresa, onClose, onPreview }) {
-  const [titulo,    setTitulo]    = useState('Cadastro de Clientes');
-  const [pSituacao, setPSituacao] = useState('Todos');
-  const [pCidade,   setPCidade]   = useState('Todas');
-  const [pTipo,     setPTipo]     = useState('Todos');
-  const [pColKeys,  setPColKeys]  = useState(() => tabelaCols.map(c => c.key));
+function ExportModalClientes({
+  rows, det, tabelaCols,
+  cidades, tipos,
+  empresa, initFiltros,
+  onClose, onPreview,
+}) {
+  // ── Filtros ─────────────────────────────────────────────────────────────────
+  const [cidadeSel,   setCidadeSel]   = useState(initFiltros.cidade   ?? 'Todas');
+  const [tipoSel,     setTipoSel]     = useState(initFiltros.tipo     ?? 'Todos');
+  const [situacaoSel, setSituacaoSel] = useState(initFiltros.situacao ?? 'Todos');
 
-  const matchSituacao = (val, tipo) => {
-    const v = String(val || '').trim().toLowerCase();
-    if (tipo === 'Ativos')   return v === 'ativo'   || v === 'a';
-    if (tipo === 'Inativos') return v === 'inativo' || v === 'i';
-    return true;
-  };
-
-  const norm = s => String(s || '').trim().toLowerCase();
-
-  const linhas = useMemo(() => {
-    let r = rows;
-    if (pSituacao !== 'Todos' && det.situacao) r = r.filter(row => matchSituacao(row[det.situacao], pSituacao));
-    if (pCidade !== 'Todas' && det.cidade) r = r.filter(row => norm(row[det.cidade]) === norm(pCidade));
-    if (pTipo   !== 'Todos' && det.tipo)   r = r.filter(row => norm(row[det.tipo])   === norm(pTipo));
-    return r;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, pSituacao, pCidade, pTipo, det]);
-
-  const colunasSel = tabelaCols.filter(c => pColKeys.includes(c.key));
-
+  // ── Colunas e título ────────────────────────────────────────────────────────
+  const [titulo,   setTitulo]   = useState('Cadastro de Clientes');
+  const [pColKeys, setPColKeys] = useState(() => tabelaCols.map(c => c.key));
   function toggleCol(key) {
     setPColKeys(prev => prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]);
   }
 
+  // ── Dados filtrados ─────────────────────────────────────────────────────────
+  const linhasFiltradas = useMemo(() =>
+    aplicarFiltrosClientes(rows, { cidade: cidadeSel, tipo: tipoSel, situacao: situacaoSel }, det),
+  [rows, cidadeSel, tipoSel, situacaoSel, det]); // eslint-disable-line
+
+  // ── Seleção individual ──────────────────────────────────────────────────────
+  const rowIndexMap = useMemo(() => new Map(rows.map((r, i) => [r, i])), [rows]);
+  const filteredIds = useMemo(
+    () => new Set(linhasFiltradas.map(r => rowIndexMap.get(r))),
+    [linhasFiltradas, rowIndexMap]
+  );
+  const [selectedIds, setSelectedIds] = useState(() => new Set(filteredIds));
+  const prevFilterRef = useRef(filteredIds);
+  useEffect(() => {
+    if (prevFilterRef.current !== filteredIds) {
+      setSelectedIds(new Set(filteredIds));
+      prevFilterRef.current = filteredIds;
+    }
+  }, [filteredIds]);
+
+  function toggleRow(id) {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+  function selectAll()  { setSelectedIds(new Set(filteredIds)); }
+  function selectNone() { setSelectedIds(new Set()); }
+
+  const [buscaLista, setBuscaLista] = useState('');
+  const listRef = useRef(null);
+  const listaVis = useMemo(() => {
+    if (!buscaLista.trim()) return linhasFiltradas;
+    const q = buscaLista.toLowerCase();
+    return linhasFiltradas.filter(r =>
+      clienteNome(r, det).toLowerCase().includes(q) ||
+      String(r[det.codigo]    || '').toLowerCase().includes(q) ||
+      String(r[det.documento] || '').toLowerCase().includes(q)
+    );
+  }, [linhasFiltradas, buscaLista, det]);
+
+  const linhasSelecionadas = useMemo(
+    () => linhasFiltradas.filter(r => selectedIds.has(rowIndexMap.get(r))),
+    [linhasFiltradas, selectedIds, rowIndexMap]
+  );
+
+  // ── Tags de filtros ─────────────────────────────────────────────────────────
+  const filtrosDesc = useMemo(() => {
+    const f = [];
+    if (cidadeSel   !== 'Todas') f.push(`Cidade: ${cidadeSel}`);
+    if (tipoSel     !== 'Todos') f.push(`Tipo: ${tipoSel}`);
+    if (situacaoSel !== 'Todos') f.push(`Situação: ${situacaoSel}`);
+    return f;
+  }, [cidadeSel, tipoSel, situacaoSel]);
+
+  const colunasSel = tabelaCols.filter(c => pColKeys.includes(c.key));
+  const temDados   = linhasSelecionadas.length > 0 && colunasSel.length > 0;
+
+  // ── Ações ───────────────────────────────────────────────────────────────────
   function handlePrint() {
-    if (!colunasSel.length) return;
+    if (!temDados) return;
     const filtros = {
-      situacao: pSituacao !== 'Todos' ? `Situação: ${pSituacao}` : '',
-      cidade:   pCidade   !== 'Todas' ? `Cidade: ${pCidade}`     : '',
-      tipo:     pTipo     !== 'Todos' ? `Tipo: ${pTipo}`         : '',
+      situacao: situacaoSel !== 'Todos' ? `Situação: ${situacaoSel}` : '',
+      cidade:   cidadeSel   !== 'Todas' ? `Cidade: ${cidadeSel}`     : '',
+      tipo:     tipoSel     !== 'Todos' ? `Tipo: ${tipoSel}`         : '',
     };
-    const html = gerarJanelaPrintClientes({ titulo, colunas: colunasSel, linhas, empresa, det, filtros });
-    onPreview({ html, titulo, total: linhas.length, empresa });
+    const html = gerarJanelaPrintClientes({ titulo, colunas: colunasSel, linhas: linhasSelecionadas, empresa, det, filtros });
+    onPreview({ html, titulo, total: linhasSelecionadas.length, empresa });
     onClose();
   }
 
+  function handleExcel() {
+    if (!temDados) return;
+    const headers  = colunasSel.map(c => c.label);
+    const dataRows = linhasSelecionadas.map(row =>
+      colunasSel.map(c => {
+        const raw = c.calc ? c.calc(row) : row[c.key];
+        if (c.badge) { const v = normStr(raw); return (v==='ativo'||v==='a') ? 'Ativo' : 'Inativo'; }
+        return raw ?? '';
+      })
+    );
+    const wsData = [headers, ...dataRows];
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    ws['!cols'] = headers.map((h, i) => ({
+      wch: Math.max(h.length, ...dataRows.map(r => String(r[i] ?? '').length)) + 2
+    }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Clientes');
+    const now   = new Date();
+    const stamp = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`;
+    XLSX.writeFile(wb, `clientes_${empresa}_${stamp}.xlsx`);
+    onClose();
+  }
+
+  const allChecked  = filteredIds.size > 0 && filteredIds.size === selectedIds.size && [...filteredIds].every(id => selectedIds.has(id));
+  const someChecked = selectedIds.size > 0 && !allChecked;
+
   return ReactDOM.createPortal(
     <div className="pm-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="pm-modal">
+      <div className="pm-modal pm-modal--wide">
+
         <div className="pm-header">
-          <Printer size={16} />
-          <span>Configurar Impressão</span>
+          <Filter size={16} />
+          <span>Configurar Exportação</span>
           <button className="pm-close" onClick={onClose}><X size={15} /></button>
         </div>
 
         <div className="pm-body">
+
+          {/* Título */}
           <div className="pm-section">
             <div className="pm-section-title">Título do relatório</div>
-            <input
-              className="pm-input"
-              value={titulo}
-              onChange={e => setTitulo(e.target.value)}
-              placeholder="Título da impressão"
-            />
+            <input className="pm-input" value={titulo} onChange={e => setTitulo(e.target.value)} placeholder="Título da impressão" />
           </div>
 
+          {/* ── Filtros ── */}
           <div className="pm-section">
             <div className="pm-section-title">Filtros de dados</div>
-            <div className="pm-grid2">
-              <div className="pm-field">
-                <label>Situação</label>
-                <div className="pm-tabs">
-                  {['Ativos', 'Inativos', 'Todos'].map(s => (
-                    <button key={s} className={`pm-tab${pSituacao === s ? ' pm-tab--on' : ''}`}
-                      onClick={() => setPSituacao(s)}>{s}</button>
-                  ))}
-                </div>
-              </div>
+            <div className="pm-filtros-grid">
 
               {cidades.length > 1 && (
-                <div className="pm-field">
+                <div className="pm-filtro-field">
                   <label>Cidade</label>
-                  <CustomSelect value={pCidade} options={cidades} onChange={setPCidade} />
+                  <select className="pm-filtro-select" value={cidadeSel} onChange={e => setCidadeSel(e.target.value)}>
+                    {cidades.map(c => <option key={c}>{c}</option>)}
+                  </select>
                 </div>
               )}
 
               {tipos.length > 1 && (
-                <div className="pm-field">
+                <div className="pm-filtro-field">
                   <label>Tipo</label>
-                  <CustomSelect value={pTipo} options={tipos} onChange={setPTipo} />
+                  <select className="pm-filtro-select" value={tipoSel} onChange={e => setTipoSel(e.target.value)}>
+                    {tipos.map(t => <option key={t}>{t}</option>)}
+                  </select>
                 </div>
               )}
+
+              {det.situacao && (
+                <div className="pm-filtro-field">
+                  <label>Situação</label>
+                  <div className="pm-tabs">
+                    {['Ativos', 'Inativos', 'Todos'].map(s => (
+                      <button key={s} className={`pm-tab${situacaoSel === s ? ' pm-tab--on' : ''}`}
+                        onClick={() => setSituacaoSel(s)}>{s}</button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
             </div>
           </div>
 
+          {/* ── Seleção de clientes ── */}
           <div className="pm-section">
-            <div className="pm-section-title">Colunas a exibir</div>
+            <div className="pm-sel-header">
+              <div className="pm-sel-header-left">
+                <label className="pm-sel-all-wrap" title={allChecked ? 'Desmarcar todos' : 'Selecionar todos'}>
+                  <input
+                    type="checkbox"
+                    className="pm-sel-checkbox"
+                    checked={allChecked}
+                    ref={el => { if (el) el.indeterminate = someChecked; }}
+                    onChange={allChecked ? selectNone : selectAll}
+                  />
+                </label>
+                <span className="pm-section-title" style={{ margin: 0 }}>Clientes</span>
+                <span className="pm-sel-count">
+                  <strong className={selectedIds.size === 0 ? 'pm-sel-count--zero' : ''}>
+                    {selectedIds.size}
+                  </strong>
+                  {' '}/ {linhasFiltradas.length} selecionado{selectedIds.size !== 1 ? 's' : ''}
+                </span>
+              </div>
+              <div className="pm-sel-header-right">
+                {filtrosDesc.length > 0 && (
+                  <span className="pm-filtros-tags">
+                    {filtrosDesc.map((f, i) => <span key={i} className="pm-filtro-tag">{f}</span>)}
+                  </span>
+                )}
+                <div className="pm-filtro-search pm-sel-search">
+                  <Search size={12} />
+                  <input
+                    className="pm-filtro-input"
+                    placeholder="Filtrar lista…"
+                    value={buscaLista}
+                    onChange={e => setBuscaLista(e.target.value)}
+                  />
+                  {buscaLista && <button className="pm-filtro-clear" onClick={() => setBuscaLista('')}><X size={10} /></button>}
+                </div>
+              </div>
+            </div>
+
+            <div className="pm-product-list" ref={listRef}>
+              {listaVis.length === 0 ? (
+                <div className="pm-product-empty">Nenhum cliente encontrado.</div>
+              ) : listaVis.map(row => {
+                const id      = rowIndexMap.get(row);
+                const checked = selectedIds.has(id);
+                const nome    = clienteNome(row, det);
+                const cod     = det.codigo ? row[det.codigo] : '';
+                return (
+                  <label
+                    key={id}
+                    tabIndex={0}
+                    className={`pm-product-row${checked ? ' pm-product-row--on' : ''}`}
+                    onClick={() => toggleRow(id)}
+                    onKeyDown={e => {
+                      if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); toggleRow(id); }
+                      else if (e.key === 'ArrowDown') { e.preventDefault(); e.currentTarget.nextElementSibling?.focus(); }
+                      else if (e.key === 'ArrowUp')   { e.preventDefault(); e.currentTarget.previousElementSibling?.focus(); }
+                    }}
+                  >
+                    <input type="checkbox" className="pm-sel-checkbox" checked={checked}
+                      onChange={() => toggleRow(id)} onClick={e => e.stopPropagation()} tabIndex={-1} />
+                    <span className="pm-product-name">{nome || '—'}</span>
+                    {cod && <span className="pm-product-code">{cod}</span>}
+                    {det.cidade && row[det.cidade] && (
+                      <span className="pm-product-code" style={{ marginLeft: 4 }}>{row[det.cidade]}</span>
+                    )}
+                  </label>
+                );
+              })}
+            </div>
+
+            <div className="pm-sel-footer-row">
+              <button className="pm-sel-action" onClick={selectAll}  disabled={allChecked}>Selecionar todos</button>
+              <button className="pm-sel-action" onClick={selectNone} disabled={selectedIds.size === 0}>Desmarcar todos</button>
+            </div>
+          </div>
+
+          {/* ── Colunas ── */}
+          <div className="pm-section">
+            <div className="pm-section-title">Colunas a incluir</div>
             <div className="pm-cols-grid">
               {tabelaCols.map(c => (
-                <button
-                  key={c.key}
+                <button key={c.key}
                   className={`pm-col-chip${pColKeys.includes(c.key) ? ' pm-col-chip--on' : ''}`}
-                  onClick={() => toggleCol(c.key)}
-                >
+                  onClick={() => toggleCol(c.key)}>
                   {pColKeys.includes(c.key) && <Check size={11} />}
                   {c.label}
                 </button>
@@ -541,17 +717,20 @@ function PrintModal({ cidades, tipos, tabelaCols, rows, det, empresa, onClose, o
             </div>
           </div>
 
-          <div className="pm-preview-count">
-            {linhas.length} cliente{linhas.length !== 1 ? 's' : ''} · {colunasSel.length} coluna{colunasSel.length !== 1 ? 's' : ''}
-          </div>
         </div>
 
         <div className="pm-footer">
           <button className="pm-btn-cancel" onClick={onClose}>Cancelar</button>
-          <button className="pm-btn-print" onClick={handlePrint} disabled={!colunasSel.length}>
-            <Printer size={14} /> Imprimir
-          </button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="pm-btn-excel" onClick={handleExcel} disabled={!temDados}>
+              <FileDown size={14} /> Exportar Excel
+            </button>
+            <button className="pm-btn-print" onClick={handlePrint} disabled={!temDados}>
+              <Printer size={14} /> Imprimir
+            </button>
+          </div>
         </div>
+
       </div>
     </div>,
     document.body
@@ -576,7 +755,7 @@ export default function PainelClientes({ empresasKey, onVoltar }) {
   const [detalhe,    setDetalhe]    = useState(null);
   const [ctxMenu,    setCtxMenu]    = useState(null); // {x,y,row}
   const [fotosMap,   setFotosMap]   = useState({});
-  const [printOpen,   setPrintOpen]   = useState(false);
+  const [exportOpen,  setExportOpen]  = useState(false);
   const [previewData, setPreviewData] = useState(null);
 
   const empresa = (empresasKey || '').split(',')[0];
@@ -737,8 +916,8 @@ export default function PainelClientes({ empresasKey, onVoltar }) {
           </div>
         </div>
         <div className="pp-header-actions">
-          <button className="pp-btn-ghost" onClick={() => setPrintOpen(true)}>
-            <Printer size={14} /> Imprimir
+          <button className="pp-btn-ghost" onClick={() => setExportOpen(true)}>
+            <FileDown size={14} /> Exportar / Imprimir
           </button>
           <button className="pp-btn-primary" onClick={fetchDados} disabled={loading}>
             <RefreshCw size={13} className={loading ? 'pp-spin' : ''} />
@@ -944,16 +1123,17 @@ export default function PainelClientes({ empresasKey, onVoltar }) {
         />
       )}
 
-      {/* ── Modal de impressão ── */}
-      {printOpen && (
-        <PrintModal
-          cidades={cidades}
-          tipos={tipos}
-          tabelaCols={tabelaCols}
+      {/* ── Modal de exportação ── */}
+      {exportOpen && (
+        <ExportModalClientes
           rows={rows}
           det={det}
+          tabelaCols={tabelaCols}
+          cidades={cidades}
+          tipos={tipos}
           empresa={empresa}
-          onClose={() => setPrintOpen(false)}
+          initFiltros={{ cidade, tipo, situacao }}
+          onClose={() => setExportOpen(false)}
           onPreview={data => setPreviewData(data)}
         />
       )}
