@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom';
-import { X, Camera, Save, Tag, Loader, Trash2, Phone, Mail } from 'lucide-react';
+import { X, Camera, Save, Tag, Loader, Trash2, Phone, Mail, Printer } from 'lucide-react';
 import { apiFetch } from '../../api';
 
 function compress(file, maxPx = 600, quality = 0.75) {
@@ -42,6 +42,138 @@ function buildOrderedFields(row, det) {
   }).filter(Boolean);
 }
 
+function gerarFichaCliente({ row, fields, foto, observacoes, tags, empresa, det }) {
+  const nome = (det?.nomeFantasia && row[det.nomeFantasia]) || (det?.razaoSocial && row[det.razaoSocial]) || '';
+  const tel   = det?.telefone ? row[det.telefone]  : null;
+  const email = det?.email    ? row[det.email]     : null;
+
+  const camposHtml = fields.map(f => `
+    <tr>
+      <td class="label">${f.label}</td>
+      <td class="value">${f.value}</td>
+    </tr>`).join('');
+
+  const contatoHtml = (tel || email) ? `
+    <div class="section">
+      <div class="section-title">Contato</div>
+      <table class="fields">
+        ${tel   ? `<tr><td class="label">Telefone</td><td class="value">${tel}</td></tr>` : ''}
+        ${email ? `<tr><td class="label">E-mail</td><td class="value">${email}</td></tr>` : ''}
+      </table>
+    </div>` : '';
+
+  const obsHtml = observacoes ? `
+    <div class="section">
+      <div class="section-title">Observações</div>
+      <p class="obs-text">${observacoes.replace(/\n/g, '<br>')}</p>
+    </div>` : '';
+
+  const tagsHtml = tags.length ? `
+    <div class="section">
+      <div class="section-title">Tags</div>
+      <div class="tags-row">${tags.map(t => `<span class="tag">${t}</span>`).join('')}</div>
+    </div>` : '';
+
+  return `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Ficha — ${nome}</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: Arial, sans-serif; font-size: 11px; color: #222; background: #fff; }
+  @page { size: A4 portrait; margin: 18mm 15mm; }
+  .page { max-width: 180mm; margin: 0 auto; }
+  .header { display: flex; align-items: center; gap: 14px; border-bottom: 2px solid #0ea5e9; padding-bottom: 10px; margin-bottom: 14px; }
+  .header-logo { font-size: 16px; font-weight: 700; color: #0ea5e9; white-space: nowrap; }
+  .header-sub  { font-size: 9px; color: #666; margin-top: 2px; }
+  .header-title { font-size: 14px; font-weight: 700; flex: 1; text-align: right; }
+  .hero { display: flex; gap: 16px; margin-bottom: 14px; align-items: flex-start; }
+  .hero-foto { width: 90px; height: 90px; object-fit: cover; border-radius: 6px; border: 1px solid #e5e7eb; flex-shrink: 0; }
+  .hero-foto-empty { width: 90px; height: 90px; border-radius: 6px; border: 2px dashed #d1d5db; display: flex; align-items: center; justify-content: center; color: #9ca3af; font-size: 9px; flex-shrink: 0; }
+  .hero-info { flex: 1; }
+  .hero-name { font-size: 16px; font-weight: 700; color: #0ea5e9; margin-bottom: 4px; }
+  .hero-empresa { font-size: 10px; color: #666; }
+  .section { margin-bottom: 12px; }
+  .section-title { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: #0ea5e9; border-bottom: 1px solid #e0f2fe; padding-bottom: 3px; margin-bottom: 6px; }
+  table.fields { width: 100%; border-collapse: collapse; }
+  table.fields tr { border-bottom: 1px solid #f3f4f6; }
+  table.fields tr:last-child { border-bottom: none; }
+  td.label { width: 38%; font-weight: 600; color: #555; padding: 3px 8px 3px 0; vertical-align: top; }
+  td.value { color: #111; padding: 3px 0; }
+  .obs-text { background: #f8fafc; border-left: 3px solid #0ea5e9; padding: 6px 10px; border-radius: 2px; white-space: pre-line; line-height: 1.5; }
+  .tags-row { display: flex; flex-wrap: wrap; gap: 5px; }
+  .tag { background: #e0f2fe; color: #0369a1; border-radius: 20px; padding: 2px 8px; font-size: 10px; font-weight: 600; }
+  .footer { margin-top: 18px; border-top: 1px solid #e5e7eb; padding-top: 6px; display: flex; justify-content: space-between; color: #9ca3af; font-size: 8px; }
+  @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="header">
+    <div>
+      <div class="header-logo">${empresa || 'Eclipse'}</div>
+      <div class="header-sub">Cadastro de Clientes</div>
+    </div>
+    <div class="header-title">Ficha de Cliente</div>
+  </div>
+
+  <div class="hero">
+    ${foto
+      ? `<img class="hero-foto" src="${foto}" alt="${nome}">`
+      : `<div class="hero-foto-empty">Sem foto</div>`}
+    <div class="hero-info">
+      <div class="hero-name">${nome || '—'}</div>
+      <div class="hero-empresa">${empresa || ''}</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Dados do cliente</div>
+    <table class="fields">${camposHtml}</table>
+  </div>
+
+  ${contatoHtml}
+  ${obsHtml}
+  ${tagsHtml}
+
+  <div class="footer">
+    <span>${empresa || ''} — Ficha de Cliente</span>
+    <span>Gerado em ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+  </div>
+</div>
+</body>
+</html>`;
+}
+
+function FichaPreview({ html, onClose }) {
+  const iframeRef = useRef();
+  useEffect(() => {
+    function onKey(e) { if (e.key === 'Escape') onClose(); }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  return ReactDOM.createPortal(
+    <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,.7)', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', background: '#1e293b', color: '#fff', flexShrink: 0 }}>
+        <Printer size={15} />
+        <span style={{ flex: 1, fontSize: 14, fontWeight: 600 }}>Ficha do Cliente</span>
+        <button onClick={() => iframeRef.current?.contentWindow?.print()}
+          style={{ background: '#0ea5e9', color: '#fff', border: 'none', borderRadius: 6, padding: '5px 14px', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
+          Imprimir (Ctrl+P)
+        </button>
+        <button onClick={onClose}
+          style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: 4 }}>
+          <X size={18} />
+        </button>
+      </div>
+      <iframe ref={iframeRef} srcDoc={html} style={{ flex: 1, border: 'none', background: '#fff' }} title="Ficha do Cliente" />
+    </div>,
+    document.body
+  );
+}
+
 export default function ClienteDetalhe({ row, cols, det, empresa, onClose }) {
   const [foto,        setFoto]        = useState(null);   // base64 ou null
   const [observacoes, setObservacoes] = useState('');
@@ -50,6 +182,7 @@ export default function ClienteDetalhe({ row, cols, det, empresa, onClose }) {
   const [loading,     setLoading]     = useState(true);
   const [saving,      setSaving]      = useState(false);
   const [msg,         setMsg]         = useState('');
+  const [fichaHtml,   setFichaHtml]   = useState(null);
   const fileRef = useRef();
 
   const cod = (det?.codigo ? row?.[det.codigo] : null) ?? row?.[cols?.[0]] ?? '';
@@ -102,12 +235,18 @@ export default function ClienteDetalhe({ row, cols, det, empresa, onClose }) {
     setSaving(false);
   }
 
+  function handleImprimirFicha() {
+    const fields = buildOrderedFields(row, det || {});
+    const html = gerarFichaCliente({ row, fields, foto, observacoes, tags, empresa, det });
+    setFichaHtml(html);
+  }
+
   if (!row) return null;
 
   const fields = buildOrderedFields(row, det || {});
   const nomeExibido = (det?.nomeFantasia && row[det.nomeFantasia]) || (det?.razaoSocial && row[det.razaoSocial]) || cod;
 
-  return ReactDOM.createPortal(
+  const portal = ReactDOM.createPortal(
     <div className="pd-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="pd-modal">
 
@@ -232,13 +371,25 @@ export default function ClienteDetalhe({ row, cols, det, empresa, onClose }) {
         {/* ── Rodapé ── */}
         <div className="pd-foot">
           {msg && <span className={`pd-msg${msg.includes('sucesso') ? ' pd-msg--ok' : ' pd-msg--err'}`}>{msg}</span>}
-          <button className="pd-btn-save" onClick={salvar} disabled={saving || loading}>
-            {saving ? <Loader size={14} className="pp-spin" /> : <Save size={14} />}
-            {saving ? 'Salvando…' : 'Salvar'}
-          </button>
+          <div style={{ display: 'flex', gap: 8, marginLeft: 'auto' }}>
+            <button className="pd-btn-print" onClick={handleImprimirFicha} disabled={loading}>
+              <Printer size={14} /> Imprimir Ficha
+            </button>
+            <button className="pd-btn-save" onClick={salvar} disabled={saving || loading}>
+              {saving ? <Loader size={14} className="pp-spin" /> : <Save size={14} />}
+              {saving ? 'Salvando…' : 'Salvar'}
+            </button>
+          </div>
         </div>
       </div>
     </div>,
     document.body
+  );
+
+  return (
+    <>
+      {portal}
+      {fichaHtml && <FichaPreview html={fichaHtml} onClose={() => setFichaHtml(null)} />}
+    </>
   );
 }

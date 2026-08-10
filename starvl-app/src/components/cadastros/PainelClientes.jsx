@@ -20,11 +20,18 @@ function matchSitCliente(val, tipo) {
   return true;
 }
 
-function aplicarFiltrosClientes(rows, { cidade, tipo, situacao }, det) {
+function aplicarFiltrosClientes(rows, { cidade, tipo, situacao, documento }, det) {
   let r = rows;
-  if (cidade   !== 'Todas' && det.cidade)   r = r.filter(row => normStr(row[det.cidade])   === normStr(cidade));
-  if (tipo     !== 'Todos' && det.tipo)     r = r.filter(row => normStr(row[det.tipo])     === normStr(tipo));
-  if (situacao !== 'Todos' && det.situacao) r = r.filter(row => matchSitCliente(row[det.situacao], situacao));
+  if (cidade    !== 'Todas' && det.cidade)   r = r.filter(row => normStr(row[det.cidade])   === normStr(cidade));
+  if (tipo      !== 'Todos' && det.tipo)     r = r.filter(row => normStr(row[det.tipo])     === normStr(tipo));
+  if (situacao  !== 'Todos' && det.situacao) r = r.filter(row => matchSitCliente(row[det.situacao], situacao));
+  if (documento && det.documento) {
+    const q = documento.replace(/\D/g, '');
+    r = r.filter(row => {
+      const d = String(row[det.documento] || '').replace(/\D/g, '');
+      return d.includes(q);
+    });
+  }
   return r;
 }
 
@@ -462,6 +469,7 @@ function ExportModalClientes({
   const [cidadeSel,   setCidadeSel]   = useState(initFiltros.cidade   ?? 'Todas');
   const [tipoSel,     setTipoSel]     = useState(initFiltros.tipo     ?? 'Todos');
   const [situacaoSel, setSituacaoSel] = useState(initFiltros.situacao ?? 'Todos');
+  const [docFiltro,   setDocFiltro]   = useState('');
 
   // ── Colunas e título ────────────────────────────────────────────────────────
   const [titulo,   setTitulo]   = useState('Cadastro de Clientes');
@@ -472,8 +480,8 @@ function ExportModalClientes({
 
   // ── Dados filtrados ─────────────────────────────────────────────────────────
   const linhasFiltradas = useMemo(() =>
-    aplicarFiltrosClientes(rows, { cidade: cidadeSel, tipo: tipoSel, situacao: situacaoSel }, det),
-  [rows, cidadeSel, tipoSel, situacaoSel, det]); // eslint-disable-line
+    aplicarFiltrosClientes(rows, { cidade: cidadeSel, tipo: tipoSel, situacao: situacaoSel, documento: docFiltro }, det),
+  [rows, cidadeSel, tipoSel, situacaoSel, docFiltro, det]); // eslint-disable-line
 
   // ── Seleção individual ──────────────────────────────────────────────────────
   const rowIndexMap = useMemo(() => new Map(rows.map((r, i) => [r, i])), [rows]);
@@ -523,8 +531,9 @@ function ExportModalClientes({
     if (cidadeSel   !== 'Todas') f.push(`Cidade: ${cidadeSel}`);
     if (tipoSel     !== 'Todos') f.push(`Tipo: ${tipoSel}`);
     if (situacaoSel !== 'Todos') f.push(`Situação: ${situacaoSel}`);
+    if (docFiltro.trim())        f.push(`Documento: ${docFiltro.trim()}`);
     return f;
-  }, [cidadeSel, tipoSel, situacaoSel]);
+  }, [cidadeSel, tipoSel, situacaoSel, docFiltro]);
 
   const colunasSel = tabelaCols.filter(c => pColKeys.includes(c.key));
   const temDados   = linhasSelecionadas.length > 0 && colunasSel.length > 0;
@@ -617,6 +626,24 @@ function ExportModalClientes({
                       <button key={s} className={`pm-tab${situacaoSel === s ? ' pm-tab--on' : ''}`}
                         onClick={() => setSituacaoSel(s)}>{s}</button>
                     ))}
+                  </div>
+                </div>
+              )}
+
+              {det.documento && (
+                <div className="pm-filtro-field pm-filtro-field--wide">
+                  <label>CPF / CNPJ</label>
+                  <div className="pm-filtro-search">
+                    <Search size={12} />
+                    <input
+                      className="pm-filtro-input"
+                      placeholder="Filtrar por CPF ou CNPJ…"
+                      value={docFiltro}
+                      onChange={e => setDocFiltro(e.target.value)}
+                    />
+                    {docFiltro && (
+                      <button className="pm-filtro-clear" onClick={() => setDocFiltro('')}><X size={10} /></button>
+                    )}
                   </div>
                 </div>
               )}
