@@ -378,12 +378,7 @@ export default function ProdutoDetalhe({ row, cols, det, empresa, onClose, onFot
               <p className="pd-head-label">Cadastro de Produto</p>
               <h3 className="pd-head-title">{nome || cod}</h3>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <button className="pd-btn-print" onClick={handleImprimirFicha} title="Imprimir ficha do produto">
-                <Printer size={14} /> Imprimir Ficha
-              </button>
-              <button className="pd-close" onClick={onClose}><X size={18} /></button>
-            </div>
+            <button className="pd-close" onClick={onClose}><X size={18} /></button>
           </div>
 
           <div className="pd-body">
@@ -466,10 +461,15 @@ export default function ProdutoDetalhe({ row, cols, det, empresa, onClose, onFot
           {/* ── Rodapé ── */}
           <div className="pd-foot">
             {msg && <span className={`pd-msg${msg.includes('sucesso') ? ' pd-msg--ok' : ' pd-msg--err'}`}>{msg}</span>}
-            <button className="pd-btn-save" onClick={salvar} disabled={saving || loading}>
-              {saving ? <Loader size={14} className="pp-spin" /> : <Save size={14} />}
-              {saving ? 'Salvando…' : 'Salvar'}
-            </button>
+            <div style={{ display: 'flex', gap: 8, marginLeft: 'auto' }}>
+              <button className="pd-btn-print" onClick={handleImprimirFicha} title="Imprimir ficha do produto">
+                <Printer size={14} /> Imprimir Ficha
+              </button>
+              <button className="pd-btn-save" onClick={salvar} disabled={saving || loading}>
+                {saving ? <Loader size={14} className="pp-spin" /> : <Save size={14} />}
+                {saving ? 'Salvando…' : 'Salvar'}
+              </button>
+            </div>
           </div>
         </div>
       </div>
