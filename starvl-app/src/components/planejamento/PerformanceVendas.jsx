@@ -2,13 +2,14 @@
    PerformanceVendas.jsx — Módulo Performance de Vendas
    Eclipse BI · Planejamento Comercial
 ═══════════════════════════════════════════════════════════════ */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import ReactDOM from 'react-dom';
 import { apiFetch } from '../../api';
 import {
   TrendingUp, TrendingDown, Minus,
   ShoppingCart, DollarSign, BarChart2, Package,
   Layers, Truck, Trophy, RefreshCw,
-  ChevronUp, ChevronDown,
+  ChevronUp, ChevronDown, Printer, X,
 } from 'lucide-react';
 import {
   ComposedChart, Bar, Line, XAxis, YAxis,
@@ -135,17 +136,159 @@ function ChartTooltip({ active, payload, label }) {
   );
 }
 
+/* ── Gerador HTML do ranking ─────────────────────────────────── */
+function gerarHtmlTopProdutos({ produtos, periodo, empresa, maxProd, fuelColor, RANK_COLORS }) {
+  const now = new Date().toLocaleString('pt-BR');
+
+  const fmtC = v => v == null ? '—' : 'R$ ' + Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const fmtK2 = v => {
+    if (v == null) return '—';
+    if (v >= 1_000_000) return `R$ ${(v / 1_000_000).toFixed(2)}M`;
+    if (v >= 1_000)     return `R$ ${(v / 1_000).toFixed(1)}k`;
+    return `R$ ${Math.round(v)}`;
+  };
+  const fmtN2 = v => v == null ? '—' : Number(v).toLocaleString('pt-BR');
+
+  const rowsHtml = produtos.map((p, i) => {
+    const cor   = fuelColor(p.nome, RANK_COLORS[i] || '#F97316');
+    const pct   = Math.round((p.faturamento / maxProd) * 100);
+    const medal = i < 3 ? ['🥇','🥈','🥉'][i] : `${i + 1}`;
+    return `
+    <tr>
+      <td class="td-pos">${medal}</td>
+      <td class="td-nome">
+        <div class="prod-nome">${p.nome || '—'}</div>
+        <div class="prod-sub">${p.secao || ''} · Qtd: ${fmtN2(p.quantidade)} · Preço médio: ${fmtK2(p.precoMedio)}</div>
+        <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${cor}"></div></div>
+      </td>
+      <td class="td-val">${fmtK2(p.faturamento)}</td>
+      <td class="td-pct">${pct}%</td>
+    </tr>`;
+  }).join('');
+
+  return `<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="utf-8"><title>Top Produtos · ${periodo}</title>
+<style>
+@page { size: A4 portrait; margin: 0; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+@media screen {
+  html { background: #4a4a4a; }
+  body { background: #4a4a4a; padding: 28px 20px; font-family:'Segoe UI',Arial,sans-serif; font-size:11px; color:#1a1a1a; }
+  .wrap { width: 720px; margin: 0 auto; background: #fff; padding: 32px 36px; box-shadow: 0 4px 28px rgba(0,0,0,.5); }
+}
+@media print {
+  html, body { background: #fff !important; padding: 14mm !important; margin: 0 !important; }
+  .wrap { padding: 0 !important; box-shadow: none !important; width: 100% !important; margin: 0 !important; }
+  .bar-track { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+body { font-family:'Segoe UI',Arial,sans-serif; font-size:11px; color:#1a1a1a; }
+.wrap { background: #fff; }
+.rh { display:flex; align-items:flex-end; justify-content:space-between; padding-bottom:14px; margin-bottom:20px; border-bottom:3px solid #f97316; }
+.rh-brand { font-size:10px; font-weight:700; color:#f97316; letter-spacing:.12em; text-transform:uppercase; }
+.rh-title { font-size:18px; font-weight:700; color:#111; line-height:1.2; margin-top:3px; }
+.rh-meta { text-align:right; font-size:9.5px; color:#888; line-height:1.8; }
+.rh-meta strong { color:#444; }
+table { width:100%; border-collapse:collapse; }
+thead tr { border-bottom:2px solid #f97316; }
+th { padding:6px 8px; font-size:9px; text-transform:uppercase; letter-spacing:.06em; color:#888; font-weight:700; text-align:left; }
+th.r { text-align:right; }
+td { padding:9px 8px; border-bottom:1px solid #f0f0f0; vertical-align:middle; }
+tr:last-child td { border-bottom:none; }
+.td-pos { width:36px; font-size:15px; text-align:center; }
+.td-nome { width:auto; }
+.td-val { width:90px; text-align:right; font-weight:700; font-variant-numeric:tabular-nums; font-size:12px; color:#111; white-space:nowrap; }
+.td-pct { width:50px; text-align:right; font-size:10px; color:#9ca3af; }
+.prod-nome { font-weight:700; font-size:11px; color:#111; margin-bottom:3px; }
+.prod-sub { font-size:9px; color:#9ca3af; margin-bottom:5px; }
+.bar-track { height:5px; background:#f3f4f6; border-radius:3px; overflow:hidden; }
+.bar-fill  { height:5px; border-radius:3px; }
+.rf { margin-top:20px; padding-top:10px; border-top:1px solid #e5e7eb; display:flex; justify-content:space-between; font-size:9px; color:#d1d5db; }
+</style></head><body>
+<div class="wrap">
+  <div class="rh">
+    <div>
+      <div class="rh-brand">Eclipse · Sistema de Gestão de Postos</div>
+      <div class="rh-title">Top Produtos por Faturamento</div>
+    </div>
+    <div class="rh-meta">
+      <strong>Empresa:</strong> ${empresa}<br>
+      <strong>Período:</strong> ${periodo}<br>
+      <strong>Gerado em:</strong> ${now}
+    </div>
+  </div>
+  <table>
+    <thead><tr>
+      <th></th>
+      <th>Produto</th>
+      <th class="r">Faturamento</th>
+      <th class="r">% do Top</th>
+    </tr></thead>
+    <tbody>${rowsHtml}</tbody>
+  </table>
+  <div class="rf">
+    <span>Eclipse · ${empresa} · Performance de Vendas</span>
+    <span>${now}</span>
+  </div>
+</div>
+<script>
+document.addEventListener('keydown', function(e) {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'p') e.preventDefault();
+});
+</script>
+</body></html>`;
+}
+
+/* ── Preview de impressão ────────────────────────────────────── */
+function RankPrintPreview({ html, titulo, onClose }) {
+  const iframeRef = useRef(null);
+  useEffect(() => {
+    function onKey(e) {
+      if (e.key === 'Escape') { onClose(); return; }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
+        e.preventDefault();
+        iframeRef.current?.contentWindow?.print();
+      }
+    }
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  return ReactDOM.createPortal(
+    <div className="prv-overlay">
+      <div className="prv-bar">
+        <div className="prv-bar-left">
+          <button className="prv-btn-close" onClick={onClose}>
+            <X size={14} /> Fechar
+          </button>
+          <div className="prv-bar-divider" />
+          <div className="prv-bar-info">
+            <span className="prv-bar-title">{titulo}</span>
+          </div>
+        </div>
+        <button className="prv-btn-print" onClick={() => iframeRef.current?.contentWindow?.print()}>
+          <Printer size={14} /> Imprimir
+        </button>
+      </div>
+      <div className="prv-content">
+        <iframe ref={iframeRef} className="prv-iframe" srcDoc={html} title={titulo} />
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 /* ═══════════════════════════════════════════════════════════════
    Componente principal
 ═══════════════════════════════════════════════════════════════ */
 export default function PerformanceVendas({ empresasKey, clients, empresas }) {
   const empresa = (empresas || [])[0] || null;
 
-  const [periodo,  setPeriodo]  = useState('Mês');
-  const [tab,      setTab]      = useState('produtos');
-  const [data,     setData]     = useState(null);
-  const [loading,  setLoading]  = useState(true);
-  const [error,    setError]    = useState(null);
+  const [periodo,   setPeriodo]  = useState('Mês');
+  const [tab,       setTab]      = useState('produtos');
+  const [data,      setData]     = useState(null);
+  const [loading,   setLoading]  = useState(true);
+  const [error,     setError]    = useState(null);
+  const [printHtml, setPrintHtml] = useState(null);
 
   const loadData = useCallback(async () => {
     if (!empresa) { setLoading(false); return; }
@@ -188,6 +331,7 @@ export default function PerformanceVendas({ empresasKey, clients, empresas }) {
 
   /* ── Render ────────────────────────────────────────────────── */
   return (
+    <>
     <div className="pv2-root">
 
       {/* ═══ 1. HEADER ═════════════════════════════════════════ */}
@@ -258,7 +402,26 @@ export default function PerformanceVendas({ empresasKey, clients, empresas }) {
                 <div className="pv2-panel-title">
                   <Trophy size={14} style={{ color: ORANGE }}/> Top Produtos por Faturamento
                 </div>
-                <div className="pv2-panel-sub">{periodo} · {produtos.length} produtos</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div className="pv2-panel-sub">{periodo} · {produtos.length} produtos</div>
+                  {produtos.length > 0 && (
+                    <button
+                      onClick={() => setPrintHtml(gerarHtmlTopProdutos({
+                        produtos, periodo, empresa: empresa || '',
+                        maxProd, fuelColor, RANK_COLORS,
+                      }))}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 5,
+                        background: 'transparent', border: '1px solid #374151',
+                        borderRadius: 6, padding: '4px 10px', cursor: 'pointer',
+                        color: '#9ca3af', fontSize: 12, fontWeight: 600,
+                      }}
+                      title="Imprimir ranking"
+                    >
+                      <Printer size={13} /> Imprimir
+                    </button>
+                  )}
+                </div>
               </div>
               {produtos.length === 0 && !loading ? (
                 <div className="pv2-empty">Sem dados no período selecionado.</div>
@@ -414,5 +577,14 @@ export default function PerformanceVendas({ empresasKey, clients, empresas }) {
         </div>
       )}
     </div>
+
+    {printHtml && (
+      <RankPrintPreview
+        html={printHtml}
+        titulo="Top Produtos por Faturamento"
+        onClose={() => setPrintHtml(null)}
+      />
+    )}
+    </>
   );
 }
