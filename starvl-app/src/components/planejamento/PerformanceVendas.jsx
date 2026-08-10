@@ -238,6 +238,116 @@ document.addEventListener('keydown', function(e) {
 </body></html>`;
 }
 
+/* ── Gerador HTML do comparativo ────────────────────────────── */
+function gerarHtmlComparativo({ comparativo, empresa }) {
+  const now = new Date().toLocaleString('pt-BR');
+  const fmtK2 = v => {
+    if (v == null) return '—';
+    if (v >= 1_000_000) return `R$ ${(v / 1_000_000).toFixed(2)}M`;
+    if (v >= 1_000)     return `R$ ${(v / 1_000).toFixed(1)}k`;
+    return `R$ ${Math.round(v)}`;
+  };
+  const fmtN2 = v => v == null ? '—' : Number(v).toLocaleString('pt-BR');
+  const fmtPct2 = v => v == null ? '—' : `${v > 0 ? '+' : ''}${v.toFixed(1)}%`;
+
+  const rowsHtml = comparativo.map((m, i) => {
+    const ant   = comparativo[i - 1];
+    const d     = ant && ant.faturamento > 0
+      ? (m.faturamento - ant.faturamento) / ant.faturamento * 100
+      : null;
+    const isLast  = i === comparativo.length - 1;
+    const varCor  = d == null ? '#9ca3af' : d > 0 ? '#15803d' : d < 0 ? '#dc2626' : '#9ca3af';
+    const varTxt  = d == null ? '—' : fmtPct2(d);
+    return `
+    <tr class="${isLast ? 'tr-atual' : ''}">
+      <td class="td-mes${isLast ? ' td-bold' : ''}">${m.mes}</td>
+      <td class="td-r td-fat${isLast ? ' td-bold' : ''}">${fmtK2(m.faturamento)}</td>
+      <td class="td-r">${fmtN2(m.qtdVendas)}</td>
+      <td class="td-r" style="color:${varCor};font-weight:${d !== null ? 700 : 400}">${varTxt}</td>
+    </tr>`;
+  }).join('');
+
+  /* Totais */
+  const totalFat = comparativo.reduce((s, m) => s + (m.faturamento || 0), 0);
+  const totalQtd = comparativo.reduce((s, m) => s + (m.qtdVendas   || 0), 0);
+
+  return `<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="utf-8"><title>Comparativo Mensal</title>
+<style>
+@page { size: A4 portrait; margin: 0; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+@media screen {
+  html { background: #4a4a4a; }
+  body { background: #4a4a4a; padding: 28px 20px; font-family:'Segoe UI',Arial,sans-serif; font-size:11px; color:#1a1a1a; }
+  .wrap { width: 720px; margin: 0 auto; background: #fff; padding: 32px 36px; box-shadow: 0 4px 28px rgba(0,0,0,.5); }
+}
+@media print {
+  html, body { background:#fff !important; padding:14mm !important; margin:0 !important; }
+  .wrap { padding:0 !important; box-shadow:none !important; width:100% !important; margin:0 !important; }
+}
+body { font-family:'Segoe UI',Arial,sans-serif; font-size:11px; color:#1a1a1a; }
+.wrap { background:#fff; }
+.rh { display:flex; align-items:flex-end; justify-content:space-between; padding-bottom:14px; margin-bottom:20px; border-bottom:3px solid #f97316; }
+.rh-brand { font-size:10px; font-weight:700; color:#f97316; letter-spacing:.12em; text-transform:uppercase; }
+.rh-title { font-size:18px; font-weight:700; color:#111; line-height:1.2; margin-top:3px; }
+.rh-meta { text-align:right; font-size:9.5px; color:#888; line-height:1.8; }
+.rh-meta strong { color:#444; }
+table { width:100%; border-collapse:collapse; }
+thead tr { border-bottom:2px solid #f97316; }
+th { padding:8px 10px; font-size:9px; text-transform:uppercase; letter-spacing:.06em; color:#888; font-weight:700; text-align:left; }
+th.r { text-align:right; }
+td { padding:10px 10px; border-bottom:1px solid #f0f0f0; font-size:11px; vertical-align:middle; }
+tr:last-child td { border-bottom:none; }
+td.td-r { text-align:right; font-variant-numeric:tabular-nums; }
+td.td-mes { color:#374151; }
+td.td-fat { color:#111; }
+td.td-bold { font-weight:700; }
+tr.tr-atual { background:#fffbf5; }
+tr.tr-atual td { border-bottom:none; }
+.tfoot-row td { border-top:2px solid #f97316; padding-top:10px; font-weight:700; font-size:11px; color:#111; }
+.rf { margin-top:20px; padding-top:10px; border-top:1px solid #e5e7eb; display:flex; justify-content:space-between; font-size:9px; color:#d1d5db; }
+</style></head><body>
+<div class="wrap">
+  <div class="rh">
+    <div>
+      <div class="rh-brand">Eclipse · Sistema de Gestão de Postos</div>
+      <div class="rh-title">Comparativo dos Últimos 6 Meses</div>
+    </div>
+    <div class="rh-meta">
+      <strong>Empresa:</strong> ${empresa}<br>
+      <strong>Gerado em:</strong> ${now}
+    </div>
+  </div>
+  <table>
+    <thead><tr>
+      <th>Mês</th>
+      <th class="r">Faturamento</th>
+      <th class="r">Qtd Vendas</th>
+      <th class="r">Variação</th>
+    </tr></thead>
+    <tbody>${rowsHtml}</tbody>
+    <tfoot>
+      <tr class="tfoot-row">
+        <td>Total</td>
+        <td class="td-r">${fmtK2(totalFat)}</td>
+        <td class="td-r">${fmtN2(totalQtd)}</td>
+        <td></td>
+      </tr>
+    </tfoot>
+  </table>
+  <div class="rf">
+    <span>Eclipse · ${empresa} · Performance de Vendas</span>
+    <span>${now}</span>
+  </div>
+</div>
+<script>
+document.addEventListener('keydown', function(e) {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'p') e.preventDefault();
+});
+</script>
+</body></html>`;
+}
+
 /* ── Gerador HTML do ranking de fornecedores ─────────────────── */
 function gerarHtmlFornecedores({ fornecedores, periodo, empresa, maxForn, RANK_COLORS }) {
   const now = new Date().toLocaleString('pt-BR');
@@ -738,7 +848,26 @@ export default function PerformanceVendas({ empresasKey, clients, empresas }) {
                 <div className="pv2-panel-title">
                   <BarChart2 size={14} style={{ color: YELLOW }}/> Comparativo dos Últimos 6 Meses
                 </div>
-                <div className="pv2-panel-sub">Faturamento e volume de vendas</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div className="pv2-panel-sub">Faturamento e volume de vendas</div>
+                  {comparativo.length > 0 && (
+                    <button
+                      onClick={() => setPrintHtml({
+                        titulo: 'Comparativo dos Últimos 6 Meses',
+                        html: gerarHtmlComparativo({ comparativo, empresa: empresa || '' }),
+                      })}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 5,
+                        background: 'transparent', border: '1px solid #374151',
+                        borderRadius: 6, padding: '4px 10px', cursor: 'pointer',
+                        color: '#9ca3af', fontSize: 12, fontWeight: 600,
+                      }}
+                      title="Imprimir comparativo"
+                    >
+                      <Printer size={13} /> Imprimir
+                    </button>
+                  )}
+                </div>
               </div>
 
               {comparativo.length === 0 && !loading ? (
