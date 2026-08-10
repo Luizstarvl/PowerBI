@@ -6,22 +6,12 @@
  *   estoque_principal  → tabela principal com posição de estoque por produto
  *   estoque_secoes     → (opcional) lista de seções para o filtro
  *   estoque_grupos     → (opcional) lista de grupos para o filtro
- *
- * Colunas detectadas automaticamente nos resultados:
- *   nome / descricao / produto     → nome do produto
- *   codigo / cod / prodcodigo      → código
- *   barra / ean / gtin             → código de barras
- *   secao / descricao_secao        → seção
- *   grupo / descricao_grupo        → grupo
- *   estoque / kardex / saldo       → saldo em estoque
- *   minimo / estoque_minimo        → estoque mínimo (para alerta)
- *   preco / preco_venda / preco_venda1 → preço de venda
- *   custo / e_prodcusto            → custo
- *   situacao / status              → situação (ativo/inativo)
  */
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import ReactDOM from 'react-dom';
+import * as XLSX from 'xlsx';
 import { Package, RefreshCw, Search, X, AlertTriangle, DollarSign,
-         TrendingDown, ChevronLeft, ChevronRight } from 'lucide-react';
+         TrendingDown, ChevronLeft, ChevronRight, Printer, FileDown, Check } from 'lucide-react';
 import { apiFetch } from '../api';
 
 // ── Formatadores ───────────────────────────────────────────────────────────────
@@ -104,12 +94,317 @@ function SemConsulta() {
   );
 }
 
+// ── Helper: valor bruto formatado para print/excel ───────────────────────────
+function rawVal(col, row, det) {
+  if (col.calc) return col.calc(row);
+  return row[col.key] ?? '';
+}
+
+// ── Gerador de HTML para impressão ───────────────────────────────────────────
+function gerarHtmlPrint({ titulo, colunas, linhas, empresa, det }) {
+  const fmtC = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+  const fmtN = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 3 });
+  const now  = new Date().toLocaleString('pt-BR');
+
+  const ativos   = linhas.filter(r => { const v = String(r[det.situacao]||'').toLowerCase(); return v==='ativo'||v==='a'; }).length;
+  const zerados  = det.estoque ? linhas.filter(r => Number(r[det.estoque]||0) <= 0).length : 0;
+  const valorEst = (det.estoque && det.preco)
+    ? linhas.reduce((acc,r) => acc + Number(r[det.estoque]||0)*Number(r[det.preco]||0), 0) : null;
+
+  const kpis = [
+    { label:'Total de Itens',   value: fmtN.format(linhas.length),           sub:`${ativos} ativos` },
+    valorEst !== null && { label:'Valor em Estoque', value: fmtC.format(valorEst), sub:'preço × saldo' },
+    det.estoque && { label:'Zerados', value: fmtN.format(zerados), sub:'saldo ≤ 0' },
+  ].filter(Boolean);
+
+  const kpiHtml = kpis.map(k=>`
+    <div class="kpi-card">
+      <div class="kpi-label">${k.label}</div>
+      <div class="kpi-value">${k.value}</div>
+      <div class="kpi-sub">${k.sub}</div>
+    </div>`).join('');
+
+  const thead = colunas.map(c=>`<th${c.currency||c.estoque||c.num?' class="r"':''}>${c.label}</th>`).join('');
+
+  const tbody = linhas.map((row, i) => {
+    const cells = colunas.map(c => {
+      const raw = rawVal(c, row, det);
+      let val;
+      if (c.badge) {
+        const v = String(raw||'').toLowerCase();
+        const ok = v==='ativo'||v==='a';
+        val = `<span class="badge ${ok?'badge-ok':'badge-off'}">${ok?'Ativo':'Inativo'}</span>`;
+      } else if (c.currency) {
+        val = fmtC.format(Number(raw)||0);
+      } else if (c.estoque || c.num) {
+        const n = Number(raw)||0;
+        val = `<span class="${n<=0?'est-zero':''}">${fmtN.format(n)}</span>`;
+      } else {
+        val = String(raw??'—');
+      }
+      return `<td${c.currency||c.estoque||c.num?' class="r"':''}>${val}</td>`;
+    }).join('');
+    return `<tr class="${i%2===0?'even':'odd'}">${cells}</tr>`;
+  }).join('');
+
+  return `<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="utf-8"><title>${titulo}</title>
+<style>
+@page { size: A4 landscape; margin: 0; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+@media screen {
+  html { background: #4a4a4a; }
+  body { font-family:'Segoe UI',Arial,sans-serif; font-size:10.5px; color:#1a1a1a; background:#4a4a4a; padding:28px 20px; }
+  .preview-wrap { width:1060px; margin:0 auto; background:#fff; padding:28px 32px; box-shadow:0 4px 28px rgba(0,0,0,.5); }
+  .pg-sep { height:32px; margin:0 -32px; background:#4a4a4a; display:flex; align-items:center; justify-content:center; gap:12px; color:#888; font-size:9px; letter-spacing:.06em; border-top:1px dashed #888; border-bottom:1px dashed #888; }
+  .pg-repeat-header th { background:#3b82f6!important; color:#fff!important; padding:7px 9px; font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; white-space:nowrap; }
+  .pg-repeat-header th.r { text-align:right; }
+}
+@media print {
+  html,body { background:#fff!important; padding:12mm 14mm!important; margin:0!important; }
+  .pg-sep-row,.pg-sep,.pg-repeat-header { display:none!important; }
+  .preview-wrap { padding:0!important; box-shadow:none!important; width:100%!important; margin:0!important; }
+  tr { break-inside:avoid; }
+  thead { display:table-header-group; }
+}
+body { font-family:'Segoe UI',Arial,sans-serif; font-size:10.5px; color:#1a1a1a; }
+.preview-wrap { background:#fff; padding:28px 32px; }
+.report-header { display:flex; align-items:flex-end; justify-content:space-between; padding-bottom:12px; margin-bottom:4px; border-bottom:3px solid #3b82f6; }
+.report-brand-name { font-size:10px; font-weight:700; color:#3b82f6; letter-spacing:.1em; text-transform:uppercase; }
+.report-title { font-size:20px; font-weight:700; color:#111; line-height:1.15; }
+.report-meta { text-align:right; font-size:9.5px; color:#777; line-height:1.7; }
+.report-meta strong { color:#333; }
+.kpi-row { display:grid; grid-template-columns:repeat(${kpis.length},1fr); gap:10px; margin-bottom:16px; }
+.kpi-card { border:1px solid #e5e7eb; border-radius:8px; padding:10px 14px; border-left:4px solid #3b82f6; }
+.kpi-label { font-size:9px; text-transform:uppercase; letter-spacing:.06em; color:#888; font-weight:700; margin-bottom:3px; }
+.kpi-value { font-size:17px; font-weight:700; color:#111; line-height:1.1; }
+.kpi-sub { font-size:9px; color:#aaa; margin-top:2px; }
+.section-title { font-size:9px; text-transform:uppercase; letter-spacing:.08em; color:#999; font-weight:700; margin-bottom:6px; }
+table { width:100%; border-collapse:collapse; }
+thead tr { background:#3b82f6; }
+th { padding:7px 9px; text-align:left; font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:#fff; white-space:nowrap; }
+th.r { text-align:right; }
+td { padding:5.5px 9px; font-size:10px; border-bottom:1px solid #f0f0f0; color:#222; vertical-align:middle; }
+td.r { text-align:right; font-variant-numeric:tabular-nums; }
+tr.odd td { background:#fafafa; }
+tr.even td { background:#fff; }
+tr:last-child td { border-bottom:none; }
+.badge { display:inline-block; padding:1px 7px; border-radius:10px; font-size:9px; font-weight:700; }
+.badge-ok  { background:#dcfce7; color:#15803d; }
+.badge-off { background:#f3f4f6; color:#6b7280; }
+.est-zero  { color:#dc2626; font-weight:600; }
+.report-footer { margin-top:16px; padding-top:8px; border-top:1px solid #e5e7eb; display:flex; justify-content:space-between; }
+.report-footer-left,.report-footer-right { font-size:9px; color:#bbb; }
+</style></head><body>
+<div class="preview-wrap">
+<div class="report-header">
+  <div>
+    <div class="report-brand-name">Eclipse · Sistema de Gestão de Postos</div>
+    <div class="report-title">${titulo}</div>
+  </div>
+  <div class="report-meta">
+    <strong>Empresa:</strong> ${empresa}<br>
+    <strong>Gerado em:</strong> ${now}<br>
+    <strong>Total de registros:</strong> ${linhas.length}
+  </div>
+</div>
+<div class="kpi-row">${kpiHtml}</div>
+<div class="section-title">Listagem de Estoque</div>
+<table>
+  <thead><tr>${thead}</tr></thead>
+  <tbody>${tbody}</tbody>
+</table>
+<div class="report-footer">
+  <span class="report-footer-left">Eclipse · ${empresa}</span>
+  <span class="report-footer-right">Gerado em ${now}</span>
+</div>
+</div>
+<script>
+(function(){
+  document.addEventListener('keydown',function(e){if((e.ctrlKey||e.metaKey)&&e.key==='p'){e.preventDefault();}});
+  var PAGE_H=660;
+  window.addEventListener('load',function(){
+    var wrap=document.querySelector('.preview-wrap');
+    var tbody=document.querySelector('tbody');
+    var thead=document.querySelector('thead');
+    if(!wrap||!tbody||!thead)return;
+    var theadHTML=thead.innerHTML;
+    var colCount=thead.querySelector('tr')?thead.querySelector('tr').children.length:1;
+    var wrapTop=wrap.getBoundingClientRect().top+window.scrollY;
+    var rows=Array.from(tbody.querySelectorAll('tr'));
+    var pageNum=1;
+    var totalPgs=Math.max(1,Math.ceil(wrap.scrollHeight/PAGE_H));
+    for(var i=0;i<rows.length;i++){
+      var rowBottom=rows[i].getBoundingClientRect().bottom+window.scrollY-wrapTop;
+      if(rowBottom>pageNum*PAGE_H){
+        var sep=document.createElement('tr');sep.className='pg-sep-row';
+        sep.innerHTML='<td colspan="'+colCount+'"><div class="pg-sep">Página '+pageNum+' de '+totalPgs+'</div></td>';
+        tbody.insertBefore(sep,rows[i]);rows.splice(i,0,sep);i++;
+        var hdrRow=document.createElement('tr');hdrRow.className='pg-repeat-header';
+        hdrRow.innerHTML=theadHTML.replace(/<tr[^>]*>/i,'').replace(/<\/tr>/i,'');
+        tbody.insertBefore(hdrRow,rows[i]);rows.splice(i,0,hdrRow);i++;
+        pageNum++;
+      }
+    }
+  });
+})();
+</script>
+</body></html>`;
+}
+
+// ── PrintPreview ──────────────────────────────────────────────────────────────
+function PrintPreview({ html, titulo, total, empresa, onClose }) {
+  const iframeRef = useRef(null);
+
+  function handlePrint() { iframeRef.current?.contentWindow?.print(); }
+
+  useEffect(() => {
+    function onKey(e) {
+      if (e.key === 'Escape') { onClose(); return; }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'p') { e.preventDefault(); iframeRef.current?.contentWindow?.print(); }
+    }
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  return ReactDOM.createPortal(
+    <div className="prv-overlay">
+      <div className="prv-bar">
+        <div className="prv-bar-left">
+          <button className="prv-btn-close" onClick={onClose}>
+            <X size={14} /> Fechar
+          </button>
+          <div className="prv-bar-divider" />
+          <div className="prv-bar-info">
+            <span className="prv-bar-title">{titulo}</span>
+            <span className="prv-bar-meta">{total} item{total !== 1 ? 's' : ''} · {empresa}</span>
+          </div>
+        </div>
+        <button className="prv-btn-print" onClick={handlePrint}>
+          <Printer size={14} /> Imprimir
+        </button>
+      </div>
+      <div className="prv-content">
+        <iframe ref={iframeRef} className="prv-iframe" srcDoc={html} title="Preview de Impressão" />
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+// ── PrintModal ────────────────────────────────────────────────────────────────
+function PrintModal({ tabelaCols, sortedFiltradas, det, empresa, onClose, onPreview }) {
+  const [titulo,   setTitulo]   = useState('Posição de Estoque');
+  const [pColKeys, setPColKeys] = useState(() => tabelaCols.map(c => c.key));
+
+  function toggleCol(key) {
+    setPColKeys(prev => prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]);
+  }
+
+  function handlePrint() {
+    const colunasSel = tabelaCols.filter(c => pColKeys.includes(c.key));
+    if (!colunasSel.length) return;
+    const html = gerarHtmlPrint({ titulo, colunas: colunasSel, linhas: sortedFiltradas, empresa, det });
+    onPreview({ html, titulo, total: sortedFiltradas.length, empresa });
+    onClose();
+  }
+
+  return ReactDOM.createPortal(
+    <div className="pm-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="pm-modal">
+        <div className="pm-header">
+          <Printer size={16} />
+          <span>Configurar Impressão</span>
+          <button className="pm-close" onClick={onClose}><X size={15} /></button>
+        </div>
+
+        <div className="pm-body">
+          <div className="pm-section">
+            <div className="pm-section-title">Título do relatório</div>
+            <input
+              className="pm-input"
+              value={titulo}
+              onChange={e => setTitulo(e.target.value)}
+              placeholder="Título da impressão"
+            />
+          </div>
+
+          <div className="pm-section">
+            <div className="pm-section-title">Colunas a exibir</div>
+            <div className="pm-cols-grid">
+              {tabelaCols.map(c => (
+                <button
+                  key={c.key}
+                  className={`pm-col-chip${pColKeys.includes(c.key) ? ' pm-col-chip--on' : ''}`}
+                  onClick={() => toggleCol(c.key)}
+                >
+                  {pColKeys.includes(c.key) && <Check size={11} />}
+                  {c.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="pm-preview-count">
+            {sortedFiltradas.length} item{sortedFiltradas.length !== 1 ? 's' : ''} · {tabelaCols.filter(c => pColKeys.includes(c.key)).length} coluna{tabelaCols.filter(c => pColKeys.includes(c.key)).length !== 1 ? 's' : ''}
+          </div>
+        </div>
+
+        <div className="pm-footer">
+          <button className="pm-btn-cancel" onClick={onClose}>Cancelar</button>
+          <button className="pm-btn-print" onClick={handlePrint} disabled={!pColKeys.length}>
+            <Printer size={14} /> Imprimir
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+// ── Export Excel ──────────────────────────────────────────────────────────────
+function exportarExcel({ tabelaCols, linhas, empresa, det }) {
+  const headers = tabelaCols.map(c => c.label);
+
+  const dataRows = linhas.map(row =>
+    tabelaCols.map(c => {
+      const raw = rawVal(c, row, det);
+      if (c.badge) {
+        const v = String(raw||'').toLowerCase();
+        return (v==='ativo'||v==='a') ? 'Ativo' : 'Inativo';
+      }
+      if (c.currency) return Number(raw) || 0;
+      if (c.estoque || c.num) return Number(raw) || 0;
+      return raw ?? '';
+    })
+  );
+
+  const wsData = [headers, ...dataRows];
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+  // Largura automática das colunas
+  const colWidths = headers.map((h, i) => ({
+    wch: Math.max(
+      h.length,
+      ...dataRows.map(r => String(r[i] ?? '').length)
+    ) + 2
+  }));
+  ws['!cols'] = colWidths;
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Estoque');
+
+  const now = new Date();
+  const stamp = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`;
+  XLSX.writeFile(wb, `estoque_${empresa}_${stamp}.xlsx`);
+}
+
 // ── Componente principal ───────────────────────────────────────────────────────
 export default function Estoque({ empresas }) {
   const empresa = (empresas || [])[0] || '';
 
   // Slots
-  const [slotPrincipal, setSlotPrincipal] = useState(undefined); // undefined = carregando
+  const [slotPrincipal, setSlotPrincipal] = useState(undefined);
   const [slotSecoes,    setSlotSecoes]    = useState(null);
   const [slotGrupos,    setSlotGrupos]    = useState(null);
 
@@ -132,7 +427,10 @@ export default function Estoque({ empresas }) {
   const [pagina,     setPagina]     = useState(1);
   const [pageSize,   setPageSize]   = useState(10);
 
-  // Detecta colunas
+  // Print / Export
+  const [printOpen,   setPrintOpen]   = useState(false);
+  const [previewData, setPreviewData] = useState(null);
+
   const det = useMemo(() => detectCols(cols), [cols]);
 
   // 1. Busca os 3 slots
@@ -154,7 +452,7 @@ export default function Estoque({ empresas }) {
     });
   }, []);
 
-  // 2. Executa seções e grupos quando prontos
+  // 2. Executa seções e grupos
   useEffect(() => {
     if (!empresa) return;
     if (slotSecoes) {
@@ -227,9 +525,8 @@ export default function Estoque({ empresas }) {
     if (!det.grupo) return [];
     const base = secao === 'Todas' ? rows : rows.filter(r => norm(r[det.secao]) === norm(secao));
     return ['Todos', ...new Set(base.map(r => r[det.grupo]).filter(Boolean))];
-  }, [gruposExt, secoesExt, rows, det, secao]);
+  }, [gruposExt, secoesExt, rows, det, secao]); // eslint-disable-line
 
-  // ── Match situação ────────────────────────────────────────────────────────────
   const matchSituacao = (val, tipo) => {
     const v = String(val || '').trim().toLowerCase();
     if (tipo === 'Ativos')   return v === 'ativo'   || v === 'a';
@@ -243,35 +540,30 @@ export default function Estoque({ empresas }) {
     const inativos = rows.length - ativos.length;
     const zerados  = rows.filter(r => Number(r[det.estoque] || 0) <= 0);
     const abaixoMin = det.minimo
-      ? rows.filter(r => {
-          const est = Number(r[det.estoque] || 0);
-          const min = Number(r[det.minimo]  || 0);
-          return min > 0 && est > 0 && est <= min;
-        })
+      ? rows.filter(r => { const e = Number(r[det.estoque]||0), m = Number(r[det.minimo]||0); return m>0&&e>0&&e<=m; })
       : [];
     const valorEst = (det.estoque && det.preco)
-      ? rows.reduce((acc, r) => acc + Number(r[det.estoque] || 0) * Number(r[det.preco] || 0), 0)
+      ? rows.reduce((acc, r) => acc + Number(r[det.estoque]||0)*Number(r[det.preco]||0), 0)
       : null;
-
     return { total: rows.length, ativos: ativos.length, inativos, zerados: zerados.length, abaixoMin: abaixoMin.length, valorEst };
-  }, [rows, det]);
+  }, [rows, det]); // eslint-disable-line
 
-  // ── Filtro e ordenação ────────────────────────────────────────────────────────
+  // ── Colunas da tabela ────────────────────────────────────────────────────────
   const tabelaCols = useMemo(() => [
-    det.nome     && { key: det.nome,    label: 'Produto',         name: true },
+    det.nome     && { key: det.nome,    label: 'Produto',     name: true },
     det.codigo   && { key: det.codigo,  label: 'Código' },
     det.barra    && { key: det.barra,   label: 'Cód. Barras' },
     det.secao    && { key: det.secao,   label: 'Seção' },
     det.grupo    && { key: det.grupo,   label: 'Grupo' },
-    det.estoque  && { key: det.estoque, label: 'Estoque',  estoque: true },
-    det.minimo   && { key: det.minimo,  label: 'Mínimo',   num: true },
-    det.preco    && { key: det.preco,   label: 'Preço',    currency: true },
-    det.custo    && { key: det.custo,   label: 'Custo',    currency: true },
+    det.estoque  && { key: det.estoque, label: 'Estoque',     estoque: true },
+    det.minimo   && { key: det.minimo,  label: 'Mínimo',      num: true },
+    det.preco    && { key: det.preco,   label: 'Preço',       currency: true },
+    det.custo    && { key: det.custo,   label: 'Custo',       currency: true },
     det.estoque && det.preco && {
       key: '__ve', label: 'Vl. Estoque', currency: true,
-      calc: r => Number(r[det.estoque] || 0) * Number(r[det.preco] || 0),
+      calc: r => Number(r[det.estoque]||0)*Number(r[det.preco]||0),
     },
-    det.situacao && { key: det.situacao, label: 'Situação', badge: true },
+    det.situacao && { key: det.situacao, label: 'Situação',   badge: true },
   ].filter(Boolean), [det]);
 
   const norm = s => String(s || '').trim().toLowerCase();
@@ -289,7 +581,7 @@ export default function Estoque({ empresas }) {
     if (secao !== 'Todas' && det.secao) r = r.filter(row => norm(row[det.secao]) === norm(secao));
     if (grupo !== 'Todos' && det.grupo) r = r.filter(row => norm(row[det.grupo]) === norm(grupo));
     if (situacao !== 'Todos' && det.situacao) r = r.filter(row => matchSituacao(row[det.situacao], situacao));
-    if (semEst && det.estoque) r = r.filter(row => Number(row[det.estoque] || 0) <= 0);
+    if (semEst && det.estoque) r = r.filter(row => Number(row[det.estoque]||0) <= 0);
     return r;
   }, [rows, busca, secao, grupo, situacao, semEst, det]); // eslint-disable-line
 
@@ -301,10 +593,10 @@ export default function Estoque({ empresas }) {
       const va = col.calc ? col.calc(a) : a[sortCol];
       const vb = col.calc ? col.calc(b) : b[sortCol];
       if (col.currency || col.estoque || col.num) {
-        const diff = (Number(va) || 0) - (Number(vb) || 0);
+        const diff = (Number(va)||0) - (Number(vb)||0);
         return sortDir === 'asc' ? diff : -diff;
       }
-      const cmp = String(va ?? '').localeCompare(String(vb ?? ''), 'pt-BR', { sensitivity: 'base' });
+      const cmp = String(va??'').localeCompare(String(vb??''), 'pt-BR', { sensitivity: 'base' });
       return sortDir === 'asc' ? cmp : -cmp;
     });
   }, [filtradas, sortCol, sortDir, tabelaCols]);
@@ -322,9 +614,9 @@ export default function Estoque({ empresas }) {
 
   const total     = sortedFiltradas.length;
   const ps        = pageSize === 'Todos' ? total : pageSize;
-  const totalPags = Math.max(1, Math.ceil(total / (ps || 1)));
+  const totalPags = Math.max(1, Math.ceil(total / (ps||1)));
   const pag       = Math.min(pagina, totalPags);
-  const pagRows   = pageSize === 'Todos' ? sortedFiltradas : sortedFiltradas.slice((pag - 1) * ps, pag * ps);
+  const pagRows   = pageSize === 'Todos' ? sortedFiltradas : sortedFiltradas.slice((pag-1)*ps, pag*ps);
 
   // ── Renderização ──────────────────────────────────────────────────────────────
   if (slotPrincipal === undefined) {
@@ -354,6 +646,22 @@ export default function Estoque({ empresas }) {
             </div>
           </div>
           <div className="pp-header-actions">
+            <button
+              className="pp-btn-ghost"
+              onClick={() => exportarExcel({ tabelaCols, linhas: sortedFiltradas, empresa, det })}
+              disabled={!sortedFiltradas.length}
+              title="Exportar para Excel"
+            >
+              <FileDown size={14} /> Excel
+            </button>
+            <button
+              className="pp-btn-ghost"
+              onClick={() => setPrintOpen(true)}
+              disabled={!sortedFiltradas.length}
+              title="Imprimir"
+            >
+              <Printer size={14} /> Imprimir
+            </button>
             <button className="pp-btn-primary" onClick={fetchDados} disabled={loading}>
               <RefreshCw size={13} className={loading ? 'pp-spin' : ''} />
               {loading ? 'Atualizando…' : 'Atualizar'}
@@ -365,13 +673,13 @@ export default function Estoque({ empresas }) {
 
         {/* ── KPIs ── */}
         <div className="pp-kpi-grid">
-          <KpiCard icon={Package}       label="Total de Itens"     value={fmtNum.format(kpis.total)}                                 sub={`${kpis.ativos} ativos · ${kpis.inativos} inativos`}   accent="#3b82f6" />
+          <KpiCard icon={Package}       label="Total de Itens"   value={fmtNum.format(kpis.total)}              sub={`${kpis.ativos} ativos · ${kpis.inativos} inativos`}  accent="#3b82f6" />
           {kpis.valorEst !== null && (
-            <KpiCard icon={DollarSign}  label="Valor em Estoque"   value={fmtCurrency.format(kpis.valorEst)}                         sub="preço × saldo"                                          accent="#22c55e" />
+            <KpiCard icon={DollarSign}  label="Valor em Estoque" value={fmtCurrency.format(kpis.valorEst)}      sub="preço × saldo"                                         accent="#22c55e" />
           )}
-          <KpiCard icon={AlertTriangle} label="Zerados"            value={fmtNum.format(kpis.zerados)}                               sub="saldo ≤ 0"                                              accent="#ef4444" />
+          <KpiCard icon={AlertTriangle} label="Zerados"          value={fmtNum.format(kpis.zerados)}            sub="saldo ≤ 0"                                             accent="#ef4444" />
           {kpis.abaixoMin > 0 && (
-            <KpiCard icon={TrendingDown} label="Abaixo do Mínimo"  value={fmtNum.format(kpis.abaixoMin)}                             sub="saldo ≤ mínimo configurado"                             accent="#f59e0b" />
+            <KpiCard icon={TrendingDown} label="Abaixo do Mínimo" value={fmtNum.format(kpis.abaixoMin)}         sub="saldo ≤ mínimo configurado"                            accent="#f59e0b" />
           )}
         </div>
 
@@ -493,8 +801,8 @@ export default function Estoque({ empresas }) {
                           ].filter(Boolean).join(' ')}>
                             {c.badge    ? <SituacaoBadge value={raw} />
                              : c.estoque  ? <EstoqueCell value={raw} minimo={det.minimo ? row[det.minimo] : null} />
-                             : c.currency ? fmtCurrency.format(Number(raw) || 0)
-                             : c.num      ? fmtNum.format(Number(raw) || 0)
+                             : c.currency ? fmtCurrency.format(Number(raw)||0)
+                             : c.num      ? fmtNum.format(Number(raw)||0)
                              : (raw ?? '—')}
                           </td>
                         );
@@ -511,20 +819,20 @@ export default function Estoque({ empresas }) {
             <span className="pp-foot-count">
               {total === 0
                 ? 'Nenhum item'
-                : `${(pag - 1) * ps + 1}–${Math.min(pag * ps, total)} de ${total} itens`}
+                : `${(pag-1)*ps+1}–${Math.min(pag*ps, total)} de ${total} itens`}
             </span>
 
             <div className="pp-pag">
-              <button className="pp-pag-btn" onClick={() => setPagina(p => Math.max(1, p - 1))} disabled={pag <= 1 || pageSize === 'Todos'}>
+              <button className="pp-pag-btn" onClick={() => setPagina(p => Math.max(1, p-1))} disabled={pag <= 1 || pageSize === 'Todos'}>
                 <ChevronLeft size={14} />
               </button>
               {totalPags <= 6
-                ? Array.from({ length: totalPags }, (_, i) => i + 1).map(n => (
+                ? Array.from({ length: totalPags }, (_, i) => i+1).map(n => (
                     <button key={n} className={`pp-pag-btn${pag === n ? ' pp-pag-btn--on' : ''}`} onClick={() => setPagina(n)}>{n}</button>
                   ))
                 : <span className="pp-pag-info">{pag} / {totalPags}</span>
               }
-              <button className="pp-pag-btn" onClick={() => setPagina(p => Math.min(totalPags, p + 1))} disabled={pag >= totalPags || pageSize === 'Todos'}>
+              <button className="pp-pag-btn" onClick={() => setPagina(p => Math.min(totalPags, p+1))} disabled={pag >= totalPags || pageSize === 'Todos'}>
                 <ChevronRight size={14} />
               </button>
             </div>
@@ -540,6 +848,29 @@ export default function Estoque({ empresas }) {
         </div>
 
       </div>
+
+      {/* ── Modal de impressão ── */}
+      {printOpen && (
+        <PrintModal
+          tabelaCols={tabelaCols}
+          sortedFiltradas={sortedFiltradas}
+          det={det}
+          empresa={empresa}
+          onClose={() => setPrintOpen(false)}
+          onPreview={data => setPreviewData(data)}
+        />
+      )}
+
+      {/* ── Preview fullscreen ── */}
+      {previewData && (
+        <PrintPreview
+          html={previewData.html}
+          titulo={previewData.titulo}
+          total={previewData.total}
+          empresa={previewData.empresa}
+          onClose={() => setPreviewData(null)}
+        />
+      )}
     </main>
   );
 }
