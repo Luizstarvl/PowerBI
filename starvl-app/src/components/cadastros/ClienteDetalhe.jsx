@@ -43,107 +43,162 @@ function buildOrderedFields(row, det) {
 }
 
 function gerarFichaCliente({ row, fields, foto, observacoes, tags, empresa, det }) {
+  const now  = new Date().toLocaleString('pt-BR');
   const nome = (det?.nomeFantasia && row[det.nomeFantasia]) || (det?.razaoSocial && row[det.razaoSocial]) || '';
-  const tel   = det?.telefone ? row[det.telefone]  : null;
-  const email = det?.email    ? row[det.email]     : null;
+  const cod  = det?.codigo ? row[det.codigo] : '';
+  const tel  = det?.telefone ? row[det.telefone]  : null;
+  const mail = det?.email    ? row[det.email]     : null;
 
-  const camposHtml = fields.map(f => `
-    <tr>
-      <td class="label">${f.label}</td>
-      <td class="value">${f.value}</td>
-    </tr>`).join('');
+  const matchAtivo = v => { const s = String(v || '').trim().toLowerCase(); return s === 'ativo' || s === 'a'; };
 
-  const contatoHtml = (tel || email) ? `
-    <div class="section">
-      <div class="section-title">Contato</div>
-      <table class="fields">
-        ${tel   ? `<tr><td class="label">Telefone</td><td class="value">${tel}</td></tr>` : ''}
-        ${email ? `<tr><td class="label">E-mail</td><td class="value">${email}</td></tr>` : ''}
-      </table>
-    </div>` : '';
+  const fotoHtml = foto
+    ? `<img src="${foto}" class="ficha-foto" alt="Foto do cliente" />`
+    : `<div class="ficha-foto-empty"><span>SEM FOTO</span></div>`;
 
-  const obsHtml = observacoes ? `
-    <div class="section">
-      <div class="section-title">Observações</div>
-      <p class="obs-text">${observacoes.replace(/\n/g, '<br>')}</p>
-    </div>` : '';
+  const fieldsHtml = fields.map(f => {
+    let val = f.value;
+    if (f.key === det?.situacao || f.label === 'Situação') {
+      const ok = matchAtivo(row[f.key]);
+      val = `<span class="badge ${ok ? 'badge-ok' : 'badge-off'}">${ok ? 'Ativo' : 'Inativo'}</span>`;
+    }
+    return `
+      <tr>
+        <td class="fl">${f.label}</td>
+        <td class="fv">${val}</td>
+      </tr>`;
+  }).join('');
 
-  const tagsHtml = tags.length ? `
-    <div class="section">
-      <div class="section-title">Tags</div>
-      <div class="tags-row">${tags.map(t => `<span class="tag">${t}</span>`).join('')}</div>
-    </div>` : '';
+  const contatoHtml = (tel || mail) ? `
+    <tr><td class="fl" colspan="2" style="padding-top:10px;font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:#9ca3af;font-weight:700;">Contato</td></tr>
+    ${tel  ? `<tr><td class="fl">Telefone</td><td class="fv">${tel}</td></tr>`  : ''}
+    ${mail ? `<tr><td class="fl">E-mail</td><td class="fv">${mail}</td></tr>` : ''}` : '';
+
+  const tagsHtml = tags.length
+    ? `<div class="ficha-section-title">Tags</div>
+       <div class="ficha-tags">${tags.map(t => `<span class="ftag">${t}</span>`).join('')}</div>`
+    : '';
+
+  const obsHtml = observacoes.trim()
+    ? `<div class="ficha-section-title">Observações</div>
+       <div class="ficha-obs">${observacoes.replace(/\n/g, '<br>')}</div>`
+    : '';
 
   return `<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-<meta charset="utf-8">
-<title>Ficha — ${nome}</title>
+<html lang="pt-BR"><head><meta charset="utf-8">
+<title>Ficha: ${nome}</title>
 <style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: Arial, sans-serif; font-size: 11px; color: #222; background: #fff; }
-  @page { size: A4 portrait; margin: 18mm 15mm; }
-  .page { max-width: 180mm; margin: 0 auto; }
-  .header { display: flex; align-items: center; gap: 14px; border-bottom: 2px solid #0ea5e9; padding-bottom: 10px; margin-bottom: 14px; }
-  .header-logo { font-size: 16px; font-weight: 700; color: #0ea5e9; white-space: nowrap; }
-  .header-sub  { font-size: 9px; color: #666; margin-top: 2px; }
-  .header-title { font-size: 14px; font-weight: 700; flex: 1; text-align: right; }
-  .hero { display: flex; gap: 16px; margin-bottom: 14px; align-items: flex-start; }
-  .hero-foto { width: 90px; height: 90px; object-fit: cover; border-radius: 6px; border: 1px solid #e5e7eb; flex-shrink: 0; }
-  .hero-foto-empty { width: 90px; height: 90px; border-radius: 6px; border: 2px dashed #d1d5db; display: flex; align-items: center; justify-content: center; color: #9ca3af; font-size: 9px; flex-shrink: 0; }
-  .hero-info { flex: 1; }
-  .hero-name { font-size: 16px; font-weight: 700; color: #0ea5e9; margin-bottom: 4px; }
-  .hero-empresa { font-size: 10px; color: #666; }
-  .section { margin-bottom: 12px; }
-  .section-title { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: #0ea5e9; border-bottom: 1px solid #e0f2fe; padding-bottom: 3px; margin-bottom: 6px; }
-  table.fields { width: 100%; border-collapse: collapse; }
-  table.fields tr { border-bottom: 1px solid #f3f4f6; }
-  table.fields tr:last-child { border-bottom: none; }
-  td.label { width: 38%; font-weight: 600; color: #555; padding: 3px 8px 3px 0; vertical-align: top; }
-  td.value { color: #111; padding: 3px 0; }
-  .obs-text { background: #f8fafc; border-left: 3px solid #0ea5e9; padding: 6px 10px; border-radius: 2px; white-space: pre-line; line-height: 1.5; }
-  .tags-row { display: flex; flex-wrap: wrap; gap: 5px; }
-  .tag { background: #e0f2fe; color: #0369a1; border-radius: 20px; padding: 2px 8px; font-size: 10px; font-weight: 600; }
-  .footer { margin-top: 18px; border-top: 1px solid #e5e7eb; padding-top: 6px; display: flex; justify-content: space-between; color: #9ca3af; font-size: 8px; }
-  @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
-</style>
-</head>
-<body>
-<div class="page">
-  <div class="header">
+@page { size: A4 portrait; margin: 0; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+@media screen {
+  html { background: #4a4a4a; }
+  body { background: #4a4a4a; padding: 28px 20px; font-family: 'Segoe UI', Arial, sans-serif; font-size: 11px; color: #1a1a1a; }
+  .wrap { width: 720px; margin: 0 auto; background: #fff; padding: 32px 36px; box-shadow: 0 4px 28px rgba(0,0,0,.5); }
+}
+@media print {
+  html, body { background: #fff !important; padding: 14mm !important; margin: 0 !important; }
+  .wrap { padding: 0 !important; box-shadow: none !important; width: 100% !important; margin: 0 !important; }
+}
+
+body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 11px; color: #1a1a1a; }
+.wrap { background: #fff; }
+
+/* ── Cabeçalho ── */
+.rh { display: flex; align-items: flex-end; justify-content: space-between; padding-bottom: 14px; margin-bottom: 20px; border-bottom: 3px solid #f97316; }
+.rh-brand { font-size: 10px; font-weight: 700; color: #f97316; letter-spacing: .12em; text-transform: uppercase; }
+.rh-title { font-size: 18px; font-weight: 700; color: #111; line-height: 1.2; margin-top: 3px; }
+.rh-meta { text-align: right; font-size: 9.5px; color: #888; line-height: 1.8; }
+.rh-meta strong { color: #444; }
+
+/* ── Corpo principal ── */
+.main-row { display: flex; gap: 24px; margin-bottom: 20px; }
+
+/* Foto */
+.foto-col { flex-shrink: 0; }
+.ficha-foto {
+  width: 180px; height: 180px;
+  object-fit: cover;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #f9fafb;
+  display: block;
+}
+.ficha-foto-empty {
+  width: 180px; height: 180px;
+  border: 2px dashed #d1d5db;
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  background: #f9fafb;
+  color: #9ca3af; font-size: 11px; font-weight: 700; letter-spacing: .08em;
+}
+
+/* Dados */
+.fields-col { flex: 1; min-width: 0; }
+.ficha-nome { font-size: 17px; font-weight: 700; color: #111; line-height: 1.25; margin-bottom: 14px; }
+.ficha-cod  { font-size: 11px; color: #6b7280; margin-top: -10px; margin-bottom: 14px; }
+
+table.ft { width: 100%; border-collapse: collapse; }
+table.ft td { padding: 5px 8px; border-bottom: 1px solid #f0f0f0; font-size: 10.5px; vertical-align: middle; }
+table.ft td.fl { width: 38%; color: #6b7280; font-weight: 600; font-size: 9.5px; text-transform: uppercase; letter-spacing: .04em; }
+table.ft td.fv { color: #111; }
+table.ft tr:last-child td { border-bottom: none; }
+
+/* ── Extras ── */
+.extras-row { border-top: 1px solid #e5e7eb; padding-top: 16px; display: flex; flex-direction: column; gap: 14px; }
+.ficha-section-title { font-size: 9px; text-transform: uppercase; letter-spacing: .1em; color: #9ca3af; font-weight: 700; margin-bottom: 6px; }
+
+.ficha-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.ftag { background: #fff3e8; color: #c2410c; border: 1px solid #fed7aa; border-radius: 20px; padding: 2px 10px; font-size: 10px; font-weight: 600; }
+
+.ficha-obs { font-size: 11px; color: #374151; line-height: 1.6; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px 14px; }
+
+/* Badges */
+.badge { display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: 10px; font-weight: 700; }
+.badge-ok  { background: #dcfce7; color: #15803d; }
+.badge-off { background: #f3f4f6; color: #6b7280; }
+
+/* ── Rodapé ── */
+.rf { margin-top: 20px; padding-top: 10px; border-top: 1px solid #e5e7eb; display: flex; justify-content: space-between; font-size: 9px; color: #d1d5db; }
+</style></head><body>
+<div class="wrap">
+
+  <div class="rh">
     <div>
-      <div class="header-logo">${empresa || 'Eclipse'}</div>
-      <div class="header-sub">Cadastro de Clientes</div>
+      <div class="rh-brand">Eclipse · Sistema de Gestão de Postos</div>
+      <div class="rh-title">Ficha do Cliente</div>
     </div>
-    <div class="header-title">Ficha de Cliente</div>
-  </div>
-
-  <div class="hero">
-    ${foto
-      ? `<img class="hero-foto" src="${foto}" alt="${nome}">`
-      : `<div class="hero-foto-empty">Sem foto</div>`}
-    <div class="hero-info">
-      <div class="hero-name">${nome || '—'}</div>
-      <div class="hero-empresa">${empresa || ''}</div>
+    <div class="rh-meta">
+      <strong>Empresa:</strong> ${empresa}<br>
+      <strong>Gerado em:</strong> ${now}
     </div>
   </div>
 
-  <div class="section">
-    <div class="section-title">Dados do cliente</div>
-    <table class="fields">${camposHtml}</table>
+  <div class="main-row">
+    <div class="foto-col">${fotoHtml}</div>
+    <div class="fields-col">
+      <div class="ficha-nome">${nome || '—'}</div>
+      ${cod ? `<div class="ficha-cod">Código: ${cod}</div>` : ''}
+      <table class="ft"><tbody>
+        ${fieldsHtml}
+        ${contatoHtml}
+      </tbody></table>
+    </div>
   </div>
 
-  ${contatoHtml}
-  ${obsHtml}
-  ${tagsHtml}
+  ${(tagsHtml || obsHtml) ? `<div class="extras-row">${tagsHtml}${obsHtml}</div>` : ''}
 
-  <div class="footer">
-    <span>${empresa || ''} — Ficha de Cliente</span>
-    <span>Gerado em ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+  <div class="rf">
+    <span>Eclipse · ${empresa}</span>
+    <span>Gerado em ${now}</span>
   </div>
+
 </div>
-</body>
-</html>`;
+<script>
+document.addEventListener('keydown', function(e) {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'p') e.preventDefault();
+});
+</script>
+</body></html>`;
 }
 
 function FichaPreview({ html, nome, onClose }) {
