@@ -1650,7 +1650,7 @@ router.get('/notas-fornecedor', async (req, res) => {
     const { rows } = await query(
       `SELECT
          entcpa.entcpacodigo                          AS nota,
-         COALESCE(entcpa.entcpachave, entcpa.entcpadocumento,
+         COALESCE(entcpa.entcpachave::text, entcpa.entcpadocumento::text,
                   entcpa.entcpacodigo::text)          AS num_nota,
          entcpa.entcpachegada                         AS data_chegada,
          entcpa.entcpaemissao                         AS data_emissao,
