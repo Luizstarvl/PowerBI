@@ -6074,3 +6074,7 @@ select.themed-select option {
   border-color: rgba(0,0,0,.12); background: rgba(0,0,0,.04); color: #6B7280;
 }
 [data-theme="light"] .mm-pag-btn:hover:not(:disabled) { background: rgba(0,0,0,.08); }
+
+/* mc3-period — overrides adicionais para tema claro */
+[data-theme="light"] .mc3-period-mes       { color: #111827; }
+[data-theme="light"] .mc3-period-bar-wrap  { background: rgba(0,0,0,.1); }
