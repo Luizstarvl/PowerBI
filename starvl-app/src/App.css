@@ -6296,3 +6296,24 @@ select.themed-select option {
 .pm-product-row--on:focus {
   background: var(--color-primary-light);
 }
+
+/* ── Botão Imprimir Ficha no cabeçalho do ProdutoDetalhe ─────────────────── */
+.pd-btn-print {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  background: none;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: color .15s, border-color .15s, background .15s;
+}
+.pd-btn-print:hover {
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+  background: var(--color-primary-light);
+}
