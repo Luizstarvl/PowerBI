@@ -6286,3 +6286,13 @@ select.themed-select option {
 }
 .pm-sel-action:hover:not(:disabled) { color: var(--color-primary); border-color: var(--color-primary); }
 .pm-sel-action:disabled { opacity: .4; cursor: not-allowed; }
+
+/* Foco visível ao navegar com teclado na lista de produtos */
+.pm-product-row:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+  background: var(--color-surface-hover);
+}
+.pm-product-row--on:focus {
+  background: var(--color-primary-light);
+}

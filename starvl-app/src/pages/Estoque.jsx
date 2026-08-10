@@ -419,6 +419,9 @@ function ExportModal({
   function selectAll()  { setSelectedIds(new Set(filteredIds)); }
   function selectNone() { setSelectedIds(new Set()); }
 
+  // Ref da lista de produtos (para scroll automático ao navegar com teclado)
+  const listRef = useRef(null);
+
   // Busca dentro da lista de seleção
   const [buscaLista, setBuscaLista] = useState('');
   const listaVis = useMemo(() => {
@@ -600,7 +603,7 @@ function ExportModal({
               </div>
             </div>
 
-            <div className="pm-product-list">
+            <div className="pm-product-list" ref={listRef}>
               {listaVis.length === 0 ? (
                 <div className="pm-product-empty">Nenhum produto encontrado.</div>
               ) : listaVis.map(row => {
@@ -610,8 +613,23 @@ function ExportModal({
                 return (
                   <label
                     key={id}
+                    tabIndex={0}
                     className={`pm-product-row${checked ? ' pm-product-row--on' : ''}`}
                     onClick={() => toggleRow(id)}
+                    onKeyDown={e => {
+                      if (e.key === ' ' || e.key === 'Enter') {
+                        e.preventDefault();
+                        toggleRow(id);
+                      } else if (e.key === 'ArrowDown') {
+                        e.preventDefault();
+                        const next = e.currentTarget.nextElementSibling;
+                        if (next) next.focus();
+                      } else if (e.key === 'ArrowUp') {
+                        e.preventDefault();
+                        const prev = e.currentTarget.previousElementSibling;
+                        if (prev) prev.focus();
+                      }
+                    }}
                   >
                     <input
                       type="checkbox"
@@ -619,6 +637,7 @@ function ExportModal({
                       checked={checked}
                       onChange={() => toggleRow(id)}
                       onClick={e => e.stopPropagation()}
+                      tabIndex={-1}
                     />
                     <span className="pm-product-name">{row[det.nome] || '—'}</span>
                     {det.codigo && <span className="pm-product-code">{row[det.codigo]}</span>}
