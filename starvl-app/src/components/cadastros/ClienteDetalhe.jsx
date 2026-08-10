@@ -146,29 +146,41 @@ function gerarFichaCliente({ row, fields, foto, observacoes, tags, empresa, det 
 </html>`;
 }
 
-function FichaPreview({ html, onClose }) {
-  const iframeRef = useRef();
+function FichaPreview({ html, nome, onClose }) {
+  const iframeRef = useRef(null);
+
   useEffect(() => {
-    function onKey(e) { if (e.key === 'Escape') onClose(); }
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    function onKey(e) {
+      if (e.key === 'Escape') { onClose(); return; }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
+        e.preventDefault();
+        iframeRef.current?.contentWindow?.print();
+      }
+    }
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
   }, [onClose]);
 
   return ReactDOM.createPortal(
-    <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,.7)', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', background: '#1e293b', color: '#fff', flexShrink: 0 }}>
-        <Printer size={15} />
-        <span style={{ flex: 1, fontSize: 14, fontWeight: 600 }}>Ficha do Cliente</span>
-        <button onClick={() => iframeRef.current?.contentWindow?.print()}
-          style={{ background: '#0ea5e9', color: '#fff', border: 'none', borderRadius: 6, padding: '5px 14px', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
-          Imprimir (Ctrl+P)
-        </button>
-        <button onClick={onClose}
-          style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: 4 }}>
-          <X size={18} />
+    <div className="prv-overlay">
+      <div className="prv-bar">
+        <div className="prv-bar-left">
+          <button className="prv-btn-close" onClick={onClose}>
+            <X size={14} /> Fechar
+          </button>
+          <div className="prv-bar-divider" />
+          <div className="prv-bar-info">
+            <span className="prv-bar-title">Ficha do Cliente</span>
+            <span className="prv-bar-meta">{nome}</span>
+          </div>
+        </div>
+        <button className="prv-btn-print" onClick={() => iframeRef.current?.contentWindow?.print()}>
+          <Printer size={14} /> Imprimir
         </button>
       </div>
-      <iframe ref={iframeRef} srcDoc={html} style={{ flex: 1, border: 'none', background: '#fff' }} title="Ficha do Cliente" />
+      <div className="prv-content">
+        <iframe ref={iframeRef} className="prv-iframe" srcDoc={html} title="Ficha do Cliente" />
+      </div>
     </div>,
     document.body
   );
@@ -389,7 +401,7 @@ export default function ClienteDetalhe({ row, cols, det, empresa, onClose }) {
   return (
     <>
       {portal}
-      {fichaHtml && <FichaPreview html={fichaHtml} onClose={() => setFichaHtml(null)} />}
+      {fichaHtml && <FichaPreview html={fichaHtml} nome={nomeExibido} onClose={() => setFichaHtml(null)} />}
     </>
   );
 }
