@@ -6317,3 +6317,152 @@ select.themed-select option {
   border-color: var(--color-primary);
   background: var(--color-primary-light);
 }
+
+/* ── Estoque — Tab principal (Geral / Combustíveis) ──────────────────────────── */
+.pp-main-tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 2px solid var(--color-border);
+  margin-bottom: 4px;
+}
+.pp-main-tab {
+  display: flex; align-items: center; gap: 6px;
+  padding: 8px 18px; font-size: 13px; font-weight: 600;
+  border: none; background: transparent; cursor: pointer;
+  color: var(--color-text-muted);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  border-radius: 8px 8px 0 0;
+  transition: color .15s, background .15s, border-color .15s;
+}
+.pp-main-tab:hover { background: var(--color-surface); color: var(--color-text); }
+.pp-main-tab--on {
+  color: #f97316;
+  border-bottom-color: #f97316;
+  background: rgba(249,115,22,.07);
+}
+
+/* ── Estoque Combustíveis ─────────────────────────────────────────────────────── */
+.comb-wrap { display: flex; flex-direction: column; gap: 20px; }
+
+.comb-section-header {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px; font-weight: 700; color: var(--color-text);
+}
+.comb-section-header svg { color: #f97316; }
+.comb-section-header .pp-btn-ghost { margin-left: auto; }
+
+/* Grid de cards de combustível */
+.comb-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+@media (max-width: 640px) { .comb-grid { grid-template-columns: 1fr; } }
+
+.comb-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  padding: 18px 20px;
+  display: flex; flex-direction: column; gap: 14px;
+  transition: box-shadow .2s, transform .2s;
+}
+.comb-card:hover { box-shadow: 0 8px 24px rgba(0,0,0,.10); transform: translateY(-2px); }
+
+/* Cabeçalho do card */
+.comb-card-header {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+}
+.comb-card-name {
+  font-size: 15px; font-weight: 700; line-height: 1.2;
+}
+.comb-card-status {
+  font-size: 10px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
+  padding: 2px 9px; border-radius: 20px; white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* Gauge de nível */
+.comb-gauge-wrap { display: flex; flex-direction: column; gap: 5px; }
+.comb-gauge-bar {
+  height: 10px; background: var(--color-border);
+  border-radius: 99px; overflow: hidden;
+}
+.comb-gauge-fill {
+  height: 100%; border-radius: 99px;
+  transition: width .4s ease;
+}
+.comb-gauge-labels {
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 11px; color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.comb-pct {
+  font-size: 13px; font-weight: 700; color: var(--color-text);
+}
+
+/* Dados do card */
+.comb-card-data {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 8px 12px;
+  background: var(--color-bg);
+  border-radius: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--color-border);
+}
+.comb-data-row {
+  display: flex; flex-direction: column; gap: 1px;
+}
+.comb-data-label {
+  font-size: 9px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .06em; color: var(--color-text-muted);
+}
+.comb-data-val {
+  font-size: 13px; font-weight: 700; color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Toggle tanques */
+.comb-toggle-tanques {
+  background: transparent; border: 1px solid var(--color-border);
+  border-radius: 8px; padding: 5px 12px;
+  font-size: 11px; font-weight: 600; color: var(--color-text-muted);
+  cursor: pointer; text-align: left;
+  transition: background .12s, color .12s, border-color .12s;
+}
+.comb-toggle-tanques:hover {
+  background: var(--color-border); color: var(--color-text);
+}
+
+/* Detalhe dos tanques */
+.comb-tanques {
+  display: flex; flex-direction: column; gap: 9px;
+  padding: 10px 0 2px;
+  border-top: 1px solid var(--color-border);
+}
+.comb-tanque-row {
+  display: flex; align-items: center; gap: 10px;
+}
+.comb-tanque-label {
+  font-size: 11px; font-weight: 600; color: var(--color-text-muted);
+  min-width: 68px;
+}
+.comb-tanque-bar-wrap {
+  flex: 1; display: flex; flex-direction: column; gap: 2px;
+}
+.comb-tanque-bar {
+  height: 6px; background: var(--color-border); border-radius: 99px; overflow: hidden;
+}
+.comb-tanque-fill {
+  height: 100%; border-radius: 99px; transition: width .4s ease;
+}
+.comb-tanque-vol {
+  font-size: 10px; color: var(--color-text-muted); font-variant-numeric: tabular-nums;
+}
+
+/* Loading */
+.comb-loading {
+  display: flex; align-items: center; gap: 10px; justify-content: center;
+  padding: 40px; color: var(--color-text-muted); font-size: 14px;
+}

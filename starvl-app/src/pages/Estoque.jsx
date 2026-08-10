@@ -11,7 +11,8 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import ReactDOM from 'react-dom';
 import * as XLSX from 'xlsx';
 import { Package, RefreshCw, Search, X, AlertTriangle, DollarSign,
-         TrendingDown, ChevronLeft, ChevronRight, Printer, FileDown, Check, Filter } from 'lucide-react';
+         TrendingDown, ChevronLeft, ChevronRight, Printer, FileDown, Check, Filter,
+         Droplets } from 'lucide-react';
 import { apiFetch } from '../api';
 
 // ── Formatadores ───────────────────────────────────────────────────────────────
@@ -693,6 +694,221 @@ function ExportModal({
   );
 }
 
+// ── Cor por nome de combustível ───────────────────────────────────────────────
+function corCombustivel(nome) {
+  const n = String(nome || '').toLowerCase();
+  if (n.includes('gasolina') && (n.includes('adit') || n.includes('premium') || n.includes('plus'))) return '#16a34a';
+  if (n.includes('gasolina')) return '#2563eb';
+  if (n.includes('etanol') || n.includes('álcool') || n.includes('alcool')) return '#d97706';
+  if (n.includes('diesel') && n.includes('s10'))  return '#dc2626';
+  if (n.includes('diesel'))                        return '#b91c1c';
+  if (n.includes('gnv') || n.includes('gás natural') || n.includes('gas natural')) return '#7c3aed';
+  return '#f97316';
+}
+
+// ── Status do nível do tanque ─────────────────────────────────────────────────
+function nivelStatus(pct) {
+  if (pct > 60) return { label: 'Bom',     color: '#16a34a', bg: 'rgba(22,163,74,.12)'  };
+  if (pct > 25) return { label: 'Atenção', color: '#d97706', bg: 'rgba(217,119,6,.12)'  };
+  return           { label: 'Crítico', color: '#dc2626', bg: 'rgba(220,38,38,.12)'  };
+}
+
+// ── Estoque de Combustíveis ───────────────────────────────────────────────────
+function EstoqueCombustiveis({ empresa }) {
+  const [dados,    setDados]    = useState(null);
+  const [loading,  setLoading]  = useState(false);
+  const [erro,     setErro]     = useState('');
+  const [expandidos, setExpandidos] = useState(new Set());
+
+  const fmtL = v => `${fmtNum.format(Number(v) || 0)} L`;
+
+  const fetchDados = useCallback(() => {
+    if (!empresa) return;
+    setLoading(true);
+    setErro('');
+    apiFetch(`/api/estoque?empresa=${empresa}`)
+      .then(r => r.json())
+      .then(d => {
+        if (d.error) throw new Error(d.error);
+        setDados(d.estoques || []);
+      })
+      .catch(e => setErro(e.message))
+      .finally(() => setLoading(false));
+  }, [empresa]);
+
+  useEffect(() => { fetchDados(); }, [fetchDados]);
+
+  const kpis = useMemo(() => {
+    if (!dados) return null;
+    const totalVol = dados.reduce((s, f) => s + (f.estoqueEstimado || 0), 0);
+    const totalCap = dados.reduce((s, f) => s + (f.capacidadeTotal  || 0), 0);
+    const totalVal = dados.reduce((s, f) => s + (f.estoqueEstimado || 0) * (f.custoMedio || 0), 0);
+    const qtdTanq  = dados.reduce((s, f) => s + (f.tanques?.length  || 0), 0);
+    return { nComb: dados.length, totalVol, totalCap, totalVal, qtdTanq };
+  }, [dados]);
+
+  function toggleExpand(cod) {
+    setExpandidos(prev => {
+      const next = new Set(prev);
+      next.has(cod) ? next.delete(cod) : next.add(cod);
+      return next;
+    });
+  }
+
+  if (loading && !dados) {
+    return (
+      <div className="comb-loading">
+        <RefreshCw size={18} className="pp-spin" />
+        Carregando estoque de combustíveis…
+      </div>
+    );
+  }
+
+  return (
+    <div className="comb-wrap">
+
+      {/* Cabeçalho da seção */}
+      <div className="comb-section-header">
+        <Droplets size={16} />
+        <span>Estoque de Combustíveis</span>
+        <button className="pp-btn-ghost pp-btn-ghost--sm" onClick={fetchDados} disabled={loading}>
+          <RefreshCw size={12} className={loading ? 'pp-spin' : ''} />
+          {loading ? 'Atualizando…' : 'Atualizar'}
+        </button>
+      </div>
+
+      {erro && <p className="form-erro">{erro}</p>}
+
+      {/* KPIs */}
+      {kpis && (
+        <div className="pp-kpi-grid">
+          <KpiCard icon={Droplets}    label="Combustíveis"     value={String(kpis.nComb)}           sub={`${kpis.qtdTanq} tanque${kpis.qtdTanq !== 1 ? 's' : ''}`} accent="#f97316" />
+          <KpiCard icon={Package}     label="Volume Total"     value={fmtL(kpis.totalVol)}           sub={`de ${fmtL(kpis.totalCap)} de capacidade`}                  accent="#3b82f6" />
+          <KpiCard icon={DollarSign}  label="Valor em Estoque" value={fmtCurrency.format(kpis.totalVal)} sub="custo × volume estimado"                              accent="#22c55e" />
+          {kpis.totalCap > 0 && (
+            <KpiCard icon={TrendingDown} label="Ocupação Média" value={`${((kpis.totalVol / kpis.totalCap) * 100).toFixed(1)}%`} sub="volume / capacidade total" accent="#8b5cf6" />
+          )}
+        </div>
+      )}
+
+      {/* Cards de combustível */}
+      {dados && dados.length === 0 && (
+        <div className="tc-empty-state">
+          <Droplets size={36} className="tc-empty-icon" />
+          <p className="tc-empty-title">Nenhum combustível encontrado</p>
+          <p className="tc-empty-sub">Não há tanques cadastrados ou ativos para esta empresa.</p>
+        </div>
+      )}
+
+      {dados && dados.length > 0 && (
+        <div className="comb-grid">
+          {dados.map(comb => {
+            const pct      = comb.percentualEstimado || 0;
+            const status   = nivelStatus(pct);
+            const fc       = corCombustivel(comb.produtoNome);
+            const expanded = expandidos.has(comb.produtoCodigo);
+
+            return (
+              <div key={comb.produtoCodigo} className="comb-card">
+
+                {/* Cabeçalho */}
+                <div className="comb-card-header">
+                  <span className="comb-card-name" style={{ color: fc }}>
+                    {comb.produtoNome || `Combustível ${comb.produtoCodigo}`}
+                  </span>
+                  <span className="comb-card-status" style={{ color: status.color, background: status.bg }}>
+                    {status.label}
+                  </span>
+                </div>
+
+                {/* Gauge de nível */}
+                <div className="comb-gauge-wrap">
+                  <div className="comb-gauge-bar">
+                    <div className="comb-gauge-fill" style={{ width: `${Math.min(pct, 100)}%`, background: fc }} />
+                  </div>
+                  <div className="comb-gauge-labels">
+                    <span>{fmtL(comb.estoqueEstimado)}</span>
+                    <span className="comb-pct">{pct.toFixed(1)}%</span>
+                    <span>{fmtL(comb.capacidadeTotal)}</span>
+                  </div>
+                </div>
+
+                {/* Dados */}
+                <div className="comb-card-data">
+                  <div className="comb-data-row">
+                    <span className="comb-data-label">Preço Venda</span>
+                    <span className="comb-data-val">
+                      {comb.precoVenda > 0 ? `${fmtCurrency.format(comb.precoVenda)}/L` : '—'}
+                    </span>
+                  </div>
+                  <div className="comb-data-row">
+                    <span className="comb-data-label">Custo Médio</span>
+                    <span className="comb-data-val">
+                      {comb.custoMedio > 0 ? `${fmtCurrency.format(comb.custoMedio)}/L` : '—'}
+                    </span>
+                  </div>
+                  <div className="comb-data-row">
+                    <span className="comb-data-label">Margem</span>
+                    <span className="comb-data-val" style={{ color: comb.margem > 0 ? '#16a34a' : comb.margem < 0 ? '#dc2626' : undefined }}>
+                      {comb.margem > 0 || comb.margem < 0 ? `${Number(comb.margem).toFixed(2)}%` : '—'}
+                    </span>
+                  </div>
+                  <div className="comb-data-row">
+                    <span className="comb-data-label">Valor em Estoque</span>
+                    <span className="comb-data-val">
+                      {fmtCurrency.format((comb.estoqueEstimado || 0) * (comb.custoMedio || 0))}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Toggle tanques */}
+                {comb.tanques && comb.tanques.length > 0 && (
+                  <button
+                    className="comb-toggle-tanques"
+                    onClick={() => toggleExpand(comb.produtoCodigo)}
+                  >
+                    {expanded ? '▲' : '▼'}{' '}
+                    {comb.tanques.length} tanque{comb.tanques.length !== 1 ? 's' : ''}
+                    {comb.lmcPeriodo ? ` · LMC ${comb.lmcPeriodo}` : ''}
+                  </button>
+                )}
+
+                {/* Detalhe tanques */}
+                {expanded && comb.tanques && (
+                  <div className="comb-tanques">
+                    {comb.tanques.map(t => {
+                      const tPct = t.capacidade > 0
+                        ? Math.min((t.estoque / t.capacidade) * 100, 100)
+                        : 0;
+                      return (
+                        <div key={t.codigo} className="comb-tanque-row">
+                          <span className="comb-tanque-label">
+                            Tanque {t.codigo}{t.modelo ? ` · ${t.modelo}` : ''}
+                          </span>
+                          <div className="comb-tanque-bar-wrap">
+                            <div className="comb-tanque-bar">
+                              <div className="comb-tanque-fill" style={{ width: `${tPct}%`, background: fc }} />
+                            </div>
+                            <span className="comb-tanque-vol">
+                              {fmtL(t.estoque)} / {fmtL(t.capacidade)}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+    </div>
+  );
+}
+
 // ── Componente principal ───────────────────────────────────────────────────────
 export default function Estoque({ empresas }) {
   const empresa = (empresas || [])[0] || '';
@@ -720,6 +936,9 @@ export default function Estoque({ empresas }) {
   const [sortDir,    setSortDir]    = useState('asc');
   const [pagina,     setPagina]     = useState(1);
   const [pageSize,   setPageSize]   = useState(10);
+
+  // Aba ativa
+  const [activeTab, setActiveTab] = useState('geral'); // 'geral' | 'combustiveis'
 
   // Export modal / Preview
   const [exportOpen,  setExportOpen]  = useState(false);
@@ -887,13 +1106,36 @@ export default function Estoque({ empresas }) {
     );
   }
 
-  if (slotPrincipal === null) {
-    return <main className="dashboard"><SemConsulta /></main>;
-  }
-
   return (
     <main className="dashboard">
       <div className="pp-wrap">
+
+        {/* ── Abas principais ── */}
+        <div className="pp-main-tabs">
+          <button
+            className={`pp-main-tab${activeTab === 'geral' ? ' pp-main-tab--on' : ''}`}
+            onClick={() => setActiveTab('geral')}
+          >
+            <Package size={14} /> Estoque Geral
+          </button>
+          <button
+            className={`pp-main-tab${activeTab === 'combustiveis' ? ' pp-main-tab--on' : ''}`}
+            onClick={() => setActiveTab('combustiveis')}
+          >
+            <Droplets size={14} /> Combustíveis
+          </button>
+        </div>
+
+        {/* ── Aba Combustíveis ── */}
+        {activeTab === 'combustiveis' && (
+          <EstoqueCombustiveis empresa={empresa} />
+        )}
+
+        {/* ── Aba Estoque Geral — sem slot configurado ── */}
+        {activeTab === 'geral' && slotPrincipal === null && <SemConsulta />}
+
+        {/* ── Aba Estoque Geral ── */}
+        {activeTab === 'geral' && slotPrincipal !== null && <>
 
         {/* ── Cabeçalho ── */}
         <div className="pp-header">
@@ -1096,6 +1338,8 @@ export default function Estoque({ empresas }) {
             </div>
           </div>
         </div>
+
+        </> /* fim aba geral */}
 
       </div>
 
