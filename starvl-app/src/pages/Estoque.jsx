@@ -363,7 +363,6 @@ function ExportModal({
   onPreview,
 }) {
   // ── Filtros internos ─────────────────────────────────────────────────────────
-  const [busca,         setBusca]         = useState(initFiltros.busca         ?? '');
   const [secaoSel,      setSecaoSel]      = useState(initFiltros.secao         ?? 'Todas');
   const [grupoSel,      setGrupoSel]      = useState(initFiltros.grupo         ?? 'Todos');
   const [situacaoSel,   setSituacaoSel]   = useState(initFiltros.situacao      ?? 'Todos');
@@ -388,8 +387,8 @@ function ExportModal({
 
   // ── Dados filtrados ──────────────────────────────────────────────────────────
   const linhasFiltradas = useMemo(() =>
-    aplicarFiltros(rows, { busca, secao: secaoSel, grupo: grupoSel, situacao: situacaoSel, apenasZerados, apenasComEst }, det),
-  [rows, busca, secaoSel, grupoSel, situacaoSel, apenasZerados, apenasComEst, det]); // eslint-disable-line
+    aplicarFiltros(rows, { busca: '', secao: secaoSel, grupo: grupoSel, situacao: situacaoSel, apenasZerados, apenasComEst }, det),
+  [rows, secaoSel, grupoSel, situacaoSel, apenasZerados, apenasComEst, det]); // eslint-disable-line
 
   // ── Seleção individual de produtos ───────────────────────────────────────────
   // Mapa estável: objeto row → índice em rows (construído uma vez)
@@ -444,9 +443,8 @@ function ExportModal({
     if (situacaoSel !== 'Todos') f.push(`Situação: ${situacaoSel}`);
     if (apenasZerados)           f.push('Somente zerados');
     if (apenasComEst)            f.push('Somente com estoque');
-    if (busca.trim())            f.push(`Busca: "${busca.trim()}"`);
     return f;
-  }, [secaoSel, grupoSel, situacaoSel, apenasZerados, apenasComEst, busca]);
+  }, [secaoSel, grupoSel, situacaoSel, apenasZerados, apenasComEst]);
 
   const colunasSel = tabelaCols.filter(c => pColKeys.includes(c.key));
   const temDados   = linhasSelecionadas.length > 0 && colunasSel.length > 0;
@@ -514,20 +512,6 @@ function ExportModal({
           <div className="pm-section">
             <div className="pm-section-title">Filtros de dados</div>
             <div className="pm-filtros-grid">
-
-              <div className="pm-filtro-field pm-filtro-field--wide">
-                <label>Buscar produto</label>
-                <div className="pm-filtro-search">
-                  <Search size={13} />
-                  <input
-                    className="pm-filtro-input"
-                    placeholder="Nome, código ou código de barras…"
-                    value={busca}
-                    onChange={e => setBusca(e.target.value)}
-                  />
-                  {busca && <button className="pm-filtro-clear" onClick={() => setBusca('')}><X size={11} /></button>}
-                </div>
-              </div>
 
               {secoes.length > 1 && (
                 <div className="pm-filtro-field">
