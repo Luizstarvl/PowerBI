@@ -238,6 +238,166 @@ document.addEventListener('keydown', function(e) {
 </body></html>`;
 }
 
+/* ── Modal de Notas do Fornecedor ────────────────────────────── */
+function FornecedorNotasModal({ fornecedor, empresa, periodo, onClose }) {
+  const [notas,       setNotas]       = useState([]);
+  const [loading,     setLoading]     = useState(true);
+  const [erro,        setErro]        = useState(null);
+  const [expanded,    setExpanded]    = useState(null);   // nota aberta
+  const [itens,       setItens]       = useState({});     // { [nota]: [...] }
+  const [loadingItem, setLoadingItem] = useState(null);
+
+  const fmtC = v => 'R$ ' + Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const fmtN2 = v => Number(v || 0).toLocaleString('pt-BR');
+  const fmtD = s => s ? s.split('-').reverse().join('/') : '—';
+
+  useEffect(() => {
+    setLoading(true); setErro(null);
+    apiFetch(`/api/planejamento/notas-fornecedor?empresa=${empresa}&fornecedor=${encodeURIComponent(fornecedor)}&periodo=${encodeURIComponent(periodo)}`)
+      .then(r => r.json())
+      .then(d => { if (d.error) throw new Error(d.error); setNotas(d.notas || []); })
+      .catch(e => setErro(e.message))
+      .finally(() => setLoading(false));
+  }, [empresa, fornecedor, periodo]);
+
+  async function toggleNota(nota) {
+    if (expanded === nota) { setExpanded(null); return; }
+    setExpanded(nota);
+    if (itens[nota]) return;
+    setLoadingItem(nota);
+    try {
+      const r = await apiFetch(`/api/planejamento/nota-itens?empresa=${empresa}&nota=${nota}`);
+      const d = await r.json();
+      setItens(prev => ({ ...prev, [nota]: d.itens || [] }));
+    } catch { setItens(prev => ({ ...prev, [nota]: [] })); }
+    setLoadingItem(null);
+  }
+
+  const totalGeral = notas.reduce((s, n) => s + n.total, 0);
+
+  return ReactDOM.createPortal(
+    <div className="pm-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="pm-modal pm-modal--wide" style={{ maxWidth: 760 }}>
+
+        <div className="pm-header">
+          <Truck size={15} />
+          <span style={{ flex: 1 }}>
+            Notas de Entrada — <strong>{fornecedor}</strong>
+          </span>
+          <span style={{ fontSize: 11, color: '#9ca3af', marginRight: 8 }}>{periodo}</span>
+          <button className="pm-close" onClick={onClose}><X size={15} /></button>
+        </div>
+
+        <div className="pm-body" style={{ padding: '0' }}>
+          {loading ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '32px 24px', color: '#9ca3af' }}>
+              <RefreshCw size={16} className="spin" /> Carregando notas…
+            </div>
+          ) : erro ? (
+            <div style={{ padding: '24px', color: '#ef4444' }}>⚠ {erro}</div>
+          ) : notas.length === 0 ? (
+            <div style={{ padding: '32px 24px', color: '#9ca3af', textAlign: 'center' }}>
+              Nenhuma nota encontrada neste período.
+            </div>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                <thead>
+                  <tr style={{ borderBottom: '2px solid #f97316', background: 'var(--color-surface)' }}>
+                    <th style={thS}>Nota</th>
+                    <th style={thS}>Chegada</th>
+                    <th style={thS}>Emissão</th>
+                    <th style={{ ...thS, textAlign: 'right' }}>Itens</th>
+                    <th style={{ ...thS, textAlign: 'right' }}>Total</th>
+                    <th style={{ ...thS, width: 32 }}></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {notas.map((n, i) => (
+                    <React.Fragment key={n.nota}>
+                      <tr
+                        style={{
+                          borderBottom: expanded === n.nota ? 'none' : '1px solid var(--color-border)',
+                          cursor: 'pointer',
+                          background: expanded === n.nota ? 'rgba(249,115,22,.06)' : i % 2 === 1 ? 'rgba(255,255,255,.02)' : 'transparent',
+                        }}
+                        onClick={() => toggleNota(n.nota)}
+                      >
+                        <td style={tdS}><strong style={{ color: '#f97316' }}>{n.numNota}</strong></td>
+                        <td style={tdS}>{fmtD(n.dataChegada)}</td>
+                        <td style={tdS}>{fmtD(n.dataEmissao)}</td>
+                        <td style={{ ...tdS, textAlign: 'right' }}>{fmtN2(n.qtdItens)}</td>
+                        <td style={{ ...tdS, textAlign: 'right', fontWeight: 700 }}>{fmtC(n.total)}</td>
+                        <td style={{ ...tdS, textAlign: 'center', color: '#6b7280', fontSize: 10 }}>
+                          {expanded === n.nota ? '▲' : '▼'}
+                        </td>
+                      </tr>
+
+                      {expanded === n.nota && (
+                        <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
+                          <td colSpan={6} style={{ padding: '0 0 8px 24px', background: 'rgba(249,115,22,.04)' }}>
+                            {loadingItem === n.nota ? (
+                              <div style={{ padding: '12px 0', color: '#9ca3af', display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <RefreshCw size={13} className="spin" /> Carregando itens…
+                              </div>
+                            ) : (itens[n.nota] || []).length === 0 ? (
+                              <div style={{ padding: '10px 0', color: '#9ca3af', fontSize: 11 }}>Nenhum item encontrado.</div>
+                            ) : (
+                              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11, marginTop: 6 }}>
+                                <thead>
+                                  <tr style={{ borderBottom: '1px solid rgba(249,115,22,.3)' }}>
+                                    <th style={{ ...thS, fontSize: 9, paddingBottom: 4 }}>Produto</th>
+                                    <th style={{ ...thS, fontSize: 9, textAlign: 'right', paddingBottom: 4 }}>Qtd</th>
+                                    <th style={{ ...thS, fontSize: 9, textAlign: 'right', paddingBottom: 4 }}>Preço Unit.</th>
+                                    <th style={{ ...thS, fontSize: 9, textAlign: 'right', paddingBottom: 4 }}>Total</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {(itens[n.nota] || []).map((it, j) => (
+                                    <tr key={j} style={{ borderBottom: '1px solid rgba(255,255,255,.04)' }}>
+                                      <td style={{ ...tdS, fontSize: 11, paddingLeft: 0 }}>{it.produto}</td>
+                                      <td style={{ ...tdS, textAlign: 'right' }}>{fmtN2(it.qtd)}</td>
+                                      <td style={{ ...tdS, textAlign: 'right' }}>{fmtC(it.precoUnitario)}</td>
+                                      <td style={{ ...tdS, textAlign: 'right', fontWeight: 600 }}>{fmtC(it.total)}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            )}
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr style={{ borderTop: '2px solid #f97316' }}>
+                    <td colSpan={3} style={{ ...tdS, fontWeight: 700, color: '#f97316', fontSize: 11 }}>
+                      TOTAL — {notas.length} nota{notas.length !== 1 ? 's' : ''}
+                    </td>
+                    <td style={{ ...tdS, textAlign: 'right', fontWeight: 700 }}>{fmtN2(notas.reduce((s,n)=>s+n.qtdItens,0))}</td>
+                    <td style={{ ...tdS, textAlign: 'right', fontWeight: 700, color: '#f97316' }}>{fmtC(totalGeral)}</td>
+                    <td></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          )}
+        </div>
+
+        <div className="pm-footer" style={{ justifyContent: 'flex-end' }}>
+          <button className="pm-btn-cancel" onClick={onClose}>Fechar</button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+const thS = { padding: '8px 12px', textAlign: 'left', fontSize: 10, fontWeight: 700,
+  textTransform: 'uppercase', letterSpacing: '.05em', color: '#9ca3af' };
+const tdS = { padding: '9px 12px', color: 'var(--color-text)', verticalAlign: 'middle' };
+
 /* ── Gerador HTML do comparativo ────────────────────────────── */
 function gerarHtmlComparativo({ comparativo, empresa }) {
   const now = new Date().toLocaleString('pt-BR');
@@ -594,12 +754,13 @@ function RankPrintPreview({ html, titulo, onClose }) {
 export default function PerformanceVendas({ empresasKey, clients, empresas }) {
   const empresa = (empresas || [])[0] || null;
 
-  const [periodo,   setPeriodo]  = useState('Mês');
-  const [tab,       setTab]      = useState('produtos');
-  const [data,      setData]     = useState(null);
-  const [loading,   setLoading]  = useState(true);
-  const [error,     setError]    = useState(null);
-  const [printHtml, setPrintHtml] = useState(null);
+  const [periodo,           setPeriodo]           = useState('Mês');
+  const [tab,               setTab]               = useState('produtos');
+  const [data,              setData]              = useState(null);
+  const [loading,           setLoading]           = useState(true);
+  const [error,             setError]             = useState(null);
+  const [printHtml,         setPrintHtml]         = useState(null);
+  const [selectedFornecedor,setSelectedFornecedor] = useState(null);
 
   const loadData = useCallback(async () => {
     if (!empresa) { setLoading(false); return; }
@@ -829,12 +990,20 @@ export default function PerformanceVendas({ empresasKey, clients, empresas }) {
               ) : (
                 <div className="pv2-rank-list">
                   {fornecedores.map((f, i) => (
-                    <RankBar key={i} pos={i + 1}
-                      nome={f.nome}
-                      sub={`${f.qtdNotas} nota(s) · Qtd: ${fmtN(f.quantidade)}`}
-                      valor={fmtK(f.totalCompras)}
-                      pct={f.totalCompras / maxForn * 100}
-                      cor={RANK_COLORS[i] || PURPLE}/>
+                    <div key={i}
+                      style={{ cursor: 'pointer', borderRadius: 6, transition: 'background .15s' }}
+                      onClick={() => setSelectedFornecedor(f.nome)}
+                      onMouseEnter={e => e.currentTarget.style.background = 'rgba(249,115,22,.06)'}
+                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                      title="Clique para ver as notas"
+                    >
+                      <RankBar pos={i + 1}
+                        nome={f.nome}
+                        sub={`${f.qtdNotas} nota(s) · Qtd: ${fmtN(f.quantidade)} · clique para detalhar`}
+                        valor={fmtK(f.totalCompras)}
+                        pct={f.totalCompras / maxForn * 100}
+                        cor={RANK_COLORS[i] || PURPLE}/>
+                    </div>
                   ))}
                 </div>
               )}
@@ -951,6 +1120,15 @@ export default function PerformanceVendas({ empresasKey, clients, empresas }) {
         html={printHtml.html}
         titulo={printHtml.titulo}
         onClose={() => setPrintHtml(null)}
+      />
+    )}
+
+    {selectedFornecedor && empresa && (
+      <FornecedorNotasModal
+        fornecedor={selectedFornecedor}
+        empresa={empresa}
+        periodo={periodo}
+        onClose={() => setSelectedFornecedor(null)}
       />
     )}
     </>

@@ -1629,4 +1629,107 @@ router.get('/margem', async (req, res) => {
   }
 });
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   NOTAS DE FORNECEDOR
+   GET /api/planejamento/notas-fornecedor
+   Query params: empresa, fornecedor (nome/razao), periodo (Hoje|Semana|Mês|Ano)
+   Returns: lista de notas com totais
+═══════════════════════════════════════════════════════════════════════════ */
+router.get('/notas-fornecedor', async (req, res) => {
+  const empresa    = parseInt(req.query.empresa);
+  const fornecedor = (req.query.fornecedor || '').trim();
+  const periodo    = req.query.periodo || 'Mês';
+
+  if (!empresa)    return res.status(400).json({ error: 'empresa é obrigatório' });
+  if (!fornecedor) return res.status(400).json({ error: 'fornecedor é obrigatório' });
+
+  const { dataInicio, dataFim } = periodoToDates(periodo);
+  const query = queryFor(empresa);
+
+  try {
+    const { rows } = await query(
+      `SELECT
+         entcpa.entcpacodigo                          AS nota,
+         entcpa.entcpanota                            AS num_nota,
+         entcpa.entcpachegada                         AS data_chegada,
+         entcpa.entcpaemissao                         AS data_emissao,
+         COALESCE(SUM(entcpi.entcpitotal), 0)         AS total,
+         COALESCE(SUM(entcpi.entcpiqtd),   0)         AS quantidade,
+         COUNT(entcpi.entcpicodigo)                   AS qtd_itens
+       FROM entcpa
+       JOIN entcpi ON entcpi.entcpicompra  = entcpa.entcpacodigo
+                  AND entcpi.entcpiempresa = entcpa.entcpaempresa
+       LEFT JOIN part ON part.partcodigo = entcpa.entcpafornecedor
+       WHERE entcpa.entcpaempresa = $1
+         AND DATE(entcpa.entcpachegada) >= $2
+         AND DATE(entcpa.entcpachegada) <= $3
+         AND COALESCE(part.partrazao, 'Sem fornecedor') = $4
+       GROUP BY entcpa.entcpacodigo, entcpa.entcpanota,
+                entcpa.entcpachegada, entcpa.entcpaemissao
+       ORDER BY entcpa.entcpachegada DESC`,
+      [empresa, dataInicio, dataFim, fornecedor]
+    );
+
+    res.json({
+      fornecedor,
+      periodo: { dataInicio, dataFim },
+      notas: rows.map(r => ({
+        nota:        r.nota,
+        numNota:     r.num_nota || r.nota,
+        dataChegada: r.data_chegada ? r.data_chegada.toISOString().slice(0, 10) : null,
+        dataEmissao: r.data_emissao ? r.data_emissao.toISOString().slice(0, 10) : null,
+        total:       parseFloat(r.total    || 0),
+        quantidade:  parseFloat(r.quantidade || 0),
+        qtdItens:    parseInt(r.qtd_itens  || 0),
+      })),
+    });
+  } catch (err) {
+    console.error('[planejamento/notas-fornecedor]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/* ── GET /api/planejamento/nota-itens ────────────────────────────────────────
+   Itens de uma nota de entrada específica
+   Query params: empresa, nota (entcpacodigo)
+────────────────────────────────────────────────────────────────────────────── */
+router.get('/nota-itens', async (req, res) => {
+  const empresa = parseInt(req.query.empresa);
+  const nota    = parseInt(req.query.nota);
+
+  if (!empresa) return res.status(400).json({ error: 'empresa é obrigatório' });
+  if (!nota)    return res.status(400).json({ error: 'nota é obrigatório' });
+
+  const query = queryFor(empresa);
+
+  try {
+    const { rows } = await query(
+      `SELECT
+         COALESCE(prod.prodresumo, prod.proddescricao, 'Sem descrição') AS produto,
+         entcpi.entcpiqtd      AS qtd,
+         entcpi.entcpipreco    AS preco_unitario,
+         entcpi.entcpitotal    AS total
+       FROM entcpi
+       LEFT JOIN prod ON prod.prodcodigo = entcpi.entcpiproduto
+       WHERE entcpi.entcpiempresa = $1
+         AND entcpi.entcpicompra  = $2
+       ORDER BY entcpi.entcpicodigo`,
+      [empresa, nota]
+    );
+
+    res.json({
+      nota,
+      itens: rows.map(r => ({
+        produto:      r.produto,
+        qtd:          parseFloat(r.qtd           || 0),
+        precoUnitario:parseFloat(r.preco_unitario|| 0),
+        total:        parseFloat(r.total         || 0),
+      })),
+    });
+  } catch (err) {
+    console.error('[planejamento/nota-itens]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
