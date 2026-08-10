@@ -358,35 +358,31 @@ function ExportModal({
   rows, det, tabelaCols,
   secoes, secoesExt, gruposExt,
   empresa,
-  initFiltros,        // { busca, secao, grupo, situacao, apenasZerados }
+  initFiltros,
   onClose,
-  onPreview,          // (previewData) → abre print preview
+  onPreview,
 }) {
-  // ── Filtros internos do modal ────────────────────────────────────────────────
-  const [busca,        setBusca]        = useState(initFiltros.busca        ?? '');
-  const [secaoSel,     setSecaoSel]     = useState(initFiltros.secao        ?? 'Todas');
-  const [grupoSel,     setGrupoSel]     = useState(initFiltros.grupo        ?? 'Todos');
-  const [situacaoSel,  setSituacaoSel]  = useState(initFiltros.situacao     ?? 'Todos');
-  const [apenasZerados,setApenasZerados]= useState(initFiltros.apenasZerados ?? false);
-  const [apenasComEst, setApenasComEst] = useState(false);
+  // ── Filtros internos ─────────────────────────────────────────────────────────
+  const [busca,         setBusca]         = useState(initFiltros.busca         ?? '');
+  const [secaoSel,      setSecaoSel]      = useState(initFiltros.secao         ?? 'Todas');
+  const [grupoSel,      setGrupoSel]      = useState(initFiltros.grupo         ?? 'Todos');
+  const [situacaoSel,   setSituacaoSel]   = useState(initFiltros.situacao      ?? 'Todos');
+  const [apenasZerados, setApenasZerados] = useState(initFiltros.apenasZerados ?? false);
+  const [apenasComEst,  setApenasComEst]  = useState(false);
 
   // ── Colunas e título ─────────────────────────────────────────────────────────
   const [titulo,   setTitulo]   = useState('Posição de Estoque');
   const [pColKeys, setPColKeys] = useState(() => tabelaCols.map(c => c.key));
-
   function toggleCol(key) {
     setPColKeys(prev => prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]);
   }
 
-  // ── Lista de grupos filtrada pela seção selecionada ──────────────────────────
+  // ── Grupos filtrados pela seção ──────────────────────────────────────────────
   const grupos = useMemo(() =>
     calcGrupos({ gruposExt, secoesExt, rows, det, secaoSel }),
   [gruposExt, secoesExt, rows, det, secaoSel]); // eslint-disable-line
-
-  // Reset grupo quando muda seção
   useEffect(() => { setGrupoSel('Todos'); }, [secaoSel]);
 
-  // Apenaszerados e apenasComEst são mutuamente exclusivos
   function toggleZerados(v) { setApenasZerados(v); if (v) setApenasComEst(false); }
   function toggleComEst(v)  { setApenasComEst(v);  if (v) setApenasZerados(false); }
 
@@ -395,34 +391,78 @@ function ExportModal({
     aplicarFiltros(rows, { busca, secao: secaoSel, grupo: grupoSel, situacao: situacaoSel, apenasZerados, apenasComEst }, det),
   [rows, busca, secaoSel, grupoSel, situacaoSel, apenasZerados, apenasComEst, det]); // eslint-disable-line
 
-  // ── Descrição dos filtros ativos (para o rodapé do relatório) ───────────────
+  // ── Seleção individual de produtos ───────────────────────────────────────────
+  // Mapa estável: objeto row → índice em rows (construído uma vez)
+  const rowIndexMap = useMemo(() => new Map(rows.map((r, i) => [r, i])), [rows]);
+
+  const filteredIds = useMemo(
+    () => new Set(linhasFiltradas.map(r => rowIndexMap.get(r))),
+    [linhasFiltradas, rowIndexMap]
+  );
+
+  // Quando filtros mudam, marca tudo de volta
+  const [selectedIds, setSelectedIds] = useState(() => new Set(filteredIds));
+  const prevFilterRef = useRef(filteredIds);
+  useEffect(() => {
+    if (prevFilterRef.current !== filteredIds) {
+      setSelectedIds(new Set(filteredIds));
+      prevFilterRef.current = filteredIds;
+    }
+  }, [filteredIds]);
+
+  function toggleRow(id) {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+  function selectAll()  { setSelectedIds(new Set(filteredIds)); }
+  function selectNone() { setSelectedIds(new Set()); }
+
+  // Busca dentro da lista de seleção
+  const [buscaLista, setBuscaLista] = useState('');
+  const listaVis = useMemo(() => {
+    if (!buscaLista.trim()) return linhasFiltradas;
+    const q = buscaLista.toLowerCase();
+    return linhasFiltradas.filter(r =>
+      String(r[det.nome]   || '').toLowerCase().includes(q) ||
+      String(r[det.codigo] || '').toLowerCase().includes(q)
+    );
+  }, [linhasFiltradas, buscaLista, det]);
+
+  const linhasSelecionadas = useMemo(
+    () => linhasFiltradas.filter(r => selectedIds.has(rowIndexMap.get(r))),
+    [linhasFiltradas, selectedIds, rowIndexMap]
+  );
+
+  // ── Tags dos filtros ativos ──────────────────────────────────────────────────
   const filtrosDesc = useMemo(() => {
     const f = [];
-    if (secaoSel !== 'Todas')     f.push(`Seção: ${secaoSel}`);
-    if (grupoSel !== 'Todos')     f.push(`Grupo: ${grupoSel}`);
-    if (situacaoSel !== 'Todos')  f.push(`Situação: ${situacaoSel}`);
-    if (apenasZerados)            f.push('Somente zerados');
-    if (apenasComEst)             f.push('Somente com estoque');
-    if (busca.trim())             f.push(`Busca: "${busca.trim()}"`);
+    if (secaoSel !== 'Todas')    f.push(`Seção: ${secaoSel}`);
+    if (grupoSel !== 'Todos')    f.push(`Grupo: ${grupoSel}`);
+    if (situacaoSel !== 'Todos') f.push(`Situação: ${situacaoSel}`);
+    if (apenasZerados)           f.push('Somente zerados');
+    if (apenasComEst)            f.push('Somente com estoque');
+    if (busca.trim())            f.push(`Busca: "${busca.trim()}"`);
     return f;
   }, [secaoSel, grupoSel, situacaoSel, apenasZerados, apenasComEst, busca]);
 
   const colunasSel = tabelaCols.filter(c => pColKeys.includes(c.key));
-  const temDados   = linhasFiltradas.length > 0 && colunasSel.length > 0;
+  const temDados   = linhasSelecionadas.length > 0 && colunasSel.length > 0;
 
-  // ── Ação: Imprimir ───────────────────────────────────────────────────────────
+  // ── Ações ────────────────────────────────────────────────────────────────────
   function handlePrint() {
     if (!temDados) return;
-    const html = gerarHtmlPrint({ titulo, colunas: colunasSel, linhas: linhasFiltradas, empresa, det, filtrosDesc });
-    onPreview({ html, titulo, total: linhasFiltradas.length, empresa });
+    const html = gerarHtmlPrint({ titulo, colunas: colunasSel, linhas: linhasSelecionadas, empresa, det, filtrosDesc });
+    onPreview({ html, titulo, total: linhasSelecionadas.length, empresa });
     onClose();
   }
 
-  // ── Ação: Excel ──────────────────────────────────────────────────────────────
   function handleExcel() {
     if (!temDados) return;
     const headers  = colunasSel.map(c => c.label);
-    const dataRows = linhasFiltradas.map(row =>
+    const dataRows = linhasSelecionadas.map(row =>
       colunasSel.map(c => {
         const raw = rawVal(c, row);
         if (c.badge) { const v = norm(raw); return (v==='ativo'||v==='a') ? 'Ativo' : 'Inativo'; }
@@ -442,6 +482,9 @@ function ExportModal({
     XLSX.writeFile(wb, `estoque_${empresa}_${stamp}.xlsx`);
     onClose();
   }
+
+  const allChecked  = filteredIds.size > 0 && filteredIds.size === selectedIds.size && [...filteredIds].every(id => selectedIds.has(id));
+  const someChecked = selectedIds.size > 0 && !allChecked;
 
   return ReactDOM.createPortal(
     <div className="pm-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
@@ -470,10 +513,8 @@ function ExportModal({
           {/* ── Filtros ── */}
           <div className="pm-section">
             <div className="pm-section-title">Filtros de dados</div>
-
             <div className="pm-filtros-grid">
 
-              {/* Busca */}
               <div className="pm-filtro-field pm-filtro-field--wide">
                 <label>Buscar produto</label>
                 <div className="pm-filtro-search">
@@ -484,100 +525,132 @@ function ExportModal({
                     value={busca}
                     onChange={e => setBusca(e.target.value)}
                   />
-                  {busca && (
-                    <button className="pm-filtro-clear" onClick={() => setBusca('')}>
-                      <X size={11} />
-                    </button>
-                  )}
+                  {busca && <button className="pm-filtro-clear" onClick={() => setBusca('')}><X size={11} /></button>}
                 </div>
               </div>
 
-              {/* Seção */}
               {secoes.length > 1 && (
                 <div className="pm-filtro-field">
                   <label>Seção</label>
-                  <select
-                    className="pm-filtro-select"
-                    value={secaoSel}
-                    onChange={e => setSecaoSel(e.target.value)}
-                  >
+                  <select className="pm-filtro-select" value={secaoSel} onChange={e => setSecaoSel(e.target.value)}>
                     {secoes.map(s => <option key={s}>{s}</option>)}
                   </select>
                 </div>
               )}
 
-              {/* Grupo */}
               {grupos.length > 1 && (
                 <div className="pm-filtro-field">
                   <label>Grupo</label>
-                  <select
-                    className="pm-filtro-select"
-                    value={grupoSel}
-                    onChange={e => setGrupoSel(e.target.value)}
-                  >
+                  <select className="pm-filtro-select" value={grupoSel} onChange={e => setGrupoSel(e.target.value)}>
                     {grupos.map(g => <option key={g}>{g}</option>)}
                   </select>
                 </div>
               )}
 
-              {/* Situação */}
               {det.situacao && (
                 <div className="pm-filtro-field">
                   <label>Cadastro</label>
                   <div className="pm-tabs">
                     {['Ativos', 'Inativos', 'Todos'].map(s => (
-                      <button
-                        key={s}
-                        className={`pm-tab${situacaoSel === s ? ' pm-tab--on' : ''}`}
-                        onClick={() => setSituacaoSel(s)}
-                      >
-                        {s}
-                      </button>
+                      <button key={s} className={`pm-tab${situacaoSel === s ? ' pm-tab--on' : ''}`}
+                        onClick={() => setSituacaoSel(s)}>{s}</button>
                     ))}
                   </div>
                 </div>
               )}
 
-              {/* Estoque */}
               {det.estoque && (
                 <div className="pm-filtro-field">
                   <label>Estoque</label>
                   <div className="pm-tabs">
-                    <button
-                      className={`pm-tab${!apenasZerados && !apenasComEst ? ' pm-tab--on' : ''}`}
-                      onClick={() => { setApenasZerados(false); setApenasComEst(false); }}
-                    >
-                      Todos
-                    </button>
-                    <button
-                      className={`pm-tab${apenasComEst ? ' pm-tab--on' : ''}`}
-                      onClick={() => toggleComEst(!apenasComEst)}
-                    >
-                      Com estoque
-                    </button>
-                    <button
-                      className={`pm-tab pm-tab--danger${apenasZerados ? ' pm-tab--on' : ''}`}
-                      onClick={() => toggleZerados(!apenasZerados)}
-                    >
-                      Zerados
-                    </button>
+                    <button className={`pm-tab${!apenasZerados && !apenasComEst ? ' pm-tab--on' : ''}`}
+                      onClick={() => { setApenasZerados(false); setApenasComEst(false); }}>Todos</button>
+                    <button className={`pm-tab${apenasComEst ? ' pm-tab--on' : ''}`}
+                      onClick={() => toggleComEst(!apenasComEst)}>Com estoque</button>
+                    <button className={`pm-tab pm-tab--danger${apenasZerados ? ' pm-tab--on' : ''}`}
+                      onClick={() => toggleZerados(!apenasZerados)}>Zerados</button>
                   </div>
                 </div>
               )}
 
             </div>
+          </div>
 
-            {/* Contador de resultados */}
-            <div className="pm-filtros-count">
-              <span className={`pm-filtros-count-num${linhasFiltradas.length === 0 ? ' pm-filtros-count-num--zero' : ''}`}>
-                {linhasFiltradas.length}
-              </span>
-              <span> produto{linhasFiltradas.length !== 1 ? 's' : ''} selecionado{linhasFiltradas.length !== 1 ? 's' : ''}</span>
-              {filtrosDesc.length > 0 && (
-                <span className="pm-filtros-tags">
-                  {filtrosDesc.map((f, i) => <span key={i} className="pm-filtro-tag">{f}</span>)}
+          {/* ── Seleção de produtos ── */}
+          <div className="pm-section">
+            <div className="pm-sel-header">
+              <div className="pm-sel-header-left">
+                <label className="pm-sel-all-wrap" title={allChecked ? 'Desmarcar todos' : 'Selecionar todos'}>
+                  <input
+                    type="checkbox"
+                    className="pm-sel-checkbox"
+                    checked={allChecked}
+                    ref={el => { if (el) el.indeterminate = someChecked; }}
+                    onChange={allChecked ? selectNone : selectAll}
+                  />
+                </label>
+                <span className="pm-section-title" style={{ margin: 0 }}>Produtos</span>
+                <span className="pm-sel-count">
+                  <strong className={selectedIds.size === 0 ? 'pm-sel-count--zero' : ''}>
+                    {selectedIds.size}
+                  </strong>
+                  {' '}/ {linhasFiltradas.length} selecionado{selectedIds.size !== 1 ? 's' : ''}
                 </span>
-              )}
+              </div>
+              <div className="pm-sel-header-right">
+                {filtrosDesc.length > 0 && (
+                  <span className="pm-filtros-tags">
+                    {filtrosDesc.map((f, i) => <span key={i} className="pm-filtro-tag">{f}</span>)}
+                  </span>
+                )}
+                <div className="pm-filtro-search pm-sel-search">
+                  <Search size={12} />
+                  <input
+                    className="pm-filtro-input"
+                    placeholder="Filtrar lista…"
+                    value={buscaLista}
+                    onChange={e => setBuscaLista(e.target.value)}
+                  />
+                  {buscaLista && <button className="pm-filtro-clear" onClick={() => setBuscaLista('')}><X size={10} /></button>}
+                </div>
+              </div>
+            </div>
+
+            <div className="pm-product-list">
+              {listaVis.length === 0 ? (
+                <div className="pm-product-empty">Nenhum produto encontrado.</div>
+              ) : listaVis.map(row => {
+                const id      = rowIndexMap.get(row);
+                const checked = selectedIds.has(id);
+                const est     = det.estoque ? Number(row[det.estoque] || 0) : null;
+                return (
+                  <label
+                    key={id}
+                    className={`pm-product-row${checked ? ' pm-product-row--on' : ''}`}
+                    onClick={() => toggleRow(id)}
+                  >
+                    <input
+                      type="checkbox"
+                      className="pm-sel-checkbox"
+                      checked={checked}
+                      onChange={() => toggleRow(id)}
+                      onClick={e => e.stopPropagation()}
+                    />
+                    <span className="pm-product-name">{row[det.nome] || '—'}</span>
+                    {det.codigo && <span className="pm-product-code">{row[det.codigo]}</span>}
+                    {est !== null && (
+                      <span className={`pm-product-est${est <= 0 ? ' pm-product-est--zero' : ''}`}>
+                        {fmtNum.format(est)}
+                      </span>
+                    )}
+                  </label>
+                );
+              })}
+            </div>
+
+            <div className="pm-sel-footer-row">
+              <button className="pm-sel-action" onClick={selectAll}  disabled={allChecked}>Selecionar todos</button>
+              <button className="pm-sel-action" onClick={selectNone} disabled={selectedIds.size === 0}>Desmarcar todos</button>
             </div>
           </div>
 
@@ -586,11 +659,9 @@ function ExportModal({
             <div className="pm-section-title">Colunas a incluir</div>
             <div className="pm-cols-grid">
               {tabelaCols.map(c => (
-                <button
-                  key={c.key}
+                <button key={c.key}
                   className={`pm-col-chip${pColKeys.includes(c.key) ? ' pm-col-chip--on' : ''}`}
-                  onClick={() => toggleCol(c.key)}
-                >
+                  onClick={() => toggleCol(c.key)}>
                   {pColKeys.includes(c.key) && <Check size={11} />}
                   {c.label}
                 </button>
