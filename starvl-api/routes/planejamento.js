@@ -1707,9 +1707,12 @@ router.get('/nota-itens', async (req, res) => {
     const { rows } = await query(
       `SELECT
          COALESCE(prod.prodresumo, prod.proddescricao, 'Sem descrição') AS produto,
-         entcpi.entcpiqtd      AS qtd,
-         entcpi.entcpipreco    AS preco_unitario,
-         entcpi.entcpitotal    AS total
+         COALESCE(entcpi.entcpiqtd, 0)    AS qtd,
+         COALESCE(entcpi.entcpitotal, 0)  AS total,
+         CASE WHEN COALESCE(entcpi.entcpiqtd, 0) > 0
+              THEN COALESCE(entcpi.entcpitotal, 0) / entcpi.entcpiqtd
+              ELSE 0
+         END                              AS preco_unitario
        FROM entcpi
        LEFT JOIN prod ON prod.prodcodigo = entcpi.entcpiproduto
        WHERE entcpi.entcpiempresa = $1
