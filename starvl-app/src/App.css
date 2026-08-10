@@ -6084,3 +6084,98 @@ select.themed-select option {
 [data-theme="light"] .pv-period-btn        { color: rgba(0,0,0,.5); }
 [data-theme="light"] .pv-period-btn:hover:not(.active) { color: rgba(0,0,0,.8); background: rgba(0,0,0,.06); }
 [data-theme="light"] .pv-fsel-label        { color: rgba(0,0,0,.4); }
+
+/* ── ExportModal (Estoque) — modal largo com filtros ────────────────────────── */
+.pm-modal--wide { max-width: 620px; width: 100%; }
+
+/* Filtros grid dentro do modal */
+.pm-filtros-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.pm-filtro-field { display: flex; flex-direction: column; gap: 5px; }
+.pm-filtro-field label { font-size: 11px; font-weight: 600; color: var(--color-text-muted); }
+.pm-filtro-field--wide { grid-column: 1 / -1; }
+
+.pm-filtro-search {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 7px;
+  padding: 0 10px;
+  color: var(--color-text-muted);
+}
+.pm-filtro-input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 12px;
+  color: var(--color-text);
+  padding: 7px 0;
+}
+.pm-filtro-input::placeholder { color: var(--color-text-muted); }
+.pm-filtro-clear {
+  background: none; border: none; cursor: pointer;
+  color: var(--color-text-muted); padding: 2px; display: flex;
+}
+.pm-filtro-clear:hover { color: var(--color-text); }
+
+.pm-filtro-select {
+  width: 100%;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 7px;
+  padding: 6px 10px;
+  font-size: 12px;
+  color: var(--color-text);
+  outline: none;
+  cursor: pointer;
+}
+.pm-filtro-select:focus { border-color: var(--color-primary); }
+
+/* tab com variante danger (zerados) */
+.pm-tab--danger { color: #ef4444; }
+.pm-tab--danger.pm-tab--on { background: #ef4444; color: #fff; border-color: #ef4444; }
+
+/* Contador e tags de filtros ativos */
+.pm-filtros-count {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+.pm-filtros-count-num { font-weight: 700; color: var(--color-primary); font-size: 14px; }
+.pm-filtros-count-num--zero { color: #ef4444; }
+.pm-filtros-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+.pm-filtro-tag {
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+  border: 1px solid var(--color-primary-glow);
+  border-radius: 5px;
+  padding: 1px 7px;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+/* Botão Excel no footer do modal */
+.pm-btn-excel {
+  display: flex; align-items: center; gap: 6px;
+  padding: 8px 16px;
+  background: #16a34a;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity .15s;
+}
+.pm-btn-excel:disabled { opacity: .5; cursor: not-allowed; }
+.pm-btn-excel:not(:disabled):hover { opacity: .88; }

@@ -11,7 +11,7 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import ReactDOM from 'react-dom';
 import * as XLSX from 'xlsx';
 import { Package, RefreshCw, Search, X, AlertTriangle, DollarSign,
-         TrendingDown, ChevronLeft, ChevronRight, Printer, FileDown, Check } from 'lucide-react';
+         TrendingDown, ChevronLeft, ChevronRight, Printer, FileDown, Check, Filter } from 'lucide-react';
 import { apiFetch } from '../api';
 
 // ── Formatadores ───────────────────────────────────────────────────────────────
@@ -19,6 +19,7 @@ const fmtCurrency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency
 const fmtNum      = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 3 });
 
 const PAGE_OPTS = [10, 30, 50, 'Todos'];
+const norm = s => String(s || '').trim().toLowerCase();
 
 // ── Detecção automática de colunas ────────────────────────────────────────────
 function detectCols(columns) {
@@ -38,6 +39,37 @@ function detectCols(columns) {
   };
 }
 
+// ── Helper: aplica filtros sobre um array de rows ────────────────────────────
+function aplicarFiltros(rows, { busca, secao, grupo, situacao, apenasZerados, apenasComEst }, det) {
+  let r = rows;
+  if (busca && busca.trim()) {
+    const q = busca.toLowerCase();
+    r = r.filter(row =>
+      String(row[det.nome]   || '').toLowerCase().includes(q) ||
+      String(row[det.codigo] || '').toLowerCase().includes(q) ||
+      String(row[det.barra]  || '').toLowerCase().includes(q)
+    );
+  }
+  if (secao !== 'Todas' && det.secao)
+    r = r.filter(row => norm(row[det.secao]) === norm(secao));
+  if (grupo !== 'Todos' && det.grupo)
+    r = r.filter(row => norm(row[det.grupo]) === norm(grupo));
+  if (situacao !== 'Todos' && det.situacao)
+    r = r.filter(row => matchSituacao(row[det.situacao], situacao));
+  if (apenasZerados && det.estoque)
+    r = r.filter(row => Number(row[det.estoque] || 0) <= 0);
+  if (apenasComEst && det.estoque)
+    r = r.filter(row => Number(row[det.estoque] || 0) > 0);
+  return r;
+}
+
+function matchSituacao(val, tipo) {
+  const v = norm(val);
+  if (tipo === 'Ativos')   return v === 'ativo'   || v === 'a';
+  if (tipo === 'Inativos') return v === 'inativo' || v === 'i';
+  return true;
+}
+
 // ── KPI card ──────────────────────────────────────────────────────────────────
 function KpiCard({ icon: Icon, label, value, sub, accent }) {
   return (
@@ -54,7 +86,7 @@ function KpiCard({ icon: Icon, label, value, sub, accent }) {
 
 // ── Badge situação ─────────────────────────────────────────────────────────────
 function SituacaoBadge({ value }) {
-  const v = String(value || '').trim().toLowerCase();
+  const v = norm(value);
   const ativo = v === 'ativo' || v === 'a';
   return (
     <span className={`pp-badge ${ativo ? 'pp-badge--ok' : 'pp-badge--off'}`}>
@@ -64,7 +96,7 @@ function SituacaoBadge({ value }) {
   );
 }
 
-// ── Célula de estoque (vermelho quando zero/negativo) ─────────────────────────
+// ── Célula de estoque ─────────────────────────────────────────────────────────
 function EstoqueCell({ value, minimo }) {
   const n   = Number(value)  || 0;
   const min = Number(minimo) || 0;
@@ -79,7 +111,7 @@ function EstoqueCell({ value, minimo }) {
   );
 }
 
-// ── Estado vazio (sem consulta configurada) ───────────────────────────────────
+// ── Estado vazio ──────────────────────────────────────────────────────────────
 function SemConsulta() {
   return (
     <div className="tc-empty-state">
@@ -94,25 +126,47 @@ function SemConsulta() {
   );
 }
 
-// ── Helper: valor bruto formatado para print/excel ───────────────────────────
-function rawVal(col, row, det) {
+// ── Helper: valor para print/excel ────────────────────────────────────────────
+function rawVal(col, row) {
   if (col.calc) return col.calc(row);
   return row[col.key] ?? '';
 }
 
+// ── Gerador de grupos filtrados (reutilizado no modal e na tela) ──────────────
+function calcGrupos({ gruposExt, secoesExt, rows, det, secaoSel }) {
+  if (gruposExt.length) {
+    let lista = gruposExt;
+    if (secaoSel !== 'Todas') {
+      const temRelacao = gruposExt.some(g => g.cod_secao !== null);
+      if (temRelacao) {
+        const secaoObj = secoesExt.find(s => norm(s.desc) === norm(secaoSel));
+        if (secaoObj) lista = gruposExt.filter(g => g.cod_secao === secaoObj.cod);
+      } else {
+        const base = rows.filter(r => norm(r[det.secao]) === norm(secaoSel));
+        const permitidos = new Set(base.map(r => norm(r[det.grupo])).filter(Boolean));
+        if (permitidos.size) lista = gruposExt.filter(g => permitidos.has(norm(g.desc)));
+      }
+    }
+    return ['Todos', ...lista.map(g => g.desc).filter(Boolean)];
+  }
+  if (!det.grupo) return [];
+  const base = secaoSel === 'Todas' ? rows : rows.filter(r => norm(r[det.secao]) === norm(secaoSel));
+  return ['Todos', ...new Set(base.map(r => r[det.grupo]).filter(Boolean))];
+}
+
 // ── Gerador de HTML para impressão ───────────────────────────────────────────
-function gerarHtmlPrint({ titulo, colunas, linhas, empresa, det }) {
+function gerarHtmlPrint({ titulo, colunas, linhas, empresa, det, filtrosDesc }) {
   const fmtC = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
   const fmtN = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 3 });
   const now  = new Date().toLocaleString('pt-BR');
 
-  const ativos   = linhas.filter(r => { const v = String(r[det.situacao]||'').toLowerCase(); return v==='ativo'||v==='a'; }).length;
-  const zerados  = det.estoque ? linhas.filter(r => Number(r[det.estoque]||0) <= 0).length : 0;
+  const ativos   = det.situacao ? linhas.filter(r => { const v = norm(r[det.situacao]); return v==='ativo'||v==='a'; }).length : linhas.length;
+  const zerados  = det.estoque  ? linhas.filter(r => Number(r[det.estoque]||0) <= 0).length : 0;
   const valorEst = (det.estoque && det.preco)
     ? linhas.reduce((acc,r) => acc + Number(r[det.estoque]||0)*Number(r[det.preco]||0), 0) : null;
 
   const kpis = [
-    { label:'Total de Itens',   value: fmtN.format(linhas.length),           sub:`${ativos} ativos` },
+    { label:'Total de Itens',   value: fmtN.format(linhas.length), sub:`${ativos} ativos` },
     valorEst !== null && { label:'Valor em Estoque', value: fmtC.format(valorEst), sub:'preço × saldo' },
     det.estoque && { label:'Zerados', value: fmtN.format(zerados), sub:'saldo ≤ 0' },
   ].filter(Boolean);
@@ -124,14 +178,18 @@ function gerarHtmlPrint({ titulo, colunas, linhas, empresa, det }) {
       <div class="kpi-sub">${k.sub}</div>
     </div>`).join('');
 
+  const filtrosHtml = filtrosDesc.length
+    ? `<div class="filtros-bar">${filtrosDesc.map(f=>`<span class="filtro-tag">${f}</span>`).join('')}</div>`
+    : '';
+
   const thead = colunas.map(c=>`<th${c.currency||c.estoque||c.num?' class="r"':''}>${c.label}</th>`).join('');
 
   const tbody = linhas.map((row, i) => {
     const cells = colunas.map(c => {
-      const raw = rawVal(c, row, det);
+      const raw = rawVal(c, row);
       let val;
       if (c.badge) {
-        const v = String(raw||'').toLowerCase();
+        const v = norm(raw);
         const ok = v==='ativo'||v==='a';
         val = `<span class="badge ${ok?'badge-ok':'badge-off'}">${ok?'Ativo':'Inativo'}</span>`;
       } else if (c.currency) {
@@ -174,6 +232,8 @@ body { font-family:'Segoe UI',Arial,sans-serif; font-size:10.5px; color:#1a1a1a;
 .report-title { font-size:20px; font-weight:700; color:#111; line-height:1.15; }
 .report-meta { text-align:right; font-size:9.5px; color:#777; line-height:1.7; }
 .report-meta strong { color:#333; }
+.filtros-bar { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px; }
+.filtro-tag { background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; border-radius:6px; padding:2px 8px; font-size:9px; font-weight:600; }
 .kpi-row { display:grid; grid-template-columns:repeat(${kpis.length},1fr); gap:10px; margin-bottom:16px; }
 .kpi-card { border:1px solid #e5e7eb; border-radius:8px; padding:10px 14px; border-left:4px solid #3b82f6; }
 .kpi-label { font-size:9px; text-transform:uppercase; letter-spacing:.06em; color:#888; font-weight:700; margin-bottom:3px; }
@@ -208,6 +268,7 @@ tr:last-child td { border-bottom:none; }
     <strong>Total de registros:</strong> ${linhas.length}
   </div>
 </div>
+${filtrosHtml}
 <div class="kpi-row">${kpiHtml}</div>
 <div class="section-title">Listagem de Estoque</div>
 <table>
@@ -292,8 +353,24 @@ function PrintPreview({ html, titulo, total, empresa, onClose }) {
   );
 }
 
-// ── PrintModal ────────────────────────────────────────────────────────────────
-function PrintModal({ tabelaCols, sortedFiltradas, det, empresa, onClose, onPreview }) {
+// ── ExportModal (Imprimir + Excel) ────────────────────────────────────────────
+function ExportModal({
+  rows, det, tabelaCols,
+  secoes, secoesExt, gruposExt,
+  empresa,
+  initFiltros,        // { busca, secao, grupo, situacao, apenasZerados }
+  onClose,
+  onPreview,          // (previewData) → abre print preview
+}) {
+  // ── Filtros internos do modal ────────────────────────────────────────────────
+  const [busca,        setBusca]        = useState(initFiltros.busca        ?? '');
+  const [secaoSel,     setSecaoSel]     = useState(initFiltros.secao        ?? 'Todas');
+  const [grupoSel,     setGrupoSel]     = useState(initFiltros.grupo        ?? 'Todos');
+  const [situacaoSel,  setSituacaoSel]  = useState(initFiltros.situacao     ?? 'Todos');
+  const [apenasZerados,setApenasZerados]= useState(initFiltros.apenasZerados ?? false);
+  const [apenasComEst, setApenasComEst] = useState(false);
+
+  // ── Colunas e título ─────────────────────────────────────────────────────────
   const [titulo,   setTitulo]   = useState('Posição de Estoque');
   const [pColKeys, setPColKeys] = useState(() => tabelaCols.map(c => c.key));
 
@@ -301,24 +378,85 @@ function PrintModal({ tabelaCols, sortedFiltradas, det, empresa, onClose, onPrev
     setPColKeys(prev => prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]);
   }
 
+  // ── Lista de grupos filtrada pela seção selecionada ──────────────────────────
+  const grupos = useMemo(() =>
+    calcGrupos({ gruposExt, secoesExt, rows, det, secaoSel }),
+  [gruposExt, secoesExt, rows, det, secaoSel]); // eslint-disable-line
+
+  // Reset grupo quando muda seção
+  useEffect(() => { setGrupoSel('Todos'); }, [secaoSel]);
+
+  // Apenaszerados e apenasComEst são mutuamente exclusivos
+  function toggleZerados(v) { setApenasZerados(v); if (v) setApenasComEst(false); }
+  function toggleComEst(v)  { setApenasComEst(v);  if (v) setApenasZerados(false); }
+
+  // ── Dados filtrados ──────────────────────────────────────────────────────────
+  const linhasFiltradas = useMemo(() =>
+    aplicarFiltros(rows, { busca, secao: secaoSel, grupo: grupoSel, situacao: situacaoSel, apenasZerados, apenasComEst }, det),
+  [rows, busca, secaoSel, grupoSel, situacaoSel, apenasZerados, apenasComEst, det]); // eslint-disable-line
+
+  // ── Descrição dos filtros ativos (para o rodapé do relatório) ───────────────
+  const filtrosDesc = useMemo(() => {
+    const f = [];
+    if (secaoSel !== 'Todas')     f.push(`Seção: ${secaoSel}`);
+    if (grupoSel !== 'Todos')     f.push(`Grupo: ${grupoSel}`);
+    if (situacaoSel !== 'Todos')  f.push(`Situação: ${situacaoSel}`);
+    if (apenasZerados)            f.push('Somente zerados');
+    if (apenasComEst)             f.push('Somente com estoque');
+    if (busca.trim())             f.push(`Busca: "${busca.trim()}"`);
+    return f;
+  }, [secaoSel, grupoSel, situacaoSel, apenasZerados, apenasComEst, busca]);
+
+  const colunasSel = tabelaCols.filter(c => pColKeys.includes(c.key));
+  const temDados   = linhasFiltradas.length > 0 && colunasSel.length > 0;
+
+  // ── Ação: Imprimir ───────────────────────────────────────────────────────────
   function handlePrint() {
-    const colunasSel = tabelaCols.filter(c => pColKeys.includes(c.key));
-    if (!colunasSel.length) return;
-    const html = gerarHtmlPrint({ titulo, colunas: colunasSel, linhas: sortedFiltradas, empresa, det });
-    onPreview({ html, titulo, total: sortedFiltradas.length, empresa });
+    if (!temDados) return;
+    const html = gerarHtmlPrint({ titulo, colunas: colunasSel, linhas: linhasFiltradas, empresa, det, filtrosDesc });
+    onPreview({ html, titulo, total: linhasFiltradas.length, empresa });
+    onClose();
+  }
+
+  // ── Ação: Excel ──────────────────────────────────────────────────────────────
+  function handleExcel() {
+    if (!temDados) return;
+    const headers  = colunasSel.map(c => c.label);
+    const dataRows = linhasFiltradas.map(row =>
+      colunasSel.map(c => {
+        const raw = rawVal(c, row);
+        if (c.badge) { const v = norm(raw); return (v==='ativo'||v==='a') ? 'Ativo' : 'Inativo'; }
+        if (c.currency || c.estoque || c.num) return Number(raw) || 0;
+        return raw ?? '';
+      })
+    );
+    const wsData = [headers, ...dataRows];
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    ws['!cols'] = headers.map((h, i) => ({
+      wch: Math.max(h.length, ...dataRows.map(r => String(r[i] ?? '').length)) + 2
+    }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Estoque');
+    const now   = new Date();
+    const stamp = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`;
+    XLSX.writeFile(wb, `estoque_${empresa}_${stamp}.xlsx`);
     onClose();
   }
 
   return ReactDOM.createPortal(
     <div className="pm-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="pm-modal">
+      <div className="pm-modal pm-modal--wide">
+
+        {/* Cabeçalho */}
         <div className="pm-header">
-          <Printer size={16} />
-          <span>Configurar Impressão</span>
+          <Filter size={16} />
+          <span>Configurar Exportação</span>
           <button className="pm-close" onClick={onClose}><X size={15} /></button>
         </div>
 
         <div className="pm-body">
+
+          {/* Título */}
           <div className="pm-section">
             <div className="pm-section-title">Título do relatório</div>
             <input
@@ -329,8 +467,123 @@ function PrintModal({ tabelaCols, sortedFiltradas, det, empresa, onClose, onPrev
             />
           </div>
 
+          {/* ── Filtros ── */}
           <div className="pm-section">
-            <div className="pm-section-title">Colunas a exibir</div>
+            <div className="pm-section-title">Filtros de dados</div>
+
+            <div className="pm-filtros-grid">
+
+              {/* Busca */}
+              <div className="pm-filtro-field pm-filtro-field--wide">
+                <label>Buscar produto</label>
+                <div className="pm-filtro-search">
+                  <Search size={13} />
+                  <input
+                    className="pm-filtro-input"
+                    placeholder="Nome, código ou código de barras…"
+                    value={busca}
+                    onChange={e => setBusca(e.target.value)}
+                  />
+                  {busca && (
+                    <button className="pm-filtro-clear" onClick={() => setBusca('')}>
+                      <X size={11} />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Seção */}
+              {secoes.length > 1 && (
+                <div className="pm-filtro-field">
+                  <label>Seção</label>
+                  <select
+                    className="pm-filtro-select"
+                    value={secaoSel}
+                    onChange={e => setSecaoSel(e.target.value)}
+                  >
+                    {secoes.map(s => <option key={s}>{s}</option>)}
+                  </select>
+                </div>
+              )}
+
+              {/* Grupo */}
+              {grupos.length > 1 && (
+                <div className="pm-filtro-field">
+                  <label>Grupo</label>
+                  <select
+                    className="pm-filtro-select"
+                    value={grupoSel}
+                    onChange={e => setGrupoSel(e.target.value)}
+                  >
+                    {grupos.map(g => <option key={g}>{g}</option>)}
+                  </select>
+                </div>
+              )}
+
+              {/* Situação */}
+              {det.situacao && (
+                <div className="pm-filtro-field">
+                  <label>Cadastro</label>
+                  <div className="pm-tabs">
+                    {['Ativos', 'Inativos', 'Todos'].map(s => (
+                      <button
+                        key={s}
+                        className={`pm-tab${situacaoSel === s ? ' pm-tab--on' : ''}`}
+                        onClick={() => setSituacaoSel(s)}
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Estoque */}
+              {det.estoque && (
+                <div className="pm-filtro-field">
+                  <label>Estoque</label>
+                  <div className="pm-tabs">
+                    <button
+                      className={`pm-tab${!apenasZerados && !apenasComEst ? ' pm-tab--on' : ''}`}
+                      onClick={() => { setApenasZerados(false); setApenasComEst(false); }}
+                    >
+                      Todos
+                    </button>
+                    <button
+                      className={`pm-tab${apenasComEst ? ' pm-tab--on' : ''}`}
+                      onClick={() => toggleComEst(!apenasComEst)}
+                    >
+                      Com estoque
+                    </button>
+                    <button
+                      className={`pm-tab pm-tab--danger${apenasZerados ? ' pm-tab--on' : ''}`}
+                      onClick={() => toggleZerados(!apenasZerados)}
+                    >
+                      Zerados
+                    </button>
+                  </div>
+                </div>
+              )}
+
+            </div>
+
+            {/* Contador de resultados */}
+            <div className="pm-filtros-count">
+              <span className={`pm-filtros-count-num${linhasFiltradas.length === 0 ? ' pm-filtros-count-num--zero' : ''}`}>
+                {linhasFiltradas.length}
+              </span>
+              <span> produto{linhasFiltradas.length !== 1 ? 's' : ''} selecionado{linhasFiltradas.length !== 1 ? 's' : ''}</span>
+              {filtrosDesc.length > 0 && (
+                <span className="pm-filtros-tags">
+                  {filtrosDesc.map((f, i) => <span key={i} className="pm-filtro-tag">{f}</span>)}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* ── Colunas ── */}
+          <div className="pm-section">
+            <div className="pm-section-title">Colunas a incluir</div>
             <div className="pm-cols-grid">
               {tabelaCols.map(c => (
                 <button
@@ -345,58 +598,25 @@ function PrintModal({ tabelaCols, sortedFiltradas, det, empresa, onClose, onPrev
             </div>
           </div>
 
-          <div className="pm-preview-count">
-            {sortedFiltradas.length} item{sortedFiltradas.length !== 1 ? 's' : ''} · {tabelaCols.filter(c => pColKeys.includes(c.key)).length} coluna{tabelaCols.filter(c => pColKeys.includes(c.key)).length !== 1 ? 's' : ''}
+        </div>
+
+        {/* Rodapé */}
+        <div className="pm-footer">
+          <button className="pm-btn-cancel" onClick={onClose}>Cancelar</button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="pm-btn-excel" onClick={handleExcel} disabled={!temDados}>
+              <FileDown size={14} /> Exportar Excel
+            </button>
+            <button className="pm-btn-print" onClick={handlePrint} disabled={!temDados}>
+              <Printer size={14} /> Imprimir
+            </button>
           </div>
         </div>
 
-        <div className="pm-footer">
-          <button className="pm-btn-cancel" onClick={onClose}>Cancelar</button>
-          <button className="pm-btn-print" onClick={handlePrint} disabled={!pColKeys.length}>
-            <Printer size={14} /> Imprimir
-          </button>
-        </div>
       </div>
     </div>,
     document.body
   );
-}
-
-// ── Export Excel ──────────────────────────────────────────────────────────────
-function exportarExcel({ tabelaCols, linhas, empresa, det }) {
-  const headers = tabelaCols.map(c => c.label);
-
-  const dataRows = linhas.map(row =>
-    tabelaCols.map(c => {
-      const raw = rawVal(c, row, det);
-      if (c.badge) {
-        const v = String(raw||'').toLowerCase();
-        return (v==='ativo'||v==='a') ? 'Ativo' : 'Inativo';
-      }
-      if (c.currency) return Number(raw) || 0;
-      if (c.estoque || c.num) return Number(raw) || 0;
-      return raw ?? '';
-    })
-  );
-
-  const wsData = [headers, ...dataRows];
-  const ws = XLSX.utils.aoa_to_sheet(wsData);
-
-  // Largura automática das colunas
-  const colWidths = headers.map((h, i) => ({
-    wch: Math.max(
-      h.length,
-      ...dataRows.map(r => String(r[i] ?? '').length)
-    ) + 2
-  }));
-  ws['!cols'] = colWidths;
-
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Estoque');
-
-  const now = new Date();
-  const stamp = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`;
-  XLSX.writeFile(wb, `estoque_${empresa}_${stamp}.xlsx`);
 }
 
 // ── Componente principal ───────────────────────────────────────────────────────
@@ -416,7 +636,7 @@ export default function Estoque({ empresas }) {
   const [loading,    setLoading]    = useState(false);
   const [erro,       setErro]       = useState('');
 
-  // Filtros
+  // Filtros da tela
   const [busca,      setBusca]      = useState('');
   const [secao,      setSecao]      = useState('Todas');
   const [grupo,      setGrupo]      = useState('Todos');
@@ -427,8 +647,8 @@ export default function Estoque({ empresas }) {
   const [pagina,     setPagina]     = useState(1);
   const [pageSize,   setPageSize]   = useState(10);
 
-  // Print / Export
-  const [printOpen,   setPrintOpen]   = useState(false);
+  // Export modal / Preview
+  const [exportOpen,  setExportOpen]  = useState(false);
   const [previewData, setPreviewData] = useState(null);
 
   const det = useMemo(() => detectCols(cols), [cols]);
@@ -498,41 +718,16 @@ export default function Estoque({ empresas }) {
 
   useEffect(() => { fetchDados(); }, [fetchDados]);
 
-  // ── Listas de filtros ────────────────────────────────────────────────────────
+  // ── Listas de filtros da tela ────────────────────────────────────────────────
   const secoes = useMemo(() => {
     if (secoesExt.length) return ['Todas', ...secoesExt.map(s => s.desc).filter(Boolean)];
     if (!det.secao) return [];
     return ['Todas', ...new Set(rows.map(r => r[det.secao]).filter(Boolean))];
   }, [secoesExt, rows, det.secao]);
 
-  const grupos = useMemo(() => {
-    const norm = s => String(s || '').trim().toLowerCase();
-    if (gruposExt.length) {
-      let lista = gruposExt;
-      if (secao !== 'Todas') {
-        const temRelacao = gruposExt.some(g => g.cod_secao !== null);
-        if (temRelacao) {
-          const secaoObj = secoesExt.find(s => norm(s.desc) === norm(secao));
-          if (secaoObj) lista = gruposExt.filter(g => g.cod_secao === secaoObj.cod);
-        } else {
-          const base = rows.filter(r => norm(r[det.secao]) === norm(secao));
-          const permitidos = new Set(base.map(r => norm(r[det.grupo])).filter(Boolean));
-          if (permitidos.size) lista = gruposExt.filter(g => permitidos.has(norm(g.desc)));
-        }
-      }
-      return ['Todos', ...lista.map(g => g.desc).filter(Boolean)];
-    }
-    if (!det.grupo) return [];
-    const base = secao === 'Todas' ? rows : rows.filter(r => norm(r[det.secao]) === norm(secao));
-    return ['Todos', ...new Set(base.map(r => r[det.grupo]).filter(Boolean))];
-  }, [gruposExt, secoesExt, rows, det, secao]); // eslint-disable-line
-
-  const matchSituacao = (val, tipo) => {
-    const v = String(val || '').trim().toLowerCase();
-    if (tipo === 'Ativos')   return v === 'ativo'   || v === 'a';
-    if (tipo === 'Inativos') return v === 'inativo' || v === 'i';
-    return true;
-  };
+  const grupos = useMemo(() =>
+    calcGrupos({ gruposExt, secoesExt, rows, det, secaoSel: secao }),
+  [gruposExt, secoesExt, rows, det, secao]); // eslint-disable-line
 
   // ── KPIs ──────────────────────────────────────────────────────────────────────
   const kpis = useMemo(() => {
@@ -566,24 +761,10 @@ export default function Estoque({ empresas }) {
     det.situacao && { key: det.situacao, label: 'Situação',   badge: true },
   ].filter(Boolean), [det]);
 
-  const norm = s => String(s || '').trim().toLowerCase();
-
-  const filtradas = useMemo(() => {
-    let r = rows;
-    if (busca.trim()) {
-      const q = busca.toLowerCase();
-      r = r.filter(row =>
-        String(row[det.nome]   || '').toLowerCase().includes(q) ||
-        String(row[det.codigo] || '').toLowerCase().includes(q) ||
-        String(row[det.barra]  || '').toLowerCase().includes(q)
-      );
-    }
-    if (secao !== 'Todas' && det.secao) r = r.filter(row => norm(row[det.secao]) === norm(secao));
-    if (grupo !== 'Todos' && det.grupo) r = r.filter(row => norm(row[det.grupo]) === norm(grupo));
-    if (situacao !== 'Todos' && det.situacao) r = r.filter(row => matchSituacao(row[det.situacao], situacao));
-    if (semEst && det.estoque) r = r.filter(row => Number(row[det.estoque]||0) <= 0);
-    return r;
-  }, [rows, busca, secao, grupo, situacao, semEst, det]); // eslint-disable-line
+  // ── Dados filtrados da tela ──────────────────────────────────────────────────
+  const filtradas = useMemo(() =>
+    aplicarFiltros(rows, { busca, secao, grupo, situacao, apenasZerados: semEst, apenasComEst: false }, det),
+  [rows, busca, secao, grupo, situacao, semEst, det]); // eslint-disable-line
 
   const sortedFiltradas = useMemo(() => {
     if (!sortCol) return filtradas;
@@ -618,6 +799,9 @@ export default function Estoque({ empresas }) {
   const pag       = Math.min(pagina, totalPags);
   const pagRows   = pageSize === 'Todos' ? sortedFiltradas : sortedFiltradas.slice((pag-1)*ps, pag*ps);
 
+  // Filtros atuais da tela para inicializar o modal
+  const initFiltros = { busca, secao, grupo, situacao, apenasZerados: semEst };
+
   // ── Renderização ──────────────────────────────────────────────────────────────
   if (slotPrincipal === undefined) {
     return (
@@ -648,19 +832,11 @@ export default function Estoque({ empresas }) {
           <div className="pp-header-actions">
             <button
               className="pp-btn-ghost"
-              onClick={() => exportarExcel({ tabelaCols, linhas: sortedFiltradas, empresa, det })}
-              disabled={!sortedFiltradas.length}
-              title="Exportar para Excel"
+              onClick={() => setExportOpen(true)}
+              disabled={!rows.length}
+              title="Exportar / Imprimir"
             >
-              <FileDown size={14} /> Excel
-            </button>
-            <button
-              className="pp-btn-ghost"
-              onClick={() => setPrintOpen(true)}
-              disabled={!sortedFiltradas.length}
-              title="Imprimir"
-            >
-              <Printer size={14} /> Imprimir
+              <FileDown size={14} /> Exportar / Imprimir
             </button>
             <button className="pp-btn-primary" onClick={fetchDados} disabled={loading}>
               <RefreshCw size={13} className={loading ? 'pp-spin' : ''} />
@@ -673,13 +849,13 @@ export default function Estoque({ empresas }) {
 
         {/* ── KPIs ── */}
         <div className="pp-kpi-grid">
-          <KpiCard icon={Package}       label="Total de Itens"   value={fmtNum.format(kpis.total)}              sub={`${kpis.ativos} ativos · ${kpis.inativos} inativos`}  accent="#3b82f6" />
+          <KpiCard icon={Package}        label="Total de Itens"    value={fmtNum.format(kpis.total)}         sub={`${kpis.ativos} ativos · ${kpis.inativos} inativos`} accent="#3b82f6" />
           {kpis.valorEst !== null && (
-            <KpiCard icon={DollarSign}  label="Valor em Estoque" value={fmtCurrency.format(kpis.valorEst)}      sub="preço × saldo"                                         accent="#22c55e" />
+            <KpiCard icon={DollarSign}   label="Valor em Estoque"  value={fmtCurrency.format(kpis.valorEst)} sub="preço × saldo"                                       accent="#22c55e" />
           )}
-          <KpiCard icon={AlertTriangle} label="Zerados"          value={fmtNum.format(kpis.zerados)}            sub="saldo ≤ 0"                                             accent="#ef4444" />
+          <KpiCard icon={AlertTriangle}  label="Zerados"           value={fmtNum.format(kpis.zerados)}       sub="saldo ≤ 0"                                            accent="#ef4444" />
           {kpis.abaixoMin > 0 && (
-            <KpiCard icon={TrendingDown} label="Abaixo do Mínimo" value={fmtNum.format(kpis.abaixoMin)}         sub="saldo ≤ mínimo configurado"                            accent="#f59e0b" />
+            <KpiCard icon={TrendingDown} label="Abaixo do Mínimo"  value={fmtNum.format(kpis.abaixoMin)}     sub="saldo ≤ mínimo configurado"                           accent="#f59e0b" />
           )}
         </div>
 
@@ -799,8 +975,8 @@ export default function Estoque({ empresas }) {
                             c.currency || c.estoque || c.num ? 'pp-td--r' : '',
                             ci === 0 ? 'pp-td--name' : '',
                           ].filter(Boolean).join(' ')}>
-                            {c.badge    ? <SituacaoBadge value={raw} />
-                             : c.estoque  ? <EstoqueCell value={raw} minimo={det.minimo ? row[det.minimo] : null} />
+                            {c.badge     ? <SituacaoBadge value={raw} />
+                             : c.estoque ? <EstoqueCell value={raw} minimo={det.minimo ? row[det.minimo] : null} />
                              : c.currency ? fmtCurrency.format(Number(raw)||0)
                              : c.num      ? fmtNum.format(Number(raw)||0)
                              : (raw ?? '—')}
@@ -849,14 +1025,18 @@ export default function Estoque({ empresas }) {
 
       </div>
 
-      {/* ── Modal de impressão ── */}
-      {printOpen && (
-        <PrintModal
-          tabelaCols={tabelaCols}
-          sortedFiltradas={sortedFiltradas}
+      {/* ── Modal de exportação ── */}
+      {exportOpen && (
+        <ExportModal
+          rows={rows}
           det={det}
+          tabelaCols={tabelaCols}
+          secoes={secoes}
+          secoesExt={secoesExt}
+          gruposExt={gruposExt}
           empresa={empresa}
-          onClose={() => setPrintOpen(false)}
+          initFiltros={initFiltros}
+          onClose={() => setExportOpen(false)}
           onPreview={data => setPreviewData(data)}
         />
       )}
