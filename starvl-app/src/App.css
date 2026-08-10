@@ -5883,3 +5883,194 @@ select.themed-select option {
 .mm-pag-btn { width:30px; height:30px; border-radius:8px; border:1px solid rgba(255,255,255,.12); background:rgba(255,255,255,.05); color:#94A3B8; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all .15s; }
 .mm-pag-btn:hover:not(:disabled) { background:rgba(255,255,255,.1); }
 .mm-pag-btn:disabled { opacity:.3; cursor:not-allowed; }
+
+/* ═══════════════════════════════════════════════════════════════
+   TEMA CLARO — Overrides para mc3-*, pv2-*, mm-*
+   Corrige cards, painéis e textos que usam cores hardcoded escuras
+═══════════════════════════════════════════════════════════════ */
+
+/* ── mc3 (Metas Comerciais) ─────────────────────────────────── */
+[data-theme="light"] .mc3-hero {
+  background: linear-gradient(135deg, #fff8f3 0%, #fff4ec 50%, #fff8f3 100%);
+  border-color: rgba(249,115,22,.2);
+}
+[data-theme="light"] .mc3-hero::before {
+  background: radial-gradient(ellipse at 70% 50%, rgba(249,115,22,.06) 0%, transparent 60%);
+}
+[data-theme="light"] .mc3-hero-title { color: #111827; }
+[data-theme="light"] .mc3-hero-sub   { color: #6B7280; }
+[data-theme="light"] .mc3-hero-badge {
+  border-color: rgba(249,115,22,.3); background: rgba(249,115,22,.08);
+}
+[data-theme="light"] .mc3-hero-config {
+  background: rgba(0,0,0,.04); border-color: rgba(0,0,0,.08);
+}
+[data-theme="light"] .mc3-config-track { background: rgba(0,0,0,.08); }
+[data-theme="light"] .mc3-config-dot   { background: rgba(0,0,0,.12); }
+[data-theme="light"] .mc3-config-item  { color: #6B7280; }
+[data-theme="light"] .mc3-period {
+  background: rgba(0,0,0,.04); border-color: rgba(0,0,0,.1); color: #374151;
+}
+[data-theme="light"] .mc3-period-arrow {
+  color: #6B7280;
+}
+[data-theme="light"] .mc3-period-arrow:first-child { border-right-color: rgba(0,0,0,.08); }
+[data-theme="light"] .mc3-period-arrow:last-child  { border-left-color:  rgba(0,0,0,.08); }
+[data-theme="light"] .mc3-period-sub { color: #6B7280; }
+
+[data-theme="light"] .mc3-kpi-card {
+  background: #fff; border-color: rgba(0,0,0,.08);
+}
+[data-theme="light"] .mc3-kpi-card:hover {
+  background: #fafafa; box-shadow: 0 6px 20px rgba(0,0,0,.08);
+}
+[data-theme="light"] .mc3-kpi-edit-btn {
+  background: rgba(0,0,0,.05); color: #9CA3AF;
+}
+[data-theme="light"] .mc3-kpi-edit-btn:hover { background: rgba(0,0,0,.1); color: #374151; }
+
+[data-theme="light"] .mc3-chart-card {
+  background: #fff; border-color: rgba(0,0,0,.08);
+}
+[data-theme="light"] .mc3-summary-card {
+  background: #fff; border-color: rgba(0,0,0,.08);
+}
+[data-theme="light"] .mc3-cat-section {
+  background: #fff; border-color: rgba(0,0,0,.08);
+}
+[data-theme="light"] .mc3-sim-tip {
+  background: #fff; border-color: rgba(0,0,0,.12); color: #374151;
+}
+[data-theme="light"] .mc3-tooltip {
+  background: #fff; border-color: rgba(0,0,0,.12); color: #374151;
+}
+[data-theme="light"] .mc-btn-cancel-sm {
+  border-color: rgba(0,0,0,.15); color: #6B7280;
+}
+[data-theme="light"] .mc-btn-cancel-sm:hover { background: rgba(0,0,0,.05); }
+
+/* ── pv2 (Performance de Vendas) ────────────────────────────── */
+[data-theme="light"] .pv2-period-tab:hover {
+  color: #374151; background: rgba(0,0,0,.05);
+}
+[data-theme="light"] .pv2-kpi-card {
+  background: #fff; border-color: rgba(0,0,0,.08);
+}
+[data-theme="light"] .pv2-kpi-card:hover {
+  border-color: rgba(0,0,0,.16); transform: translateY(-1px);
+}
+[data-theme="light"] .pv2-tabs {
+  border-bottom-color: rgba(0,0,0,.08);
+}
+[data-theme="light"] .pv2-tab { color: #6B7280; }
+[data-theme="light"] .pv2-tab:hover { color: #374151; background: rgba(0,0,0,.04); }
+[data-theme="light"] .pv2-panel {
+  background: #fff; border-color: rgba(0,0,0,.08);
+}
+[data-theme="light"] .pv2-panel-title { color: #111827; }
+[data-theme="light"] .pv2-rank-row {
+  background: rgba(0,0,0,.02); border-color: rgba(0,0,0,.06);
+}
+[data-theme="light"] .pv2-rank-row:hover { border-color: rgba(0,0,0,.1); }
+[data-theme="light"] .pv2-rank-nome { color: #111827; }
+[data-theme="light"] .pv2-rank-bar-track { background: rgba(0,0,0,.07); }
+[data-theme="light"] .pv2-rank-val  { color: #374151; }
+[data-theme="light"] .pv2-comp-head {
+  background: rgba(0,0,0,.04); color: #6B7280;
+}
+[data-theme="light"] .pv2-comp-row {
+  color: #374151; border-top-color: rgba(0,0,0,.05);
+}
+[data-theme="light"] .pv2-comp-row:hover { background: rgba(0,0,0,.02); }
+[data-theme="light"] .pv2-comp-row--atual {
+  background: rgba(34,197,94,.04); border-top-color: rgba(34,197,94,.12);
+}
+
+/* ── mm (Análise de Margem) ─────────────────────────────────── */
+[data-theme="light"] .mm-title       { color: #111827; }
+[data-theme="light"] .mm-sub         { color: #6B7280; }
+[data-theme="light"] .mm-refresh-btn {
+  border-color: rgba(0,0,0,.12); background: rgba(0,0,0,.04); color: #6B7280;
+}
+[data-theme="light"] .mm-refresh-btn:hover { background: rgba(0,0,0,.08); color: #374151; }
+
+[data-theme="light"] .mm-kpi-card {
+  background: #fff; border-color: rgba(0,0,0,.08);
+}
+[data-theme="light"] .mm-kpi-card:hover {
+  background: #fafafa; box-shadow: 0 6px 20px rgba(0,0,0,.08);
+}
+
+[data-theme="light"] .mm-alertas {
+  background: #fff; border-color: rgba(0,0,0,.08);
+}
+[data-theme="light"] .mm-alertas-title { color: #111827; }
+[data-theme="light"] .mm-alerta-item {
+  background: rgba(0,0,0,.02); color: #374151;
+}
+
+[data-theme="light"] .mm-chart-card { background: #fff; border-color: rgba(0,0,0,.08); }
+[data-theme="light"] .mm-chart-title { color: #111827; }
+[data-theme="light"] .mm-hbar-track  { background: rgba(0,0,0,.07); }
+[data-theme="light"] .mm-hbar-label  { color: #374151; }
+[data-theme="light"] .mm-donut-val   { color: #374151; }
+[data-theme="light"] .mm-donut-item  { color: #6B7280; }
+
+[data-theme="light"] .mm-sim-card { background: #fff; border-color: rgba(249,115,22,.2); }
+[data-theme="light"] .mm-sim-title { color: #111827; }
+[data-theme="light"] .mm-sim-input {
+  border-color: rgba(0,0,0,.12); background: rgba(0,0,0,.03); color: #111827;
+}
+[data-theme="light"] .mm-sim-input:focus { border-color: rgba(249,115,22,.5); }
+[data-theme="light"] .mm-sim-input--dest {
+  border-color: rgba(249,115,22,.35); background: rgba(249,115,22,.04);
+}
+[data-theme="light"] .mm-sim-dropdown {
+  background: #fff; border-color: rgba(0,0,0,.1); box-shadow: 0 12px 32px rgba(0,0,0,.12);
+}
+[data-theme="light"] .mm-sim-drop-item { color: #374151; }
+[data-theme="light"] .mm-sim-drop-item:hover { background: rgba(0,0,0,.05); }
+[data-theme="light"] .mm-sim-compare {
+  background: rgba(0,0,0,.02); border-color: rgba(0,0,0,.07);
+}
+[data-theme="light"] .mm-sim-col--dest { border-left-color: rgba(249,115,22,.2); }
+[data-theme="light"] .mm-sim-impact {
+  background: rgba(0,0,0,.02); border-color: rgba(0,0,0,.07); color: #6B7280;
+}
+[data-theme="light"] .mm-sim-arrow { color: #9CA3AF; }
+
+[data-theme="light"] .mm-rank-card { background: #fff; border-color: rgba(0,0,0,.08); }
+[data-theme="light"] .mm-rank-header {
+  color: #6B7280; border-bottom-color: rgba(0,0,0,.08);
+}
+[data-theme="light"] .mm-rank-row2 {
+  color: #6B7280; border-bottom-color: rgba(0,0,0,.05);
+}
+[data-theme="light"] .mm-rank-row2:hover { background: rgba(0,0,0,.02); }
+[data-theme="light"] .mm-rank-nome2 { color: #111827; }
+
+[data-theme="light"] .mm-tabela-wrap { background: #fff; border-color: rgba(0,0,0,.08); }
+[data-theme="light"] .mm-tabela-title { color: #111827; }
+[data-theme="light"] .mm-search-wrap {
+  background: rgba(0,0,0,.04); border-color: rgba(0,0,0,.1);
+}
+[data-theme="light"] .mm-search-input { color: #111827; }
+[data-theme="light"] .mm-search-input::placeholder { color: #9CA3AF; }
+[data-theme="light"] .mm-export-btn {
+  border-color: rgba(0,0,0,.12); background: rgba(0,0,0,.04); color: #6B7280;
+}
+[data-theme="light"] .mm-export-btn:hover { background: rgba(0,0,0,.08); color: #374151; }
+[data-theme="light"] .mm-th {
+  color: #6B7280; border-bottom-color: rgba(0,0,0,.08);
+}
+[data-theme="light"] .mm-th:hover { color: #374151; }
+[data-theme="light"] .mm-tr:hover  { background: rgba(0,0,0,.025); }
+[data-theme="light"] .mm-td {
+  color: #374151; border-bottom-color: rgba(0,0,0,.05);
+}
+[data-theme="light"] .mm-td-empty { color: #9CA3AF; }
+[data-theme="light"] .mm-tabela-scroll::-webkit-scrollbar-thumb { background: rgba(0,0,0,.12); }
+[data-theme="light"] .mm-pag-btn {
+  border-color: rgba(0,0,0,.12); background: rgba(0,0,0,.04); color: #6B7280;
+}
+[data-theme="light"] .mm-pag-btn:hover:not(:disabled) { background: rgba(0,0,0,.08); }
