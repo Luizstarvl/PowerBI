@@ -1650,7 +1650,8 @@ router.get('/notas-fornecedor', async (req, res) => {
     const { rows } = await query(
       `SELECT
          entcpa.entcpacodigo                          AS nota,
-         entcpa.entcpanota                            AS num_nota,
+         COALESCE(entcpa.entcpachave, entcpa.entcpadocumento,
+                  entcpa.entcpacodigo::text)          AS num_nota,
          entcpa.entcpachegada                         AS data_chegada,
          entcpa.entcpaemissao                         AS data_emissao,
          COALESCE(SUM(entcpi.entcpitotal), 0)         AS total,
@@ -1664,7 +1665,7 @@ router.get('/notas-fornecedor', async (req, res) => {
          AND DATE(entcpa.entcpachegada) >= $2
          AND DATE(entcpa.entcpachegada) <= $3
          AND COALESCE(part.partrazao, 'Sem fornecedor') = $4
-       GROUP BY entcpa.entcpacodigo, entcpa.entcpanota,
+       GROUP BY entcpa.entcpacodigo, entcpa.entcpachave, entcpa.entcpadocumento,
                 entcpa.entcpachegada, entcpa.entcpaemissao
        ORDER BY entcpa.entcpachegada DESC`,
       [empresa, dataInicio, dataFim, fornecedor]
