@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import ReactDOM from 'react-dom';
-import { RefreshCw, Search, X, Package, DollarSign, AlertTriangle, TrendingUp, Printer, ChevronLeft, ChevronRight, ArrowLeft, Edit2, Check, ChevronDown } from 'lucide-react';
+import * as XLSX from 'xlsx';
+import { RefreshCw, Search, X, Package, DollarSign, AlertTriangle, TrendingUp, Printer, ChevronLeft, ChevronRight, ArrowLeft, Edit2, Check, ChevronDown, FileDown, Filter } from 'lucide-react';
 import { apiFetch } from '../../api';
 import ProdutoDetalhe from './ProdutoDetalhe';
 
@@ -9,6 +10,47 @@ const fmtNum      = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 3 })
 const fmtPct      = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
 const PAGE_OPTS = [10, 30, 50, 'Todos'];
+
+// ── Helpers de módulo ─────────────────────────────────────────────────────────
+const normStr = s => String(s || '').trim().toLowerCase();
+
+function matchSit(val, tipo) {
+  const v = normStr(val);
+  if (tipo === 'Ativos')   return v === 'ativo'   || v === 'a';
+  if (tipo === 'Inativos') return v === 'inativo' || v === 'i';
+  return true;
+}
+
+function aplicarFiltrosPP(rows, { secao, grupo, situacao, apenasZerados, apenasComEst }, det) {
+  let r = rows;
+  if (secao !== 'Todas'   && det.secao)    r = r.filter(row => normStr(row[det.secao])  === normStr(secao));
+  if (grupo !== 'Todos'   && det.grupo)    r = r.filter(row => normStr(row[det.grupo])  === normStr(grupo));
+  if (situacao !== 'Todos' && det.situacao) r = r.filter(row => matchSit(row[det.situacao], situacao));
+  if (apenasZerados && det.estoque)         r = r.filter(row => Number(row[det.estoque] || 0) <= 0);
+  if (apenasComEst  && det.estoque)         r = r.filter(row => Number(row[det.estoque] || 0) >  0);
+  return r;
+}
+
+function calcGruposPP({ gruposExt, secoesExt, rows, det, secaoSel }) {
+  if (gruposExt.length) {
+    let lista = gruposExt;
+    if (secaoSel !== 'Todas') {
+      const temRelacao = gruposExt.some(g => g.cod_secao !== null);
+      if (temRelacao) {
+        const secaoObj = secoesExt.find(s => normStr(s.desc) === normStr(secaoSel));
+        if (secaoObj) lista = gruposExt.filter(g => g.cod_secao === secaoObj.cod);
+      } else {
+        const base = rows.filter(r => normStr(r[det.secao]) === normStr(secaoSel));
+        const perm = new Set(base.map(r => normStr(r[det.grupo])).filter(Boolean));
+        if (perm.size) lista = gruposExt.filter(g => perm.has(normStr(g.desc)));
+      }
+    }
+    return ['Todos', ...lista.map(g => g.desc).filter(Boolean)];
+  }
+  if (!det.grupo) return [];
+  const base = secaoSel === 'Todas' ? rows : rows.filter(r => normStr(r[det.secao]) === normStr(secaoSel));
+  return ['Todos', ...new Set(base.map(r => r[det.grupo]).filter(Boolean))];
+}
 
 function detectCols(columns) {
   // Match exato (^ $) tem prioridade; fallback para parcial
@@ -452,121 +494,294 @@ function PrintPreview({ html, titulo, total, empresa, onClose }) {
   );
 }
 
-function PrintModal({ secoes, grupos, tabelaCols, sortedFiltradas, det, empresa, onClose, onPreview }) {
-  const [titulo,      setTitulo]      = useState('Cadastro de Produtos');
-  const [pSituacao,   setPSituacao]   = useState('Ativos');
-  const [pSecao,      setPSecao]      = useState('Todas');
-  const [pGrupo,      setPGrupo]      = useState('Todos');
-  const [pSemEst,     setPSemEst]     = useState(false);
-  const [pColKeys,    setPColKeys]    = useState(() => tabelaCols.map(c => c.key));
+function ExportModalPP({
+  rows, det, tabelaCols,
+  secoes, secoesExt, gruposExt,
+  empresa, initFiltros,
+  onClose, onPreview,
+}) {
+  // ── Filtros ─────────────────────────────────────────────────────────────────
+  const [secaoSel,      setSecaoSel]      = useState(initFiltros.secao     ?? 'Todas');
+  const [grupoSel,      setGrupoSel]      = useState(initFiltros.grupo     ?? 'Todos');
+  const [situacaoSel,   setSituacaoSel]   = useState(initFiltros.situacao  ?? 'Todos');
+  const [apenasZerados, setApenasZerados] = useState(false);
+  const [apenasComEst,  setApenasComEst]  = useState(false);
 
-  const matchSituacao = (val, tipo) => {
-    const v = String(val || '').trim().toLowerCase();
-    if (tipo === 'Ativos')   return v === 'ativo'   || v === 'a';
-    if (tipo === 'Inativos') return v === 'inativo' || v === 'i';
-    return true;
-  };
-
-  const norm = s => String(s || '').trim().toLowerCase();
-
-  const linhas = useMemo(() => {
-    let r = sortedFiltradas;
-    if (pSituacao !== 'Todos' && det.situacao) r = r.filter(row => matchSituacao(row[det.situacao], pSituacao));
-    if (pSecao !== 'Todas'  && det.secao)  r = r.filter(row => norm(row[det.secao])  === norm(pSecao));
-    if (pGrupo !== 'Todos'  && det.grupo)  r = r.filter(row => norm(row[det.grupo])  === norm(pGrupo));
-    if (pSemEst && det.estoque) r = r.filter(row => Number(row[det.estoque] || 0) <= 0);
-    return r;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sortedFiltradas, pSituacao, pSecao, pGrupo, pSemEst, det]);
-
-  const colunasSel = tabelaCols.filter(c => pColKeys.includes(c.key));
-
+  // ── Colunas e título ────────────────────────────────────────────────────────
+  const [titulo,   setTitulo]   = useState('Cadastro de Produtos');
+  const [pColKeys, setPColKeys] = useState(() => tabelaCols.map(c => c.key));
   function toggleCol(key) {
     setPColKeys(prev => prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]);
   }
 
+  // ── Grupos filtrados pela seção ─────────────────────────────────────────────
+  const grupos = useMemo(() =>
+    calcGruposPP({ gruposExt, secoesExt, rows, det, secaoSel }),
+  [gruposExt, secoesExt, rows, det, secaoSel]); // eslint-disable-line
+  useEffect(() => { setGrupoSel('Todos'); }, [secaoSel]);
+
+  function toggleZerados(v) { setApenasZerados(v); if (v) setApenasComEst(false); }
+  function toggleComEst(v)  { setApenasComEst(v);  if (v) setApenasZerados(false); }
+
+  // ── Dados filtrados ─────────────────────────────────────────────────────────
+  const linhasFiltradas = useMemo(() =>
+    aplicarFiltrosPP(rows, { secao: secaoSel, grupo: grupoSel, situacao: situacaoSel, apenasZerados, apenasComEst }, det),
+  [rows, secaoSel, grupoSel, situacaoSel, apenasZerados, apenasComEst, det]); // eslint-disable-line
+
+  // ── Seleção individual ──────────────────────────────────────────────────────
+  const rowIndexMap = useMemo(() => new Map(rows.map((r, i) => [r, i])), [rows]);
+  const filteredIds = useMemo(
+    () => new Set(linhasFiltradas.map(r => rowIndexMap.get(r))),
+    [linhasFiltradas, rowIndexMap]
+  );
+  const [selectedIds, setSelectedIds] = useState(() => new Set(filteredIds));
+  const prevFilterRef = useRef(filteredIds);
+  useEffect(() => {
+    if (prevFilterRef.current !== filteredIds) {
+      setSelectedIds(new Set(filteredIds));
+      prevFilterRef.current = filteredIds;
+    }
+  }, [filteredIds]);
+
+  function toggleRow(id) {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+  function selectAll()  { setSelectedIds(new Set(filteredIds)); }
+  function selectNone() { setSelectedIds(new Set()); }
+
+  const [buscaLista, setBuscaLista] = useState('');
+  const listRef = useRef(null);
+  const listaVis = useMemo(() => {
+    if (!buscaLista.trim()) return linhasFiltradas;
+    const q = buscaLista.toLowerCase();
+    return linhasFiltradas.filter(r =>
+      String(r[det.nome]   || '').toLowerCase().includes(q) ||
+      String(r[det.codigo] || '').toLowerCase().includes(q)
+    );
+  }, [linhasFiltradas, buscaLista, det]);
+
+  const linhasSelecionadas = useMemo(
+    () => linhasFiltradas.filter(r => selectedIds.has(rowIndexMap.get(r))),
+    [linhasFiltradas, selectedIds, rowIndexMap]
+  );
+
+  // ── Tags de filtros ─────────────────────────────────────────────────────────
+  const filtrosDesc = useMemo(() => {
+    const f = [];
+    if (secaoSel !== 'Todas')    f.push(`Seção: ${secaoSel}`);
+    if (grupoSel !== 'Todos')    f.push(`Grupo: ${grupoSel}`);
+    if (situacaoSel !== 'Todos') f.push(`Situação: ${situacaoSel}`);
+    if (apenasZerados)           f.push('Somente zerados');
+    if (apenasComEst)            f.push('Somente com estoque');
+    return f;
+  }, [secaoSel, grupoSel, situacaoSel, apenasZerados, apenasComEst]);
+
+  const colunasSel = tabelaCols.filter(c => pColKeys.includes(c.key));
+  const temDados   = linhasSelecionadas.length > 0 && colunasSel.length > 0;
+
+  // ── Ações ───────────────────────────────────────────────────────────────────
   function handlePrint() {
-    if (!colunasSel.length) return;
+    if (!temDados) return;
     const filtros = {
-      situacao: pSituacao !== 'Todos' ? `Situação: ${pSituacao}` : '',
-      secao:    pSecao  !== 'Todas'  ? `Seção: ${pSecao}`       : '',
-      grupo:    pGrupo  !== 'Todos'  ? `Grupo: ${pGrupo}`       : '',
-      semEst:   pSemEst               ? 'Sem estoque'            : '',
+      situacao: situacaoSel !== 'Todos' ? `Situação: ${situacaoSel}` : '',
+      secao:    secaoSel   !== 'Todas'  ? `Seção: ${secaoSel}`       : '',
+      grupo:    grupoSel   !== 'Todos'  ? `Grupo: ${grupoSel}`       : '',
+      semEst:   apenasZerados            ? 'Sem estoque'              : '',
+      comEst:   apenasComEst             ? 'Com estoque'              : '',
     };
-    const html = gerarJanelaPrint({ titulo, colunas: colunasSel, linhas, empresa, det, filtros });
-    onPreview({ html, titulo, total: linhas.length, empresa });
+    const html = gerarJanelaPrint({ titulo, colunas: colunasSel, linhas: linhasSelecionadas, empresa, det, filtros });
+    onPreview({ html, titulo, total: linhasSelecionadas.length, empresa });
     onClose();
   }
 
+  function handleExcel() {
+    if (!temDados) return;
+    const headers  = colunasSel.map(c => c.label);
+    const dataRows = linhasSelecionadas.map(row =>
+      colunasSel.map(c => {
+        const raw = c.calc ? c.calc(row) : row[c.key];
+        if (c.badge)     { const v = normStr(raw); return (v==='ativo'||v==='a') ? 'Ativo' : 'Inativo'; }
+        if (c.currency || c.estoque) return Number(raw) || 0;
+        return raw ?? '';
+      })
+    );
+    const wsData = [headers, ...dataRows];
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    ws['!cols'] = headers.map((h, i) => ({
+      wch: Math.max(h.length, ...dataRows.map(r => String(r[i] ?? '').length)) + 2
+    }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Produtos');
+    const now   = new Date();
+    const stamp = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`;
+    XLSX.writeFile(wb, `produtos_${empresa}_${stamp}.xlsx`);
+    onClose();
+  }
+
+  const allChecked  = filteredIds.size > 0 && filteredIds.size === selectedIds.size && [...filteredIds].every(id => selectedIds.has(id));
+  const someChecked = selectedIds.size > 0 && !allChecked;
+
   return ReactDOM.createPortal(
     <div className="pm-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="pm-modal">
+      <div className="pm-modal pm-modal--wide">
+
         <div className="pm-header">
-          <Printer size={16} />
-          <span>Configurar Impressão</span>
+          <Filter size={16} />
+          <span>Configurar Exportação</span>
           <button className="pm-close" onClick={onClose}><X size={15} /></button>
         </div>
 
         <div className="pm-body">
+
           {/* Título */}
           <div className="pm-section">
             <div className="pm-section-title">Título do relatório</div>
-            <input
-              className="pm-input"
-              value={titulo}
-              onChange={e => setTitulo(e.target.value)}
-              placeholder="Título da impressão"
-            />
+            <input className="pm-input" value={titulo} onChange={e => setTitulo(e.target.value)} placeholder="Título da impressão" />
           </div>
 
-          {/* Filtros */}
+          {/* ── Filtros ── */}
           <div className="pm-section">
             <div className="pm-section-title">Filtros de dados</div>
-            <div className="pm-grid2">
-              <div className="pm-field">
-                <label>Situação</label>
-                <div className="pm-tabs">
-                  {['Ativos', 'Inativos', 'Todos'].map(s => (
-                    <button key={s} className={`pm-tab${pSituacao === s ? ' pm-tab--on' : ''}`}
-                      onClick={() => setPSituacao(s)}>{s}</button>
-                  ))}
-                </div>
-              </div>
+            <div className="pm-filtros-grid">
 
               {secoes.length > 1 && (
-                <div className="pm-field">
+                <div className="pm-filtro-field">
                   <label>Seção</label>
-                  <CustomSelect value={pSecao} options={secoes} onChange={v => { setPSecao(v); setPGrupo('Todos'); }} />
+                  <select className="pm-filtro-select" value={secaoSel} onChange={e => setSecaoSel(e.target.value)}>
+                    {secoes.map(s => <option key={s}>{s}</option>)}
+                  </select>
                 </div>
               )}
 
               {grupos.length > 1 && (
-                <div className="pm-field">
+                <div className="pm-filtro-field">
                   <label>Grupo</label>
-                  <CustomSelect value={pGrupo} options={grupos} onChange={setPGrupo} />
+                  <select className="pm-filtro-select" value={grupoSel} onChange={e => setGrupoSel(e.target.value)}>
+                    {grupos.map(g => <option key={g}>{g}</option>)}
+                  </select>
+                </div>
+              )}
+
+              {det.situacao && (
+                <div className="pm-filtro-field">
+                  <label>Cadastro</label>
+                  <div className="pm-tabs">
+                    {['Ativos', 'Inativos', 'Todos'].map(s => (
+                      <button key={s} className={`pm-tab${situacaoSel === s ? ' pm-tab--on' : ''}`}
+                        onClick={() => setSituacaoSel(s)}>{s}</button>
+                    ))}
+                  </div>
                 </div>
               )}
 
               {det.estoque && (
-                <div className="pm-field pm-field--inline">
-                  <button className={`pm-chip${pSemEst ? ' pm-chip--on' : ''}`} onClick={() => setPSemEst(v => !v)}>
-                    {pSemEst && <Check size={11} />} Somente sem estoque
-                  </button>
+                <div className="pm-filtro-field">
+                  <label>Estoque</label>
+                  <div className="pm-tabs">
+                    <button className={`pm-tab${!apenasZerados && !apenasComEst ? ' pm-tab--on' : ''}`}
+                      onClick={() => { setApenasZerados(false); setApenasComEst(false); }}>Todos</button>
+                    <button className={`pm-tab${apenasComEst ? ' pm-tab--on' : ''}`}
+                      onClick={() => toggleComEst(!apenasComEst)}>Com estoque</button>
+                    <button className={`pm-tab pm-tab--danger${apenasZerados ? ' pm-tab--on' : ''}`}
+                      onClick={() => toggleZerados(!apenasZerados)}>Zerados</button>
+                  </div>
                 </div>
               )}
+
             </div>
           </div>
 
-          {/* Colunas */}
+          {/* ── Seleção de produtos ── */}
           <div className="pm-section">
-            <div className="pm-section-title">Colunas a exibir</div>
+            <div className="pm-sel-header">
+              <div className="pm-sel-header-left">
+                <label className="pm-sel-all-wrap" title={allChecked ? 'Desmarcar todos' : 'Selecionar todos'}>
+                  <input
+                    type="checkbox"
+                    className="pm-sel-checkbox"
+                    checked={allChecked}
+                    ref={el => { if (el) el.indeterminate = someChecked; }}
+                    onChange={allChecked ? selectNone : selectAll}
+                  />
+                </label>
+                <span className="pm-section-title" style={{ margin: 0 }}>Produtos</span>
+                <span className="pm-sel-count">
+                  <strong className={selectedIds.size === 0 ? 'pm-sel-count--zero' : ''}>
+                    {selectedIds.size}
+                  </strong>
+                  {' '}/ {linhasFiltradas.length} selecionado{selectedIds.size !== 1 ? 's' : ''}
+                </span>
+              </div>
+              <div className="pm-sel-header-right">
+                {filtrosDesc.length > 0 && (
+                  <span className="pm-filtros-tags">
+                    {filtrosDesc.map((f, i) => <span key={i} className="pm-filtro-tag">{f}</span>)}
+                  </span>
+                )}
+                <div className="pm-filtro-search pm-sel-search">
+                  <Search size={12} />
+                  <input
+                    className="pm-filtro-input"
+                    placeholder="Filtrar lista…"
+                    value={buscaLista}
+                    onChange={e => setBuscaLista(e.target.value)}
+                  />
+                  {buscaLista && <button className="pm-filtro-clear" onClick={() => setBuscaLista('')}><X size={10} /></button>}
+                </div>
+              </div>
+            </div>
+
+            <div className="pm-product-list" ref={listRef}>
+              {listaVis.length === 0 ? (
+                <div className="pm-product-empty">Nenhum produto encontrado.</div>
+              ) : listaVis.map(row => {
+                const id      = rowIndexMap.get(row);
+                const checked = selectedIds.has(id);
+                const est     = det.estoque ? Number(row[det.estoque] || 0) : null;
+                return (
+                  <label
+                    key={id}
+                    tabIndex={0}
+                    className={`pm-product-row${checked ? ' pm-product-row--on' : ''}`}
+                    onClick={() => toggleRow(id)}
+                    onKeyDown={e => {
+                      if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); toggleRow(id); }
+                      else if (e.key === 'ArrowDown') { e.preventDefault(); e.currentTarget.nextElementSibling?.focus(); }
+                      else if (e.key === 'ArrowUp')   { e.preventDefault(); e.currentTarget.previousElementSibling?.focus(); }
+                    }}
+                  >
+                    <input type="checkbox" className="pm-sel-checkbox" checked={checked}
+                      onChange={() => toggleRow(id)} onClick={e => e.stopPropagation()} tabIndex={-1} />
+                    <span className="pm-product-name">{row[det.nome] || '—'}</span>
+                    {det.codigo && <span className="pm-product-code">{row[det.codigo]}</span>}
+                    {est !== null && (
+                      <span className={`pm-product-est${est <= 0 ? ' pm-product-est--zero' : ''}`}>
+                        {fmtNum.format(est)}
+                      </span>
+                    )}
+                  </label>
+                );
+              })}
+            </div>
+
+            <div className="pm-sel-footer-row">
+              <button className="pm-sel-action" onClick={selectAll}  disabled={allChecked}>Selecionar todos</button>
+              <button className="pm-sel-action" onClick={selectNone} disabled={selectedIds.size === 0}>Desmarcar todos</button>
+            </div>
+          </div>
+
+          {/* ── Colunas ── */}
+          <div className="pm-section">
+            <div className="pm-section-title">Colunas a incluir</div>
             <div className="pm-cols-grid">
               {tabelaCols.map(c => (
-                <button
-                  key={c.key}
+                <button key={c.key}
                   className={`pm-col-chip${pColKeys.includes(c.key) ? ' pm-col-chip--on' : ''}`}
-                  onClick={() => toggleCol(c.key)}
-                >
+                  onClick={() => toggleCol(c.key)}>
                   {pColKeys.includes(c.key) && <Check size={11} />}
                   {c.label}
                 </button>
@@ -574,17 +789,20 @@ function PrintModal({ secoes, grupos, tabelaCols, sortedFiltradas, det, empresa,
             </div>
           </div>
 
-          <div className="pm-preview-count">
-            {linhas.length} produto{linhas.length !== 1 ? 's' : ''} · {colunasSel.length} coluna{colunasSel.length !== 1 ? 's' : ''}
-          </div>
         </div>
 
         <div className="pm-footer">
           <button className="pm-btn-cancel" onClick={onClose}>Cancelar</button>
-          <button className="pm-btn-print" onClick={handlePrint} disabled={!colunasSel.length}>
-            <Printer size={14} /> Imprimir
-          </button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="pm-btn-excel" onClick={handleExcel} disabled={!temDados}>
+              <FileDown size={14} /> Exportar Excel
+            </button>
+            <button className="pm-btn-print" onClick={handlePrint} disabled={!temDados}>
+              <Printer size={14} /> Imprimir
+            </button>
+          </div>
         </div>
+
       </div>
     </div>,
     document.body
@@ -614,7 +832,7 @@ export default function PainelProdutos({ empresasKey, onVoltar }) {
   const [detalhe,    setDetalhe]    = useState(null);
   const [ctxMenu,    setCtxMenu]    = useState(null); // {x,y,row}
   const [fotosMap,   setFotosMap]   = useState({});
-  const [printOpen,   setPrintOpen]   = useState(false);
+  const [exportOpen,  setExportOpen]  = useState(false);
   const [previewData, setPreviewData] = useState(null);
 
   const empresa = (empresasKey || '').split(',')[0];
@@ -882,8 +1100,8 @@ export default function PainelProdutos({ empresasKey, onVoltar }) {
           </div>
         </div>
         <div className="pp-header-actions">
-          <button className="pp-btn-ghost" onClick={() => setPrintOpen(true)}>
-            <Printer size={14} /> Imprimir
+          <button className="pp-btn-ghost" onClick={() => setExportOpen(true)} disabled={!rows.length}>
+            <FileDown size={14} /> Exportar / Imprimir
           </button>
           <button className="pp-btn-primary" onClick={fetchDados} disabled={loading}>
             <RefreshCw size={13} className={loading ? 'pp-spin' : ''} />
@@ -1098,16 +1316,18 @@ export default function PainelProdutos({ empresasKey, onVoltar }) {
         />
       )}
 
-      {/* ── Modal de impressão ── */}
-      {printOpen && (
-        <PrintModal
-          secoes={secoes}
-          grupos={grupos}
-          tabelaCols={tabelaCols}
-          sortedFiltradas={sortedFiltradas}
+      {/* ── Modal de exportação ── */}
+      {exportOpen && (
+        <ExportModalPP
+          rows={rows}
           det={det}
+          tabelaCols={tabelaCols}
+          secoes={secoes}
+          secoesExt={secoesExt}
+          gruposExt={gruposExt}
           empresa={empresa}
-          onClose={() => setPrintOpen(false)}
+          initFiltros={{ secao, grupo, situacao }}
+          onClose={() => setExportOpen(false)}
           onPreview={data => setPreviewData(data)}
         />
       )}
