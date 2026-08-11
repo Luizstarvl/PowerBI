@@ -715,10 +715,9 @@ function nivelStatus(pct) {
 
 // ── Estoque de Combustíveis ───────────────────────────────────────────────────
 function EstoqueCombustiveis({ empresa }) {
-  const [dados,    setDados]    = useState(null);
-  const [loading,  setLoading]  = useState(false);
-  const [erro,     setErro]     = useState('');
-  const [expandidos, setExpandidos] = useState(new Set());
+  const [dados,   setDados]   = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [erro,    setErro]    = useState('');
 
   const fmtL = v => `${fmtNum.format(Number(v) || 0)} L`;
 
@@ -747,14 +746,6 @@ function EstoqueCombustiveis({ empresa }) {
     return { nComb: dados.length, totalVol, totalCap, totalVal, qtdTanq };
   }, [dados]);
 
-  function toggleExpand(cod) {
-    setExpandidos(prev => {
-      const next = new Set(prev);
-      next.has(cod) ? next.delete(cod) : next.add(cod);
-      return next;
-    });
-  }
-
   if (loading && !dados) {
     return (
       <div className="comb-loading">
@@ -782,16 +773,16 @@ function EstoqueCombustiveis({ empresa }) {
       {/* KPIs */}
       {kpis && (
         <div className="pp-kpi-grid">
-          <KpiCard icon={Droplets}    label="Combustíveis"     value={String(kpis.nComb)}           sub={`${kpis.qtdTanq} tanque${kpis.qtdTanq !== 1 ? 's' : ''}`} accent="#f97316" />
-          <KpiCard icon={Package}     label="Volume Total"     value={fmtL(kpis.totalVol)}           sub={`de ${fmtL(kpis.totalCap)} de capacidade`}                  accent="#3b82f6" />
-          <KpiCard icon={DollarSign}  label="Valor em Estoque" value={fmtCurrency.format(kpis.totalVal)} sub="custo × volume estimado"                              accent="#22c55e" />
+          <KpiCard icon={Droplets}     label="Combustíveis"     value={String(kpis.nComb)}                sub={`${kpis.qtdTanq} tanque${kpis.qtdTanq !== 1 ? 's' : ''}`} accent="#f97316" />
+          <KpiCard icon={Package}      label="Volume Total"     value={fmtL(kpis.totalVol)}               sub={`de ${fmtL(kpis.totalCap)} de capacidade`}                  accent="#3b82f6" />
+          <KpiCard icon={DollarSign}   label="Valor em Estoque" value={fmtCurrency.format(kpis.totalVal)} sub="custo × volume estimado"                                     accent="#22c55e" />
           {kpis.totalCap > 0 && (
             <KpiCard icon={TrendingDown} label="Ocupação Média" value={`${((kpis.totalVol / kpis.totalCap) * 100).toFixed(1)}%`} sub="volume / capacidade total" accent="#8b5cf6" />
           )}
         </div>
       )}
 
-      {/* Cards de combustível */}
+      {/* Estado vazio */}
       {dados && dados.length === 0 && (
         <div className="tc-empty-state">
           <Droplets size={36} className="tc-empty-icon" />
@@ -800,40 +791,93 @@ function EstoqueCombustiveis({ empresa }) {
         </div>
       )}
 
+      {/* Cards de combustível */}
       {dados && dados.length > 0 && (
         <div className="comb-grid">
           {dados.map(comb => {
-            const pct      = comb.percentualEstimado || 0;
-            const status   = nivelStatus(pct);
-            const fc       = corCombustivel(comb.produtoNome);
-            const expanded = expandidos.has(comb.produtoCodigo);
+            const pct    = comb.percentualEstimado || 0;
+            const status = nivelStatus(pct);
+            const fc     = corCombustivel(comb.produtoNome);
 
             return (
               <div key={comb.produtoCodigo} className="comb-card">
 
-                {/* Cabeçalho */}
+                {/* ── Cabeçalho do card ── */}
                 <div className="comb-card-header">
-                  <span className="comb-card-name" style={{ color: fc }}>
-                    {comb.produtoNome || `Combustível ${comb.produtoCodigo}`}
-                  </span>
+                  <div className="comb-card-name-wrap">
+                    <span className="comb-card-dot" style={{ background: fc }} />
+                    <span className="comb-card-name">
+                      {comb.produtoNome || `Combustível ${comb.produtoCodigo}`}
+                    </span>
+                    {comb.tanques?.length > 0 && (
+                      <span className="comb-card-tankcount">
+                        {comb.tanques.length} tanque{comb.tanques.length !== 1 ? 's' : ''}
+                      </span>
+                    )}
+                  </div>
                   <span className="comb-card-status" style={{ color: status.color, background: status.bg }}>
                     {status.label}
                   </span>
                 </div>
 
-                {/* Gauge de nível */}
-                <div className="comb-gauge-wrap">
-                  <div className="comb-gauge-bar">
-                    <div className="comb-gauge-fill" style={{ width: `${Math.min(pct, 100)}%`, background: fc }} />
+                {/* ── Tanques individuais (sempre visíveis) ── */}
+                {comb.tanques && comb.tanques.length > 0 && (
+                  <div className="comb-tank-list">
+                    {comb.tanques.map(t => {
+                      const tPct    = t.capacidade > 0
+                        ? Math.min((t.estoque / t.capacidade) * 100, 100) : 0;
+                      const tStatus = nivelStatus(tPct);
+                      return (
+                        <div key={t.codigo} className="comb-tank-item">
+                          {/* Linha de identificação */}
+                          <div className="comb-tank-id-row">
+                            <span className="comb-tank-badge" style={{ background: fc }}>
+                              T{t.codigo}
+                            </span>
+                            {t.modelo && (
+                              <span className="comb-tank-model">{t.modelo}</span>
+                            )}
+                            <span
+                              className="comb-tank-pct-pill"
+                              style={{ color: tStatus.color, background: tStatus.bg }}
+                            >
+                              {tPct.toFixed(0)}%
+                            </span>
+                          </div>
+                          {/* Barra de nível */}
+                          <div className="comb-tank-bar-lg">
+                            <div
+                              className="comb-tank-fill-lg"
+                              style={{ width: `${tPct}%`, background: fc }}
+                            />
+                          </div>
+                          {/* Volumes */}
+                          <div className="comb-tank-vol-row">
+                            <span className="comb-tank-vol-cur">{fmtL(t.estoque)}</span>
+                            <span className="comb-tank-vol-sep">de</span>
+                            <span className="comb-tank-vol-cap">{fmtL(t.capacidade)}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                  <div className="comb-gauge-labels">
-                    <span>{fmtL(comb.estoqueEstimado)}</span>
-                    <span className="comb-pct">{pct.toFixed(1)}%</span>
-                    <span>{fmtL(comb.capacidadeTotal)}</span>
-                  </div>
-                </div>
+                )}
 
-                {/* Dados */}
+                {/* ── Total consolidado (quando há mais de 1 tanque) ── */}
+                {comb.tanques && comb.tanques.length > 1 && (
+                  <div className="comb-total-row">
+                    <div className="comb-total-bar">
+                      <div className="comb-total-fill" style={{ width: `${Math.min(pct, 100)}%`, background: fc }} />
+                    </div>
+                    <div className="comb-total-labels">
+                      <span className="comb-total-label-txt">Total consolidado</span>
+                      <span className="comb-total-vol">{fmtL(comb.estoqueEstimado)} de {fmtL(comb.capacidadeTotal)}</span>
+                      <span className="comb-total-pct" style={{ color: status.color }}>{pct.toFixed(1)}%</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Dados financeiros ── */}
                 <div className="comb-card-data">
                   <div className="comb-data-row">
                     <span className="comb-data-label">Preço Venda</span>
@@ -849,7 +893,8 @@ function EstoqueCombustiveis({ empresa }) {
                   </div>
                   <div className="comb-data-row">
                     <span className="comb-data-label">Margem</span>
-                    <span className="comb-data-val" style={{ color: comb.margem > 0 ? '#16a34a' : comb.margem < 0 ? '#dc2626' : undefined }}>
+                    <span className="comb-data-val"
+                      style={{ color: comb.margem > 0 ? '#16a34a' : comb.margem < 0 ? '#dc2626' : undefined }}>
                       {comb.margem > 0 || comb.margem < 0 ? `${Number(comb.margem).toFixed(2)}%` : '—'}
                     </span>
                   </div>
@@ -861,42 +906,9 @@ function EstoqueCombustiveis({ empresa }) {
                   </div>
                 </div>
 
-                {/* Toggle tanques */}
-                {comb.tanques && comb.tanques.length > 0 && (
-                  <button
-                    className="comb-toggle-tanques"
-                    onClick={() => toggleExpand(comb.produtoCodigo)}
-                  >
-                    {expanded ? '▲' : '▼'}{' '}
-                    {comb.tanques.length} tanque{comb.tanques.length !== 1 ? 's' : ''}
-                    {comb.lmcPeriodo ? ` · LMC ${comb.lmcPeriodo}` : ''}
-                  </button>
-                )}
-
-                {/* Detalhe tanques */}
-                {expanded && comb.tanques && (
-                  <div className="comb-tanques">
-                    {comb.tanques.map(t => {
-                      const tPct = t.capacidade > 0
-                        ? Math.min((t.estoque / t.capacidade) * 100, 100)
-                        : 0;
-                      return (
-                        <div key={t.codigo} className="comb-tanque-row">
-                          <span className="comb-tanque-label">
-                            Tanque {t.codigo}{t.modelo ? ` · ${t.modelo}` : ''}
-                          </span>
-                          <div className="comb-tanque-bar-wrap">
-                            <div className="comb-tanque-bar">
-                              <div className="comb-tanque-fill" style={{ width: `${tPct}%`, background: fc }} />
-                            </div>
-                            <span className="comb-tanque-vol">
-                              {fmtL(t.estoque)} / {fmtL(t.capacidade)}
-                            </span>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+                {/* LMC tag */}
+                {comb.lmcPeriodo && (
+                  <span className="comb-lmc-tag">LMC {comb.lmcPeriodo}</span>
                 )}
 
               </div>

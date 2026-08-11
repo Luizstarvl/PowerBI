@@ -6352,14 +6352,15 @@ select.themed-select option {
 .comb-section-header svg { color: #f97316; }
 .comb-section-header .pp-btn-ghost { margin-left: auto; }
 
-/* Grid de cards de combustível */
+/* Grid de cards */
 .comb-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 16px;
 }
 @media (max-width: 640px) { .comb-grid { grid-template-columns: 1fr; } }
 
+/* Card */
 .comb-card {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
@@ -6368,41 +6369,115 @@ select.themed-select option {
   display: flex; flex-direction: column; gap: 14px;
   transition: box-shadow .2s, transform .2s;
 }
-.comb-card:hover { box-shadow: 0 8px 24px rgba(0,0,0,.10); transform: translateY(-2px); }
+.comb-card:hover { box-shadow: 0 8px 28px rgba(0,0,0,.10); transform: translateY(-2px); }
 
 /* Cabeçalho do card */
 .comb-card-header {
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
 }
+.comb-card-name-wrap {
+  display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1;
+}
+.comb-card-dot {
+  width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+}
 .comb-card-name {
   font-size: 15px; font-weight: 700; line-height: 1.2;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.comb-card-tankcount {
+  font-size: 10px; font-weight: 600; color: var(--color-text-muted);
+  white-space: nowrap; flex-shrink: 0;
+  background: var(--color-bg); border: 1px solid var(--color-border);
+  padding: 1px 7px; border-radius: 20px;
 }
 .comb-card-status {
-  font-size: 10px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
-  padding: 2px 9px; border-radius: 20px; white-space: nowrap;
-  flex-shrink: 0;
+  font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+  padding: 3px 10px; border-radius: 20px; white-space: nowrap; flex-shrink: 0;
 }
 
-/* Gauge de nível */
-.comb-gauge-wrap { display: flex; flex-direction: column; gap: 5px; }
-.comb-gauge-bar {
-  height: 10px; background: var(--color-border);
+/* ── Lista de tanques (sempre visível) ── */
+.comb-tank-list {
+  display: flex; flex-direction: column; gap: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.comb-tank-item {
+  display: flex; flex-direction: column; gap: 7px;
+  padding: 12px 14px;
+}
+.comb-tank-item + .comb-tank-item {
+  border-top: 1px solid var(--color-border);
+}
+
+/* Linha de identificação: badge + modelo + % */
+.comb-tank-id-row {
+  display: flex; align-items: center; gap: 8px;
+}
+.comb-tank-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; border-radius: 8px;
+  font-size: 11px; font-weight: 800; color: #fff;
+  flex-shrink: 0; letter-spacing: 0;
+}
+.comb-tank-model {
+  flex: 1; font-size: 12px; font-weight: 500; color: var(--color-text-muted);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.comb-tank-pct-pill {
+  font-size: 11px; font-weight: 800;
+  padding: 2px 9px; border-radius: 20px; flex-shrink: 0;
+}
+
+/* Barra de nível do tanque — mais alta e expressiva */
+.comb-tank-bar-lg {
+  height: 18px; background: var(--color-border);
+  border-radius: 6px; overflow: hidden;
+}
+.comb-tank-fill-lg {
+  height: 100%; border-radius: 6px;
+  transition: width .45s ease;
+}
+
+/* Linha de volumes */
+.comb-tank-vol-row {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 11px; font-variant-numeric: tabular-nums;
+}
+.comb-tank-vol-cur { font-weight: 700; color: var(--color-text); }
+.comb-tank-vol-sep { color: var(--color-text-muted); }
+.comb-tank-vol-cap { color: var(--color-text-muted); }
+
+/* ── Total consolidado (múltiplos tanques) ── */
+.comb-total-row {
+  display: flex; flex-direction: column; gap: 6px;
+  padding: 10px 14px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+}
+.comb-total-bar {
+  height: 8px; background: var(--color-border);
   border-radius: 99px; overflow: hidden;
 }
-.comb-gauge-fill {
-  height: 100%; border-radius: 99px;
-  transition: width .4s ease;
+.comb-total-fill {
+  height: 100%; border-radius: 99px; transition: width .4s ease;
+  opacity: .7;
 }
-.comb-gauge-labels {
-  display: flex; justify-content: space-between; align-items: center;
-  font-size: 11px; color: var(--color-text-muted);
-  font-variant-numeric: tabular-nums;
+.comb-total-labels {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11px; font-variant-numeric: tabular-nums;
 }
-.comb-pct {
-  font-size: 13px; font-weight: 700; color: var(--color-text);
+.comb-total-label-txt {
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .05em; color: var(--color-text-muted); flex: 1;
 }
+.comb-total-vol { color: var(--color-text-muted); }
+.comb-total-pct { font-weight: 800; font-size: 13px; }
 
-/* Dados do card */
+/* ── Dados financeiros ── */
 .comb-card-data {
   display: grid; grid-template-columns: 1fr 1fr;
   gap: 8px 12px;
@@ -6411,9 +6486,7 @@ select.themed-select option {
   padding: 12px 14px;
   border: 1px solid var(--color-border);
 }
-.comb-data-row {
-  display: flex; flex-direction: column; gap: 1px;
-}
+.comb-data-row { display: flex; flex-direction: column; gap: 2px; }
 .comb-data-label {
   font-size: 9px; font-weight: 700; text-transform: uppercase;
   letter-spacing: .06em; color: var(--color-text-muted);
@@ -6423,42 +6496,11 @@ select.themed-select option {
   font-variant-numeric: tabular-nums;
 }
 
-/* Toggle tanques */
-.comb-toggle-tanques {
-  background: transparent; border: 1px solid var(--color-border);
-  border-radius: 8px; padding: 5px 12px;
-  font-size: 11px; font-weight: 600; color: var(--color-text-muted);
-  cursor: pointer; text-align: left;
-  transition: background .12s, color .12s, border-color .12s;
-}
-.comb-toggle-tanques:hover {
-  background: var(--color-border); color: var(--color-text);
-}
-
-/* Detalhe dos tanques */
-.comb-tanques {
-  display: flex; flex-direction: column; gap: 9px;
-  padding: 10px 0 2px;
-  border-top: 1px solid var(--color-border);
-}
-.comb-tanque-row {
-  display: flex; align-items: center; gap: 10px;
-}
-.comb-tanque-label {
-  font-size: 11px; font-weight: 600; color: var(--color-text-muted);
-  min-width: 68px;
-}
-.comb-tanque-bar-wrap {
-  flex: 1; display: flex; flex-direction: column; gap: 2px;
-}
-.comb-tanque-bar {
-  height: 6px; background: var(--color-border); border-radius: 99px; overflow: hidden;
-}
-.comb-tanque-fill {
-  height: 100%; border-radius: 99px; transition: width .4s ease;
-}
-.comb-tanque-vol {
-  font-size: 10px; color: var(--color-text-muted); font-variant-numeric: tabular-nums;
+/* LMC tag */
+.comb-lmc-tag {
+  align-self: flex-start;
+  font-size: 9px; font-weight: 600; color: var(--color-text-muted);
+  padding: 2px 9px; border: 1px solid var(--color-border); border-radius: 6px;
 }
 
 /* Loading */
