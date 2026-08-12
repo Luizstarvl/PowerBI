@@ -21,7 +21,7 @@ router.get('/', async (req, res) => {
     const result = await query(
       `SELECT
          tanq.tanqcodigo,
-         COALESCE(tanq.tanqdisplay, tanq.tanqcodigo::text) AS tanqdisplay,
+         COALESCE(tanq.tanqdisplay::text, tanq.tanqcodigo::text) AS tanqdisplay,
          tanq.tanqproduto          AS produto_codigo,
          prod.prodresumo           AS produto_nome,
          tanq.tanqmodelo,
