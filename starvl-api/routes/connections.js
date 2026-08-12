@@ -4,6 +4,7 @@ const pool       = require('../db/pool');
 const net        = require('net');
 const { Client } = require('pg');
 const { requireAuth, requirePerm } = require('../middleware/auth');
+const { loadConnections } = require('../db/poolManager');
 
 // Cria/migra tabelas
 pool.query(`
@@ -191,6 +192,8 @@ router.post('/', async (req, res) => {
     await syncEmpresas(dbClient, conexao.sc_id, empresaIds, tipoCliente || 'unica');
     await dbClient.query('COMMIT');
     const empresas = await getEmpresasByConexao(conexao.sc_id);
+    // Recarrega pools para que a nova empresa esteja disponível imediatamente
+    loadConnections().catch(e => console.warn('[connections] reload-pools (POST):', e.message));
     res.status(201).json({ ...toRow(conexao), empresas, empresasCount: empresas.length });
   } catch (err) {
     await dbClient.query('ROLLBACK');
@@ -236,6 +239,8 @@ router.put('/:id', async (req, res) => {
     await syncEmpresas(dbClient, id, empresaIds, tipoCliente || 'unica');
     await dbClient.query('COMMIT');
     const empresas = await getEmpresasByConexao(id);
+    // Recarrega pools para refletir as alterações imediatamente
+    loadConnections().catch(e => console.warn('[connections] reload-pools (PUT):', e.message));
     res.json({ ...toRow(rows[0]), empresas, empresasCount: empresas.length });
   } catch (err) {
     await dbClient.query('ROLLBACK');
