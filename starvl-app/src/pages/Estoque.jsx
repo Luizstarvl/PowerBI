@@ -715,18 +715,72 @@ function nivelStatus(pct) {
 
 // ── SVG visual de tanque de combustível ──────────────────────────────────────
 function TankSvg({ codigo, display, pct, fc, selected, onClick }) {
-  const W = 96, H = 192;
-  // Corpo do tanque
-  const bx = 20, by = 24, bw = 56, bh = 130, rx = 10;
-  const fillH  = Math.max(0, bh * Math.min(pct, 100) / 100);
-  const fillY  = by + bh - fillH;
-  const gradId = `tg-${codigo}`;
-  const clipId = `tc-${codigo}`;
+  // Dimensões gerais
+  const W = 110, H = 230;
+  // Corpo do tanque (cilindro vertical)
+  const bx = 22, by = 36, bw = 66, bh = 152, rx = 14;
 
-  // Posição do % text: dentro do líquido ou acima da superfície
-  const pctInside = fillH > 30;
-  const pctTextY  = pctInside ? fillY + fillH / 2 + 5 : (fillH > 0 ? fillY - 9 : by + bh / 2 + 5);
+  const clampedPct = Math.min(Math.max(pct, 0), 100);
+  const fillH      = bh * clampedPct / 100;
+  const fillY      = by + bh - fillH;          // topo da coluna de líquido
+
+  // IDs únicos por tanque (necessário quando múltiplos tanques na tela)
+  const idGrad    = `tg-${codigo}`;
+  const idGradDk  = `tgd-${codigo}`;
+  const idMetal   = `tm-${codigo}`;
+  const idClip    = `tc-${codigo}`;
+  const idGlow    = `tglow-${codigo}`;
+  const idShine   = `tsh-${codigo}`;
+
+  // Texto de %: dentro do líquido ou acima da superfície
+  const pctInside = fillH > 34;
+  const pctTextY  = pctInside
+    ? fillY + fillH / 2
+    : (fillH > 8 ? fillY - 10 : by + bh / 2);
   const pctColor  = pctInside ? 'rgba(255,255,255,0.95)' : fc;
+
+  // Onda: 4 períodos de comprimento bw; a animação desloca −bw em loop
+  // (período = bw → ao completar 1 período a imagem é idêntica → seamless)
+  const A  = 4;   // amplitude da onda em px
+  const P  = bw;  // período = largura do tanque
+  const x0 = bx - P;   // início do caminho da onda (1 período antes do visível)
+  // Quadratic-bezier sin: M x0 fy → pico em x0+P/4 → x0+P/2 → vale em x0+3P/4 → x0+P → ...
+  const waveSegs = [];
+  for (let i = 0; i < 5; i++) {   // 5 períodos cobrem bx-P até bx+4*P com folga
+    const xa = x0 + i * P;
+    waveSegs.push(
+      `Q${xa + P / 4} ${fillY - A} ${xa + P / 2} ${fillY}`,
+      `Q${xa + 3 * P / 4} ${fillY + A} ${xa + P} ${fillY}`
+    );
+  }
+  const wavePath = [
+    `M${x0} ${fillY}`,
+    ...waveSegs,
+    `L${x0 + 5 * P} ${by + bh + 4}`,
+    `L${x0} ${by + bh + 4}`,
+    'Z'
+  ].join(' ');
+
+  // Onda 2: fase oposta e amplitude levemente diferente (efeito mais realista)
+  const waveSegs2 = [];
+  for (let i = 0; i < 5; i++) {
+    const xa = x0 + i * P;
+    waveSegs2.push(
+      `Q${xa + P / 4} ${fillY + A * 0.7} ${xa + P / 2} ${fillY}`,
+      `Q${xa + 3 * P / 4} ${fillY - A * 0.7} ${xa + P} ${fillY}`
+    );
+  }
+  const wavePath2 = [
+    `M${x0} ${fillY}`,
+    ...waveSegs2,
+    `L${x0 + 5 * P} ${by + bh + 4}`,
+    `L${x0} ${by + bh + 4}`,
+    'Z'
+  ].join(' ');
+
+  // Duração da animação (ligeiramente diferente entre os dois layers para naturalidade)
+  const dur1 = '2.4s';
+  const dur2 = '3.1s';
 
   return (
     <svg
@@ -736,89 +790,178 @@ function TankSvg({ codigo, display, pct, fc, selected, onClick }) {
       onClick={onClick}
     >
       <defs>
-        <linearGradient id={gradId} x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%"   stopColor={fc} stopOpacity="0.95" />
-          <stop offset="70%"  stopColor={fc} stopOpacity="0.78" />
-          <stop offset="100%" stopColor={fc} stopOpacity="0.55" />
+        {/* Gradiente horizontal do líquido (da cor do combustível) */}
+        <linearGradient id={idGrad} x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%"   stopColor={fc} stopOpacity="1"    />
+          <stop offset="50%"  stopColor={fc} stopOpacity="0.88" />
+          <stop offset="100%" stopColor={fc} stopOpacity="0.7"  />
         </linearGradient>
-        <clipPath id={clipId}>
-          <rect x={bx+1} y={by+1} width={bw-2} height={bh-2} rx={rx-1} />
+
+        {/* Gradiente mais escuro para a segunda camada de onda */}
+        <linearGradient id={idGradDk} x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%"   stopColor={fc} stopOpacity="0.55" />
+          <stop offset="100%" stopColor={fc} stopOpacity="0.35" />
+        </linearGradient>
+
+        {/* Gradiente metálico do tanque (escuro com leve reflexo) */}
+        <linearGradient id={idMetal} x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%"   stopColor="#111827" />
+          <stop offset="18%"  stopColor="#1e2d45" />
+          <stop offset="55%"  stopColor="#162236" />
+          <stop offset="85%"  stopColor="#1a2b40" />
+          <stop offset="100%" stopColor="#0e1a2b" />
+        </linearGradient>
+
+        {/* Glow de seleção */}
+        <filter id={idGlow} x="-30%" y="-10%" width="160%" height="120%">
+          <feGaussianBlur stdDeviation="4" result="blur" />
+          <feMerge>
+            <feMergeNode in="blur" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+
+        {/* Reflexo de brilho no vidro */}
+        <linearGradient id={idShine} x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%"   stopColor="white" stopOpacity="0.18" />
+          <stop offset="100%" stopColor="white" stopOpacity="0"    />
+        </linearGradient>
+
+        {/* ClipPath do interior do tanque */}
+        <clipPath id={idClip}>
+          <rect x={bx + 1} y={by + 1} width={bw - 2} height={bh - 2} rx={rx - 2} />
         </clipPath>
       </defs>
 
-      {/* Halo de seleção */}
+      {/* ── Halo de seleção ── */}
       {selected && (
-        <rect x={bx-4} y={by-4} width={bw+8} height={bh+8} rx={rx+4}
-          fill="none" stroke={fc} strokeWidth="3" opacity="0.25" />
+        <rect
+          x={bx - 6} y={by - 6} width={bw + 12} height={bh + 12} rx={rx + 6}
+          fill="none"
+          stroke={fc} strokeWidth="2" opacity="0.35"
+          filter={`url(#${idGlow})`}
+        />
       )}
 
-      {/* Tampa / cap no topo */}
-      <rect x={bx + bw/2 - 8} y={by - 14} width="16" height="16" rx="4"
-        fill={fc} opacity={selected ? 0.85 : 0.5} />
-      {/* Bocal */}
-      <rect x={bx + bw/2 - 4} y={by - 20} width="8" height="8" rx="2"
-        fill={fc} opacity={selected ? 0.7 : 0.35} />
+      {/* ── Cabeça do tanque (topo) ── */}
+      {/* Flange / anel superior */}
+      <rect x={bx - 4} y={by - 4} width={bw + 8} height="8" rx="4"
+        fill="#1e2d3f" stroke="rgba(255,255,255,0.06)" strokeWidth="1" />
+      {/* Tubo bocal */}
+      <rect x={bx + bw / 2 - 9} y={by - 28} width="18" height="26" rx="5"
+        fill="#1a2a3c" stroke="rgba(255,255,255,0.07)" strokeWidth="1" />
+      {/* Tampa do bocal */}
+      <rect x={bx + bw / 2 - 12} y={by - 34} width="24" height="8" rx="4"
+        fill="#253648" stroke="rgba(255,255,255,0.1)" strokeWidth="1" />
+      {/* Parafusos da tampa */}
+      {[-7, 0, 7].map(dx => (
+        <circle key={dx} cx={bx + bw / 2 + dx} cy={by - 30}
+          r="1.8" fill={selected ? fc : 'rgba(150,180,220,0.25)'} />
+      ))}
 
-      {/* Corpo do tanque — fundo escuro */}
+      {/* ── Corpo do tanque (cilindro) ── */}
       <rect x={bx} y={by} width={bw} height={bh} rx={rx}
-        fill="var(--comb-tank-bg, #0f1623)" />
+        fill={`url(#${idMetal})`} />
 
-      {/* Preenchimento de combustível */}
+      {/* ── Líquido com onda animada ── */}
       {fillH > 0 && (
-        <rect x={bx} y={fillY} width={bw} height={fillH}
-          fill={`url(#${gradId})`}
-          clipPath={`url(#${clipId})`} />
+        <g clipPath={`url(#${idClip})`}>
+          {/* Camada base do líquido (sólida abaixo da onda) */}
+          <rect x={bx} y={fillY + A + 1} width={bw} height={fillH - A - 1}
+            fill={`url(#${idGrad})`} />
+
+          {/* Onda animada — layer 1 (principal) */}
+          <g>
+            <animateTransform
+              attributeName="transform"
+              type="translate"
+              from="0 0"
+              to={`${-P} 0`}
+              dur={dur1}
+              repeatCount="indefinite"
+            />
+            <path d={wavePath} fill={`url(#${idGrad})`} />
+          </g>
+
+          {/* Onda animada — layer 2 (fase deslocada, tom mais claro) */}
+          <g opacity="0.55">
+            <animateTransform
+              attributeName="transform"
+              type="translate"
+              from={`${P / 2} 0`}
+              to={`${-P / 2} 0`}
+              dur={dur2}
+              repeatCount="indefinite"
+            />
+            <path d={wavePath2} fill={`url(#${idGradDk})`} />
+          </g>
+
+          {/* Brilho na superfície da onda */}
+          {fillH > 10 && (
+            <rect x={bx} y={fillY - A} width={bw} height={A * 2 + 2}
+              fill="rgba(255,255,255,0.12)" />
+          )}
+        </g>
       )}
 
-      {/* Onda na superfície do líquido */}
-      {fillH > 6 && (
-        <path
-          d={`M${bx+1} ${fillY} Q${bx+bw*0.22} ${fillY-4} ${bx+bw*0.5} ${fillY} Q${bx+bw*0.78} ${fillY+4} ${bx+bw-1} ${fillY}`}
-          fill="none" stroke="rgba(255,255,255,0.38)" strokeWidth="1.5"
-          clipPath={`url(#${clipId})`} />
-      )}
+      {/* ── Reflexo de vidro (brilho lateral) ── */}
+      <rect x={bx + bw - 14} y={by + 6} width="10" height={bh - 12} rx="5"
+        fill={`url(#${idShine})`} clipPath={`url(#${idClip})`} />
+      <rect x={bx + 4} y={by + 6} width="5" height={bh - 12} rx="2.5"
+        fill="white" opacity="0.03" clipPath={`url(#${idClip})`} />
 
-      {/* Reflexo lateral direito (brilho) */}
-      <rect x={bx+bw-11} y={by+5} width="7" height={bh-10} rx="3.5"
-        fill="white" opacity="0.07" clipPath={`url(#${clipId})`} />
-
-      {/* Borda do tanque */}
+      {/* ── Borda do cilindro ── */}
       <rect x={bx} y={by} width={bw} height={bh} rx={rx}
         fill="none"
-        stroke={selected ? fc : 'var(--comb-tank-border, #2d3748)'}
+        stroke={selected ? fc : 'rgba(80,110,160,0.35)'}
         strokeWidth={selected ? 2.5 : 1.5} />
 
-      {/* Marcações de nível (lado esquerdo) */}
+      {/* Anel metálico na base */}
+      <rect x={bx - 4} y={by + bh - 4} width={bw + 8} height="8" rx="4"
+        fill="#1e2d3f" stroke="rgba(255,255,255,0.05)" strokeWidth="1" />
+
+      {/* ── Marcações de nível (lado esquerdo) ── */}
       {[0.25, 0.5, 0.75].map((f, i) => {
         const my = by + bh * (1 - f);
+        const isMid = f === 0.5;
         return (
           <g key={i}>
-            <line x1={bx - 9} y1={my} x2={bx} y2={my}
-              stroke="var(--comb-tank-mark, #4b5563)" strokeWidth={f === 0.5 ? 1.5 : 1} />
-            <text x={bx - 11} y={my + 3.5} textAnchor="end" fontSize="7"
-              fill="var(--comb-tank-mark, #4b5563)" opacity="0.7">
+            <line x1={bx - (isMid ? 10 : 7)} y1={my} x2={bx} y2={my}
+              stroke="var(--comb-tank-mark, #4b5563)"
+              strokeWidth={isMid ? 1.5 : 1} />
+            <text x={bx - (isMid ? 12 : 9)} y={my + 3.5}
+              textAnchor="end" fontSize="7"
+              fill="var(--comb-tank-mark, #4b5563)" opacity="0.75">
               {Math.round(f * 100)}
             </text>
           </g>
         );
       })}
 
-      {/* Texto de porcentagem */}
-      <text x={bx + bw/2} y={pctTextY}
+      {/* ── % texto ── */}
+      <text
+        x={bx + bw / 2} y={pctTextY}
         textAnchor="middle" dominantBaseline="middle"
-        fontSize={pctInside ? '14' : '12'} fontWeight="800"
-        fill={pctColor}>
-        {pct.toFixed(0)}%
+        fontSize={pctInside ? '15' : '12'}
+        fontWeight="800"
+        fill={pctColor}
+      >
+        {clampedPct.toFixed(0)}%
       </text>
 
-      {/* Badge T-número abaixo do tanque */}
-      <rect x={bx + bw/2 - 17} y={by + bh + 10} width="34" height="20" rx="10"
+      {/* ── Badge (nome do tanque) abaixo ── */}
+      <rect
+        x={bx + bw / 2 - 20} y={by + bh + 14}
+        width="40" height="22" rx="11"
         fill={selected ? fc : 'var(--comb-tank-badge-bg, #1a2233)'}
-        stroke={fc} strokeWidth="1.5" />
-      <text x={bx + bw/2} y={by + bh + 20}
+        stroke={fc} strokeWidth="1.5"
+      />
+      <text
+        x={bx + bw / 2} y={by + bh + 25}
         textAnchor="middle" dominantBaseline="middle"
         fontSize="11" fontWeight="800"
-        fill={selected ? '#fff' : fc}>
+        fill={selected ? '#fff' : fc}
+      >
         {display}
       </text>
     </svg>

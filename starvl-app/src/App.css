@@ -6408,8 +6408,9 @@ select.themed-select option {
 
 .comb-fuel-tanks-row {
   display: flex;
-  gap: 6px;
+  gap: 10px;
   align-items: flex-end;
+  padding-left: 24px; /* espaço para as marcações de nível */
 }
 
 .comb-fuel-footer {
