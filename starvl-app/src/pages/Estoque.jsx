@@ -714,7 +714,7 @@ function nivelStatus(pct) {
 }
 
 // ── SVG visual de tanque de combustível ──────────────────────────────────────
-function TankSvg({ codigo, pct, fc, selected, onClick }) {
+function TankSvg({ codigo, display, pct, fc, selected, onClick }) {
   const W = 96, H = 192;
   // Corpo do tanque
   const bx = 20, by = 24, bw = 56, bh = 130, rx = 10;
@@ -819,7 +819,7 @@ function TankSvg({ codigo, pct, fc, selected, onClick }) {
         textAnchor="middle" dominantBaseline="middle"
         fontSize="11" fontWeight="800"
         fill={selected ? '#fff' : fc}>
-        T{codigo}
+        {display}
       </text>
     </svg>
   );
@@ -835,7 +835,7 @@ function TankDetailPanel({ comb, tank, fc, fmtL, onClose }) {
 
       {/* Cabeçalho */}
       <div className="comb-detail-header">
-        <span className="comb-detail-tank-badge" style={{ background: fc }}>T{tank.codigo}</span>
+        <span className="comb-detail-tank-badge" style={{ background: fc }}>{tank.display}</span>
         <div className="comb-detail-title-wrap">
           <span className="comb-detail-name">{comb.produtoNome || `Combustível ${comb.produtoCodigo}`}</span>
           {tank.modelo && <span className="comb-detail-model">{tank.modelo}</span>}
@@ -1012,6 +1012,7 @@ function EstoqueCombustiveis({ empresa }) {
                       <TankSvg
                         key={tank.codigo}
                         codigo={tank.codigo}
+                        display={tank.display}
                         pct={tPct}
                         fc={fc}
                         selected={isSel}

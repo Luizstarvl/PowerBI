@@ -21,6 +21,7 @@ router.get('/', async (req, res) => {
     const result = await query(
       `SELECT
          tanq.tanqcodigo,
+         COALESCE(tanq.tanqdisplay, tanq.tanqcodigo::text) AS tanqdisplay,
          tanq.tanqproduto          AS produto_codigo,
          prod.prodresumo           AS produto_nome,
          tanq.tanqmodelo,
@@ -61,6 +62,7 @@ router.get('/', async (req, res) => {
       const capTanq = parseFloat(r.tanqcapacidade || 0);
       produtoMap[cod].tanques.push({
         codigo:    r.tanqcodigo,
+        display:   r.tanqdisplay,
         modelo:    r.tanqmodelo,
         capacidade: capTanq,
         estoque:   estTanq,
