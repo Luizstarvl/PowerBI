@@ -269,14 +269,24 @@ router.post('/:id/test', async (req, res) => {
 /* ── DELETE ──────────────────────────────────────────────────────────────────── */
 router.delete('/:id', async (req, res) => {
   const id = parseInt(req.params.id);
+  const dbClient = await pool.connect();
   try {
+    await dbClient.query('BEGIN');
+    // Desvincula consultas (starvl_queries) que apontavam para esta conexão
+    // para evitar erro "Conexão não encontrada" em chamadas futuras.
+    await dbClient.query(
+      'UPDATE starvl_queries SET sq_banco_id = NULL WHERE sq_banco_id = $1',
+      [id]
+    );
     // FK ON DELETE CASCADE cuida do starvl_connection_empresas
-    await pool.query('DELETE FROM starvl_connections WHERE sc_id=$1', [id]);
+    await dbClient.query('DELETE FROM starvl_connections WHERE sc_id=$1', [id]);
+    await dbClient.query('COMMIT');
     res.json({ ok: true });
   } catch (err) {
+    await dbClient.query('ROLLBACK');
     console.error('DELETE /connections/:id:', err.message);
     res.status(500).json({ error: 'Erro ao excluir conexão.' });
-  }
+  } finally { dbClient.release(); }
 });
 
 module.exports = router;

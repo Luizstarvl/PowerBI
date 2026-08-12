@@ -365,7 +365,29 @@ router.get('/execute/:codigo', requireAuth, async (req, res) => {
     const q      = rows[0];
     const codigo = req.params.codigo.toUpperCase();
     if (!q.sq_ativa)   return res.status(403).json({ error: `Consulta '${codigo}' está inativa.` });
-    if (!q.sq_banco_id) return res.status(400).json({ error: 'Consulta sem conexão de banco configurada.' });
+
+    // Se sq_banco_id for NULL (conexão desvinculada), tenta recuperar pela empresa
+    if (!q.sq_banco_id) {
+      const empresa = req.query.empresa;
+      if (!empresa) return res.status(400).json({ error: 'Consulta sem conexão de banco configurada.' });
+      const { rows: empConn } = await pool.query(`
+        SELECT c.sc_id
+        FROM starvl_connections c
+        JOIN starvl_connection_empresas sce ON sce.sce_conexao_id = c.sc_id
+        JOIN starvl_clients cl              ON cl.sc_id            = sce.sce_empresa_id
+        WHERE cl.sc_codigo = $1
+        ORDER BY c.sc_criado DESC
+        LIMIT 1
+      `, [empresa]);
+      if (!empConn.length) return res.status(400).json({ error: 'Consulta sem conexão de banco configurada. Configure a conexão no Gerenciador de Consultas.' });
+      // Auto-corrige o slot
+      pool.query(
+        'UPDATE starvl_queries SET sq_banco_id = $1 WHERE UPPER(sq_codigo) = UPPER($2)',
+        [empConn[0].sc_id, req.params.codigo]
+      ).catch(e => console.warn('[queries] auto-heal banco_id (null):', e.message));
+      console.log(`[queries] auto-heal (null): slot ${codigo} → conexão ${empConn[0].sc_id} (empresa ${empresa})`);
+      q.sq_banco_id = empConn[0].sc_id;
+    }
 
     const forceRefresh = req.query.force === '1';
     const isAtual      = cache.isPeriodoAtual(req.query);
@@ -382,14 +404,48 @@ router.get('/execute/:codigo', requireAuth, async (req, res) => {
       }
     }
 
+    // Resolve o banco: valida se sq_banco_id ainda existe; se não, tenta
+    // encontrar a conexão pela empresa informada na query string e auto-corrige
+    // o slot (evita erro "Conexão não encontrada" após recriar uma conexão).
+    let bancoId = q.sq_banco_id;
+    {
+      const { rows: connCheck } = await pool.query(
+        'SELECT sc_id FROM starvl_connections WHERE sc_id = $1',
+        [bancoId]
+      );
+      if (!connCheck.length) {
+        const empresa = req.query.empresa;
+        if (empresa) {
+          const { rows: empConn } = await pool.query(`
+            SELECT c.sc_id
+            FROM starvl_connections c
+            JOIN starvl_connection_empresas sce ON sce.sce_conexao_id = c.sc_id
+            JOIN starvl_clients cl              ON cl.sc_id            = sce.sce_empresa_id
+            WHERE cl.sc_codigo = $1
+            ORDER BY c.sc_criado DESC
+            LIMIT 1
+          `, [empresa]);
+          if (empConn.length) {
+            bancoId = empConn[0].sc_id;
+            // Auto-corrige o slot para evitar o erro em chamadas futuras
+            pool.query(
+              'UPDATE starvl_queries SET sq_banco_id = $1 WHERE UPPER(sq_codigo) = UPPER($2)',
+              [bancoId, req.params.codigo]
+            ).catch(e => console.warn('[queries] auto-heal banco_id:', e.message));
+            console.log(`[queries] auto-heal: slot ${codigo} → conexão ${bancoId} (empresa ${empresa})`);
+          }
+        }
+      }
+    }
+
     // Executa no banco do cliente
     const { sql: finalSql, values } = applyParams(q.sq_sql, req.query);
     validateSQL(finalSql);
-    const result = await executeOnConnection(finalSql, q.sq_banco_id, 30000, values);
+    const result = await executeOnConnection(finalSql, bancoId, 30000, values);
 
     // Salva no cache em background (não bloqueia a resposta)
     cache.set(cacheKey, {
-      codigo, bancoId: q.sq_banco_id,
+      codigo, bancoId,
       empresa: req.query.empresa || '',
       params:  req.query,
       resultado: result,
