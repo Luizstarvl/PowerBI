@@ -6352,141 +6352,158 @@ select.themed-select option {
 .comb-section-header svg { color: #f97316; }
 .comb-section-header .pp-btn-ghost { margin-left: auto; }
 
-/* Grid de cards */
-.comb-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 16px;
+/* ── Variáveis para o SVG de tanque (tema-aware) ── */
+:root {
+  --comb-tank-bg:        #0f1623;
+  --comb-tank-border:    #2d3748;
+  --comb-tank-mark:      #4b5563;
+  --comb-tank-badge-bg:  #1a2233;
 }
-@media (max-width: 640px) { .comb-grid { grid-template-columns: 1fr; } }
+[data-theme="light"]:root, :root:not([data-theme="dark"]) {
+  --comb-tank-bg:        #f1f5f9;
+  --comb-tank-border:    #cbd5e1;
+  --comb-tank-mark:      #94a3b8;
+  --comb-tank-badge-bg:  #e2e8f0;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --comb-tank-bg:        #f1f5f9;
+    --comb-tank-border:    #cbd5e1;
+    --comb-tank-mark:      #94a3b8;
+    --comb-tank-badge-bg:  #e2e8f0;
+  }
+}
+[data-theme="dark"] {
+  --comb-tank-bg:        #0f1623;
+  --comb-tank-border:    #2d3748;
+  --comb-tank-mark:      #4b5563;
+  --comb-tank-badge-bg:  #1a2233;
+}
 
-/* Card */
-.comb-card {
+/* ── Linha de grupos de combustível (tanques visuais) ── */
+.comb-fuels-row {
+  display: flex;
+  gap: 28px;
+  flex-wrap: wrap;
+  align-items: flex-end;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
+  border-radius: 16px;
+  padding: 24px 28px 20px;
+}
+
+.comb-fuel-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.comb-fuel-name {
+  font-size: 11px; font-weight: 700; letter-spacing: .02em;
+  text-align: center;
+  max-width: 110px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.comb-fuel-tanks-row {
+  display: flex;
+  gap: 6px;
+  align-items: flex-end;
+}
+
+.comb-fuel-footer {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  justify-content: center;
+}
+.comb-fuel-status-pill {
+  font-size: 9px; font-weight: 800; text-transform: uppercase;
+  letter-spacing: .04em; padding: 2px 8px; border-radius: 20px;
+}
+.comb-fuel-total-vol {
+  font-size: 10px; font-weight: 600; color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Dica de clique */
+.comb-hint {
+  font-size: 12px; color: var(--color-text-muted);
+  text-align: center; padding: 4px 0;
+}
+
+/* ── Painel de detalhes do tanque ── */
+.comb-detail-panel {
+  background: var(--color-surface);
+  border: 1.5px solid var(--detail-fc, var(--color-border));
   border-radius: 14px;
   padding: 18px 20px;
   display: flex; flex-direction: column; gap: 14px;
-  transition: box-shadow .2s, transform .2s;
+  animation: comb-detail-in .18s ease;
 }
-.comb-card:hover { box-shadow: 0 8px 28px rgba(0,0,0,.10); transform: translateY(-2px); }
+@keyframes comb-detail-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
 
-/* Cabeçalho do card */
-.comb-card-header {
-  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+.comb-detail-header {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
 }
-.comb-card-name-wrap {
-  display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1;
+.comb-detail-tank-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px; border-radius: 10px;
+  font-size: 12px; font-weight: 800; color: #fff; flex-shrink: 0;
 }
-.comb-card-dot {
-  width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+.comb-detail-title-wrap {
+  display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0;
 }
-.comb-card-name {
-  font-size: 15px; font-weight: 700; line-height: 1.2;
+.comb-detail-name {
+  font-size: 16px; font-weight: 700; color: var(--color-text);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.comb-card-tankcount {
-  font-size: 10px; font-weight: 600; color: var(--color-text-muted);
-  white-space: nowrap; flex-shrink: 0;
-  background: var(--color-bg); border: 1px solid var(--color-border);
-  padding: 1px 7px; border-radius: 20px;
+.comb-detail-model {
+  font-size: 11px; color: var(--color-text-muted);
 }
-.comb-card-status {
-  font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
-  padding: 3px 10px; border-radius: 20px; white-space: nowrap; flex-shrink: 0;
-}
-
-/* ── Lista de tanques (sempre visível) ── */
-.comb-tank-list {
-  display: flex; flex-direction: column; gap: 0;
-  border: 1px solid var(--color-border);
-  border-radius: 10px;
-  overflow: hidden;
-}
-
-.comb-tank-item {
-  display: flex; flex-direction: column; gap: 7px;
-  padding: 12px 14px;
-}
-.comb-tank-item + .comb-tank-item {
-  border-top: 1px solid var(--color-border);
-}
-
-/* Linha de identificação: badge + modelo + % */
-.comb-tank-id-row {
-  display: flex; align-items: center; gap: 8px;
-}
-.comb-tank-badge {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 30px; height: 30px; border-radius: 8px;
-  font-size: 11px; font-weight: 800; color: #fff;
-  flex-shrink: 0; letter-spacing: 0;
-}
-.comb-tank-model {
-  flex: 1; font-size: 12px; font-weight: 500; color: var(--color-text-muted);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.comb-tank-pct-pill {
-  font-size: 11px; font-weight: 800;
-  padding: 2px 9px; border-radius: 20px; flex-shrink: 0;
-}
-
-/* Barra de nível do tanque — mais alta e expressiva */
-.comb-tank-bar-lg {
-  height: 18px; background: var(--color-border);
-  border-radius: 6px; overflow: hidden;
-}
-.comb-tank-fill-lg {
-  height: 100%; border-radius: 6px;
-  transition: width .45s ease;
-}
-
-/* Linha de volumes */
-.comb-tank-vol-row {
-  display: flex; align-items: center; gap: 5px;
-  font-size: 11px; font-variant-numeric: tabular-nums;
-}
-.comb-tank-vol-cur { font-weight: 700; color: var(--color-text); }
-.comb-tank-vol-sep { color: var(--color-text-muted); }
-.comb-tank-vol-cap { color: var(--color-text-muted); }
-
-/* ── Total consolidado (múltiplos tanques) ── */
-.comb-total-row {
-  display: flex; flex-direction: column; gap: 6px;
-  padding: 10px 14px;
-  background: var(--color-bg);
-  border: 1px solid var(--color-border);
-  border-radius: 10px;
-}
-.comb-total-bar {
-  height: 8px; background: var(--color-border);
-  border-radius: 99px; overflow: hidden;
-}
-.comb-total-fill {
-  height: 100%; border-radius: 99px; transition: width .4s ease;
-  opacity: .7;
-}
-.comb-total-labels {
-  display: flex; align-items: center; gap: 6px;
-  font-size: 11px; font-variant-numeric: tabular-nums;
-}
-.comb-total-label-txt {
+.comb-detail-status {
   font-size: 10px; font-weight: 700; text-transform: uppercase;
-  letter-spacing: .05em; color: var(--color-text-muted); flex: 1;
+  letter-spacing: .04em; padding: 3px 10px; border-radius: 20px; white-space: nowrap;
 }
-.comb-total-vol { color: var(--color-text-muted); }
-.comb-total-pct { font-weight: 800; font-size: 13px; }
+.comb-detail-close {
+  margin-left: auto; background: transparent; border: none; cursor: pointer;
+  font-size: 14px; color: var(--color-text-muted);
+  width: 30px; height: 30px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .12s, color .12s; flex-shrink: 0;
+}
+.comb-detail-close:hover { background: var(--color-border); color: var(--color-text); }
 
-/* ── Dados financeiros ── */
-.comb-card-data {
-  display: grid; grid-template-columns: 1fr 1fr;
-  gap: 8px 12px;
+.comb-detail-vol-section { display: flex; flex-direction: column; gap: 6px; }
+.comb-detail-bar {
+  height: 16px; background: var(--color-border); border-radius: 8px; overflow: hidden;
+}
+.comb-detail-fill {
+  height: 100%; border-radius: 8px; transition: width .4s ease;
+}
+.comb-detail-vol-labels {
+  display: flex; align-items: baseline; gap: 8px;
+  font-variant-numeric: tabular-nums;
+}
+.comb-detail-vol-actual { font-weight: 700; color: var(--color-text); font-size: 18px; }
+.comb-detail-vol-pct    { font-weight: 800; font-size: 14px; }
+.comb-detail-vol-cap    { font-size: 12px; color: var(--color-text-muted); }
+
+.comb-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 10px 16px;
   background: var(--color-bg);
   border-radius: 10px;
-  padding: 12px 14px;
+  padding: 14px 16px;
   border: 1px solid var(--color-border);
 }
-.comb-data-row { display: flex; flex-direction: column; gap: 2px; }
+.comb-detail-item { display: flex; flex-direction: column; gap: 2px; }
+.comb-detail-item--wide { grid-column: 1 / -1; }
+
+/* Reutilizados pelo painel de detalhes */
 .comb-data-label {
   font-size: 9px; font-weight: 700; text-transform: uppercase;
   letter-spacing: .06em; color: var(--color-text-muted);
