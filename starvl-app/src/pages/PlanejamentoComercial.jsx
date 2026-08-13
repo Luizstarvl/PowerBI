@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import {
   TrendingUp, BarChart2, Target, ArrowLeft, ChevronRight,
-  Activity, Clock
+  Activity, Clock, Heart
 } from 'lucide-react';
 import ProjecaoVendas     from '../components/planejamento/ProjecaoVendas';
 import MetasComerciais    from '../components/planejamento/MetasComerciais';
 import PerformanceVendas  from '../components/planejamento/PerformanceVendas';
 import MargemMarkup       from '../components/planejamento/MargemMarkup';
+import SaudeCarteira      from '../components/planejamento/SaudeCarteira';
 
 /* ── Definição dos módulos ─────────────────────────────────────
    Adicione novos módulos aqui no futuro.
@@ -47,6 +48,15 @@ const MODULOS = [
     Icon: BarChart2,
     cor: '#22C55E',
     tags: ['Rankings', 'Comparativo', 'Fornecedores'],
+    status: 'ativo',
+  },
+  {
+    key: 'saude_carteira',
+    titulo: 'Saúde da Carteira',
+    descricao: 'Monitore inadimplência, frequência, ausência, score e oportunidades de reativação de clientes.',
+    Icon: Heart,
+    cor: '#EC4899',
+    tags: ['Inadimplência', 'Score', 'Oportunidades'],
     status: 'ativo',
   },
 ];
@@ -130,6 +140,7 @@ function ModuloWrapper({ moduloKey, onBack, empresasKey, clients, empresas }) {
       {moduloKey === 'metas_comerciais'  && <MetasComerciais   empresasKey={empresasKey} clients={clients} empresas={empresas} />}
       {moduloKey === 'performance'       && <PerformanceVendas empresasKey={empresasKey} clients={clients} empresas={empresas} />}
       {moduloKey === 'margem'            && <MargemMarkup      empresasKey={empresasKey} clients={clients} empresas={empresas} />}
+      {moduloKey === 'saude_carteira'    && <SaudeCarteira     empresas={empresas} clients={clients} />}
     </div>
   );
 }
