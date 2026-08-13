@@ -8,6 +8,7 @@ import Cadastros from './pages/Cadastros';
 import Parametros from './pages/Parametros';
 import PlanejamentoComercial from './pages/PlanejamentoComercial';
 import Estoque from './pages/Estoque';
+import Financeiro from './pages/Financeiro';
 import AnimatedBackground from './components/login/AnimatedBackground';
 import { LangProvider } from './i18n';
 import { apiFetch, setApiToken, clearApiToken } from './api';
@@ -158,6 +159,11 @@ export default function App() {
           {visited.has('estoque') && (
             <div className={`page-slot${page === 'estoque' ? ' page-active' : ''}`}>
               <Estoque empresas={selectedIds} />
+            </div>
+          )}
+          {visited.has('financeiro') && (
+            <div className={`page-slot${page === 'financeiro' ? ' page-active' : ''}`}>
+              <Financeiro empresas={selectedIds} />
             </div>
           )}
           {visited.has('usuarios') && (
