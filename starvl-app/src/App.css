@@ -7041,6 +7041,7 @@ select.themed-select option {
   padding: 20px 18px 18px;
   cursor: pointer;
   text-align: left;
+  color: var(--color-text);
   transition: transform .14s ease, box-shadow .14s ease, background .14s ease;
 }
 .fhub-card:hover {
