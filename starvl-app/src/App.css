@@ -6983,6 +6983,185 @@ select.themed-select option {
 }
 
 /* ══════════════════════════════════════════════════════════════════════════════
+   Financeiro Hub — prefixo fhub-
+══════════════════════════════════════════════════════════════════════════════ */
+
+/* ── Hub: wrap + grid ── */
+.fhub-wrap {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+.fhub-title {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 20px; font-weight: 800; color: var(--color-text);
+  letter-spacing: -.02em;
+}
+.fhub-title svg { color: #f97316; flex-shrink: 0; }
+.fhub-subtitle {
+  font-size: 13px; color: var(--color-muted); margin-top: 2px;
+}
+.fhub-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px;
+}
+.fhub-card {
+  display: flex; align-items: center; gap: 16px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  padding: 18px 16px;
+  cursor: pointer;
+  transition: transform .13s, box-shadow .13s, border-color .13s;
+  position: relative;
+  overflow: hidden;
+}
+.fhub-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, var(--fhub-accent, #f97316) 0%, transparent 60%);
+  opacity: 0;
+  transition: opacity .18s;
+  border-radius: inherit;
+}
+.fhub-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 28px rgba(0,0,0,.18);
+  border-color: var(--fhub-accent, #f97316);
+}
+.fhub-card:hover::before { opacity: .05; }
+.fhub-card:active { transform: translateY(0); }
+.fhub-card-icon {
+  display: flex; align-items: center; justify-content: center;
+  width: 44px; height: 44px; border-radius: 12px;
+  background: color-mix(in srgb, var(--fhub-accent, #f97316) 12%, transparent);
+  flex-shrink: 0;
+}
+.fhub-card-icon svg { color: var(--fhub-accent, #f97316); }
+.fhub-card-body {
+  flex: 1; min-width: 0;
+}
+.fhub-card-title {
+  font-size: 14px; font-weight: 700;
+  color: var(--color-text); line-height: 1.25;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.fhub-card-desc {
+  font-size: 11.5px; color: var(--color-muted);
+  margin-top: 3px; line-height: 1.4;
+}
+.fhub-card-arrow {
+  color: var(--color-muted);
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity .13s, transform .13s;
+}
+.fhub-card:hover .fhub-card-arrow {
+  opacity: 1;
+  transform: translateX(3px);
+}
+
+/* ── Cabeçalho do módulo (após entrar no hub) ── */
+.fhub-mod-header {
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 10px;
+  padding: 18px 24px 0;
+}
+.fhub-mod-nav {
+  display: flex; align-items: center; gap: 10px;
+}
+.fhub-back-btn {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 9px;
+  padding: 6px 12px;
+  font-size: 13px; font-weight: 600;
+  color: var(--color-text);
+  cursor: pointer;
+  transition: background .12s, border-color .12s;
+}
+.fhub-back-btn:hover {
+  background: var(--color-hover);
+  border-color: #f97316;
+  color: #f97316;
+}
+.fhub-mod-breadcrumb {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 13px; color: var(--color-muted);
+}
+.fhub-mod-breadcrumb .sep { opacity: .4; }
+.fhub-mod-breadcrumb .cur {
+  font-weight: 700; color: var(--color-text);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   Financeiro Alertas — prefixo fin2-alerta-
+══════════════════════════════════════════════════════════════════════════════ */
+
+.fin2-alertas-wrap {
+  padding: 0 24px 24px;
+}
+.fin2-alertas-list {
+  display: flex; flex-direction: column; gap: 10px;
+  margin-top: 16px;
+}
+.fin2-alerta-card {
+  display: flex; align-items: flex-start; gap: 14px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  background: var(--alerta-bg, rgba(255,255,255,.04));
+  border-color: color-mix(in srgb, var(--alerta-color, #f97316) 25%, transparent);
+  transition: box-shadow .12s;
+}
+.fin2-alerta-card:hover {
+  box-shadow: 0 4px 18px rgba(0,0,0,.14);
+}
+.fin2-alerta-icon {
+  display: flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px; border-radius: 10px;
+  background: color-mix(in srgb, var(--alerta-color, #f97316) 14%, transparent);
+  flex-shrink: 0; margin-top: 1px;
+}
+.fin2-alerta-icon svg { color: var(--alerta-color, #f97316); }
+.fin2-alerta-body { flex: 1; min-width: 0; }
+.fin2-alerta-titulo {
+  font-size: 13.5px; font-weight: 700;
+  color: var(--color-text); line-height: 1.3;
+}
+.fin2-alerta-desc {
+  font-size: 12.5px; color: var(--color-muted);
+  margin-top: 2px; line-height: 1.45;
+}
+.fin2-alerta-badge {
+  display: inline-flex; align-items: center;
+  padding: 2px 9px; border-radius: 99px;
+  font-size: 11px; font-weight: 700;
+  background: color-mix(in srgb, var(--alerta-color, #f97316) 14%, transparent);
+  color: var(--alerta-color, #f97316);
+  text-transform: uppercase; letter-spacing: .05em;
+  flex-shrink: 0;
+}
+.fin2-alertas-ok {
+  display: flex; align-items: center; gap: 10px;
+  padding: 32px;
+  font-size: 15px; font-weight: 600;
+  color: #22c55e;
+  justify-content: center;
+}
+
+@media (max-width: 560px) {
+  .fhub-grid { grid-template-columns: 1fr 1fr; }
+  .fhub-card { padding: 14px 12px; gap: 12px; }
+  .fhub-card-icon { width: 38px; height: 38px; }
+  .fhub-card-desc { display: none; }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
    Saúde da Carteira — prefixo sc-
 ══════════════════════════════════════════════════════════════════════════════ */
 

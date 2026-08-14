@@ -18,6 +18,10 @@ import {
   Landmark, RefreshCw, TrendingUp, TrendingDown,
   DollarSign, BarChart3, ArrowUpRight,
   CalendarDays, ChevronDown, Settings, Wallet, Activity, X,
+  LayoutDashboard, ArrowDownCircle, ArrowUpCircle,
+  LineChart, Building2, ArrowLeftRight,
+  BellRing, ChevronRight, ChevronLeft,
+  AlertTriangle, AlertCircle, Info,
 } from 'lucide-react';
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis,
@@ -25,14 +29,67 @@ import {
 } from 'recharts';
 import { apiFetch } from '../api';
 
-// ── Abas ───────────────────────────────────────────────────────────────────────
-const TABS = [
-  { key: 'resumo', label: 'Resumo',         Icon: BarChart3   },
-  { key: 'vendas', label: 'Vendas',          Icon: TrendingUp  },
-  { key: 'custos', label: 'Contas a Rec.',   Icon: Wallet      },
-  { key: 'fluxo',  label: 'Fluxo de Caixa', Icon: Activity    },
+// ── Módulos do Hub Financeiro ───────────────────────────────────────────────────
+const FIN_MODULES = [
+  {
+    key:   'visao_geral',
+    label: 'Visão Geral',
+    desc:  'Dashboard executivo com os principais indicadores financeiros',
+    Icon:  LayoutDashboard,
+    color: '#3b82f6',
+  },
+  {
+    key:   'receber',
+    label: 'Contas a Receber',
+    desc:  'Análise dos valores que a empresa tem a receber',
+    Icon:  ArrowDownCircle,
+    color: '#22c55e',
+  },
+  {
+    key:   'pagar',
+    label: 'Contas a Pagar',
+    desc:  'Controle e análise das obrigações financeiras',
+    Icon:  ArrowUpCircle,
+    color: '#ef4444',
+  },
+  {
+    key:   'fluxo',
+    label: 'Fluxo de Caixa',
+    desc:  'Acompanhamento de entradas, saídas e saldo financeiro',
+    Icon:  LineChart,
+    color: '#22c55e',
+  },
+  {
+    key:   'bancos',
+    label: 'Bancos e Caixa',
+    desc:  'Visão consolidada da posição financeira por conta',
+    Icon:  Building2,
+    color: '#8b5cf6',
+  },
+  {
+    key:   'receitas',
+    label: 'Receitas e Despesas',
+    desc:  'Análise detalhada das entradas e saídas da empresa',
+    Icon:  ArrowLeftRight,
+    color: '#f97316',
+  },
+  {
+    key:   'resultado',
+    label: 'Resultado e Rentabilidade',
+    desc:  'Análise do desempenho, margens e rentabilidade',
+    Icon:  TrendingUp,
+    color: '#f97316',
+  },
+  {
+    key:   'alertas',
+    label: 'Alertas Financeiros',
+    desc:  'Central de alertas e situações que precisam de atenção',
+    Icon:  BellRing,
+    color: '#ef4444',
+  },
 ];
 
+// ── Abas ───────────────────────────────────────────────────────────────────────
 // ── Formatadores ───────────────────────────────────────────────────────────────
 const fmtCur = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 const fmtNum = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 });
@@ -726,6 +783,191 @@ function PainelFluxo({ slot, empresa, period }) {
   );
 }
 
+// ── Hub: menu de atalhos do Financeiro ────────────────────────────────────────
+function FinHub({ onSelect }) {
+  return (
+    <div className="fhub-wrap">
+      <div className="fhub-intro">
+        <Landmark size={22} className="fhub-intro-icon" />
+        <div>
+          <div className="fhub-intro-title">Financeiro</div>
+          <div className="fhub-intro-sub">Selecione um módulo para visualizar</div>
+        </div>
+      </div>
+      <div className="fhub-grid">
+        {FIN_MODULES.map(m => (
+          <button
+            key={m.key}
+            className="fhub-card"
+            style={{ '--fhub-accent': m.color }}
+            onClick={() => onSelect(m.key)}
+          >
+            <div className="fhub-card-icon">
+              <m.Icon size={26} />
+            </div>
+            <div className="fhub-card-body">
+              <div className="fhub-card-title">{m.label}</div>
+              <div className="fhub-card-desc">{m.desc}</div>
+            </div>
+            <ChevronRight size={15} className="fhub-card-arrow" />
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Breadcrumb / cabeçalho de módulo ──────────────────────────────────────────
+function ModuleHeader({ modKey, onBack, period, setPeriod, loading }) {
+  const mod = FIN_MODULES.find(m => m.key === modKey) || {};
+  return (
+    <div className="fhub-mod-header">
+      <button className="fhub-back-btn" onClick={onBack} title="Voltar ao menu">
+        <ChevronLeft size={14} /> Menu
+      </button>
+      <div className="fhub-mod-breadcrumb">
+        <span className="fhub-mod-breadcrumb-sep">/</span>
+        {mod.Icon && <mod.Icon size={14} style={{ color: mod.color }} />}
+        <span className="fhub-mod-breadcrumb-label">{mod.label}</span>
+      </div>
+      <PeriodPicker period={period} onChange={setPeriod} />
+      {loading && <RefreshCw size={12} className="pp-spin fhub-mod-spin" />}
+    </div>
+  );
+}
+
+// ── Painel genérico p/ módulos novos (slot-based, tabela automática) ───────────
+function PainelSlot({ slot, slotName, empresa, period, titulo, Icon: PIcon }) {
+  const { dados, loading, erro, refresh } = useFinData(slot, empresa, period);
+
+  if (!slot) return <SemConsulta slot={slotName} />;
+  if (loading && !dados) return <FinLoading />;
+
+  const rows    = dados?.rows    || [];
+  const cols    = dados?.columns || [];
+  const visCols = cols.filter(c => !HIDDEN_COLS.has(c));
+
+  return (
+    <div className="fin2-tab-body">
+      <div className="fin2-section-header">
+        {PIcon && <PIcon size={14} />} {titulo}
+        {erro && <span className="fin-erro-inline">{erro}</span>}
+        <div className="fin2-section-actions">
+          <button className="pp-btn-ghost pp-btn-ghost--sm" onClick={refresh} disabled={loading}>
+            <RefreshCw size={11} className={loading ? 'pp-spin' : ''} />
+          </button>
+        </div>
+      </div>
+      {rows.length > 0 ? (
+        <div className="fin-table-wrap">
+          <table className="fin-table fin2-table">
+            <thead>
+              <tr>{visCols.map(c => <th key={c}>{c.replace(/_/g,' ')}</th>)}</tr>
+            </thead>
+            <tbody>
+              {rows.map((row, i) => (
+                <tr key={i}>
+                  {visCols.map(c => (
+                    <td key={c} style={cellStyle(c, row[c])}
+                      className={isCurrencyCol(c) ? 'fin2-td-num' : ''}>
+                      {fmtCell(c, row[c])}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+            <TfootTotals cols={visCols} rows={rows} />
+          </table>
+        </div>
+      ) : (
+        !erro && !loading && <p className="fin-vazio">Nenhum dado encontrado para o período.</p>
+      )}
+    </div>
+  );
+}
+
+// ── Painel Alertas Financeiros ─────────────────────────────────────────────────
+const ALERT_PRIORITY = {
+  critico: { label: 'Crítico', color: '#dc2626', bg: 'rgba(220,38,38,0.1)',  Icon: AlertCircle   },
+  alto:    { label: 'Alto',    color: '#f97316', bg: 'rgba(249,115,22,0.1)', Icon: AlertTriangle },
+  medio:   { label: 'Médio',   color: '#eab308', bg: 'rgba(234,179,8,0.1)', Icon: AlertTriangle },
+  baixo:   { label: 'Baixo',   color: '#3b82f6', bg: 'rgba(59,130,246,0.1)',Icon: Info           },
+};
+
+function PainelAlertas({ slot, empresa, period }) {
+  const { dados, loading, erro, refresh } = useFinData(slot, empresa, period);
+
+  if (!slot) return <SemConsulta slot="financeiro_alertas" />;
+  if (loading && !dados) return <FinLoading />;
+
+  const rows = dados?.rows || [];
+
+  // Tenta detectar colunas: tipo/prioridade/descricao/valor/quantidade
+  const col = (row, ...candidates) => {
+    for (const c of candidates) {
+      const k = Object.keys(row).find(k2 => k2.toLowerCase() === c.toLowerCase());
+      if (k !== undefined) return row[k];
+    }
+    return undefined;
+  };
+
+  return (
+    <div className="fin2-tab-body">
+      <div className="fin2-section-header">
+        <BellRing size={14} /> Alertas Financeiros
+        {erro && <span className="fin-erro-inline">{erro}</span>}
+        <div className="fin2-section-actions">
+          <button className="pp-btn-ghost pp-btn-ghost--sm" onClick={refresh} disabled={loading}>
+            <RefreshCw size={11} className={loading ? 'pp-spin' : ''} />
+          </button>
+        </div>
+      </div>
+
+      {rows.length > 0 ? (
+        <div className="fin2-alertas-list">
+          {rows.map((row, i) => {
+            const prioridade = (col(row,'prioridade','priority','nivel') || 'medio').toLowerCase();
+            const config     = ALERT_PRIORITY[prioridade] || ALERT_PRIORITY.medio;
+            const titulo     = col(row,'titulo','descricao','tipo','alerta','mensagem') || `Alerta ${i+1}`;
+            const valor      = col(row,'valor','total','montante');
+            const qtd        = col(row,'quantidade','qtd','count');
+            const detalhe    = col(row,'detalhe','observacao','obs','complemento');
+            return (
+              <div key={i} className="fin2-alerta-card"
+                style={{ '--alerta-color': config.color, '--alerta-bg': config.bg }}>
+                <div className="fin2-alerta-icon">
+                  <config.Icon size={18} style={{ color: config.color }} />
+                </div>
+                <div className="fin2-alerta-body">
+                  <div className="fin2-alerta-titulo">{titulo}</div>
+                  {detalhe && <div className="fin2-alerta-detalhe">{detalhe}</div>}
+                  {(valor != null || qtd != null) && (
+                    <div className="fin2-alerta-meta">
+                      {valor != null && <span className="fin2-alerta-valor">{fmtCur.format(Number(valor)||0)}</span>}
+                      {qtd   != null && <span className="fin2-alerta-qtd">{fmtNum.format(Number(qtd)||0)} ocorrência(s)</span>}
+                    </div>
+                  )}
+                </div>
+                <span className="fin2-alerta-badge"
+                  style={{ background: config.bg, color: config.color }}>
+                  {config.label}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        !erro && !loading && (
+          <div className="fin2-alertas-ok">
+            <div className="fin2-alertas-ok-icon">✅</div>
+            <p>Nenhum alerta para o período selecionado.</p>
+          </div>
+        )
+      )}
+    </div>
+  );
+}
+
 // ── Componente principal ───────────────────────────────────────────────────────
 export default function Financeiro({ empresas }) {
   const empresa = (empresas || [])[0] || '';
@@ -734,10 +976,19 @@ export default function Financeiro({ empresas }) {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   });
-  const [activeTab, setActiveTab] = useState('resumo');
+
+  // null = hub; string = módulo ativo
+  const [activeModule, setActiveModule] = useState(null);
+
   const [slots, setSlots] = useState({
-    resumo: undefined, vendas: undefined, custos: undefined,
-    custos_detalhe: undefined, fluxo: undefined,
+    resumo: undefined, vendas: undefined,
+    custos: undefined, custos_detalhe: undefined,
+    fluxo: undefined,
+    pagar: undefined,
+    bancos: undefined,
+    receitas_despesas: undefined,
+    resultado: undefined,
+    alertas: undefined,
   });
 
   useEffect(() => {
@@ -753,55 +1004,120 @@ export default function Financeiro({ empresas }) {
       fetchSlot('financeiro_custos'),
       fetchSlot('financeiro_custos_detalhe'),
       fetchSlot('financeiro_fluxo'),
-    ]).then(([resumo, vendas, custos, custos_detalhe, fluxo]) =>
-      setSlots({ resumo, vendas, custos, custos_detalhe, fluxo })
+      fetchSlot('financeiro_pagar'),
+      fetchSlot('financeiro_bancos'),
+      fetchSlot('financeiro_receitas_despesas'),
+      fetchSlot('financeiro_resultado'),
+      fetchSlot('financeiro_alertas'),
+    ]).then(([resumo, vendas, custos, custos_detalhe, fluxo,
+              pagar, bancos, receitas_despesas, resultado, alertas]) =>
+      setSlots({ resumo, vendas, custos, custos_detalhe, fluxo,
+                 pagar, bancos, receitas_despesas, resultado, alertas })
     );
   }, [empresa]);
 
   const loadingSlots = Object.values(slots).some(s => s === undefined);
 
-  return (
-    <div className="fin2-wrap">
+  // ── Renderização ──────────────────────────────────────────────────────────────
 
-      {/* ── Cabeçalho ── */}
-      <div className="fin2-header">
-        <div className="fin2-header-title">
-          <Landmark size={18} />
-          <h1>Financeiro</h1>
-        </div>
-        <PeriodPicker period={period} onChange={setPeriod} />
-      </div>
-
-      {loadingSlots ? (
+  if (loadingSlots) {
+    return (
+      <div className="fin2-wrap">
         <div className="fin-loading fin-loading--full">
           <RefreshCw size={20} className="pp-spin" />
           <span>Carregando módulos financeiros…</span>
         </div>
-      ) : (
-        <>
-          {/* ── Barra de abas ── */}
-          <div className="fin2-tabs-bar">
-            {TABS.map(t => (
-              <button
-                key={t.key}
-                className={`fin2-tab-btn${activeTab === t.key ? ' fin2-tab-btn--active' : ''}`}
-                onClick={() => setActiveTab(t.key)}
-              >
-                <t.Icon size={13} />
-                <span>{t.label}</span>
-              </button>
-            ))}
-          </div>
+      </div>
+    );
+  }
 
-          {/* ── Conteúdo da aba ativa ── */}
-          <div className="fin2-content">
-            {activeTab === 'resumo' && <PainelResumo slot={slots.resumo} empresa={empresa} period={period} />}
-            {activeTab === 'vendas' && <PainelVendas slot={slots.vendas} empresa={empresa} period={period} />}
-            {activeTab === 'custos' && <PainelCustos slot={slots.custos} slotDetalhe={slots.custos_detalhe} empresa={empresa} period={period} />}
-            {activeTab === 'fluxo'  && <PainelFluxo  slot={slots.fluxo}  empresa={empresa} period={period} />}
-          </div>
-        </>
-      )}
+  // Hub: menu de atalhos
+  if (!activeModule) {
+    return (
+      <div className="fin2-wrap">
+        <FinHub onSelect={setActiveModule} />
+      </div>
+    );
+  }
+
+  // Módulo ativo: cabeçalho + conteúdo
+  return (
+    <div className="fin2-wrap">
+      <ModuleHeader
+        modKey={activeModule}
+        onBack={() => setActiveModule(null)}
+        period={period}
+        setPeriod={setPeriod}
+        loading={false}
+      />
+
+      <div className="fin2-content">
+        {/* ── Visão Geral: Resumo + Vendas ── */}
+        {activeModule === 'visao_geral' && (
+          <>
+            <PainelResumo slot={slots.resumo} empresa={empresa} period={period} />
+            <PainelVendas slot={slots.vendas} empresa={empresa} period={period} />
+          </>
+        )}
+
+        {/* ── Módulos mapeados para painéis existentes ── */}
+        {activeModule === 'receber' && (
+          <PainelCustos
+            slot={slots.custos}
+            slotDetalhe={slots.custos_detalhe}
+            empresa={empresa}
+            period={period}
+          />
+        )}
+        {activeModule === 'fluxo' && (
+          <PainelFluxo slot={slots.fluxo} empresa={empresa} period={period} />
+        )}
+
+        {/* ── Novos módulos: PainelSlot genérico ── */}
+        {activeModule === 'pagar' && (
+          <PainelSlot
+            slot={slots.pagar}
+            slotName="financeiro_pagar"
+            empresa={empresa}
+            period={period}
+            titulo="Contas a Pagar"
+            Icon={ArrowUpCircle}
+          />
+        )}
+        {activeModule === 'bancos' && (
+          <PainelSlot
+            slot={slots.bancos}
+            slotName="financeiro_bancos"
+            empresa={empresa}
+            period={period}
+            titulo="Bancos e Caixa"
+            Icon={Building2}
+          />
+        )}
+        {activeModule === 'receitas' && (
+          <PainelSlot
+            slot={slots.receitas_despesas}
+            slotName="financeiro_receitas_despesas"
+            empresa={empresa}
+            period={period}
+            titulo="Receitas e Despesas"
+            Icon={ArrowLeftRight}
+          />
+        )}
+        {activeModule === 'resultado' && (
+          <PainelSlot
+            slot={slots.resultado}
+            slotName="financeiro_resultado"
+            empresa={empresa}
+            period={period}
+            titulo="Resultado e Rentabilidade"
+            Icon={TrendingUp}
+          />
+        )}
+        {activeModule === 'alertas' && (
+          <PainelAlertas slot={slots.alertas} empresa={empresa} period={period} />
+        )}
+      </div>
     </div>
   );
 }
