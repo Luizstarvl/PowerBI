@@ -14,7 +14,8 @@
  * Parâmetros passados a cada slot:
  *   ?empresa=X&data_inicio=YYYY-MM-DD&data_final=YYYY-MM-DD&dias=90
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import ReactDOM from 'react-dom';
 import {
   Heart, AlertTriangle, Clock, Users, Star, Zap,
   RefreshCw, Settings, ChevronDown, X,
@@ -42,6 +43,132 @@ const DIAS_OPTIONS = [
   { value: 365, label: 'Últimos 365 dias' },
 ];
 
+// ── Gerador de HTML para impressão ───────────────────────────────────────────
+function gerarHtmlSaude({ tabLabel, rows, columns, periodoLabel, dataInicio, dataFim, empresa }) {
+  const now = new Date().toLocaleString('pt-BR');
+
+  const headersHtml = columns
+    .map(c => `<th>${c.replace(/_/g, ' ').toUpperCase()}</th>`)
+    .join('');
+
+  const RISK_MAP = { alto: '#dc2626', medio: '#f59e0b', baixo: '#22c55e', critico: '#7f1d1d' };
+  const isRisk  = c => /risco|nivel|risk/.test(c.toLowerCase());
+  const isScore = c => c.toLowerCase() === 'score';
+
+  const rowsHtml = rows.map((row, i) => {
+    const tds = columns.map(c => {
+      const v = row[c] ?? '—';
+      if (isRisk(c)) {
+        const key = String(v).toLowerCase().normalize('NFD').replace(/[̀-͜]/g, '');
+        const cor = RISK_MAP[key] || '#888';
+        return `<td><span class="badge" style="background:${cor}20;color:${cor};border:1px solid ${cor}60">${v}</span></td>`;
+      }
+      if (isScore(c)) {
+        const s = Number(v) || 0;
+        const cor = s >= 76 ? '#22c55e' : s >= 51 ? '#f59e0b' : s >= 26 ? '#f97316' : '#dc2626';
+        return `<td><span class="badge" style="background:${cor}20;color:${cor};border:1px solid ${cor}60">${s}</span></td>`;
+      }
+      return `<td>${v}</td>`;
+    }).join('');
+    const bg = i % 2 === 1 ? 'background:#f9f9f9' : '';
+    return `<tr style="${bg}">${tds}</tr>`;
+  }).join('');
+
+  return `<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="utf-8">
+<title>Saúde da Carteira · ${tabLabel}</title>
+<style>
+@page { size: A4 landscape; margin: 0; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+@media screen {
+  html { background: #3a3a3a; }
+  body { background: #3a3a3a; padding: 28px 20px; font-family:'Segoe UI',Arial,sans-serif; font-size:11px; color:#1a1a1a; }
+  .wrap { max-width: 1000px; margin: 0 auto; background: #fff; padding: 32px 36px; box-shadow: 0 4px 28px rgba(0,0,0,.5); }
+}
+@media print {
+  html, body { background: #fff !important; padding: 10mm !important; margin: 0 !important; }
+  .wrap { padding: 0 !important; box-shadow: none !important; width: 100% !important; margin: 0 !important; }
+  table { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+body { font-family:'Segoe UI',Arial,sans-serif; font-size:11px; color:#1a1a1a; }
+.wrap { background:#fff; }
+.rh { display:flex; align-items:flex-end; justify-content:space-between; padding-bottom:12px; margin-bottom:20px; border-bottom:3px solid #EC4899; }
+.rh-brand { font-size:10px; font-weight:700; color:#EC4899; letter-spacing:.12em; text-transform:uppercase; }
+.rh-title { font-size:17px; font-weight:700; color:#111; line-height:1.2; margin-top:4px; }
+.rh-meta  { text-align:right; font-size:9.5px; color:#888; line-height:1.9; }
+.rh-meta strong { color:#444; }
+table { width:100%; border-collapse:collapse; margin-top:4px; }
+thead tr { border-bottom:2px solid #EC4899; }
+th { padding:5px 7px; font-size:8.5px; text-transform:uppercase; letter-spacing:.05em; color:#888; font-weight:700; text-align:left; white-space:nowrap; }
+td { padding:7px 7px; border-bottom:1px solid #f0f0f0; vertical-align:middle; font-size:10.5px; white-space:nowrap; }
+tr:last-child td { border-bottom:none; }
+.badge { display:inline-block; padding:2px 7px; border-radius:4px; font-size:9.5px; font-weight:700; }
+.rf { margin-top:18px; padding-top:9px; border-top:1px solid #e5e7eb; display:flex; justify-content:space-between; font-size:9px; color:#ccc; }
+</style></head><body>
+<div class="wrap">
+  <div class="rh">
+    <div>
+      <div class="rh-brand">Eclipse · Sistema de Gestão de Postos</div>
+      <div class="rh-title">Saúde da Carteira — ${tabLabel}</div>
+    </div>
+    <div class="rh-meta">
+      <strong>Empresa:</strong> ${empresa || '—'}<br>
+      <strong>Período:</strong> ${periodoLabel} (${dataInicio} a ${dataFim})<br>
+      <strong>Gerado em:</strong> ${now}
+    </div>
+  </div>
+  <table>
+    <thead><tr>${headersHtml}</tr></thead>
+    <tbody>${rowsHtml}</tbody>
+  </table>
+  <div class="rf">
+    <span>Eclipse · Saúde da Carteira</span>
+    <span>${now}</span>
+  </div>
+</div>
+</body></html>`;
+}
+
+// ── Print Preview Modal ───────────────────────────────────────────────────────
+function PrintPreview({ html, titulo, onClose }) {
+  const iframeRef = useRef(null);
+
+  useEffect(() => {
+    function onKey(e) {
+      if (e.key === 'Escape') { onClose(); return; }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
+        e.preventDefault();
+        iframeRef.current?.contentWindow?.print();
+      }
+    }
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  return ReactDOM.createPortal(
+    <div className="prv-overlay">
+      <div className="prv-bar">
+        <div className="prv-bar-left">
+          <button className="prv-btn-close" onClick={onClose}>
+            <X size={14} /> Fechar
+          </button>
+          <div className="prv-bar-divider" />
+          <div className="prv-bar-info">
+            <span className="prv-bar-title">{titulo}</span>
+          </div>
+        </div>
+        <button className="prv-btn-print" onClick={() => iframeRef.current?.contentWindow?.print()}>
+          <Printer size={14} /> Imprimir
+        </button>
+      </div>
+      <div className="prv-content">
+        <iframe ref={iframeRef} className="prv-iframe" srcDoc={html} title={titulo} />
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 // ── Formatadores ──────────────────────────────────────────────────────────────
 const fmtCur  = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
 const fmtNum  = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 });
@@ -58,7 +185,7 @@ function todayStr() {
 }
 
 // ── Hook: busca + executa slot ────────────────────────────────────────────────
-function useSlotData(slot, empresa, params, active) {
+function useSlotData(slot, empresa, params, active, onDataLoaded) {
   const [dados,   setDados]   = useState(null);
   const [loading, setLoading] = useState(false);
   const [erro,    setErro]    = useState('');
@@ -74,7 +201,9 @@ function useSlotData(slot, empresa, params, active) {
       .then(r => r.json())
       .then(d => {
         if (!d.ok) throw new Error(d.error || 'Erro ao carregar dados');
-        setDados({ rows: d.rows || [], columns: d.columns || [] });
+        const result = { rows: d.rows || [], columns: d.columns || [] };
+        setDados(result);
+        if (onDataLoaded) onDataLoaded(result);
       })
       .catch(e => setErro(e.message))
       .finally(() => setLoading(false));
@@ -232,8 +361,8 @@ function Tabela({ rows, cols, onRowClick, extraCols = [] }) {
 }
 
 // ── Tab: Visão Geral ──────────────────────────────────────────────────────────
-function TabVisaoGeral({ slot, empresa, params, active }) {
-  const { dados, loading, erro, refresh } = useSlotData(slot, empresa, params, active);
+function TabVisaoGeral({ slot, empresa, params, active, onDataLoaded }) {
+  const { dados, loading, erro, refresh } = useSlotData(slot, empresa, params, active, onDataLoaded);
 
   if (!slot) return <SemConsulta slot="saude_visao_geral" />;
   if (loading && !dados) return <Loading />;
@@ -291,8 +420,8 @@ const AGING_BANDS_DEF = [
   { label: '+90 dias',   color: '#7f1d1d', campos: ['mais_90',    'acima_90', 'acima90'] },
 ];
 
-function TabInadimplencia({ slot, empresa, params, active, onClienteClick }) {
-  const { dados, loading, erro, refresh } = useSlotData(slot, empresa, params, active);
+function TabInadimplencia({ slot, empresa, params, active, onClienteClick, onDataLoaded }) {
+  const { dados, loading, erro, refresh } = useSlotData(slot, empresa, params, active, onDataLoaded);
 
   if (!slot) return <SemConsulta slot="saude_inadimplencia" />;
   if (loading && !dados) return <Loading />;
@@ -380,8 +509,8 @@ function classifyFreq(row) {
   return 'baixa';
 }
 
-function TabFrequencia({ slot, empresa, params, active, onClienteClick }) {
-  const { dados, loading, erro, refresh } = useSlotData(slot, empresa, params, active);
+function TabFrequencia({ slot, empresa, params, active, onClienteClick, onDataLoaded }) {
+  const { dados, loading, erro, refresh } = useSlotData(slot, empresa, params, active, onDataLoaded);
   const [filtro, setFiltro] = useState('todos');
 
   if (!slot) return <SemConsulta slot="saude_frequencia" />;
@@ -466,8 +595,8 @@ function getBandaKey(row) {
   return AUSENTES_BANDAS.find(b => dias >= b.range[0] && dias <= b.range[1])?.key || 'b90';
 }
 
-function TabAusentes({ slot, empresa, params, active, onClienteClick }) {
-  const { dados, loading, erro, refresh } = useSlotData(slot, empresa, params, active);
+function TabAusentes({ slot, empresa, params, active, onClienteClick, onDataLoaded }) {
+  const { dados, loading, erro, refresh } = useSlotData(slot, empresa, params, active, onDataLoaded);
   const [bandaFiltro, setBandaFiltro] = useState('todos');
 
   if (!slot) return <SemConsulta slot="saude_ausentes" />;
@@ -553,8 +682,8 @@ function computeScore(row, maxQtd) {
   return Math.min(100, Math.max(0, freqPts + recPts + inadPts));
 }
 
-function TabScore({ slot, empresa, params, active, onClienteClick }) {
-  const { dados, loading, erro, refresh } = useSlotData(slot, empresa, params, active);
+function TabScore({ slot, empresa, params, active, onClienteClick, onDataLoaded }) {
+  const { dados, loading, erro, refresh } = useSlotData(slot, empresa, params, active, onDataLoaded);
 
   if (!slot) return <SemConsulta slot="saude_score" />;
   if (loading && !dados) return <Loading />;
@@ -623,8 +752,8 @@ const OPORT_CATS = [
   { key: 'crescimento',         label: 'Em Crescimento',        Icon: TrendingUp,    color: '#22c55e', desc: 'Tendência positiva de volume de compras'     },
 ];
 
-function TabOportunidades({ slot, empresa, params, active, onClienteClick }) {
-  const { dados, loading, erro, refresh } = useSlotData(slot, empresa, params, active);
+function TabOportunidades({ slot, empresa, params, active, onClienteClick, onDataLoaded }) {
+  const { dados, loading, erro, refresh } = useSlotData(slot, empresa, params, active, onDataLoaded);
   const [catFiltro, setCatFiltro] = useState('todos');
 
   if (!slot) return <SemConsulta slot="saude_oportunidades" />;
@@ -722,6 +851,16 @@ export default function SaudeCarteira({ empresas }) {
   const [dias,             setDias]             = useState(90);
   const [slots,            setSlots]            = useState(null); // null = loading
   const [selectedCliente,  setSelectedCliente]  = useState(null);
+  const [printHtml,        setPrintHtml]        = useState(null);
+
+  // Guarda os dados da aba ativa para impressão
+  const tabDataRef = useRef({ rows: [], columns: [] });
+
+  // Callback repassado à aba ativa para capturar dados ao carregar
+  // Deve ficar antes de qualquer early return (regra de hooks)
+  const handleDataLoaded = useCallback(result => {
+    tabDataRef.current = result;
+  }, []);
 
   const dataFim    = todayStr();
   const dataInicio = dateFromDias(dias);
@@ -750,32 +889,29 @@ export default function SaudeCarteira({ empresas }) {
     );
   }
 
+  const activeTabLabel = TABS.find(t => t.key === activeTab)?.label || '';
+  const periodoLabel   = DIAS_OPTIONS.find(o => o.value === dias)?.label || `${dias} dias`;
+
   const tabProps = key => ({
     slot:           slots[key],
     empresa,
     params,
     active:         activeTab === key,
     onClienteClick: setSelectedCliente,
+    onDataLoaded:   activeTab === key ? handleDataLoaded : undefined,
   });
 
-  const activeTabLabel = TABS.find(t => t.key === activeTab)?.label || '';
-  const periodoLabel   = DIAS_OPTIONS.find(o => o.value === dias)?.label || `${dias} dias`;
+  const handlePrint = () => {
+    const { rows, columns } = tabDataRef.current;
+    if (!rows.length) return;
+    const html = gerarHtmlSaude({ tabLabel: activeTabLabel, rows, columns, periodoLabel, dataInicio, dataFim, empresa });
+    setPrintHtml({ html, titulo: `Saúde da Carteira — ${activeTabLabel}` });
+  };
 
   return (
     <div className="sc-wrap">
 
-      {/* Cabeçalho de impressão — oculto na tela, visível no @media print */}
-      <div className="sc-print-header">
-        <div className="sc-print-header-title">
-          <Heart size={15} />
-          Saúde da Carteira — {activeTabLabel}
-        </div>
-        <div className="sc-print-header-meta">
-          {periodoLabel} · {dataInicio} a {dataFim} · Impresso em {new Date().toLocaleDateString('pt-BR')}
-        </div>
-      </div>
-
-      {/* Cabeçalho normal */}
+      {/* Cabeçalho */}
       <div className="sc-header">
         <div className="sc-header-title">
           <Heart size={17} />
@@ -783,13 +919,13 @@ export default function SaudeCarteira({ empresas }) {
         </div>
         <div className="sc-header-actions">
           <button
-            className="pp-btn-ghost pp-btn-ghost--sm sc-no-print"
-            onClick={() => window.print()}
-            title="Imprimir aba atual"
+            className="pp-btn-ghost pp-btn-ghost--sm"
+            onClick={handlePrint}
+            title="Visualizar prévia e imprimir aba atual"
           >
             <Printer size={13} /> Imprimir
           </button>
-          <div className="sc-period-wrap sc-no-print">
+          <div className="sc-period-wrap">
             <Calendar size={13} />
             <select
               className="sc-period-select"
@@ -813,7 +949,7 @@ export default function SaudeCarteira({ empresas }) {
             <button
               key={t.key}
               className={`sc-tab-btn ${activeTab === t.key ? 'sc-tab-btn--active' : ''} ${!conf ? 'sc-tab-btn--unconf' : ''}`}
-              onClick={() => setActiveTab(t.key)}
+              onClick={() => { setActiveTab(t.key); tabDataRef.current = { rows: [], columns: [] }; }}
               title={!conf ? 'Configure o slot no Gerenciador de Consultas' : t.label}
             >
               <t.Icon size={13} />
@@ -839,6 +975,15 @@ export default function SaudeCarteira({ empresas }) {
         <ClienteModal
           cliente={selectedCliente}
           onClose={() => setSelectedCliente(null)}
+        />
+      )}
+
+      {/* Preview de impressão */}
+      {printHtml && (
+        <PrintPreview
+          html={printHtml.html}
+          titulo={printHtml.titulo}
+          onClose={() => setPrintHtml(null)}
         />
       )}
     </div>
