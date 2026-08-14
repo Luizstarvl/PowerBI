@@ -92,13 +92,13 @@ function gerarHtmlSaude({ tabLabel, rows, columns, periodoLabel, dataInicio, dat
 }
 body { font-family:'Segoe UI',Arial,sans-serif; font-size:11px; color:#1a1a1a; }
 .wrap { background:#fff; }
-.rh { display:flex; align-items:flex-end; justify-content:space-between; padding-bottom:12px; margin-bottom:20px; border-bottom:3px solid #EC4899; }
-.rh-brand { font-size:10px; font-weight:700; color:#EC4899; letter-spacing:.12em; text-transform:uppercase; }
+.rh { display:flex; align-items:flex-end; justify-content:space-between; padding-bottom:12px; margin-bottom:20px; border-bottom:3px solid #f97316; }
+.rh-brand { font-size:10px; font-weight:700; color:#f97316; letter-spacing:.12em; text-transform:uppercase; }
 .rh-title { font-size:17px; font-weight:700; color:#111; line-height:1.2; margin-top:4px; }
 .rh-meta  { text-align:right; font-size:9.5px; color:#888; line-height:1.9; }
 .rh-meta strong { color:#444; }
 table { width:100%; border-collapse:collapse; margin-top:4px; }
-thead tr { border-bottom:2px solid #EC4899; }
+thead tr { border-bottom:2px solid #f97316; }
 th { padding:5px 7px; font-size:8.5px; text-transform:uppercase; letter-spacing:.05em; color:#888; font-weight:700; text-align:left; white-space:nowrap; }
 td { padding:7px 7px; border-bottom:1px solid #f0f0f0; vertical-align:middle; font-size:10.5px; white-space:nowrap; }
 tr:last-child td { border-bottom:none; }
