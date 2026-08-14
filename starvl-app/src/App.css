@@ -6850,6 +6850,138 @@ select.themed-select option {
   .fin2-mini-kpi-row { flex-direction: column; }
 }
 
+/* ── Financeiro: drill-down / modal de detalhe ── */
+.fin2-section-hint {
+  font-size: 10px;
+  color: var(--color-text-muted);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 20px;
+  padding: 2px 8px;
+  margin-left: 6px;
+  font-weight: 400;
+  flex-shrink: 0;
+}
+
+.fin2-th-action { width: 24px; }
+.fin2-td-action { width: 24px; text-align: right; padding-right: 10px !important; }
+.fin2-row-chevron { font-size: 16px; color: var(--color-text-muted); opacity: 0.5; line-height: 1; }
+
+.fin2-row-clickable { cursor: pointer; transition: background 0.1s; }
+.fin2-row-clickable:hover { background: rgba(249,115,22,0.06) !important; }
+.fin2-row-clickable:hover .fin2-row-chevron { opacity: 1; color: #f97316; }
+
+.fin2-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.55);
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  backdrop-filter: blur(2px);
+}
+
+.fin2-modal {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  width: 100%;
+  max-width: 760px;
+  max-height: 84vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 24px 72px rgba(0,0,0,0.4);
+}
+
+.fin2-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
+  gap: 10px;
+}
+
+.fin2-modal-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--color-text);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.fin2-modal-title span:not(.fin2-modal-badge) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fin2-modal-badge {
+  background: rgba(249,115,22,0.15);
+  color: #f97316;
+  border-radius: 10px;
+  padding: 1px 7px;
+  font-size: 10px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.fin2-modal-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--color-text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px;
+  border-radius: 8px;
+  flex-shrink: 0;
+  transition: background 0.12s, color 0.12s;
+}
+.fin2-modal-close:hover { background: var(--color-hover); color: var(--color-text); }
+
+.fin2-modal-body {
+  padding: 32px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+}
+
+.fin2-modal-kpis {
+  padding: 12px 16px 0;
+  flex-shrink: 0;
+}
+
+.fin2-modal-refresh {
+  margin-left: auto;
+}
+
+.fin2-modal-table-wrap {
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: 16px;
+}
+
+.fin2-modal-table {
+  font-size: 12px;
+}
+
+@media (max-width: 560px) {
+  .fin2-modal-overlay { padding: 0; align-items: flex-end; }
+  .fin2-modal { max-width: 100%; max-height: 92vh; border-radius: 16px 16px 0 0; }
+}
+
 /* ══════════════════════════════════════════════════════════════════════════════
    Saúde da Carteira — prefixo sc-
 ══════════════════════════════════════════════════════════════════════════════ */

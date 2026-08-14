@@ -4,16 +4,20 @@
  * gráficos de barras (Recharts) e formatação automática de valores.
  *
  * Slots (Gerenciador de Consultas):
- *   financeiro_resumo  → 1 linha: receita/faturamento, custo/recebido, lucro, margem, ticket_medio, transacoes
- *   financeiro_vendas  → linhas: data, vendas, clientes, total
- *   financeiro_custos  → linhas: cliente, titulos, total_aberto, a_vencer, em_atraso, maior_atraso
- *   financeiro_fluxo   → linhas: data, recebimentos, total_recebido
+ *   financeiro_resumo          → 1 linha: receita/faturamento, custo/recebido, lucro, margem, ticket_medio, transacoes
+ *   financeiro_vendas          → linhas: data, vendas, clientes, total
+ *   financeiro_custos          → linhas: cliente_codigo*, cliente, titulos, total_aberto, a_vencer, em_atraso, maior_atraso
+ *                                 (* cliente_codigo é obrigatório para habilitar o drill-down; oculto na tabela)
+ *   financeiro_custos_detalhe  → parâmetros: empresa, cliente_codigo
+ *                                 linhas: vencimento, valor, em_atraso, a_vencer, dias_atraso (+ colunas extras à escolha)
+ *   financeiro_fluxo           → linhas: data, recebimentos, total_recebido
  */
 import React, { useState, useEffect, useCallback } from 'react';
+import ReactDOM from 'react-dom';
 import {
   Landmark, RefreshCw, TrendingUp, TrendingDown,
   DollarSign, BarChart3, ArrowUpRight,
-  CalendarDays, ChevronDown, Settings, Wallet, Activity,
+  CalendarDays, ChevronDown, Settings, Wallet, Activity, X,
 } from 'lucide-react';
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis,
@@ -207,6 +211,30 @@ function useFinData(slot, empresa, period) {
   return { dados, loading, erro, refresh: fetch };
 }
 
+// Hook para detalhe de um cliente específico (sem filtro de período)
+function useFinDetalhe(slot, empresa, clienteCodigo) {
+  const [dados,   setDados]   = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [erro,    setErro]    = useState('');
+
+  const fetch = useCallback(() => {
+    if (!slot || !empresa || !clienteCodigo) return;
+    setLoading(true);
+    setErro('');
+    apiFetch(`/api/queries/execute/${slot.codigo}?empresa=${empresa}&cliente_codigo=${encodeURIComponent(clienteCodigo)}`)
+      .then(r => r.json())
+      .then(d => {
+        if (!d.ok) throw new Error(d.error || 'Erro ao carregar detalhe');
+        setDados({ rows: d.rows || [], columns: d.columns || [] });
+      })
+      .catch(e => setErro(e.message))
+      .finally(() => setLoading(false));
+  }, [slot?.codigo, empresa, clienteCodigo]);
+
+  useEffect(() => { fetch(); }, [fetch]);
+  return { dados, loading, erro, refresh: fetch };
+}
+
 // ── Painel Resumo ──────────────────────────────────────────────────────────────
 function PainelResumo({ slot, empresa, period }) {
   const { dados, loading, erro, refresh } = useFinData(slot, empresa, period);
@@ -370,15 +398,148 @@ function PainelVendas({ slot, empresa, period }) {
   );
 }
 
+// Colunas internas que não devem aparecer na tabela mas alimentam o drill-down
+const HIDDEN_COLS = new Set(['cliente_codigo', 'codcliente', 'codigo_cliente', 'partcodigo']);
+
+// ── Modal de Detalhe do Cliente ────────────────────────────────────────────────
+function DetalheClienteModal({ cliente, slotDetalhe, empresa, onClose }) {
+  const { dados, loading, erro, refresh } = useFinDetalhe(slotDetalhe, empresa, cliente.codigo);
+  const rows = dados?.rows  || [];
+  const cols = dados?.columns || [];
+  const visCols = cols.filter(c => !HIDDEN_COLS.has(c));
+
+  const totalAberto = rows.reduce((s, r) => s + (parseFloat(r.total_aberto ?? r.valor) || 0), 0);
+  const totalAtraso = rows.reduce((s, r) => s + (parseFloat(r.em_atraso) || 0), 0);
+  const totalVencer = rows.reduce((s, r) => s + (parseFloat(r.a_vencer)  || 0), 0);
+
+  // Fecha ao pressionar Esc
+  useEffect(() => {
+    const handleKey = e => e.key === 'Escape' && onClose();
+    document.addEventListener('keydown', handleKey);
+    return () => document.removeEventListener('keydown', handleKey);
+  }, [onClose]);
+
+  return ReactDOM.createPortal(
+    <div className="fin2-modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="fin2-modal" role="dialog" aria-modal="true">
+
+        {/* Cabeçalho */}
+        <div className="fin2-modal-header">
+          <div className="fin2-modal-title">
+            <Wallet size={15} />
+            <span>{cliente.nome}</span>
+            {rows.length > 0 && (
+              <span className="fin2-modal-badge">{rows.length} título{rows.length > 1 ? 's' : ''}</span>
+            )}
+          </div>
+          <button className="fin2-modal-close" onClick={onClose} title="Fechar (Esc)">
+            <X size={15} />
+          </button>
+        </div>
+
+        {/* Conteúdo */}
+        {!slotDetalhe ? (
+          <div className="fin-sem-consulta fin2-modal-body">
+            <Settings size={22} className="fin-sem-icon" />
+            <p className="fin-sem-title">Slot não configurado</p>
+            <p className="fin-sem-sub">Configure <strong>financeiro_custos_detalhe</strong> em Parâmetros → Gerenciador de Consultas.</p>
+          </div>
+        ) : loading && !dados ? (
+          <div className="fin-loading fin2-modal-body">
+            <RefreshCw size={15} className="pp-spin" />
+            <span>Carregando títulos…</span>
+          </div>
+        ) : (
+          <>
+            {/* Mini KPIs */}
+            {rows.length > 0 && (
+              <div className="fin2-mini-kpi-row fin2-modal-kpis">
+                <div className="fin2-mini-kpi">
+                  <span className="fin2-mini-kpi-label">Total em Aberto</span>
+                  <span className="fin2-mini-kpi-value" style={{ color: '#3b82f6' }}>
+                    {fmtCur.format(totalAberto)}
+                  </span>
+                </div>
+                {totalAtraso > 0 && (
+                  <div className="fin2-mini-kpi fin2-mini-kpi--danger">
+                    <span className="fin2-mini-kpi-label">Em Atraso</span>
+                    <span className="fin2-mini-kpi-value" style={{ color: '#dc2626' }}>
+                      {fmtCur.format(totalAtraso)}
+                    </span>
+                  </div>
+                )}
+                {totalVencer > 0 && (
+                  <div className="fin2-mini-kpi fin2-mini-kpi--ok">
+                    <span className="fin2-mini-kpi-label">A Vencer</span>
+                    <span className="fin2-mini-kpi-value" style={{ color: '#16a34a' }}>
+                      {fmtCur.format(totalVencer)}
+                    </span>
+                  </div>
+                )}
+                <button className="pp-btn-ghost pp-btn-ghost--sm fin2-modal-refresh"
+                  onClick={refresh} disabled={loading} title="Atualizar">
+                  <RefreshCw size={11} className={loading ? 'pp-spin' : ''} />
+                </button>
+              </div>
+            )}
+
+            {/* Tabela de títulos */}
+            <div className="fin-table-wrap fin2-modal-table-wrap">
+              {rows.length === 0 ? (
+                <p className="fin-vazio">{erro || 'Nenhum título em aberto para este cliente.'}</p>
+              ) : (
+                <table className="fin-table fin2-table fin2-modal-table">
+                  <thead>
+                    <tr>
+                      {visCols.map(c => <th key={c}>{c.replace(/_/g, ' ')}</th>)}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map((row, i) => (
+                      <tr key={i}>
+                        {visCols.map(c => (
+                          <td key={c} style={cellStyle(c, row[c])}
+                            className={isCurrencyCol(c) ? 'fin2-td-num' : ''}>
+                            {fmtCell(c, row[c])}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+              {erro && <p className="fin-erro-inline" style={{ margin: '8px 16px' }}>{erro}</p>}
+            </div>
+          </>
+        )}
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 // ── Painel Custos / Contas a Receber ──────────────────────────────────────────
-function PainelCustos({ slot, empresa, period }) {
+function PainelCustos({ slot, slotDetalhe, empresa, period }) {
   const { dados, loading, erro, refresh } = useFinData(slot, empresa, period);
+  const [clienteSel, setClienteSel] = useState(null);
+
+  const handleRowClick = useCallback((row) => {
+    const codigo = row.cliente_codigo ?? row.codcliente ?? row.codigo_cliente ?? row.partcodigo;
+    if (codigo == null) return; // sem código → não abre modal
+    const nome = row.cliente || row.partrazao || row.nome || `Cliente ${codigo}`;
+    setClienteSel({ codigo: String(codigo), nome });
+  }, []);
 
   if (!slot) return <SemConsulta slot="financeiro_custos" />;
   if (loading && !dados) return <FinLoading />;
 
-  const rows = dados?.rows || [];
-  const cols = dados?.columns || [];
+  const rows    = dados?.rows    || [];
+  const cols    = dados?.columns || [];
+  const visCols = cols.filter(c => !HIDDEN_COLS.has(c));
+
+  // Detecta se o drill-down está disponível (query tem cliente_codigo)
+  const temDrillDown = rows.length > 0 &&
+    HIDDEN_COLS.has(cols.find(c => HIDDEN_COLS.has(c)) ?? '');
 
   const totalAberto = rows.reduce((s,r) => s + (parseFloat(r.total_aberto) || 0), 0);
   const totalAtraso = rows.reduce((s,r) => s + (parseFloat(r.em_atraso)   || 0), 0);
@@ -388,6 +549,9 @@ function PainelCustos({ slot, empresa, period }) {
     <div className="fin2-tab-body">
       <div className="fin2-section-header">
         <Wallet size={14} /> Contas a Receber
+        {temDrillDown && (
+          <span className="fin2-section-hint">clique em um cliente para ver os títulos</span>
+        )}
         {erro && <span className="fin-erro-inline">{erro}</span>}
         <div className="fin2-section-actions">
           <button className="pp-btn-ghost pp-btn-ghost--sm" onClick={refresh} disabled={loading}>
@@ -423,25 +587,49 @@ function PainelCustos({ slot, empresa, period }) {
           <div className="fin-table-wrap">
             <table className="fin-table fin2-table">
               <thead>
-                <tr>{cols.map(c => <th key={c}>{c.replace(/_/g,' ')}</th>)}</tr>
+                <tr>
+                  {visCols.map(c => <th key={c}>{c.replace(/_/g,' ')}</th>)}
+                  {temDrillDown && <th className="fin2-th-action" />}
+                </tr>
               </thead>
               <tbody>
-                {rows.map((row, i) => (
-                  <tr key={i}>
-                    {cols.map(c => (
-                      <td key={c} style={cellStyle(c, row[c])}
-                        className={isCurrencyCol(c) ? 'fin2-td-num' : ''}>
-                        {fmtCell(c, row[c])}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
+                {rows.map((row, i) => {
+                  const codRow = row.cliente_codigo ?? row.codcliente ?? row.codigo_cliente ?? row.partcodigo;
+                  const clicavel = codRow != null;
+                  return (
+                    <tr key={i}
+                      className={clicavel ? 'fin2-row-clickable' : ''}
+                      onClick={clicavel ? () => handleRowClick(row) : undefined}>
+                      {visCols.map(c => (
+                        <td key={c} style={cellStyle(c, row[c])}
+                          className={isCurrencyCol(c) ? 'fin2-td-num' : ''}>
+                          {fmtCell(c, row[c])}
+                        </td>
+                      ))}
+                      {temDrillDown && (
+                        <td className="fin2-td-action">
+                          {clicavel && <span className="fin2-row-chevron">›</span>}
+                        </td>
+                      )}
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
         </>
       ) : (
         !erro && !loading && <p className="fin-vazio">Nenhum título em aberto no período.</p>
+      )}
+
+      {/* Modal de detalhe */}
+      {clienteSel && (
+        <DetalheClienteModal
+          cliente={clienteSel}
+          slotDetalhe={slotDetalhe}
+          empresa={empresa}
+          onClose={() => setClienteSel(null)}
+        />
       )}
     </div>
   );
@@ -548,7 +736,8 @@ export default function Financeiro({ empresas }) {
   });
   const [activeTab, setActiveTab] = useState('resumo');
   const [slots, setSlots] = useState({
-    resumo: undefined, vendas: undefined, custos: undefined, fluxo: undefined,
+    resumo: undefined, vendas: undefined, custos: undefined,
+    custos_detalhe: undefined, fluxo: undefined,
   });
 
   useEffect(() => {
@@ -562,8 +751,11 @@ export default function Financeiro({ empresas }) {
       fetchSlot('financeiro_resumo'),
       fetchSlot('financeiro_vendas'),
       fetchSlot('financeiro_custos'),
+      fetchSlot('financeiro_custos_detalhe'),
       fetchSlot('financeiro_fluxo'),
-    ]).then(([resumo, vendas, custos, fluxo]) => setSlots({ resumo, vendas, custos, fluxo }));
+    ]).then(([resumo, vendas, custos, custos_detalhe, fluxo]) =>
+      setSlots({ resumo, vendas, custos, custos_detalhe, fluxo })
+    );
   }, [empresa]);
 
   const loadingSlots = Object.values(slots).some(s => s === undefined);
@@ -605,7 +797,7 @@ export default function Financeiro({ empresas }) {
           <div className="fin2-content">
             {activeTab === 'resumo' && <PainelResumo slot={slots.resumo} empresa={empresa} period={period} />}
             {activeTab === 'vendas' && <PainelVendas slot={slots.vendas} empresa={empresa} period={period} />}
-            {activeTab === 'custos' && <PainelCustos slot={slots.custos} empresa={empresa} period={period} />}
+            {activeTab === 'custos' && <PainelCustos slot={slots.custos} slotDetalhe={slots.custos_detalhe} empresa={empresa} period={period} />}
             {activeTab === 'fluxo'  && <PainelFluxo  slot={slots.fluxo}  empresa={empresa} period={period} />}
           </div>
         </>
