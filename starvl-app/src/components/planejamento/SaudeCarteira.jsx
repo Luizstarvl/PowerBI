@@ -20,7 +20,7 @@ import {
   RefreshCw, Settings, ChevronDown, X,
   TrendingUp, TrendingDown, DollarSign,
   BarChart3, Activity, Target, Calendar,
-  AlertCircle,
+  AlertCircle, Printer,
 } from 'lucide-react';
 import { apiFetch } from '../../api';
 
@@ -758,27 +758,50 @@ export default function SaudeCarteira({ empresas }) {
     onClienteClick: setSelectedCliente,
   });
 
+  const activeTabLabel = TABS.find(t => t.key === activeTab)?.label || '';
+  const periodoLabel   = DIAS_OPTIONS.find(o => o.value === dias)?.label || `${dias} dias`;
+
   return (
     <div className="sc-wrap">
 
-      {/* Cabeçalho */}
+      {/* Cabeçalho de impressão — oculto na tela, visível no @media print */}
+      <div className="sc-print-header">
+        <div className="sc-print-header-title">
+          <Heart size={15} />
+          Saúde da Carteira — {activeTabLabel}
+        </div>
+        <div className="sc-print-header-meta">
+          {periodoLabel} · {dataInicio} a {dataFim} · Impresso em {new Date().toLocaleDateString('pt-BR')}
+        </div>
+      </div>
+
+      {/* Cabeçalho normal */}
       <div className="sc-header">
         <div className="sc-header-title">
           <Heart size={17} />
           <h2>Saúde da Carteira</h2>
         </div>
-        <div className="sc-period-wrap">
-          <Calendar size={13} />
-          <select
-            className="sc-period-select"
-            value={dias}
-            onChange={e => setDias(Number(e.target.value))}
+        <div className="sc-header-actions">
+          <button
+            className="pp-btn-ghost pp-btn-ghost--sm sc-no-print"
+            onClick={() => window.print()}
+            title="Imprimir aba atual"
           >
-            {DIAS_OPTIONS.map(o => (
-              <option key={o.value} value={o.value}>{o.label}</option>
-            ))}
-          </select>
-          <ChevronDown size={12} className="sc-period-arrow" />
+            <Printer size={13} /> Imprimir
+          </button>
+          <div className="sc-period-wrap sc-no-print">
+            <Calendar size={13} />
+            <select
+              className="sc-period-select"
+              value={dias}
+              onChange={e => setDias(Number(e.target.value))}
+            >
+              {DIAS_OPTIONS.map(o => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+            <ChevronDown size={12} className="sc-period-arrow" />
+          </div>
         </div>
       </div>
 
