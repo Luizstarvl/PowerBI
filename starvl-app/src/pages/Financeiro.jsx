@@ -78,7 +78,7 @@ const FIN_MODULES = [
     label: 'Resultado e Rentabilidade',
     desc:  'Análise do desempenho, margens e rentabilidade',
     Icon:  TrendingUp,
-    color: '#f97316',
+    color: '#f59e0b',
   },
   {
     key:   'alertas',
@@ -787,12 +787,13 @@ function PainelFluxo({ slot, empresa, period }) {
 function FinHub({ onSelect }) {
   return (
     <div className="fhub-wrap">
-      <div className="fhub-intro">
-        <Landmark size={22} className="fhub-intro-icon" />
-        <div>
-          <div className="fhub-intro-title">Financeiro</div>
-          <div className="fhub-intro-sub">Selecione um módulo para visualizar</div>
-        </div>
+      <div className="fhub-header">
+        <div className="fhub-header-eyebrow">Gestão Financeira</div>
+        <h1 className="fhub-header-title">
+          <Landmark size={18} className="fhub-header-icon" />
+          Financeiro
+        </h1>
+        <p className="fhub-header-sub">Selecione um módulo para acessar os dados</p>
       </div>
       <div className="fhub-grid">
         {FIN_MODULES.map(m => (
@@ -803,13 +804,10 @@ function FinHub({ onSelect }) {
             onClick={() => onSelect(m.key)}
           >
             <div className="fhub-card-icon">
-              <m.Icon size={26} />
+              <m.Icon size={22} />
             </div>
-            <div className="fhub-card-body">
-              <div className="fhub-card-title">{m.label}</div>
-              <div className="fhub-card-desc">{m.desc}</div>
-            </div>
-            <ChevronRight size={15} className="fhub-card-arrow" />
+            <div className="fhub-card-title">{m.label}</div>
+            <div className="fhub-card-desc">{m.desc}</div>
           </button>
         ))}
       </div>
