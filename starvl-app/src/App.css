@@ -6869,13 +6869,20 @@ select.themed-select option {
 }
 
 /* ── Tabela ── */
-.sc-table-wrap { overflow-x: auto; border-radius: 8px; border: 1px solid var(--color-border); }
+.sc-table-wrap {
+  overflow: auto;
+  max-height: calc(100vh - 360px);
+  min-height: 120px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+}
 .sc-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.sc-table thead { position: sticky; top: 0; z-index: 2; }
 .sc-table th {
   text-align: left; font-size: 10px; font-weight: 700;
   text-transform: uppercase; letter-spacing: .06em; color: var(--color-text-muted);
-  padding: 9px 12px; border-bottom: 1px solid var(--color-border);
-  white-space: nowrap; background: var(--color-surface); position: sticky; top: 0;
+  padding: 9px 12px; border-bottom: 2px solid var(--color-border);
+  white-space: nowrap; background: var(--color-surface);
 }
 .sc-table td {
   padding: 9px 12px; color: var(--color-text);
