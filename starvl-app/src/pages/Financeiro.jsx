@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis,
-  Tooltip, CartesianGrid,
+  Tooltip, CartesianGrid, LabelList,
 } from 'recharts';
 import { apiFetch } from '../api';
 
@@ -35,10 +35,11 @@ const fmtNum = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 });
 const fmtPct = v => `${fmtNum.format(Number(v) || 0)}%`;
 const fmtDate = str => {
   if (!str) return '—';
-  const d = new Date(str + 'T00:00:00');
-  return isNaN(d.getTime())
-    ? str
-    : `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`;
+  // substring(0,10) garante que funciona tanto com "YYYY-MM-DD" quanto com "YYYY-MM-DDTHH:mm:ss.sssZ"
+  const s = String(str).substring(0, 10);
+  const parts = s.split('-');
+  if (parts.length !== 3) return str;
+  return `${parts[2]}/${parts[1]}`; // DD/MM
 };
 
 // Detectores de tipo por nome de coluna
@@ -310,20 +311,33 @@ function PainelVendas({ slot, empresa, period }) {
       {rows.length > 0 ? (
         <>
           <div className="fin2-chart-wrap">
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}
-                barSize={Math.max(4, Math.min(20, Math.floor(600 / chartData.length)))}>
+            <ResponsiveContainer width="100%" height={260}>
+              <BarChart data={chartData}
+                margin={{ top: 24, right: 8, left: 0, bottom: 4 }}
+                barSize={Math.max(6, Math.min(28, Math.floor(560 / (chartData.length || 1))))}>
+                <defs>
+                  <linearGradient id="gradVendas" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%"   stopColor="#f97316" stopOpacity={1} />
+                    <stop offset="100%" stopColor="#fb923c" stopOpacity={0.7} />
+                  </linearGradient>
+                </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
                 <XAxis dataKey="data"
                   tick={{ fontSize: 10, fill: 'var(--color-text-muted)' }}
                   axisLine={false} tickLine={false}
-                  interval={chartData.length > 15 ? 'preserveStartEnd' : 0} />
+                  interval={chartData.length > 20 ? Math.ceil(chartData.length / 10) - 1 : 0} />
                 <YAxis
                   tickFormatter={v => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v}
                   tick={{ fontSize: 10, fill: 'var(--color-text-muted)' }}
                   axisLine={false} tickLine={false} width={46} />
-                <Tooltip content={<ChartTooltip />} cursor={{ fill: 'rgba(249,115,22,0.07)' }} />
-                <Bar dataKey="Total" name="Total" fill="#f97316" radius={[4,4,0,0]} />
+                <Tooltip content={<ChartTooltip />} cursor={{ fill: 'rgba(249,115,22,0.08)' }} />
+                <Bar dataKey="Total" name="Total" fill="url(#gradVendas)" radius={[5,5,0,0]}>
+                  <LabelList dataKey="Total" position="top"
+                    formatter={v => chartData.length <= 20
+                      ? (v >= 1000 ? `${(v/1000).toFixed(0)}k` : String(v))
+                      : ''}
+                    style={{ fontSize: chartData.length <= 20 ? 9 : 0, fill: 'var(--color-text-muted)', fontWeight: 600 }} />
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -465,20 +479,33 @@ function PainelFluxo({ slot, empresa, period }) {
       {rows.length > 0 ? (
         <>
           <div className="fin2-chart-wrap">
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}
-                barSize={Math.max(4, Math.min(20, Math.floor(600 / chartData.length)))}>
+            <ResponsiveContainer width="100%" height={260}>
+              <BarChart data={chartData}
+                margin={{ top: 24, right: 8, left: 0, bottom: 4 }}
+                barSize={Math.max(6, Math.min(28, Math.floor(560 / (chartData.length || 1))))}>
+                <defs>
+                  <linearGradient id="gradFluxo" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%"   stopColor="#22c55e" stopOpacity={1} />
+                    <stop offset="100%" stopColor="#4ade80" stopOpacity={0.7} />
+                  </linearGradient>
+                </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
                 <XAxis dataKey="data"
                   tick={{ fontSize: 10, fill: 'var(--color-text-muted)' }}
                   axisLine={false} tickLine={false}
-                  interval={chartData.length > 15 ? 'preserveStartEnd' : 0} />
+                  interval={chartData.length > 20 ? Math.ceil(chartData.length / 10) - 1 : 0} />
                 <YAxis
                   tickFormatter={v => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v}
                   tick={{ fontSize: 10, fill: 'var(--color-text-muted)' }}
                   axisLine={false} tickLine={false} width={46} />
-                <Tooltip content={<ChartTooltip />} cursor={{ fill: 'rgba(34,197,94,0.07)' }} />
-                <Bar dataKey="Recebido" name="Recebido" fill="#22c55e" radius={[4,4,0,0]} />
+                <Tooltip content={<ChartTooltip />} cursor={{ fill: 'rgba(34,197,94,0.08)' }} />
+                <Bar dataKey="Recebido" name="Recebido" fill="url(#gradFluxo)" radius={[5,5,0,0]}>
+                  <LabelList dataKey="Recebido" position="top"
+                    formatter={v => chartData.length <= 20
+                      ? (v >= 1000 ? `${(v/1000).toFixed(0)}k` : String(v))
+                      : ''}
+                    style={{ fontSize: chartData.length <= 20 ? 9 : 0, fill: 'var(--color-text-muted)', fontWeight: 600 }} />
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
