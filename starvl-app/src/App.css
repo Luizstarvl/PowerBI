@@ -6683,6 +6683,174 @@ select.themed-select option {
 }
 
 /* ══════════════════════════════════════════════════════════════════════════════
+   Financeiro v2 — prefixo fin2-
+   Layout em abas, KPIs visuais, gráficos de barras, tabelas formatadas
+══════════════════════════════════════════════════════════════════════════════ */
+
+/* Wrapper */
+.fin2-wrap { display: flex; flex-direction: column; }
+
+/* ── Cabeçalho ── */
+.fin2-header {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 18px 24px 0; flex-wrap: wrap;
+}
+.fin2-header-title { display: flex; align-items: center; gap: 10px; }
+.fin2-header-title svg { color: #f97316; }
+.fin2-header-title h1 {
+  font-size: 18px; font-weight: 800; color: var(--color-text);
+  letter-spacing: -.02em; margin: 0;
+}
+
+/* ── Barra de abas ── */
+.fin2-tabs-bar {
+  display: flex; align-items: center; gap: 2px;
+  padding: 16px 24px 0;
+  border-bottom: 1px solid var(--color-border);
+  overflow-x: auto; scrollbar-width: none;
+}
+.fin2-tabs-bar::-webkit-scrollbar { display: none; }
+
+.fin2-tab-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 14px; font-size: 12.5px; font-weight: 600;
+  color: var(--color-text-muted); background: transparent;
+  border: none; border-bottom: 2px solid transparent;
+  cursor: pointer; white-space: nowrap;
+  transition: color .15s, border-color .15s;
+  margin-bottom: -1px;
+}
+.fin2-tab-btn:hover { color: var(--color-text); }
+.fin2-tab-btn--active { color: #f97316; border-bottom-color: #f97316; }
+.fin2-tab-btn svg { flex-shrink: 0; }
+
+/* ── Área de conteúdo ── */
+.fin2-content { padding: 20px 24px; }
+.fin2-tab-body { display: flex; flex-direction: column; gap: 18px; }
+
+/* ── Cabeçalho de seção ── */
+.fin2-section-header {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px; font-weight: 700; color: var(--color-text);
+}
+.fin2-section-header svg { color: #f97316; }
+.fin2-section-actions {
+  margin-left: auto; display: flex; align-items: center; gap: 8px;
+}
+.fin2-section-total {
+  font-size: 14px; font-weight: 800; color: #f97316;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Grid de KPIs ── */
+.fin2-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(175px, 1fr));
+  gap: 12px;
+}
+.fin2-kpi {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-top: 3px solid var(--fin-accent, #f97316);
+  border-radius: 14px; padding: 16px;
+  display: flex; flex-direction: column; gap: 8px;
+  transition: box-shadow .15s, transform .15s;
+}
+.fin2-kpi:hover { box-shadow: 0 6px 20px rgba(0,0,0,.09); transform: translateY(-2px); }
+.fin2-kpi-top { display: flex; align-items: center; gap: 8px; }
+.fin2-kpi-icon {
+  width: 28px; height: 28px; border-radius: 7px; flex-shrink: 0;
+  background: color-mix(in srgb, var(--fin-accent, #f97316) 14%, transparent);
+  color: var(--fin-accent, #f97316);
+  display: flex; align-items: center; justify-content: center;
+}
+.fin2-kpi-label {
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .07em; color: var(--color-text-muted);
+}
+.fin2-kpi-value {
+  font-size: 22px; font-weight: 800; color: var(--color-text);
+  font-variant-numeric: tabular-nums; line-height: 1.1;
+}
+.fin2-kpi-sub {
+  font-size: 10.5px; color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.fin2-kpi-bar-track {
+  height: 4px; background: var(--color-border);
+  border-radius: 2px; overflow: hidden;
+}
+.fin2-kpi-bar-fill {
+  height: 4px; border-radius: 2px;
+  background: var(--fin-accent, #f97316);
+  transition: width .5s ease;
+}
+
+/* ── Mini KPIs (linha de resumo nos painéis de tabela) ── */
+.fin2-mini-kpi-row { display: flex; gap: 12px; flex-wrap: wrap; }
+.fin2-mini-kpi {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 10px; padding: 12px 16px;
+  display: flex; flex-direction: column; gap: 4px; min-width: 140px;
+}
+.fin2-mini-kpi--danger { border-color: rgba(220,38,38,.3); }
+.fin2-mini-kpi--ok     { border-color: rgba(22,163,74,.3);  }
+.fin2-mini-kpi-label {
+  font-size: 9.5px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .07em; color: var(--color-text-muted);
+}
+.fin2-mini-kpi-value {
+  font-size: 17px; font-weight: 800; font-variant-numeric: tabular-nums;
+}
+
+/* ── Gráfico ── */
+.fin2-chart-wrap {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 12px; padding: 16px 12px 8px;
+}
+
+/* ── Tooltip personalizado ── */
+.fin2-tooltip {
+  background: var(--color-surface); border: 1px solid var(--color-border);
+  border-radius: 8px; padding: 8px 12px;
+  box-shadow: 0 4px 16px rgba(0,0,0,.14); font-size: 12px;
+}
+.fin2-tooltip-label {
+  font-weight: 700; font-size: 10px; text-transform: uppercase;
+  letter-spacing: .05em; color: var(--color-text-muted); margin-bottom: 6px;
+}
+.fin2-tooltip-row {
+  display: flex; justify-content: space-between; gap: 16px; padding: 1px 0;
+}
+.fin2-tooltip-key { color: var(--color-text-muted); }
+.fin2-tooltip-val { font-weight: 700; color: var(--color-text); font-variant-numeric: tabular-nums; }
+
+/* ── Tabela aprimorada ── */
+.fin2-table td   { vertical-align: middle; }
+.fin2-td-num     { text-align: right !important; font-weight: 600; font-variant-numeric: tabular-nums; }
+.fin2-tfoot-row td {
+  border-top: 2px solid var(--color-border); border-bottom: none;
+  font-weight: 700; font-size: 12px; color: var(--color-text);
+  background: var(--color-surface);
+}
+.fin2-tfoot-row .fin2-td-num { color: #f97316; }
+
+/* ── Loading dentro de aba ── */
+.fin2-loading-tab { justify-content: center; padding: 60px 20px; }
+
+/* ── Responsividade ── */
+@media (max-width: 720px) {
+  .fin2-kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  .fin2-header, .fin2-tabs-bar, .fin2-content { padding-left: 14px; padding-right: 14px; }
+}
+@media (max-width: 400px) {
+  .fin2-kpi-grid { grid-template-columns: 1fr; }
+  .fin2-mini-kpi-row { flex-direction: column; }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
    Saúde da Carteira — prefixo sc-
 ══════════════════════════════════════════════════════════════════════════════ */
 

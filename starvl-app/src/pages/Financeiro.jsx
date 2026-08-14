@@ -1,53 +1,73 @@
 /**
- * Financeiro.jsx
- * Módulo Financeiro — visão consolidada de receita, custo, margem e fluxo de caixa.
- * Alimentado por consultas configuradas no Gerenciador de Consultas (categoria Financeiro).
+ * Financeiro.jsx — v2
+ * Layout por abas, KPIs visuais com barra de progresso,
+ * gráficos de barras (Recharts) e formatação automática de valores.
  *
- * Slots esperados (opcionais — cada um ativa o respectivo painel):
- *   financeiro_resumo      → KPIs consolidados do período (receita, custo, margem, ticket)
- *   financeiro_vendas      → Evolução de vendas por período
- *   financeiro_custos      → Detalhamento de custos operacionais
- *   financeiro_fluxo       → Fluxo de caixa entradas/saídas
+ * Slots (Gerenciador de Consultas):
+ *   financeiro_resumo  → 1 linha: receita/faturamento, custo/recebido, lucro, margem, ticket_medio, transacoes
+ *   financeiro_vendas  → linhas: data, vendas, clientes, total
+ *   financeiro_custos  → linhas: cliente, titulos, total_aberto, a_vencer, em_atraso, maior_atraso
+ *   financeiro_fluxo   → linhas: data, recebimentos, total_recebido
  */
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Landmark, RefreshCw, TrendingUp, TrendingDown,
-  DollarSign, BarChart3, ArrowUpRight, ArrowDownRight,
-  CalendarDays, ChevronDown, Settings,
+  DollarSign, BarChart3, ArrowUpRight,
+  CalendarDays, ChevronDown, Settings, Wallet, Activity,
 } from 'lucide-react';
+import {
+  ResponsiveContainer, BarChart, Bar, XAxis, YAxis,
+  Tooltip, CartesianGrid,
+} from 'recharts';
 import { apiFetch } from '../api';
 
+// ── Abas ───────────────────────────────────────────────────────────────────────
+const TABS = [
+  { key: 'resumo', label: 'Resumo',         Icon: BarChart3   },
+  { key: 'vendas', label: 'Vendas',          Icon: TrendingUp  },
+  { key: 'custos', label: 'Contas a Rec.',   Icon: Wallet      },
+  { key: 'fluxo',  label: 'Fluxo de Caixa', Icon: Activity    },
+];
+
 // ── Formatadores ───────────────────────────────────────────────────────────────
-const fmtCurrency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
-const fmtNum      = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 2 });
-const fmtPct      = v => `${fmtNum.format(Number(v) || 0)}%`;
+const fmtCur = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+const fmtNum = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 });
+const fmtPct = v => `${fmtNum.format(Number(v) || 0)}%`;
+const fmtDate = str => {
+  if (!str) return '—';
+  const d = new Date(str + 'T00:00:00');
+  return isNaN(d.getTime())
+    ? str
+    : `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`;
+};
+
+// Detectores de tipo por nome de coluna
+const isDateCol     = c => /^data$/i.test(c);
+const isDaysCol     = c => /maior_atraso/i.test(c);
+const isPctCol      = c => /^margem$|pct|percent/i.test(c);
+const isCurrencyCol = c => /total|valor|aberto|a_vencer|em_atraso|receita|custo|recebido|faturamento|lucro|ticket/i.test(c);
+
+function fmtCell(col, val) {
+  if (val == null || val === '') return '—';
+  if (isDateCol(col))     return fmtDate(String(val));
+  if (isDaysCol(col))     return Number(val) > 0 ? `${val} dias` : '—';
+  if (isPctCol(col))      return fmtPct(val);
+  if (isCurrencyCol(col)) return fmtCur.format(Number(val) || 0);
+  const n = Number(val);
+  if (!isNaN(n) && String(val).trim() !== '') return fmtNum.format(n);
+  return val;
+}
+
+function cellStyle(col, val) {
+  const n = Number(val);
+  if (col === 'em_atraso'    && n > 0)  return { color: '#dc2626', fontWeight: 700 };
+  if (col === 'a_vencer'     && n > 0)  return { color: '#16a34a', fontWeight: 600 };
+  if (col === 'maior_atraso' && n > 30) return { color: '#dc2626' };
+  if (col === 'maior_atraso' && n > 0)  return { color: '#f97316' };
+  return {};
+}
 
 // ── Componentes auxiliares ─────────────────────────────────────────────────────
-
-function KpiCard({ icon: Icon, label, value, sub, accent, trend, trendLabel }) {
-  const up = trend > 0;
-  const dn = trend < 0;
-  return (
-    <div className="fin-kpi" style={{ '--fin-accent': accent }}>
-      <div className="fin-kpi-icon"><Icon size={17} /></div>
-      <div className="fin-kpi-body">
-        <span className="fin-kpi-label">{label}</span>
-        <span className="fin-kpi-value">{value}</span>
-        {(sub || trendLabel) && (
-          <span className="fin-kpi-sub">
-            {trend !== undefined && (
-              <span className={`fin-kpi-trend ${up ? 'fin-kpi-trend--up' : dn ? 'fin-kpi-trend--dn' : ''}`}>
-                {up ? <ArrowUpRight size={11} /> : dn ? <ArrowDownRight size={11} /> : null}
-                {trendLabel}
-              </span>
-            )}
-            {sub}
-          </span>
-        )}
-      </div>
-    </div>
-  );
-}
 
 function SemConsulta({ slot }) {
   return (
@@ -62,8 +82,17 @@ function SemConsulta({ slot }) {
   );
 }
 
+function FinLoading() {
+  return (
+    <div className="fin-loading fin2-loading-tab">
+      <RefreshCw size={18} className="pp-spin" />
+      <span>Carregando…</span>
+    </div>
+  );
+}
+
 function PeriodPicker({ period, onChange }) {
-  const now     = new Date();
+  const now = new Date();
   const options = [];
   for (let i = 0; i < 12; i++) {
     const d  = new Date(now.getFullYear(), now.getMonth() - i, 1);
@@ -74,103 +103,94 @@ function PeriodPicker({ period, onChange }) {
   return (
     <div className="fin-period-wrap">
       <CalendarDays size={13} />
-      <select
-        className="fin-period-select"
-        value={period}
-        onChange={e => onChange(e.target.value)}
-      >
-        {options.map(o => (
-          <option key={o.value} value={o.value}>{o.label}</option>
-        ))}
+      <select className="fin-period-select" value={period} onChange={e => onChange(e.target.value)}>
+        {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
       </select>
       <ChevronDown size={12} className="fin-period-arrow" />
     </div>
   );
 }
 
-// ── Painel de Resumo Financeiro ────────────────────────────────────────────────
-function PainelResumo({ slot, empresa, period }) {
-  const [dados,   setDados]   = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [erro,    setErro]    = useState('');
-
-  const [y, m] = period.split('-');
-  const inicio = `${y}-${m}-01`;
-  const fim    = new Date(parseInt(y), parseInt(m), 0);
-  const fimStr = `${y}-${m}-${String(fim.getDate()).padStart(2, '0')}`;
-
-  const fetch = useCallback(() => {
-    if (!slot || !empresa) return;
-    setLoading(true);
-    setErro('');
-    apiFetch(`/api/queries/execute/${slot.codigo}?empresa=${empresa}&data_inicio=${inicio}&data_final=${fimStr}&periodo=${m}${y}`)
-      .then(r => r.json())
-      .then(d => {
-        if (!d.ok) throw new Error(d.error || 'Erro ao carregar resumo');
-        setDados(d.rows?.[0] || null);
-      })
-      .catch(e => setErro(e.message))
-      .finally(() => setLoading(false));
-  }, [slot, empresa, inicio, fimStr, m, y]);
-
-  useEffect(() => { fetch(); }, [fetch]);
-
-  if (!slot) return <SemConsulta slot="financeiro_resumo" />;
-  if (loading && !dados) return (
-    <div className="fin-loading"><RefreshCw size={16} className="pp-spin" /> Carregando…</div>
-  );
-
-  const r = dados || {};
-  const receita  = parseFloat(r.receita  || r.faturamento || r.total_vendas  || 0);
-  const custo    = parseFloat(r.custo    || r.total_custo || r.custos        || 0);
-  const margem   = receita > 0 ? ((receita - custo) / receita) * 100 : parseFloat(r.margem || 0);
-  const lucro    = parseFloat(r.lucro    || (receita - custo) || 0);
-  const ticket   = parseFloat(r.ticket   || r.ticket_medio  || 0);
-  const transacoes = parseFloat(r.transacoes || r.qtd_vendas || 0);
-
+// KPI card com barra de progresso colorida
+function KpiCard({ icon: Icon, label, value, sub, accent, progress }) {
   return (
-    <div className="fin-section">
-      <div className="fin-section-header">
-        <BarChart3 size={14} />
-        <span>Resumo do Período</span>
-        {erro && <span className="fin-erro-inline">{erro}</span>}
-        <button className="pp-btn-ghost pp-btn-ghost--sm" onClick={fetch} disabled={loading}>
-          <RefreshCw size={11} className={loading ? 'pp-spin' : ''} />
-        </button>
+    <div className="fin2-kpi" style={{ '--fin-accent': accent }}>
+      <div className="fin2-kpi-top">
+        <div className="fin2-kpi-icon"><Icon size={15} /></div>
+        <span className="fin2-kpi-label">{label}</span>
       </div>
-      {dados ? (
-        <div className="fin-kpi-grid">
-          <KpiCard icon={DollarSign}  label="Faturamento"   value={fmtCurrency.format(receita)} accent="#3b82f6" />
-          <KpiCard icon={TrendingDown} label="Custo Total"  value={fmtCurrency.format(custo)}   accent="#f97316" />
-          <KpiCard icon={TrendingUp}  label="Lucro Bruto"   value={fmtCurrency.format(lucro)}   accent="#22c55e"
-            trend={lucro >= 0 ? 1 : -1} trendLabel={fmtCurrency.format(lucro)} />
-          <KpiCard icon={BarChart3}   label="Margem"        value={fmtPct(margem)}              accent="#8b5cf6" />
-          {ticket > 0    && <KpiCard icon={DollarSign}   label="Ticket Médio"   value={fmtCurrency.format(ticket)}   accent="#06b6d4" />}
-          {transacoes > 0 && <KpiCard icon={BarChart3}   label="Transações"     value={fmtNum.format(transacoes)}     accent="#84cc16" />}
+      <div className="fin2-kpi-value">{value}</div>
+      {sub && <div className="fin2-kpi-sub">{sub}</div>}
+      {progress !== undefined && (
+        <div className="fin2-kpi-bar-track">
+          <div className="fin2-kpi-bar-fill"
+            style={{ width: `${Math.min(100, Math.max(0, progress || 0))}%` }} />
         </div>
-      ) : (
-        !erro && <p className="fin-vazio">Nenhum dado encontrado para o período selecionado.</p>
       )}
     </div>
   );
 }
 
-// ── Painel genérico (vendas / custos / fluxo) ─────────────────────────────────
-function PainelTabela({ slot, slotNome, icon: Icon, empresa, period }) {
+// Tooltip customizado para gráficos
+function ChartTooltip({ active, payload, label }) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="fin2-tooltip">
+      <div className="fin2-tooltip-label">{label}</div>
+      {payload.map(p => (
+        <div key={p.name} className="fin2-tooltip-row">
+          <span className="fin2-tooltip-key">{p.name}</span>
+          <span className="fin2-tooltip-val">
+            {isCurrencyCol(p.name)
+              ? fmtCur.format(p.value)
+              : fmtNum.format(p.value)}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// Linha de rodapé com totais
+function TfootTotals({ cols, rows }) {
+  return (
+    <tfoot>
+      <tr className="fin2-tfoot-row">
+        {cols.map((c, i) => {
+          let content = '';
+          if (i === 0) {
+            content = 'Total';
+          } else if (isCurrencyCol(c)) {
+            content = fmtCur.format(rows.reduce((s, r) => s + (parseFloat(r[c]) || 0), 0));
+          } else if (!isDateCol(c) && !isDaysCol(c)) {
+            const sum = rows.reduce((s, r) => s + (parseFloat(r[c]) || 0), 0);
+            if (!isNaN(sum)) content = fmtNum.format(sum);
+          }
+          return (
+            <td key={c} className={isCurrencyCol(c) ? 'fin2-td-num' : ''}>{content}</td>
+          );
+        })}
+      </tr>
+    </tfoot>
+  );
+}
+
+// ── Hook unificado de dados ────────────────────────────────────────────────────
+function useFinData(slot, empresa, period) {
   const [dados,   setDados]   = useState(null);
   const [loading, setLoading] = useState(false);
   const [erro,    setErro]    = useState('');
 
   const [y, m] = period.split('-');
   const inicio = `${y}-${m}-01`;
-  const fim    = new Date(parseInt(y), parseInt(m), 0);
-  const fimStr = `${y}-${m}-${String(fim.getDate()).padStart(2, '0')}`;
+  const fimDay = new Date(parseInt(y), parseInt(m), 0).getDate();
+  const fim    = `${y}-${m}-${String(fimDay).padStart(2,'0')}`;
 
-  const fetchDados = useCallback(() => {
+  const fetch = useCallback(() => {
     if (!slot || !empresa) return;
     setLoading(true);
     setErro('');
-    apiFetch(`/api/queries/execute/${slot.codigo}?empresa=${empresa}&data_inicio=${inicio}&data_final=${fimStr}&periodo=${m}${y}`)
+    apiFetch(`/api/queries/execute/${slot.codigo}?empresa=${empresa}&data_inicio=${inicio}&data_final=${fim}&periodo=${m}${y}`)
       .then(r => r.json())
       .then(d => {
         if (!d.ok) throw new Error(d.error || 'Erro ao carregar dados');
@@ -178,46 +198,314 @@ function PainelTabela({ slot, slotNome, icon: Icon, empresa, period }) {
       })
       .catch(e => setErro(e.message))
       .finally(() => setLoading(false));
-  }, [slot, empresa, inicio, fimStr, m, y]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slot?.codigo, empresa, inicio, fim, m, y]);
 
-  useEffect(() => { fetchDados(); }, [fetchDados]);
+  useEffect(() => { fetch(); }, [fetch]);
 
-  if (!slot) return <SemConsulta slot={slotNome} />;
-  if (loading && !dados) return (
-    <div className="fin-loading"><RefreshCw size={16} className="pp-spin" /> Carregando…</div>
-  );
+  return { dados, loading, erro, refresh: fetch };
+}
+
+// ── Painel Resumo ──────────────────────────────────────────────────────────────
+function PainelResumo({ slot, empresa, period }) {
+  const { dados, loading, erro, refresh } = useFinData(slot, empresa, period);
+
+  if (!slot) return <SemConsulta slot="financeiro_resumo" />;
+  if (loading && !dados) return <FinLoading />;
+
+  const r = dados?.rows?.[0] || {};
+  const receita    = parseFloat(r.receita    || r.faturamento   || 0);
+  const custo      = parseFloat(r.custo      || r.recebido      || 0);
+  const lucro      = receita - custo;
+  const margem     = parseFloat(r.margem     || (receita > 0 ? ((receita - custo) / receita) * 100 : 0));
+  const ticket     = parseFloat(r.ticket     || r.ticket_medio  || 0);
+  const transacoes = parseFloat(r.transacoes || r.qtd_vendas    || 0);
+
+  const pctRecebido = receita > 0 ? (custo   / receita) * 100 : 0;
+  const pctPendente = receita > 0 ? (Math.abs(lucro) / receita) * 100 : 0;
+
+  const temDados = Object.keys(r).length > 0;
 
   return (
-    <div className="fin-section">
-      <div className="fin-section-header">
-        <Icon size={14} />
-        <span>{slotNome.replace('financeiro_', '').replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase())}</span>
+    <div className="fin2-tab-body">
+      <div className="fin2-section-header">
+        <BarChart3 size={14} /> Resumo do Período
         {erro && <span className="fin-erro-inline">{erro}</span>}
-        <button className="pp-btn-ghost pp-btn-ghost--sm" onClick={fetchDados} disabled={loading}>
-          <RefreshCw size={11} className={loading ? 'pp-spin' : ''} />
-        </button>
+        <div className="fin2-section-actions">
+          <button className="pp-btn-ghost pp-btn-ghost--sm" onClick={refresh} disabled={loading}>
+            <RefreshCw size={11} className={loading ? 'pp-spin' : ''} />
+          </button>
+        </div>
       </div>
-      {dados && dados.rows.length > 0 ? (
-        <div className="fin-table-wrap">
-          <table className="fin-table">
-            <thead>
-              <tr>
-                {dados.columns.map(c => <th key={c}>{c}</th>)}
-              </tr>
-            </thead>
-            <tbody>
-              {dados.rows.map((row, i) => (
-                <tr key={i}>
-                  {dados.columns.map(c => (
-                    <td key={c}>{row[c] ?? '—'}</td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+
+      {temDados ? (
+        <div className="fin2-kpi-grid">
+          <KpiCard
+            icon={DollarSign}   label="Faturamento"
+            value={fmtCur.format(receita)}
+            accent="#3b82f6"    progress={100}
+          />
+          <KpiCard
+            icon={ArrowUpRight} label="Recebido"
+            value={fmtCur.format(custo)}
+            sub={`${fmtPct(pctRecebido)} do faturado`}
+            accent="#22c55e"    progress={pctRecebido}
+          />
+          <KpiCard
+            icon={TrendingDown} label="Pendente"
+            value={fmtCur.format(Math.abs(lucro))}
+            sub={`${fmtPct(pctPendente)} em aberto`}
+            accent={lucro > 0 ? '#f97316' : '#22c55e'}
+            progress={pctPendente}
+          />
+          <KpiCard
+            icon={BarChart3}    label="Margem Receb."
+            value={fmtPct(margem)}
+            accent="#8b5cf6"
+          />
+          {ticket     > 0 && (
+            <KpiCard icon={DollarSign} label="Ticket Médio"  value={fmtCur.format(ticket)}    accent="#06b6d4" />
+          )}
+          {transacoes > 0 && (
+            <KpiCard icon={Activity}   label="Transações"    value={fmtNum.format(transacoes)} accent="#84cc16" />
+          )}
         </div>
       ) : (
-        !erro && !loading && <p className="fin-vazio">Nenhum dado encontrado para o período selecionado.</p>
+        !erro && !loading && <p className="fin-vazio">Nenhum dado encontrado para o período.</p>
+      )}
+    </div>
+  );
+}
+
+// ── Painel Vendas ──────────────────────────────────────────────────────────────
+function PainelVendas({ slot, empresa, period }) {
+  const { dados, loading, erro, refresh } = useFinData(slot, empresa, period);
+
+  if (!slot) return <SemConsulta slot="financeiro_vendas" />;
+  if (loading && !dados) return <FinLoading />;
+
+  const rows = dados?.rows || [];
+  const cols = dados?.columns || [];
+  const total = rows.reduce((s, r) => s + (parseFloat(r.total) || 0), 0);
+
+  const chartData = rows.map(r => ({
+    data:   fmtDate(r.data),
+    Total:  parseFloat(r.total)  || 0,
+    Vendas: parseInt(r.vendas)   || 0,
+  }));
+
+  return (
+    <div className="fin2-tab-body">
+      <div className="fin2-section-header">
+        <TrendingUp size={14} /> Vendas por Dia
+        {erro && <span className="fin-erro-inline">{erro}</span>}
+        <div className="fin2-section-actions">
+          {total > 0 && <span className="fin2-section-total">{fmtCur.format(total)}</span>}
+          <button className="pp-btn-ghost pp-btn-ghost--sm" onClick={refresh} disabled={loading}>
+            <RefreshCw size={11} className={loading ? 'pp-spin' : ''} />
+          </button>
+        </div>
+      </div>
+
+      {rows.length > 0 ? (
+        <>
+          <div className="fin2-chart-wrap">
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}
+                barSize={Math.max(4, Math.min(20, Math.floor(600 / chartData.length)))}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+                <XAxis dataKey="data"
+                  tick={{ fontSize: 10, fill: 'var(--color-text-muted)' }}
+                  axisLine={false} tickLine={false}
+                  interval={chartData.length > 15 ? 'preserveStartEnd' : 0} />
+                <YAxis
+                  tickFormatter={v => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v}
+                  tick={{ fontSize: 10, fill: 'var(--color-text-muted)' }}
+                  axisLine={false} tickLine={false} width={46} />
+                <Tooltip content={<ChartTooltip />} cursor={{ fill: 'rgba(249,115,22,0.07)' }} />
+                <Bar dataKey="Total" name="Total" fill="#f97316" radius={[4,4,0,0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div className="fin-table-wrap">
+            <table className="fin-table fin2-table">
+              <thead>
+                <tr>{cols.map(c => <th key={c} className={isCurrencyCol(c)||isDateCol(c)?'':''}>{c.replace(/_/g,' ')}</th>)}</tr>
+              </thead>
+              <tbody>
+                {rows.map((row, i) => (
+                  <tr key={i}>
+                    {cols.map(c => (
+                      <td key={c} style={cellStyle(c, row[c])}
+                        className={isCurrencyCol(c) ? 'fin2-td-num' : ''}>
+                        {fmtCell(c, row[c])}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+              <TfootTotals cols={cols} rows={rows} />
+            </table>
+          </div>
+        </>
+      ) : (
+        !erro && !loading && <p className="fin-vazio">Nenhuma venda encontrada para o período.</p>
+      )}
+    </div>
+  );
+}
+
+// ── Painel Custos / Contas a Receber ──────────────────────────────────────────
+function PainelCustos({ slot, empresa, period }) {
+  const { dados, loading, erro, refresh } = useFinData(slot, empresa, period);
+
+  if (!slot) return <SemConsulta slot="financeiro_custos" />;
+  if (loading && !dados) return <FinLoading />;
+
+  const rows = dados?.rows || [];
+  const cols = dados?.columns || [];
+
+  const totalAberto = rows.reduce((s,r) => s + (parseFloat(r.total_aberto) || 0), 0);
+  const totalAtraso = rows.reduce((s,r) => s + (parseFloat(r.em_atraso)   || 0), 0);
+  const totalVencer = rows.reduce((s,r) => s + (parseFloat(r.a_vencer)    || 0), 0);
+
+  return (
+    <div className="fin2-tab-body">
+      <div className="fin2-section-header">
+        <Wallet size={14} /> Contas a Receber
+        {erro && <span className="fin-erro-inline">{erro}</span>}
+        <div className="fin2-section-actions">
+          <button className="pp-btn-ghost pp-btn-ghost--sm" onClick={refresh} disabled={loading}>
+            <RefreshCw size={11} className={loading ? 'pp-spin' : ''} />
+          </button>
+        </div>
+      </div>
+
+      {rows.length > 0 ? (
+        <>
+          {/* Mini KPIs de resumo */}
+          <div className="fin2-mini-kpi-row">
+            <div className="fin2-mini-kpi">
+              <span className="fin2-mini-kpi-label">Total em Aberto</span>
+              <span className="fin2-mini-kpi-value" style={{ color: '#3b82f6' }}>
+                {fmtCur.format(totalAberto)}
+              </span>
+            </div>
+            <div className="fin2-mini-kpi fin2-mini-kpi--danger">
+              <span className="fin2-mini-kpi-label">Em Atraso</span>
+              <span className="fin2-mini-kpi-value" style={{ color: '#dc2626' }}>
+                {fmtCur.format(totalAtraso)}
+              </span>
+            </div>
+            <div className="fin2-mini-kpi fin2-mini-kpi--ok">
+              <span className="fin2-mini-kpi-label">A Vencer</span>
+              <span className="fin2-mini-kpi-value" style={{ color: '#16a34a' }}>
+                {fmtCur.format(totalVencer)}
+              </span>
+            </div>
+          </div>
+
+          <div className="fin-table-wrap">
+            <table className="fin-table fin2-table">
+              <thead>
+                <tr>{cols.map(c => <th key={c}>{c.replace(/_/g,' ')}</th>)}</tr>
+              </thead>
+              <tbody>
+                {rows.map((row, i) => (
+                  <tr key={i}>
+                    {cols.map(c => (
+                      <td key={c} style={cellStyle(c, row[c])}
+                        className={isCurrencyCol(c) ? 'fin2-td-num' : ''}>
+                        {fmtCell(c, row[c])}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      ) : (
+        !erro && !loading && <p className="fin-vazio">Nenhum título em aberto no período.</p>
+      )}
+    </div>
+  );
+}
+
+// ── Painel Fluxo de Caixa ─────────────────────────────────────────────────────
+function PainelFluxo({ slot, empresa, period }) {
+  const { dados, loading, erro, refresh } = useFinData(slot, empresa, period);
+
+  if (!slot) return <SemConsulta slot="financeiro_fluxo" />;
+  if (loading && !dados) return <FinLoading />;
+
+  const rows  = dados?.rows || [];
+  const cols  = dados?.columns || [];
+  const total = rows.reduce((s, r) => s + (parseFloat(r.total_recebido) || 0), 0);
+
+  const chartData = rows.map(r => ({
+    data:      fmtDate(r.data),
+    Recebido:  parseFloat(r.total_recebido) || 0,
+  }));
+
+  return (
+    <div className="fin2-tab-body">
+      <div className="fin2-section-header">
+        <Activity size={14} /> Recebimentos por Dia
+        {erro && <span className="fin-erro-inline">{erro}</span>}
+        <div className="fin2-section-actions">
+          {total > 0 && <span className="fin2-section-total">{fmtCur.format(total)}</span>}
+          <button className="pp-btn-ghost pp-btn-ghost--sm" onClick={refresh} disabled={loading}>
+            <RefreshCw size={11} className={loading ? 'pp-spin' : ''} />
+          </button>
+        </div>
+      </div>
+
+      {rows.length > 0 ? (
+        <>
+          <div className="fin2-chart-wrap">
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}
+                barSize={Math.max(4, Math.min(20, Math.floor(600 / chartData.length)))}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+                <XAxis dataKey="data"
+                  tick={{ fontSize: 10, fill: 'var(--color-text-muted)' }}
+                  axisLine={false} tickLine={false}
+                  interval={chartData.length > 15 ? 'preserveStartEnd' : 0} />
+                <YAxis
+                  tickFormatter={v => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v}
+                  tick={{ fontSize: 10, fill: 'var(--color-text-muted)' }}
+                  axisLine={false} tickLine={false} width={46} />
+                <Tooltip content={<ChartTooltip />} cursor={{ fill: 'rgba(34,197,94,0.07)' }} />
+                <Bar dataKey="Recebido" name="Recebido" fill="#22c55e" radius={[4,4,0,0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div className="fin-table-wrap">
+            <table className="fin-table fin2-table">
+              <thead>
+                <tr>{cols.map(c => <th key={c}>{c.replace(/_/g,' ')}</th>)}</tr>
+              </thead>
+              <tbody>
+                {rows.map((row, i) => (
+                  <tr key={i}>
+                    {cols.map(c => (
+                      <td key={c} style={cellStyle(c, row[c])}
+                        className={isCurrencyCol(c) ? 'fin2-td-num' : ''}>
+                        {fmtCell(c, row[c])}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+              <TfootTotals cols={cols} rows={rows} />
+            </table>
+          </div>
+        </>
+      ) : (
+        !erro && !loading && <p className="fin-vazio">Nenhum recebimento encontrado no período.</p>
       )}
     </div>
   );
@@ -231,20 +519,16 @@ export default function Financeiro({ empresas }) {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   });
-
-  // Slots configurados no Gerenciador de Consultas
+  const [activeTab, setActiveTab] = useState('resumo');
   const [slots, setSlots] = useState({
-    resumo:  undefined,   // undefined = carregando, null = não existe
-    vendas:  undefined,
-    custos:  undefined,
-    fluxo:   undefined,
+    resumo: undefined, vendas: undefined, custos: undefined, fluxo: undefined,
   });
 
   useEffect(() => {
     const fetchSlot = nome =>
       apiFetch(`/api/queries?ativa=true&slot=${nome}`)
         .then(r => r.json())
-        .then(d => (Array.isArray(d) && d.length ? d[0] : null))
+        .then(d => Array.isArray(d) && d.length ? d[0] : null)
         .catch(() => null);
 
     Promise.all([
@@ -252,67 +536,52 @@ export default function Financeiro({ empresas }) {
       fetchSlot('financeiro_vendas'),
       fetchSlot('financeiro_custos'),
       fetchSlot('financeiro_fluxo'),
-    ]).then(([resumo, vendas, custos, fluxo]) => {
-      setSlots({ resumo, vendas, custos, fluxo });
-    });
+    ]).then(([resumo, vendas, custos, fluxo]) => setSlots({ resumo, vendas, custos, fluxo }));
   }, [empresa]);
 
-  const loading = Object.values(slots).some(s => s === undefined);
+  const loadingSlots = Object.values(slots).some(s => s === undefined);
 
   return (
-    <div className="fin-wrap">
+    <div className="fin2-wrap">
 
       {/* ── Cabeçalho ── */}
-      <div className="fin-header">
-        <div className="fin-header-title">
+      <div className="fin2-header">
+        <div className="fin2-header-title">
           <Landmark size={18} />
           <h1>Financeiro</h1>
         </div>
         <PeriodPicker period={period} onChange={setPeriod} />
       </div>
 
-      {loading ? (
+      {loadingSlots ? (
         <div className="fin-loading fin-loading--full">
           <RefreshCw size={20} className="pp-spin" />
           <span>Carregando módulos financeiros…</span>
         </div>
       ) : (
-        <div className="fin-body">
-
-          {/* ── Resumo ── */}
-          <PainelResumo
-            slot={slots.resumo}
-            empresa={empresa}
-            period={period}
-          />
-
-          {/* ── Vendas / Custos / Fluxo em grid 2 colunas ── */}
-          <div className="fin-panels-grid">
-            <PainelTabela
-              slot={slots.vendas}
-              slotNome="financeiro_vendas"
-              icon={TrendingUp}
-              empresa={empresa}
-              period={period}
-            />
-            <PainelTabela
-              slot={slots.custos}
-              slotNome="financeiro_custos"
-              icon={TrendingDown}
-              empresa={empresa}
-              period={period}
-            />
+        <>
+          {/* ── Barra de abas ── */}
+          <div className="fin2-tabs-bar">
+            {TABS.map(t => (
+              <button
+                key={t.key}
+                className={`fin2-tab-btn${activeTab === t.key ? ' fin2-tab-btn--active' : ''}`}
+                onClick={() => setActiveTab(t.key)}
+              >
+                <t.Icon size={13} />
+                <span>{t.label}</span>
+              </button>
+            ))}
           </div>
 
-          <PainelTabela
-            slot={slots.fluxo}
-            slotNome="financeiro_fluxo"
-            icon={BarChart3}
-            empresa={empresa}
-            period={period}
-          />
-
-        </div>
+          {/* ── Conteúdo da aba ativa ── */}
+          <div className="fin2-content">
+            {activeTab === 'resumo' && <PainelResumo slot={slots.resumo} empresa={empresa} period={period} />}
+            {activeTab === 'vendas' && <PainelVendas slot={slots.vendas} empresa={empresa} period={period} />}
+            {activeTab === 'custos' && <PainelCustos slot={slots.custos} empresa={empresa} period={period} />}
+            {activeTab === 'fluxo'  && <PainelFluxo  slot={slots.fluxo}  empresa={empresa} period={period} />}
+          </div>
+        </>
       )}
     </div>
   );
