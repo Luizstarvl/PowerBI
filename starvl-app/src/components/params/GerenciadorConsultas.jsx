@@ -9,7 +9,7 @@ import { apiFetch } from '../../api';
 import Portal from '../../Portal';
 
 // ── Constantes ─────────────────────────────────────────────────────────────────
-const CATEGORIAS = ['Dashboard', 'Cadastros', 'Estoque', 'Indicadores', 'Relatórios', 'Cards', 'Gráficos', 'Listagens', 'Outros'];
+const CATEGORIAS = ['Dashboard', 'Cadastros', 'Estoque', 'Financeiro', 'Planejamento', 'Indicadores', 'Relatórios', 'Cards', 'Gráficos', 'Listagens', 'Outros'];
 
 const DASHBOARD_SLOTS = [
   { value: '',                  label: '— Nenhum —' },
@@ -35,6 +35,8 @@ const CAT_COLORS = {
   Relatórios:  { bg: '#fce7f3', color: '#9d174d' },
   Cards:       { bg: '#fef3c7', color: '#92400e' },
   Gráficos:    { bg: '#e0f2fe', color: '#075985' },
+  Financeiro:  { bg: '#dbeafe', color: '#1e40af' },
+  Planejamento:{ bg: '#fce7f3', color: '#be185d' },
   Listagens:   { bg: '#f3f4f6', color: '#374151' },
   Outros:      { bg: '#f3f4f6', color: '#374151' },
 };
@@ -374,6 +376,54 @@ function ModalQueryForm({ query, conexoes, onSave, onClose }) {
                 </select>
                 <span style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4, display: 'block' }}>
                   Os resultados desta consulta alimentarão o módulo Estoque. Use <code style={{ fontSize: 10 }}>{'{{empresa}}'}</code> para filtrar por empresa.
+                </span>
+              </div>
+            )}
+
+            {/* Painel Financeiro */}
+            {form.categoria === 'Financeiro' && (
+              <div className="form-field" style={{ margin: 0 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                  </svg>
+                  Vincular ao módulo Financeiro
+                </label>
+                <select value={form.slot} onChange={e => set('slot', e.target.value)} style={{ width: '100%' }}>
+                  <option value="">— Nenhum —</option>
+                  <option value="financeiro_resumo">💰 Resumo do Período (KPIs)</option>
+                  <option value="financeiro_vendas">📈 Evolução de Vendas</option>
+                  <option value="financeiro_custos">📉 Custos Operacionais</option>
+                  <option value="financeiro_fluxo">💸 Fluxo de Caixa</option>
+                </select>
+                <span style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4, display: 'block' }}>
+                  Use <code style={{ fontSize: 10 }}>{'{{empresa}}'}</code>, <code style={{ fontSize: 10 }}>{'{{data_inicio}}'}</code> e <code style={{ fontSize: 10 }}>{'{{data_final}}'}</code> na SQL.
+                </span>
+              </div>
+            )}
+
+            {/* Painel Planejamento Comercial */}
+            {form.categoria === 'Planejamento' && (
+              <div className="form-field" style={{ margin: 0 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                  </svg>
+                  Vincular ao módulo Saúde da Carteira
+                </label>
+                <select value={form.slot} onChange={e => set('slot', e.target.value)} style={{ width: '100%' }}>
+                  <option value="">— Nenhum —</option>
+                  <optgroup label="Saúde da Carteira">
+                    <option value="saude_visao_geral">📊 Visão Geral — KPIs da Carteira</option>
+                    <option value="saude_inadimplencia">⚠️ Inadimplência — Aging por Cliente</option>
+                    <option value="saude_frequencia">📈 Frequência de Compra</option>
+                    <option value="saude_ausentes">🕐 Clientes Ausentes</option>
+                    <option value="saude_score">⭐ Score de Clientes (0–100)</option>
+                    <option value="saude_oportunidades">⚡ Oportunidades e Alertas</option>
+                  </optgroup>
+                </select>
+                <span style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4, display: 'block' }}>
+                  Use <code style={{ fontSize: 10 }}>{'{{empresa}}'}</code>, <code style={{ fontSize: 10 }}>{'{{data_inicio}}'}</code>, <code style={{ fontSize: 10 }}>{'{{data_final}}'}</code> e <code style={{ fontSize: 10 }}>{'{{dias}}'}</code> na SQL.
                 </span>
               </div>
             )}
